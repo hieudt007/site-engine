@@ -3,10 +3,10 @@
 Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên kinh doanh) — mỗi phase kết thúc ở trạng thái chạy được, verify được, trước khi sang phase kế. Nhắc lại mô hình (`architecture.md` §1): repo này build ra **1 gói zip** nhúng trong `lead-base`; Laravel **tự bung** thành N app độc lập (mỗi Website 1 app + 1 DB riêng), không có process trung gian nào. Nhiều mục dưới đây (đánh dấu **[lead-base]**) là việc thực hiện ở repo `lead-base`, không phải repo này — liệt kê để biết thứ tự phụ thuộc.
 
 ## Phase 0 — Khung dự án
-- [ ] `package.json`, TypeScript config, Fastify server rỗng (`GET /health`).
-- [ ] `src/security.ts` — port sign/verify HMAC từ `facebook-gateway/src/security.ts`, viết test.
-- [ ] `prisma/schema.prisma` theo `system_design.md` §1, chạy migration đầu tiên trên Postgres local.
-- [ ] `scripts/build-release.sh` — build + đóng gói `site-engine.zip` (`tech_doc.md` §2).
+- [x] `package.json`, TypeScript config, Fastify server rỗng (`GET /health`).
+- [ ] `src/security.ts` — port sign/verify HMAC từ `facebook-gateway/src/security.ts` (đã port xong, còn thiếu viết test).
+- [x] `prisma/schema.prisma` theo `system_design.md` §1, chạy migration đầu tiên trên Postgres local.
+- [x] `scripts/build-release.sh` — build + đóng gói `site-engine.zip` (`tech_doc.md` §2) — bước `npm run build` đã chạy sạch; bước zip cần môi trường có lệnh `zip` (Linux/CI), chưa test full trên máy dev Windows.
 
 ## Phase 1 — Bung được 1 app thật bằng tay (chưa tự động hoá, chưa domain/SSL)
 - [ ] **[lead-base]** Model `Website` (Laravel, registry — `system_design.md` §2), migration.
