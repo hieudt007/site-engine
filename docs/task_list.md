@@ -4,7 +4,7 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 
 ## Phase 0 — Khung dự án
 - [x] `package.json`, TypeScript config, Fastify server rỗng (`GET /health`).
-- [ ] `src/security.ts` — port sign/verify HMAC từ `facebook-gateway/src/security.ts` (đã port xong, còn thiếu viết test).
+- [x] `src/security.ts` — port sign/verify HMAC từ `facebook-gateway/src/security.ts`, viết test (7 test, `src/security.test.ts`).
 - [x] `prisma/schema.prisma` theo `system_design.md` §1, chạy migration đầu tiên trên Postgres local.
 - [x] `scripts/build-release.sh` — build + đóng gói `site-engine.zip` (`tech_doc.md` §2) — bước `npm run build` đã chạy sạch; bước zip cần môi trường có lệnh `zip` (Linux/CI), chưa test full trên máy dev Windows.
 
