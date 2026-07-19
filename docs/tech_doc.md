@@ -1,0 +1,157 @@
+# Tech Doc — site-engine
+
+## 1. Stack
+
+Node 22 · TypeScript (ESM) · Fastify 5 · Prisma + PostgreSQL · `zod` cho input validation ở mọi route · `bcryptjs`/`crypto` cho HMAC (Node built-in `crypto`, không cần thư viện ngoài — xem cách `facebook-gateway/src/security.ts` implement `signGatewayRequest`/`verifyGatewaySignature`, port lại nguyên logic đó).
+
+Lý do chọn (đã thống nhất trong `PRD.md`): khớp `chatbot-lite`/`facebook-gateway`, nhẹ, dễ đóng gói thành 1 gói chạy độc lập.
+
+## 2. Repo này build ra 1 gói zip, KHÔNG phải 1 service tự deploy
+
+**Chốt (đảo ngược lần 2 so với bản thiết kế đầu)**: `site-engine` không tự deploy lên VPS riêng, không có Orchestrator. Repo này build ra **1 artifact zip** (`site-engine.zip` — code đã compile + `package.json` + `prisma/`), artifact đó được **nhúng vào repo `lead-base`** (vd `resources/site-engine/site-engine.zip`, commit vào git hoặc build/upload lúc release — quyết định lúc code). `lead-base` (Laravel) tự bung zip này thành 1 thư mục app mới mỗi khi tenant tạo Website (`architecture.md` §3) — repo `site-engine` không biết gì về việc mình sẽ bị bung ra nhiều lần, nó chỉ là 1 app Node bình thường, không có khái niệm multi-instance ở tầng code.
+
+Quy trình release (draft): `npm run build` (repo này) → đóng gói `dist/` + `package.json` + `prisma/` thành zip → copy/commit zip đó vào `lead-base/resources/site-engine/` → `lead-base` dùng nguyên zip đó cho mọi lần tạo Website tiếp theo (không build lại mỗi lần tạo — chỉ bung + `npm ci --omit=dev` + `prisma migrate deploy`).
+
+## 3. Cấu trúc thư mục repo `site-engine` (chỉ 1 loại app, không có orchestrator/)
+
+```
+site-engine/
+  src/
+    server.ts              Fastify bootstrap — đọc PORT/DATABASE_URL của CHÍNH NÓ từ .env,
+                            không có khái niệm multi-tenant/domain-routing gì cả
+    config.ts               env loader, throw nếu thiếu biến bắt buộc
+    db.ts                    Prisma client singleton
+    security.ts              sign/verify HMAC (port từ facebook-gateway/src/security.ts) — dùng cho
+                            CẢ 2 chiều (system_design.md §4): ký request gửi đi (đơn hàng, §4.1) VÀ
+                            verify request LeadBase gửi tới (đồng bộ sản phẩm, §4.2) — cùng 1
+                            SITE_ENGINE_SECRET của đúng instance này cho cả 2 chiều
+    plugins/
+      session.ts               @fastify/session + Session Prisma-backed, cookie TENANT (mirror chatbot-lite)
+      customerSession.ts        cookie KHÁCH HÀNG — plugin/tên cookie RIÊNG, không lẫn với session.ts
+    routes/
+      sso.ts                   GET /sso — verify token bàn giao định danh từ LeadBase (system_design.md §5.1)
+      admin/                   UI soạn nội dung, yêu cầu session TENANT (Phase 3)
+        posts.ts
+        settings.ts
+      public/
+        blog.ts
+        products.ts
+        checkout.ts
+        auth.ts                 POST /auth/otp/request, /auth/otp/verify (system_design.md §6.2)
+        account.ts               GET /account/orders, /account/profile
+        seo.ts                    GET /sitemap.xml, /robots.txt (system_design.md §10.3)
+        products-sync.ts          POST /api/products/sync — nhận cú đẩy giá/tồn/trạng thái TỪ
+                                 LeadBase (system_design.md §4.2), verify HMAC bằng security.ts —
+                                 chiều NGƯỢC với leadbaseClient.ts (LeadBase gọi vào, không phải
+                                 app này gọi ra)
+    services/
+      leadbaseClient.ts        gọi API §system_design.md #4.1 (tạo order), ký HMAC — app tự gọi,
+                               KHÔNG có process trung gian nào
+      otpService.ts             sinh/verify OTP, gọi nhà cung cấp SMS (TBD nhà cung cấp)
+
+  prisma/
+    schema.prisma            §system_design.md #1 — bản mẫu, mỗi lần bung ra 1 DB mới chạy
+                             `prisma migrate deploy` lên đúng schema này
+    migrations/
+
+  package.json
+  tsconfig.json
+
+  scripts/
+    build-release.sh         npm run build + đóng gói dist/+package.json+prisma/ thành site-engine.zip
+                             (chạy trong CHÍNH repo này, output copy sang lead-base thủ công/CI)
+
+  docs/
+    PRD.md
+    architecture.md
+    system_design.md
+    tech_doc.md
+    task_list.md
+```
+
+## 4. Phần chạy trong repo `lead-base` (không phải repo này — chỉ ghi chú để rõ ranh giới)
+
+Các file dưới đây **thuộc về `lead-base`**, không phải `site-engine` — liệt kê ở đây để biết site-engine cần "khớp" với cái gì khi bị bung ra:
+
+```
+lead-base/
+  resources/site-engine/site-engine.zip     gói zip nhúng (từ §2)
+  app/Services/WebsiteProvisionService.php   mirror LandingDomainProvisionService — bung zip,
+                                             tạo DB, sinh secret, chạy migrate, cấp port, systemd,
+                                             nginx (architecture.md §3)
+  app/Services/ProductSyncService.php         gọi POST {website.domain}/api/products/sync mỗi khi
+                                             sản phẩm LeadBase đổi (tạo/sửa), ký HMAC bằng
+                                             Website.secret, có retry/queue khi Website down
+                                             (system_design.md §4.2 — TBD cơ chế retry cụ thể)
+  app/Models/Website.php                      registry, có field secret mã hoá (system_design.md §2)
+  scripts/site-engine-provision-domain.sh     mirror crm-provision-domain.sh, action nginx/remove
+                                             (system_design.md §3 — KHÔNG còn action ssl)
+  systemd/site-engine-instance@.service       template unit, %i = websiteId (§5)
+```
+
+## 5. systemd template unit (`site-engine-instance@.service`)
+
+Vẫn dùng systemd template (`%i` = websiteId) dù không còn Orchestrator — vì lý do chọn nó **không đổi**: cần chạy N bản của cùng 1 app, mỗi bản đọc `.env` riêng. Chỉ khác ai tạo file `.env`/enable unit: giờ là `WebsiteProvisionService.php` (Laravel) thay vì 1 process Node riêng.
+
+```ini
+[Unit]
+Description=site-engine app for website %i
+
+[Service]
+WorkingDirectory=/var/www/site-engine/%i
+EnvironmentFile=/etc/site-engine/instances/%i.env
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+User=site-engine
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Laravel tạo `/etc/site-engine/instances/{websiteId}.env` (chứa `PORT`, `DATABASE_URL` riêng) rồi `sudo systemctl enable --now site-engine-instance@{websiteId}` — đúng pattern `escapeshellarg`/`execFile`, validate `websiteId` bằng regex trước khi đưa vào lệnh shell, giống cách `LandingDomainProvisionService::run()` validate domain hiện có.
+
+## 6. Biến môi trường (1 file `.env` riêng/website, do Laravel sinh ra lúc bung app)
+
+```
+PORT=...                            # do Laravel cấp, duy nhất/instance
+DATABASE_URL=postgresql://.../site_engine_{websiteId}
+
+SITE_ENGINE_SECRET=...               # RIÊNG từng Website, do Laravel sinh ngẫu nhiên lúc tạo
+                                     # (architecture.md §3, system_design.md §2) — dùng ký/verify
+                                     # CẢ 3 chiều của đúng instance này: đơn hàng (§4.1), đồng bộ
+                                     # sản phẩm (§4.2), bàn giao định danh SSO (§5.1). KHÔNG dùng
+                                     # chung 1 giá trị cho mọi Website — lộ .env 1 instance chỉ
+                                     # ảnh hưởng đúng instance đó
+LEADBASE_API_URL=https://{tenant_domain}   # domain LeadBase của CHÍNH tenant đó (cùng VPS)
+
+SESSION_SECRET=...                  # ký cookie session TENANT — RIÊNG theo từng website
+CUSTOMER_SESSION_SECRET=...         # ký cookie session KHÁCH HÀNG — riêng theo từng website
+
+SMS_PROVIDER=...                    # OTP SMS (system_design.md §6.2) — TBD nhà cung cấp
+SMS_API_KEY=...
+SMS_API_SECRET=...
+```
+
+Không có secret riêng theo từng mục đích (đơn hàng/SSO/đồng bộ sản phẩm) — cả 3 dùng chung đúng 1 `SITE_ENGINE_SECRET`/instance, vì đây là quan hệ 2 phía cố định (LeadBase ↔ đúng 1 Website đó), không phải mô hình 3 bên như facebook-gateway (vốn cần 2 secret để tách chiều forge webhook/impersonate API). Khác biệt so với bản thiết kế đầu: secret giờ **sinh riêng theo từng Website** (không phải 1 biến `.env` cố định toàn cục của LeadBase) — xem `architecture.md` §3.
+
+## 7. Coding conventions (kế thừa từ facebook-gateway/chatbot-lite)
+
+- Input validation bằng `zod` ở mọi route nhận body/query từ bên ngoài.
+- Không log secret/HMAC ra console hay file (bài học từ gotcha #2 của chatbot-lite).
+- Code trong repo này **không được có bất kỳ khái niệm multi-tenant nào** (không cột định danh website, không domain-routing theo Host header) — app luôn giả định "mình chỉ phục vụ đúng 1 website". Nếu thấy mình đang viết code kiểu "tra theo websiteId", đó là dấu hiệu nhầm sang tư duy kiến trúc cũ, cần dừng lại xem `architecture.md` §1.
+
+## 8. Việc cần chuẩn bị phía VPS (thực hiện 1 lần lúc `lead-base` bootstrap, không phải việc của repo này)
+
+Ghi chú để biết `lead-base/scripts/setup-vps.sh` cần thêm gì (không detail hoá ở đây vì thuộc repo khác):
+1. Node 22 cài sẵn trên VPS (đã có nếu VPS chạy 9router).
+2. Postgres — user Laravel chạy dưới có quyền `CREATE DATABASE`/`DROP DATABASE`.
+3. Cài `systemd/site-engine-instance@.service` vào `/etc/systemd/system/`, `daemon-reload`.
+4. Sudoers `NOPASSWD` cho script `site-engine-provision-domain.sh` (mirror `crm-provision-domain.sh`).
+5. User hệ thống riêng chạy các tiến trình `site-engine-instance@*` (không phải `www-data`, không phải root) — mirror lý do LeadBase hiện dùng `www-data` riêng cho PHP-FPM.
+
+## 9. Testing
+
+Chưa có framework test cụ thể — khuyến nghị `vitest` (nhẹ, hợp ESM/TS). Bắt buộc có test cho:
+- HMAC sign/verify cả 2 chiều (app → LeadBase gửi đơn hàng, VÀ LeadBase → app đồng bộ sản phẩm), timestamp window, tamper detection.
+- Token bàn giao định danh `/sso` (verify chữ ký, hết hạn, chống replay).
+- Toàn bộ flow OTP (rate-limit, sai code, hết hạn).
