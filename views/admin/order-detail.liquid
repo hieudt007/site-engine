@@ -1,0 +1,36 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Chi tiết đơn hàng</h1>
+  <a class="btn" href="/admin/orders">← Danh sách</a>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <p><strong>Khách hàng:</strong> {{ order.customerName | escape }}</p>
+  <p><strong>SĐT:</strong> {{ order.customerPhone | escape }}</p>
+  <p><strong>Địa chỉ:</strong> {{ order.customerAddress | default: "-" | escape }}</p>
+  <p><strong>Trạng thái:</strong> {{ order.status }}</p>
+  {% if order.leadbaseOrderCode %}<p><strong>Mã đơn LeadBase:</strong> {{ order.leadbaseOrderCode }}</p>{% endif %}
+  {% if order.sendError %}
+    <p style="color:#991b1b;"><strong>Lỗi gửi:</strong> {{ order.sendError | escape }}</p>
+  {% endif %}
+  <p><strong>Ngày đặt:</strong> {{ order.createdAt | date: "%d/%m/%Y %H:%M" }}</p>
+</div>
+
+<div class="card">
+  <h2 style="font-size:1rem;margin-top:0;">Sản phẩm</h2>
+  <table>
+    <thead><tr><th>Tên</th><th>Số lượng</th><th>Đơn giá</th></tr></thead>
+    <tbody>
+      {% for item in order.items %}
+        <tr>
+          <td>{{ item.name | escape }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.price }}₫</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="text-align:right;margin-top:0.8rem;font-weight:700;">Tổng: {{ order.total }}₫</div>
+</div>
+{% endblock %}

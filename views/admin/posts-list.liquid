@@ -5,10 +5,21 @@
   <a class="btn btn-primary" href="/admin/posts/new">+ Bài mới</a>
 </div>
 
+<div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+  <input type="search" id="search-input" class="search-input" placeholder="Tìm theo tiêu đề...">
+  <select id="category-filter" style="max-width:220px;">
+    <option value="">Tất cả danh mục</option>
+    {% for c in categories %}
+      <option value="{{ c.id }}">{{ c.name | escape }}</option>
+    {% endfor %}
+  </select>
+</div>
+
 <table>
   <thead>
     <tr>
       <th>Tiêu đề</th>
+      <th>Danh mục</th>
       <th>Trạng thái</th>
       <th>Tác giả</th>
       <th>Cập nhật</th>
@@ -16,16 +27,23 @@
     </tr>
   </thead>
   <tbody id="posts-body">
-    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
+<div class="pagination" id="pagination"></div>
 
 <script>
 (function () {
   const CURRENT_ROLE = "{{ role }}";
   const canManage = CURRENT_ROLE === "manager" || CURRENT_ROLE === "admin";
   const tbody = document.getElementById("posts-body");
+  const pagination = document.getElementById("pagination");
   const flash = document.getElementById("flash");
+  const searchInput = document.getElementById("search-input");
+  const categoryFilter = document.getElementById("category-filter");
+
+  let currentPage = 1;
+  let searchTimer;
 
   function showError(message) {
     flash.textContent = message;
@@ -43,6 +61,7 @@
       ? '<span class="status-badge status-published">Đã xuất bản</span>'
       : '<span class="status-badge status-draft">Nháp</span>';
     const author = post.author ? escapeHtml(post.author.name) : "-";
+    const category = post.category ? escapeHtml(post.category.name) : "-";
     const updated = new Date(post.updatedAt).toLocaleString("vi-VN");
     const publishBtn = !post.publishedAt && canManage
       ? '<button class="btn" data-action="publish" data-id="' + post.id + '">Xuất bản</button>'
@@ -53,6 +72,7 @@
     return (
       "<tr>" +
       '<td><a href="/admin/posts/' + post.id + '">' + escapeHtml(post.title) + "</a></td>" +
+      "<td>" + category + "</td>" +
       "<td>" + statusBadge + "</td>" +
       "<td>" + author + "</td>" +
       "<td>" + updated + "</td>" +
@@ -62,16 +82,39 @@
   }
 
   async function load() {
-    const res = await fetch("/admin/api/posts");
+    const params = new URLSearchParams({ page: String(currentPage) });
+    if (searchInput.value) params.set("q", searchInput.value);
+    if (categoryFilter.value) params.set("categoryId", categoryFilter.value);
+
+    const res = await fetch("/admin/api/posts?" + params.toString());
     if (!res.ok) {
       showError("Không tải được danh sách bài viết");
       return;
     }
-    const { posts } = await res.json();
+    const { posts, hasNext, hasPrev } = await res.json();
     tbody.innerHTML = posts.length
       ? posts.map(rowHtml).join("")
-      : '<tr><td colspan="5" style="color:#999;">Chưa có bài viết nào.</td></tr>';
+      : '<tr><td colspan="6" class="empty-state">Không tìm thấy bài viết nào.</td></tr>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
   }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; load(); }, 300);
+  });
+  categoryFilter.addEventListener("change", () => { currentPage = 1; load(); });
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
 
   tbody.addEventListener("click", async (event) => {
     const btn = event.target.closest("button[data-action]");

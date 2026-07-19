@@ -12,7 +12,7 @@
 {% endif %}
 
 {% if product.hasVariants %}
-  <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;">
+  <div class="card" style="margin-bottom:1.2rem;">
     <strong style="font-size:0.85rem;color:#555;">Biến thể — đồng bộ từ LeadBase, chỉ đọc:</strong>
     <table style="margin-top:0.6rem;">
       <thead>
@@ -43,7 +43,7 @@
     <div style="margin-top:0.5rem;font-size:0.8rem;color:#999;">Đồng bộ lần cuối: {{ product.syncedAt }}</div>
   </div>
 {% else %}
-  <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#555;">
+  <div class="card" style="margin-bottom:1.2rem;font-size:0.85rem;color:#555;">
     <strong>Đồng bộ từ LeadBase (chỉ đọc):</strong>
     Giá <strong>{{ product.price }}₫</strong>{% if product.salePrice %} · Giá KM <strong>{{ product.salePrice }}₫</strong>{% endif %}
     · Tồn kho <strong>{{ product.stock | default: "-" }}</strong>
@@ -52,7 +52,7 @@
   </div>
 {% endif %}
 
-<form id="product-form">
+<form id="product-form" class="card">
   <label for="name">Tên sản phẩm</label>
   <input type="text" id="name" name="name" value="{{ product.name | escape }}" required>
 

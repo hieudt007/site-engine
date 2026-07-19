@@ -5,48 +5,131 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ pageTitle | default: "Quản trị" }}</title>
   <style>
+    :root {
+      --color-primary: #2563eb;
+      --color-primary-dark: #1d4ed8;
+      --color-danger: #dc2626;
+      --color-danger-dark: #b91c1c;
+      --color-sidebar-bg: #111827;
+      --color-sidebar-text: #9ca3af;
+      --color-bg: #f6f7f9;
+      --color-card-bg: #fff;
+      --color-border: #e5e7eb;
+      --color-text: #1a1a1a;
+      --color-text-muted: #6b7280;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.5rem;
+      --space-6: 2rem;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; background: #f6f7f9; }
-    nav.admin-nav { background: #111827; color: #fff; padding: 0.85rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; }
-    nav.admin-nav a { color: #cbd5e1; text-decoration: none; font-size: 0.9rem; }
-    nav.admin-nav a.brand { color: #fff; font-weight: 700; }
-    nav.admin-nav .spacer { flex: 1; }
-    nav.admin-nav .role-badge { background: #2563eb; color: #fff; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; }
-    main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
-    .btn { display: inline-block; border: 1px solid #d1d5db; background: #fff; color: #111; padding: 0.45rem 0.9rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; text-decoration: none; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--color-text); background: var(--color-bg); display: flex; min-height: 100vh; }
+
+    .sidebar { width: 224px; flex-shrink: 0; background: var(--color-sidebar-bg); color: #fff; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-brand { padding: var(--space-5) var(--space-5) var(--space-4); font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; display: block; }
+    .sidebar-group { margin-top: var(--space-3); }
+    .sidebar-group-label { padding: 0 var(--space-5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: var(--space-2); }
+    .sidebar-link { display: block; padding: var(--space-2) var(--space-5); color: var(--color-sidebar-text); text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .sidebar-link.active { background: rgba(37,99,235,0.15); color: #fff; font-weight: 600; border-left-color: var(--color-primary); }
+    .sidebar-footer { margin-top: auto; padding: var(--space-4) var(--space-5); border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: var(--color-sidebar-text); }
+
+    main { flex: 1; min-width: 0; padding: var(--space-6); max-width: 1100px; }
+
+    .role-badge { display: inline-block; background: var(--color-primary); color: #fff; font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; }
+
+    .btn { display: inline-block; border: 1px solid var(--color-border); background: var(--color-card-bg); color: #111; padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem; cursor: pointer; text-decoration: none; }
     .btn:hover { background: #f3f4f6; }
-    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-    .btn-primary:hover { background: #1d4ed8; }
-    .btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
-    .btn-danger:hover { background: #b91c1c; }
+    .btn-primary { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+    .btn-primary:hover { background: var(--color-primary-dark); }
+    .btn-danger { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+    .btn-danger:hover { background: var(--color-danger-dark); }
     .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+
+    .card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-5); }
+
+    table { width: 100%; border-collapse: collapse; background: var(--color-card-bg); border-radius: var(--radius-md); overflow: hidden; }
     th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
-    th { background: #fafafa; color: #666; font-weight: 600; }
-    input[type=text], textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+    th { background: #fafafa; color: var(--color-text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+    input[type=text], input[type=search], input[type=number], select, textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.9rem; font-family: inherit; }
     textarea { min-height: 260px; resize: vertical; font-family: ui-monospace, monospace; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; margin: 1rem 0 0.3rem; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin: var(--space-4) 0 0.3rem; }
     .field-hint { color: #888; font-size: 0.78rem; margin-top: 0.2rem; }
-    .status-badge { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; }
+
+    .status-badge { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; }
     .status-published { background: #dcfce7; color: #166534; }
     .status-draft { background: #f3f4f6; color: #666; }
-    #flash { margin-bottom: 1rem; padding: 0.6rem 0.9rem; border-radius: 6px; font-size: 0.85rem; display: none; }
+    .status-failed { background: #fee2e2; color: #991b1b; }
+
+    .search-input { max-width: 320px; }
+    .filter-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
+    .filter-tab { padding: var(--space-2) var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .filter-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-4); font-size: 0.85rem; color: var(--color-text-muted); }
+    .pagination a { color: var(--color-primary); text-decoration: none; }
+
+    .empty-state { text-align: center; padding: var(--space-6) var(--space-4); color: var(--color-text-muted); font-size: 0.9rem; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6); }
+    .stat-card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); text-decoration: none; color: inherit; display: block; }
+    .stat-card:hover { border-color: var(--color-primary); }
+    .stat-card .stat-value { font-size: 1.6rem; font-weight: 700; }
+    .stat-card .stat-label { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 0.2rem; }
+    .stat-card.stat-alert .stat-value { color: var(--color-danger); }
+
+    #flash { margin-bottom: var(--space-4); padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem; display: none; }
     #flash.error { background: #fee2e2; color: #991b1b; display: block; }
     #flash.success { background: #dcfce7; color: #166534; display: block; }
+
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; overflow-x: auto; padding: var(--space-2) 0; }
+      .sidebar-brand { padding: var(--space-2) var(--space-4); }
+      .sidebar-group { margin-top: 0; display: flex; align-items: center; }
+      .sidebar-group-label { display: none; }
+      .sidebar-link { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; }
+      .sidebar-link.active { border-left: none; border-bottom-color: var(--color-primary); }
+      .sidebar-footer { display: none; }
+      main { padding: var(--space-4); }
+    }
   </style>
 </head>
 <body>
-  <nav class="admin-nav">
-    <a class="brand" href="/admin">Quản trị</a>
-    <a href="/admin/posts">Bài viết</a>
-    <a href="/admin/media">Media</a>
-    {% if role == "manager" or role == "admin" %}<a href="/admin/products">Sản phẩm</a>{% endif %}
-    {% if role == "manager" or role == "admin" %}<a href="/admin/post-categories">Danh mục</a>{% endif %}
-    {% if role == "manager" or role == "admin" %}<a href="/admin/reviews">Đánh giá</a>{% endif %}
-    {% if role == "manager" or role == "admin" %}<a href="/admin/redirects">Redirect</a>{% endif %}
-    {% if role == "admin" %}<a href="/admin/settings/general">Cài đặt</a>{% endif %}
-    <div class="spacer"></div>
-    {% if role %}<span class="role-badge">{{ role }}</span>{% endif %}
+  <nav class="sidebar">
+    <a class="sidebar-brand" href="/admin">Quản trị</a>
+
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Nội dung</div>
+      <a class="sidebar-link{% if currentPath contains "/admin/posts" %} active{% endif %}" href="/admin/posts">Bài viết</a>
+      {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/post-categories" %} active{% endif %}" href="/admin/post-categories">Danh mục bài viết</a>{% endif %}
+      <a class="sidebar-link{% if currentPath contains "/admin/media" %} active{% endif %}" href="/admin/media">Media</a>
+    </div>
+
+    {% if role == "manager" or role == "admin" %}
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Thương mại</div>
+        <a class="sidebar-link{% if currentPath contains "/admin/products" %} active{% endif %}" href="/admin/products">Sản phẩm</a>
+        <a class="sidebar-link{% if currentPath contains "/admin/orders" %} active{% endif %}" href="/admin/orders">Đơn hàng</a>
+        <a class="sidebar-link{% if currentPath contains "/admin/reviews" %} active{% endif %}" href="/admin/reviews">Đánh giá</a>
+      </div>
+    {% endif %}
+
+    {% if role == "manager" or role == "admin" %}
+      <div class="sidebar-group">
+        <div class="sidebar-group-label">Hệ thống</div>
+        <a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">Redirect</a>
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings" %} active{% endif %}" href="/admin/settings/general">Cài đặt</a>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="sidebar-footer">
+      {% if role %}<span class="role-badge">{{ role }}</span>{% endif %}
+    </div>
   </nav>
   <main>
     <div id="flash"></div>

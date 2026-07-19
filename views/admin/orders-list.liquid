@@ -1,0 +1,107 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Đơn hàng</h1>
+<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+  Đơn khách đặt qua website. Chỉ đọc — sửa đơn thật ở LeadBase CRM.
+</p>
+
+<div class="filter-tabs" id="status-tabs">
+  <a href="#" data-status="" class="filter-tab">Tất cả</a>
+  <a href="#" data-status="pending" class="filter-tab">Đang xử lý</a>
+  <a href="#" data-status="sent_to_leadbase" class="filter-tab">Đã gửi</a>
+  <a href="#" data-status="failed" class="filter-tab">Lỗi gửi</a>
+</div>
+
+<table>
+  <thead>
+    <tr><th>Khách hàng</th><th>SĐT</th><th>Tổng tiền</th><th>Trạng thái</th><th>Ngày đặt</th><th></th></tr>
+  </thead>
+  <tbody id="orders-body">
+    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+<div class="pagination" id="pagination"></div>
+
+<script>
+(function () {
+  const tbody = document.getElementById("orders-body");
+  const pagination = document.getElementById("pagination");
+  const tabs = document.getElementById("status-tabs");
+  let currentStatus = "{{ initialStatus }}";
+  let currentPage = 1;
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function statusBadge(status) {
+    const map = {
+      pending: ["Đang xử lý", "status-draft"],
+      sent_to_leadbase: ["Đã gửi", "status-published"],
+      failed: ["Lỗi gửi", "status-failed"],
+    };
+    const [label, cls] = map[status] || [status, "status-draft"];
+    return '<span class="status-badge ' + cls + '">' + label + '</span>';
+  }
+
+  function rowHtml(o) {
+    return (
+      "<tr>" +
+      "<td>" + escapeHtml(o.customerName) + "</td>" +
+      "<td>" + escapeHtml(o.customerPhone) + "</td>" +
+      "<td>" + o.total + "₫</td>" +
+      "<td>" + statusBadge(o.status) + "</td>" +
+      "<td>" + new Date(o.createdAt).toLocaleString("vi-VN") + "</td>" +
+      '<td><a class="btn" href="/admin/orders/' + o.id + '">Xem</a></td>' +
+      "</tr>"
+    );
+  }
+
+  function renderTabs() {
+    tabs.querySelectorAll(".filter-tab").forEach((tab) => {
+      tab.classList.toggle("active", tab.dataset.status === currentStatus);
+    });
+  }
+
+  async function load() {
+    const params = new URLSearchParams({ page: String(currentPage) });
+    if (currentStatus) params.set("status", currentStatus);
+
+    const res = await fetch("/admin/api/orders?" + params.toString());
+    const { orders, hasNext, hasPrev } = await res.json();
+
+    tbody.innerHTML = orders.length
+      ? orders.map(rowHtml).join("")
+      : '<tr><td colspan="6" class="empty-state">Không có đơn hàng nào.</td></tr>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
+  }
+
+  tabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("a[data-status]");
+    if (!tab) return;
+    event.preventDefault();
+    currentStatus = tab.dataset.status;
+    currentPage = 1;
+    renderTabs();
+    load();
+  });
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
+
+  renderTabs();
+  load();
+})();
+</script>
+{% endblock %}

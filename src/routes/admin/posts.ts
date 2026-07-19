@@ -19,6 +19,7 @@ const createPostSchema = z.object({
 });
 
 const updatePostSchema = createPostSchema.partial();
+const PAGE_SIZE = 20;
 
 function auditLog(userId: number, action: string, entityId: string, metadata?: object) {
   return prisma.auditLog.create({
@@ -29,13 +30,33 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 // CRUD bài viết (system_design.md §5.2): "edit" chỉ tạo/sửa được bài NHÁP (chưa publishedAt),
 // không tự xuất bản/xoá; "manager"/"admin" mới publish/xoá được.
 export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/api/posts", { preHandler: requireRole("edit") }, async () => {
-    const posts = await prisma.post.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { author: { select: { name: true } } },
-    });
-    return { posts };
-  });
+  app.get<{ Querystring: { page?: string; q?: string; categoryId?: string } }>(
+    "/admin/api/posts",
+    { preHandler: requireRole("edit") },
+    async (request) => {
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+      const { q, categoryId } = request.query;
+
+      const where = {
+        ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+        ...(categoryId ? { categoryId } : {}),
+      };
+
+      const [posts, total] = await Promise.all([
+        prisma.post.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: PAGE_SIZE,
+          include: { author: { select: { name: true } }, category: { select: { name: true } } },
+        }),
+        prisma.post.count({ where }),
+      ]);
+
+      return { posts, total, page, hasNext: skip + posts.length < total, hasPrev: page > 1 };
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     "/admin/api/posts/:id",

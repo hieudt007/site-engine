@@ -1,14 +1,30 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin:0 0 1.2rem;">Sản phẩm</h1>
-<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+<h1 style="margin:0 0 0.3rem;">Sản phẩm</h1>
+<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
   Đồng bộ tự động từ LeadBase (giá/tồn kho/trạng thái). Sửa tên/mô tả/ảnh/SEO tại đây, LeadBase không ghi đè.
 </p>
+
+<div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+  <input type="search" id="search-input" class="search-input" placeholder="Tìm theo tên sản phẩm...">
+  <select id="category-filter" style="max-width:220px;">
+    <option value="">Tất cả danh mục</option>
+    {% for c in categories %}
+      <option value="{{ c.id }}">{{ c.name | escape }}</option>
+    {% endfor %}
+  </select>
+  <select id="status-filter" style="max-width:180px;">
+    <option value="">Tất cả trạng thái</option>
+    <option value="published">Đã xuất bản</option>
+    <option value="draft">Nháp</option>
+  </select>
+</div>
 
 <table>
   <thead>
     <tr>
       <th>Sản phẩm</th>
+      <th>Danh mục</th>
       <th>Giá</th>
       <th>Tồn kho</th>
       <th>Trạng thái</th>
@@ -16,14 +32,22 @@
     </tr>
   </thead>
   <tbody id="products-body">
-    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
+<div class="pagination" id="pagination"></div>
 
 <script>
 (function () {
   const tbody = document.getElementById("products-body");
+  const pagination = document.getElementById("pagination");
   const flash = document.getElementById("flash");
+  const searchInput = document.getElementById("search-input");
+  const categoryFilter = document.getElementById("category-filter");
+  const statusFilter = document.getElementById("status-filter");
+
+  let currentPage = 1;
+  let searchTimer;
 
   function showError(message) {
     flash.textContent = message;
@@ -43,9 +67,12 @@
     const publishBtn = p.publishStatus !== "published"
       ? '<button class="btn" data-action="publish" data-id="' + p.id + '">Xuất bản</button>'
       : "";
+    const category = p.category ? escapeHtml(p.category.name) : "-";
+    const variantsBadge = p.hasVariants ? ' <span class="status-badge">Có biến thể</span>' : "";
     return (
       "<tr>" +
-      '<td><a href="/admin/products/' + p.id + '">' + escapeHtml(p.name) + "</a></td>" +
+      '<td><a href="/admin/products/' + p.id + '">' + escapeHtml(p.name) + "</a>" + variantsBadge + "</td>" +
+      "<td>" + category + "</td>" +
       "<td>" + p.price + "₫</td>" +
       "<td>" + (p.stock ?? "-") + "</td>" +
       "<td>" + statusBadge + "</td>" +
@@ -55,16 +82,41 @@
   }
 
   async function load() {
-    const res = await fetch("/admin/api/products");
+    const params = new URLSearchParams({ page: String(currentPage) });
+    if (searchInput.value) params.set("q", searchInput.value);
+    if (categoryFilter.value) params.set("categoryId", categoryFilter.value);
+    if (statusFilter.value) params.set("status", statusFilter.value);
+
+    const res = await fetch("/admin/api/products?" + params.toString());
     if (!res.ok) {
       showError("Không tải được danh sách sản phẩm");
       return;
     }
-    const { products } = await res.json();
+    const { products, hasNext, hasPrev } = await res.json();
     tbody.innerHTML = products.length
       ? products.map(rowHtml).join("")
-      : '<tr><td colspan="5" style="color:#999;">Chưa có sản phẩm nào được đồng bộ.</td></tr>';
+      : '<tr><td colspan="6" class="empty-state">Không tìm thấy sản phẩm nào.</td></tr>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
   }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; load(); }, 300);
+  });
+  categoryFilter.addEventListener("change", () => { currentPage = 1; load(); });
+  statusFilter.addEventListener("change", () => { currentPage = 1; load(); });
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
 
   tbody.addEventListener("click", async (event) => {
     const btn = event.target.closest("button[data-action=publish]");

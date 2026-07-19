@@ -8,13 +8,18 @@ import { requireRole } from "../../plugins/requireRole.js";
 // system_design.md task_list §Phase 3) — body lưu markdown/HTML đã sanitize theo docblock Post.
 export async function registerPostsUiRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/posts", { preHandler: requireRole("edit") }, async (request, reply) => {
-    const html = await renderAdmin("posts-list", { role: request.session.get("role") });
+    const categories = await prisma.postCategory.findMany({ orderBy: { name: "asc" } });
+    const html = await renderAdmin("posts-list", {
+      categories,
+      role: request.session.get("role"),
+      currentPath: request.url,
+    });
     return reply.type("text/html").send(html);
   });
 
   app.get("/admin/posts/new", { preHandler: requireRole("edit") }, async (request, reply) => {
     const categories = await prisma.postCategory.findMany({ orderBy: { name: "asc" } });
-    const html = await renderAdmin("post-edit", { post: null, categories, role: request.session.get("role") });
+    const html = await renderAdmin("post-edit", { post: null, categories, role: request.session.get("role"), currentPath: request.url });
     return reply.type("text/html").send(html);
   });
 
@@ -29,7 +34,7 @@ export async function registerPostsUiRoutes(app: FastifyInstance): Promise<void>
       if (!post) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
       }
-      const html = await renderAdmin("post-edit", { post, categories, role: request.session.get("role") });
+      const html = await renderAdmin("post-edit", { post, categories, role: request.session.get("role"), currentPath: request.url });
       return reply.type("text/html").send(html);
     },
   );

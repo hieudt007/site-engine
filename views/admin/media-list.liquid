@@ -10,15 +10,19 @@
 <div id="media-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;">
   <p style="color:#999;">Đang tải...</p>
 </div>
+<div class="pagination" id="pagination"></div>
 
 <script>
 (function () {
   const CURRENT_ROLE = "{{ role }}";
   const canDelete = CURRENT_ROLE === "manager" || CURRENT_ROLE === "admin";
   const grid = document.getElementById("media-grid");
+  const pagination = document.getElementById("pagination");
   const flash = document.getElementById("flash");
   const fileInput = document.getElementById("file-input");
   const status = document.getElementById("upload-status");
+
+  let currentPage = 1;
 
   function showError(message) {
     flash.textContent = message;
@@ -46,12 +50,25 @@
   }
 
   async function load() {
-    const res = await fetch("/admin/api/media");
-    const { media } = await res.json();
+    const res = await fetch("/admin/api/media?page=" + currentPage);
+    const { media, hasNext, hasPrev } = await res.json();
     grid.innerHTML = media.length
       ? media.map(cardHtml).join("")
       : '<p style="color:#999;">Chưa có file nào.</p>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
   }
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];

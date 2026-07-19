@@ -11,6 +11,10 @@
   <button type="submit" class="btn btn-primary">+ Thêm</button>
 </form>
 
+<div style="margin-bottom:1rem;">
+  <input type="search" id="search-input" class="search-input" placeholder="Tìm theo đường dẫn nguồn...">
+</div>
+
 <table>
   <thead>
     <tr><th>Từ</th><th>Đến</th><th>Mã</th><th></th></tr>
@@ -19,11 +23,17 @@
     <tr><td colspan="4" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
+<div class="pagination" id="pagination"></div>
 
 <script>
 (function () {
   const tbody = document.getElementById("redirects-body");
+  const pagination = document.getElementById("pagination");
   const flash = document.getElementById("flash");
+  const searchInput = document.getElementById("search-input");
+
+  let currentPage = 1;
+  let searchTimer;
 
   function showError(message) {
     flash.textContent = message;
@@ -37,15 +47,36 @@
   }
 
   async function load() {
-    const res = await fetch("/admin/api/redirects");
-    const { redirects } = await res.json();
+    const params = new URLSearchParams({ page: String(currentPage) });
+    if (searchInput.value) params.set("q", searchInput.value);
+
+    const res = await fetch("/admin/api/redirects?" + params.toString());
+    const { redirects, hasNext, hasPrev } = await res.json();
     tbody.innerHTML = redirects.length
       ? redirects.map((r) =>
           "<tr><td>" + escapeHtml(r.fromPath) + "</td><td>" + escapeHtml(r.toPath) + "</td><td>" + r.statusCode + "</td>" +
           '<td style="text-align:right;"><button class="btn btn-danger" data-id="' + r.id + '">Xoá</button></td></tr>'
         ).join("")
-      : '<tr><td colspan="4" style="color:#999;">Chưa có redirect nào.</td></tr>';
+      : '<tr><td colspan="4" class="empty-state">Không tìm thấy redirect nào.</td></tr>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
   }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; load(); }, 300);
+  });
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
 
   document.getElementById("new-redirect-form").addEventListener("submit", async (event) => {
     event.preventDefault();

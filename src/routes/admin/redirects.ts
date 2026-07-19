@@ -11,11 +11,27 @@ const redirectSchema = z.object({
   statusCode: z.number().int().optional(),
 });
 
+const PAGE_SIZE = 20;
+
 export async function registerRedirectRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/api/redirects", { preHandler: requireRole("manager") }, async () => {
-    const redirects = await prisma.redirect.findMany({ orderBy: { createdAt: "desc" } });
-    return { redirects };
-  });
+  app.get<{ Querystring: { page?: string; q?: string } }>(
+    "/admin/api/redirects",
+    { preHandler: requireRole("manager") },
+    async (request) => {
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+      const { q } = request.query;
+
+      const where = q ? { fromPath: { contains: q, mode: "insensitive" as const } } : {};
+
+      const [redirects, total] = await Promise.all([
+        prisma.redirect.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.redirect.count({ where }),
+      ]);
+
+      return { redirects, total, page, hasNext: skip + redirects.length < total, hasPrev: page > 1 };
+    },
+  );
 
   app.post("/admin/api/redirects", { preHandler: requireRole("manager") }, async (request, reply) => {
     const parsed = redirectSchema.safeParse(request.body);

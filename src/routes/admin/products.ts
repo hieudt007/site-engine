@@ -14,11 +14,37 @@ const updateContentSchema = z.object({
   metaDescription: z.string().optional(),
 });
 
+const PAGE_SIZE = 20;
+
 export async function registerProductRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/api/products", { preHandler: requireRole("manager") }, async () => {
-    const products = await prisma.productCache.findMany({ orderBy: { syncedAt: "desc" } });
-    return { products };
-  });
+  app.get<{ Querystring: { page?: string; q?: string; categoryId?: string; status?: string } }>(
+    "/admin/api/products",
+    { preHandler: requireRole("manager") },
+    async (request) => {
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+      const { q, categoryId, status } = request.query;
+
+      const where = {
+        ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+        ...(categoryId ? { categoryId } : {}),
+        ...(status ? { publishStatus: status } : {}),
+      };
+
+      const [products, total] = await Promise.all([
+        prisma.productCache.findMany({
+          where,
+          orderBy: { syncedAt: "desc" },
+          skip,
+          take: PAGE_SIZE,
+          include: { category: { select: { name: true } } },
+        }),
+        prisma.productCache.count({ where }),
+      ]);
+
+      return { products, total, page, hasNext: skip + products.length < total, hasPrev: page > 1 };
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     "/admin/api/products/:id",

@@ -1,0 +1,38 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Tổng quan</h1>
+
+<div class="stat-grid">
+  <a class="stat-card" href="/admin/posts">
+    <div class="stat-value">{{ stats.postsPublished }}</div>
+    <div class="stat-label">Bài viết đã xuất bản</div>
+  </a>
+  <a class="stat-card" href="/admin/posts">
+    <div class="stat-value">{{ stats.postsDraft }}</div>
+    <div class="stat-label">Bài viết nháp</div>
+  </a>
+
+  {% if role == "manager" or role == "admin" %}
+    <a class="stat-card" href="/admin/products">
+      <div class="stat-value">{{ stats.productsPublished }}</div>
+      <div class="stat-label">Sản phẩm đã xuất bản</div>
+    </a>
+    <a class="stat-card" href="/admin/products">
+      <div class="stat-value">{{ stats.productsDraft }}</div>
+      <div class="stat-label">Sản phẩm nháp</div>
+    </a>
+    <a class="stat-card" href="/admin/orders">
+      <div class="stat-value">{{ stats.ordersRecent }}</div>
+      <div class="stat-label">Đơn hàng 7 ngày qua</div>
+    </a>
+    <a class="stat-card{% if stats.ordersFailed > 0 %} stat-alert{% endif %}" href="/admin/orders?status=failed">
+      <div class="stat-value">{{ stats.ordersFailed }}</div>
+      <div class="stat-label">Đơn gửi lỗi — cần chú ý</div>
+    </a>
+    <a class="stat-card{% if stats.reviewsPending > 0 %} stat-alert{% endif %}" href="/admin/reviews">
+      <div class="stat-value">{{ stats.reviewsPending }}</div>
+      <div class="stat-label">Đánh giá chờ duyệt</div>
+    </a>
+  {% endif %}
+</div>
+{% endblock %}

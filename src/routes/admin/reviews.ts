@@ -2,15 +2,34 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
+const PAGE_SIZE = 20;
+
 // Duyệt review — "manager" trở lên (§5.2, review gắn với sản phẩm, cùng nhóm quyền với products).
 export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/api/reviews", { preHandler: requireRole("manager") }, async () => {
-    const reviews = await prisma.productReview.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { product: { select: { name: true } } },
-    });
-    return { reviews };
-  });
+  app.get<{ Querystring: { page?: string; status?: string } }>(
+    "/admin/api/reviews",
+    { preHandler: requireRole("manager") },
+    async (request) => {
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+      const status = request.query.status || "pending";
+
+      const where = { status };
+
+      const [reviews, total] = await Promise.all([
+        prisma.productReview.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: PAGE_SIZE,
+          include: { product: { select: { name: true } } },
+        }),
+        prisma.productReview.count({ where }),
+      ]);
+
+      return { reviews, total, page, hasNext: skip + reviews.length < total, hasPrev: page > 1 };
+    },
+  );
 
   app.post<{ Params: { id: string } }>(
     "/admin/api/reviews/:id/approve",

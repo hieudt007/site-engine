@@ -14,6 +14,8 @@ import { registerPostCategoryRoutes } from "./routes/admin/postCategories.js";
 import { registerPostCategoriesUiRoutes } from "./routes/admin/postCategoriesUi.js";
 import { registerMediaRoutes } from "./routes/admin/media.js";
 import { registerMediaUiRoutes } from "./routes/admin/mediaUi.js";
+import { registerOrderRoutes } from "./routes/admin/orders.js";
+import { registerOrdersUiRoutes } from "./routes/admin/ordersUi.js";
 import { registerProductRoutes } from "./routes/admin/products.js";
 import { registerProductsUiRoutes } from "./routes/admin/productsUi.js";
 import { registerRedirectRoutes } from "./routes/admin/redirects.js";
@@ -88,6 +90,8 @@ async function start(): Promise<void> {
   await registerPostCategoriesUiRoutes(app);
   await registerMediaRoutes(app);
   await registerMediaUiRoutes(app);
+  await registerOrderRoutes(app);
+  await registerOrdersUiRoutes(app);
   await registerProductRoutes(app);
   await registerProductsUiRoutes(app);
   await registerRedirectRoutes(app);

@@ -5,7 +5,7 @@
   <a class="btn" href="/admin/posts">← Danh sách</a>
 </div>
 
-<form id="post-form">
+<form id="post-form" class="card">
   <label for="title">Tiêu đề</label>
   <input type="text" id="title" name="title" value="{% if post %}{{ post.title | escape }}{% endif %}" required>
 

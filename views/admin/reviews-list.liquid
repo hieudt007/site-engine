@@ -2,19 +2,30 @@
 {% block content %}
 <h1 style="margin:0 0 1.2rem;">Đánh giá sản phẩm</h1>
 
+<div class="filter-tabs" id="status-tabs">
+  <a href="#" data-status="pending" class="filter-tab">Chờ duyệt</a>
+  <a href="#" data-status="approved" class="filter-tab">Đã duyệt</a>
+  <a href="#" data-status="rejected" class="filter-tab">Từ chối</a>
+</div>
+
 <table>
   <thead>
-    <tr><th>Sản phẩm</th><th>Người đánh giá</th><th>Sao</th><th>Nhận xét</th><th>Trạng thái</th><th></th></tr>
+    <tr><th>Sản phẩm</th><th>Người đánh giá</th><th>Sao</th><th>Nhận xét</th><th></th></tr>
   </thead>
   <tbody id="reviews-body">
-    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
+<div class="pagination" id="pagination"></div>
 
 <script>
 (function () {
   const tbody = document.getElementById("reviews-body");
+  const pagination = document.getElementById("pagination");
+  const tabs = document.getElementById("status-tabs");
   const flash = document.getElementById("flash");
+  let currentStatus = "{{ initialStatus }}";
+  let currentPage = 1;
 
   function showError(message) {
     flash.textContent = message;
@@ -25,12 +36,6 @@
     const div = document.createElement("div");
     div.textContent = str ?? "";
     return div.innerHTML;
-  }
-
-  function statusBadge(status) {
-    const map = { pending: ["Chờ duyệt", "status-draft"], approved: ["Đã duyệt", "status-published"], rejected: ["Từ chối", "status-draft"] };
-    const [label, cls] = map[status] || [status, "status-draft"];
-    return '<span class="status-badge ' + cls + '">' + label + '</span>';
   }
 
   function rowHtml(r) {
@@ -44,19 +49,50 @@
       "<td>" + escapeHtml(r.customerName) + "</td>" +
       "<td>" + "★".repeat(r.rating) + "</td>" +
       "<td>" + escapeHtml(r.comment || "-") + "</td>" +
-      "<td>" + statusBadge(r.status) + "</td>" +
       '<td style="white-space:nowrap;">' + actions + "</td>" +
       "</tr>"
     );
   }
 
+  function renderTabs() {
+    tabs.querySelectorAll(".filter-tab").forEach((tab) => {
+      tab.classList.toggle("active", tab.dataset.status === currentStatus);
+    });
+  }
+
   async function load() {
-    const res = await fetch("/admin/api/reviews");
-    const { reviews } = await res.json();
+    const params = new URLSearchParams({ page: String(currentPage), status: currentStatus });
+
+    const res = await fetch("/admin/api/reviews?" + params.toString());
+    const { reviews, hasNext, hasPrev } = await res.json();
+
     tbody.innerHTML = reviews.length
       ? reviews.map(rowHtml).join("")
-      : '<tr><td colspan="6" style="color:#999;">Chưa có đánh giá nào.</td></tr>';
+      : '<tr><td colspan="5" class="empty-state">Không có đánh giá nào.</td></tr>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
   }
+
+  tabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("a[data-status]");
+    if (!tab) return;
+    event.preventDefault();
+    currentStatus = tab.dataset.status;
+    currentPage = 1;
+    renderTabs();
+    load();
+  });
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
 
   tbody.addEventListener("click", async (event) => {
     const btn = event.target.closest("button[data-action]");
@@ -71,6 +107,7 @@
     load();
   });
 
+  renderTabs();
   load();
 })();
 </script>

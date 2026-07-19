@@ -5,11 +5,24 @@ import { deleteUploadedFile, InvalidUploadError, saveUploadedFile } from "../../
 
 // Upload anh dung cho bai viet/san pham (coverImage/imageUrls dan URL tay) - "edit" can upload
 // duoc de viet bai (giong quyen tao/sua bai nhap), nhung XOA vinh vien nang len "manager".
+const PAGE_SIZE = 20;
+
 export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/api/media", { preHandler: requireRole("edit") }, async () => {
-    const media = await prisma.media.findMany({ orderBy: { createdAt: "desc" } });
-    return { media };
-  });
+  app.get<{ Querystring: { page?: string } }>(
+    "/admin/api/media",
+    { preHandler: requireRole("edit") },
+    async (request) => {
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+
+      const [media, total] = await Promise.all([
+        prisma.media.findMany({ orderBy: { createdAt: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.media.count(),
+      ]);
+
+      return { media, total, page, hasNext: skip + media.length < total, hasPrev: page > 1 };
+    },
+  );
 
   app.post("/admin/api/media", { preHandler: requireRole("edit") }, async (request, reply) => {
     const file = await request.file();
