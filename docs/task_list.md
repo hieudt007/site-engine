@@ -101,7 +101,7 @@ Chạy sau khi Phase 5 xong (agent cần nội dung/sản phẩm/SEO đã có đ
 - [x] **[lead-base]** Mở rộng `scripts/crm-backup-db.sh` — sau khi dump DB CRM chính, query `pg_database` tìm mọi DB khớp `site_engine_%` (cùng server Postgres, cùng user với CRM — `WebsiteProvisionService::provision()` đặt `dbOwner = config('database.connections.pgsql.username')`, không cần credential riêng), `pg_dump` từng cái vào cùng `$DAY_DIR` — tự động được `rclone copy` cả thư mục cuốn theo, không cần sửa bước upload. 1 DB lỗi dump không chặn các DB khác (`[WARN]` + tiếp tục). **VERIFY THẬT trên VPS**: chạy thử tìm đúng 2 DB (`site_engine_3` — rác test cũ đã dọn, `site_engine_blog_leadbase_vn`), dump cả 2 thành công.
 - [x] **[lead-base]** Retention — không cần sửa gì thêm: rotation cục bộ (`find ... -mtime +KEEP_DAYS_LOCAL`) và purge remote đều quét theo THƯ MỤC ngày (`$DAY_DIR`/`$DATE_TAG`), tự động áp dụng cho mọi file DB nằm trong đó (CRM + toàn bộ `site_engine_*`) — không có logic đếm riêng theo từng DB cần cập nhật. Dung lượng sẽ tự tăng theo số Website thật, cần theo dõi dung lượng ổ đĩa VPS định kỳ nhưng không phải việc code.
 - [ ] **BỎ QUA** (quyết định của user, 2026-07-20) — log lỗi tập trung. Phần cốt lõi (lỗi gửi đơn không bị nuốt im lặng) đã có sẵn: `CartOrder.status='failed'` + `sendError`, cron retry 5 phút, `Log::error`/`request.log.error`. Chỉ thiếu nơi tổng hợp xem — cố tình không làm.
-- [ ] README + hướng dẫn build/release `site-engine.zip`, dựa trên `tech_doc.md` §2.
+- [ ] **BỎ QUA** (quyết định của user, 2026-07-20) — README hướng dẫn build/release `site-engine.zip`. Không cần thiết.
 
 ## Phase 8 — MCP: kết nối AI qua OAuth (draft, chưa chốt nội dung tool)
 
