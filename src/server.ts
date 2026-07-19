@@ -2,8 +2,7 @@ import Fastify from "fastify";
 import { config } from "./config.js";
 import { registerSession } from "./plugins/session.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
-import { registerAuthRoutes } from "./routes/admin/auth.js";
-import { seedAdmin } from "./services/seedAdmin.js";
+import { registerOAuthRoutes } from "./routes/admin/oauth.js";
 
 const app = Fastify({ logger: true });
 
@@ -12,10 +11,8 @@ app.get("/health", async () => {
 });
 
 async function start(): Promise<void> {
-  await seedAdmin();
-
   await registerSession(app);
-  await registerAuthRoutes(app);
+  await registerOAuthRoutes(app);
   await registerAdminRoutes(app);
 
   await app.listen({ port: config.port, host: "0.0.0.0" });

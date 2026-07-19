@@ -30,8 +30,9 @@ site-engine/
       customerSession.ts        cookie KHÁCH HÀNG — plugin/tên cookie RIÊNG, không lẫn với session.ts
     routes/
       admin/                   UI soạn nội dung, yêu cầu session admin (Phase 3)
-        auth.ts                  POST /admin/login, /admin/logout — đăng nhập ĐỘC LẬP email/mật
-                                khẩu (system_design.md §5.1), KHÔNG qua LeadBase
+        oauth.ts                 GET /admin/login (redirect PKCE sang LeadBase), GET
+                                /admin/oauth/callback (đổi code lấy token + userinfo, upsert
+                                User, tạo Session), POST /admin/logout (system_design.md §5.1)
         posts.ts
         settings.ts
       public/
@@ -49,8 +50,8 @@ site-engine/
                                  (system_design.md §4.3), verify HMAC, validate slug + dung lượng,
                                  giải nén vào themes/{slug}/, KHÔNG tự activate
     services/
-      seedAdmin.ts              tạo tài khoản admin đầu tiên từ ADMIN_EMAIL/ADMIN_PASSWORD (chỉ
-                               chạy khi bảng User rỗng, system_design.md §5.1)
+      leadbaseOAuth.ts          PKCE (code_verifier/code_challenge), build authorize URL, đổi
+                               code lấy token + gọi userinfo (system_design.md §5.1)
       leadbaseClient.ts        gọi API §system_design.md #4.1 (tạo order), ký HMAC — app tự gọi,
                                KHÔNG có process trung gian nào
       otpService.ts             sinh/verify OTP, gọi nhà cung cấp SMS (TBD nhà cung cấp)
@@ -155,19 +156,18 @@ SITE_ENGINE_SECRET=...               # RIÊNG từng Website, do Laravel sinh ng
                                      # sản phẩm (§4.2). KHÔNG dùng chung 1 giá trị cho mọi Website
                                      # — lộ .env 1 instance chỉ ảnh hưởng đúng instance đó
 LEADBASE_API_URL=https://{tenant_domain}   # domain LeadBase của CHÍNH tenant đó (cùng VPS)
+LEADBASE_OAUTH_CLIENT_ID=...         # OAuth client public/PKCE, LeadBase tự đăng ký lúc tạo
+                                     # Website (system_design.md §5.1) — KHÔNG có secret
 
 SESSION_SECRET=...                  # ký cookie session admin — RIÊNG theo từng website
 CUSTOMER_SESSION_SECRET=...         # ký cookie session KHÁCH HÀNG — riêng theo từng website
-
-ADMIN_EMAIL=...                     # CHỈ dùng 1 lần lúc seed tài khoản admin đầu tiên
-ADMIN_PASSWORD=...                  # (system_design.md §5.1) — không còn ý nghĩa sau đó
 
 SMS_PROVIDER=...                    # OTP SMS (system_design.md §6.2) — TBD nhà cung cấp
 SMS_API_KEY=...
 SMS_API_SECRET=...
 ```
 
-Không có secret riêng theo từng mục đích (đơn hàng/đồng bộ sản phẩm) — cả 2 dùng chung đúng 1 `SITE_ENGINE_SECRET`/instance, vì đây là quan hệ 2 phía cố định (LeadBase ↔ đúng 1 Website đó), không phải mô hình 3 bên như facebook-gateway (vốn cần 2 secret để tách chiều forge webhook/impersonate API). Khác biệt so với bản thiết kế đầu: secret giờ **sinh riêng theo từng Website** (không phải 1 biến `.env` cố định toàn cục của LeadBase) — xem `architecture.md` §3. `SITE_ENGINE_SECRET` KHÔNG còn liên quan gì tới đăng nhập admin nữa (§5.1 đã bỏ SSO/HMAC, dùng email/mật khẩu độc lập).
+Không có secret riêng theo từng mục đích (đơn hàng/đồng bộ sản phẩm) — cả 2 dùng chung đúng 1 `SITE_ENGINE_SECRET`/instance, vì đây là quan hệ 2 phía cố định (LeadBase ↔ đúng 1 Website đó), không phải mô hình 3 bên như facebook-gateway (vốn cần 2 secret để tách chiều forge webhook/impersonate API). Khác biệt so với bản thiết kế đầu: secret giờ **sinh riêng theo từng Website** (không phải 1 biến `.env` cố định toàn cục của LeadBase) — xem `architecture.md` §3. `SITE_ENGINE_SECRET` KHÔNG còn liên quan gì tới đăng nhập admin nữa — đăng nhập giờ đi qua OAuth thật của LeadBase (§5.1, `LEADBASE_OAUTH_CLIENT_ID`), không phải HMAC.
 
 ## 7. Coding conventions (kế thừa từ facebook-gateway/chatbot-lite)
 

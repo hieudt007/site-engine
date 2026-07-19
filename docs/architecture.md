@@ -105,19 +105,23 @@ Tenant thêm/sửa sản phẩm trong LeadBase
 
 ## 6. Đăng nhập vào UI 1 Website (từ Phase 3)
 
-**Đảo ngược quyết định trước**: KHÔNG còn bàn giao định danh HMAC/SSO từ LeadBase — quá vòng vèo cho use case thực tế. Mỗi Website có tài khoản admin **độc lập hoàn toàn** (email/mật khẩu, giống WordPress), soạn bài viết/nội dung ở **UI riêng trong chính app đã bung** (không nhúng trong LeadBase).
+**Đảo ngược lần 3**: bàn giao HMAC/SSO tự chế (bị bỏ, quá vòng vèo) → email/mật khẩu độc lập (bị bỏ, lại phải tự quản lý credential) → **OAuth 2.1 THẬT với LeadBase** (Laravel Passport, y hệt luồng AI/MCP đang dùng). Không cần điền bất kỳ thông tin đăng nhập nào lúc "Tạo Website" — ai bấm đăng nhập trên site-engine tự lấy đúng danh tính LeadBase của chính họ, KHÔNG có tài khoản/mật khẩu nào được tạo trước.
 
 ```
-Lúc "Tạo Website" bên LeadBase: form nhập luôn admin_email + admin_password
-  → LeadBase KHÔNG lưu mật khẩu — chỉ truyền 1 lần qua .env (ADMIN_EMAIL/ADMIN_PASSWORD)
-  → Website tự seed tài khoản admin đầu tiên lúc khởi động (services/seedAdmin.ts)
+Lúc "Tạo Website" bên LeadBase: KHÔNG có ô nhập gì liên quan đăng nhập
+  → LeadBase tự đăng ký 1 OAuth client public/PKCE riêng cho Website này (Passport
+    ClientRepository, redirect_uri = https://{domain}/admin/oauth/callback)
+  → ghi client_id vào .env (LEADBASE_OAUTH_CLIENT_ID)
 
-Từ lần sau: tenant tự vào thẳng https://domain-khach.../admin/login, nhập email/mật khẩu
-  → Website tự verify (bcrypt), tạo session (cookie, Prisma-backed trong DB CHÍNH NÓ)
-  → tenant thao tác UI soạn bài trong session đó, hết hạn (30 ngày) thì đăng nhập lại
+Tenant vào https://domain-khach.../admin/login
+  → redirect sang LeadBase /oauth/authorize (PKCE) → tenant duyệt consent (dùng đúng tài
+    khoản LeadBase họ đang đăng nhập, không cần nhớ thêm mật khẩu nào khác)
+  → redirect về /admin/oauth/callback → đổi code lấy token → gọi /api/oauth/userinfo →
+    upsert User (id = đúng User.id bên LeadBase, role đồng bộ mỗi lần login)
+  → tạo session (cookie, Prisma-backed trong DB CHÍNH NÓ), hết hạn (30 ngày) đăng nhập lại
 ```
 
-Không còn phụ thuộc LeadBase ở bước đăng nhập hàng ngày — chỉ dùng LeadBase 1 lần duy nhất lúc tạo Website để khởi tạo tài khoản. Chi tiết schema/route ở `system_design.md` §5.
+Đăng nhập admin luôn cần LeadBase online (khác design email/mật khẩu bị bỏ, vốn chỉ cần LeadBase 1 lần lúc tạo) — đánh đổi chấp nhận được vì LeadBase và Website luôn cùng 1 VPS. Chi tiết schema/route ở `system_design.md` §5.
 
 ## 7. Tính năng MCP — kết nối AI (draft, chưa chốt nội dung)
 

@@ -30,23 +30,25 @@ model SiteConfig {
   updatedAt DateTime @updatedAt
 }
 
-// Tài khoản quản trị ĐỘC LẬP của chính website này — KHÔNG qua LeadBase, KHÔNG SSO/HMAC nữa
-// (đảo ngược quyết định trước). Tài khoản admin đầu tiên được tạo lúc "Tạo Website" bên
-// LeadBase (nhập email/mật khẩu ngay trên form) — LeadBase truyền qua ADMIN_EMAIL/ADMIN_PASSWORD
-// trong .env, site-engine tự seed lúc khởi động đầu tiên (services/seedAdmin.ts), KHÔNG ghi
-// thẳng vào DB của Website (giữ đúng nguyên tắc LeadBase không đọc/ghi DB instance).
+// Tài khoản quản trị — đăng nhập qua OAuth THẬT của LeadBase (Laravel Passport, y hệt cách
+// AI/MCP đang xác thực), KHÔNG có mật khẩu riêng. id = ĐÚNG User.id bên LeadBase — upsert mỗi
+// lần đăng nhập thành công (routes/admin/oauth.ts). "role" (KHÔNG phải mảng permissions nữa) là
+// 1 trong đúng 3 giá trị 'admin'|'manager'|'edit', LeadBase tự tính từ role Spatie thật và trả
+// về qua GET /api/oauth/userinfo — đồng bộ lại mỗi lần login. Khác hoàn toàn "customer" (Phase 4,
+// model Customer riêng bên dưới — khách mua hàng tự đăng ký phone+OTP, không liên quan gì User).
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  permissions  String[] @default(["admin"]) // MVP chỉ 1 permission "admin" — mở rộng sau nếu cần nhiều tài khoản/vai trò
-  createdAt    DateTime @default(now())
+  leadbaseUserId Int      @id
+  name           String
+  email          String
+  role           String // 'admin' | 'manager' | 'edit'
+  lastLoginAt    DateTime
+  createdAt      DateTime @default(now())
 
   posts     Post[]
   auditLogs AuditLog[]
 }
 
-// Session admin vào /admin — tạo sau khi đăng nhập email/mật khẩu (routes/admin/auth.ts).
+// Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange + lấy userinfo từ LeadBase.
 model Session {
   id        String   @id
   data      String // JSON: { userId, email, permissions }
@@ -59,8 +61,8 @@ model Session {
 // sửa trước đó không còn thấy trên chính record).
 model AuditLog {
   id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [leadbaseUserId])
   action     String // vd 'post.create' | 'post.update' | 'post.publish' | 'post.delete'
   entityType String? // vd 'Post'
   entityId   String?
@@ -79,9 +81,9 @@ model Post {
   coverImage String?
   authorName String? // để trống thì hiển thị SiteConfig.siteName — bút danh CÔNG KHAI, khác authorId
 
-  authorId        String? // ai TẠO bài — User.id, không phải bút danh public
-  author          User?   @relation(fields: [authorId], references: [id])
-  updatedByUserId String? // ai SỬA LẦN CUỐI — có thể khác authorId
+  authorId        Int? // ai TẠO bài — User.leadbaseUserId, không phải bút danh public
+  author          User? @relation(fields: [authorId], references: [leadbaseUserId])
+  updatedByUserId Int? // ai SỬA LẦN CUỐI — có thể khác authorId
 
   metaTitle       String?
   metaDescription String?

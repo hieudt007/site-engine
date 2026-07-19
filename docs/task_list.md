@@ -25,14 +25,15 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 
 ## Phase 3 — Blog + đăng nhập admin vào 1 app
 
-**Đã chốt**: editor bài viết là UI riêng trong chính app đã bung (`architecture.md` §6). **Đảo ngược quyết định ban đầu**: bỏ hẳn bàn giao định danh HMAC/SSO từ LeadBase — đăng nhập ĐỘC LẬP bằng email/mật khẩu, giống WordPress. Tài khoản admin đầu tiên tạo lúc "Tạo Website" bên LeadBase.
+**Đã chốt**: editor bài viết là UI riêng trong chính app đã bung (`architecture.md` §6). **Đảo ngược lần 3**: bàn giao HMAC/SSO (bỏ) → email/mật khẩu độc lập (bỏ) → **OAuth 2.1 THẬT với LeadBase** (Laravel Passport, y hệt luồng AI/MCP) — không cần điền credential gì lúc "Tạo Website", ai đăng nhập tự lấy đúng danh tính LeadBase của họ.
 
-- [x] Model `User` (email+passwordHash+permissions), `AuditLog`, `Post.authorId`/`updatedByUserId` (migration `independent_admin_auth`) — thêm sau khi bàn về việc cần biết "ai đã xuất bản/sửa bài nào", không cần bảng riêng vì `User` đã đủ.
-- [x] `services/seedAdmin.ts` — tạo `User` đầu tiên từ `ADMIN_EMAIL`/`ADMIN_PASSWORD` (chỉ khi bảng rỗng, không ghi đè nếu tenant đã đổi mật khẩu).
-- [x] `plugins/session.ts` (Prisma-backed store, `services/sessionStore.ts`) + `routes/admin/auth.ts` (`POST /admin/login` bcrypt.compare, `POST /admin/logout`), cookie 30 ngày. Stub `/admin` (`routes/admin/index.ts`) để verify end-to-end — đã test thật bằng curl (sai mật khẩu/đúng mật khẩu/đọc session/logout đều đúng) + test tự động.
-- [x] **[lead-base]** Form "Tạo Website" (`Websites.tsx`) thêm 2 field `admin_email`/`admin_password` (validate ở `WebsiteController::store()`) — LeadBase KHÔNG lưu mật khẩu, chỉ truyền qua `.env` lúc provision (`WebsiteProvisionService::writeEnv()`), không lưu vào bảng `websites`.
-- [ ] ~~Nút "Quản lý nội dung" phát token, permission `manage-website-content`/`view-website-content`~~ — không còn cần thiết, đăng nhập giờ độc lập tại `{domain}/admin/login`, không qua LeadBase nữa. Permission `manage-website-content`/`view-website-content` đã thêm ở Phase 1 giờ không dùng cho mục đích này nữa (có thể dùng lại sau nếu cần).
-- [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ (MVP chỉ check có session, chưa cần phân biệt permission cụ thể — `system_design.md` §5.2).
+- [x] Model `User` (leadbaseUserId, name, email, role — KHÔNG có password), `AuditLog`, `Post.authorId`/`updatedByUserId` (migration `leadbase_oauth_login` + `user_role_not_permissions`) — thêm sau khi bàn về việc cần biết "ai đã xuất bản/sửa bài nào".
+- [x] `services/leadbaseOAuth.ts` — PKCE (code_verifier/code_challenge S256), build authorize URL, đổi code lấy token + gọi userinfo.
+- [x] `routes/admin/oauth.ts` — `GET /admin/login` (redirect PKCE, lưu state/verifier vào cookie tạm 5 phút), `GET /admin/oauth/callback` (verify state, đổi code, upsert `User`, tạo session), `POST /admin/logout`. `plugins/session.ts` (Prisma-backed, cookie 30 ngày) — đã test thật bằng curl (redirect URL đúng tham số PKCE, thiếu code/state bị chặn, state sai bị chặn CSRF).
+- [x] **[lead-base]** `GET /api/oauth/userinfo` (`OAuthUserInfoController`, dùng đúng guard `auth('api')` như `McpController`) trả về `{id, name, email, role}` — `role` tự tính từ Spatie role thật (`admin`/`manager`/`edit`).
+- [x] **[lead-base]** `WebsiteProvisionService::provision()` tự đăng ký 1 OAuth client public/PKCE riêng cho từng Website (`ClientRepository::createAuthorizationCodeGrantClient`), ghi `client_id` vào `.env` + `websites.oauth_client_id` (revoke khi xoá Website).
+- [x] **[lead-base]** Bỏ hẳn field `admin_email`/`admin_password` khỏi form "Tạo Website" (`Websites.tsx`) — không còn cần thiết.
+- [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ + đúng `role` theo bảng ở `system_design.md` §5.2 (MVP mới chỉ check có session, chưa lọc theo `role`).
 - [ ] Model `Post` + CRUD trực tiếp trong app qua UI vừa có session.
 - [ ] UI soạn bài: list + editor (rich text — thư viện TBD).
 - [ ] `@fastify/view` + Liquid (`liquidjs`) + theme built-in `themes/default/` (`tech_doc.md` §1, §3) — renderer đọc `ThemeConfig.activeTheme` (`themeRenderer.ts`), route public dùng renderer này thay vì hardcode 1 view.

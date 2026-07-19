@@ -12,7 +12,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return {
       userId,
       email: request.session.get("email"),
-      permissions: request.session.get("permissions"),
+      role: request.session.get("role"),
     };
   });
 }

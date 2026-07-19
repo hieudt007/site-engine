@@ -27,24 +27,26 @@ model SiteConfig {
   updatedAt         DateTime @updatedAt
 }
 
-// Tài khoản quản trị ĐỘC LẬP của chính website này — KHÔNG qua LeadBase (§5.1, đảo ngược quyết
-// định SSO/HMAC ban đầu). id = LeadBase userId KHÔNG còn đúng nữa — tự sinh cuid, tách biệt
-// hoàn toàn. MVP chỉ 1 tài khoản, permissions luôn ["admin"] — mở rộng sau nếu cần nhiều vai trò.
+// Tài khoản quản trị — đăng nhập qua OAuth THẬT của LeadBase (§5.1, Laravel Passport, y hệt
+// luồng AI/MCP). id = ĐÚNG User.id bên LeadBase — upsert mỗi lần đăng nhập thành công. "role"
+// là 1 trong đúng 3 giá trị 'admin'|'manager'|'edit', LeadBase tự tính từ role Spatie thật rồi
+// trả về qua GET /api/oauth/userinfo. Khác "customer" (Phase 4, model Customer riêng bên dưới).
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  permissions  String[] @default(["admin"])
-  createdAt    DateTime @default(now())
+  leadbaseUserId Int      @id
+  name           String
+  email          String
+  role           String // 'admin' | 'manager' | 'edit'
+  lastLoginAt    DateTime
+  createdAt      DateTime @default(now())
 
   posts     Post[]
   auditLogs AuditLog[]
 }
 
-// Session admin vào /admin — tạo sau khi đăng nhập email/mật khẩu (§5.1), KHÔNG còn từ token.
+// Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange (§5.1).
 model Session {
   id                String   @id
-  data              String   // JSON: { userId, email, permissions }
+  data              String   // JSON: { userId, email, role }
   expiresAt         DateTime
 }
 
@@ -52,8 +54,8 @@ model Session {
 // authorId/updatedByUserId cho tra cứu nhanh "ai sửa lần cuối"; bảng này là lịch sử ĐẦY ĐỦ.
 model AuditLog {
   id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [leadbaseUserId])
   action     String   // vd 'post.create' | 'post.update' | 'post.publish' | 'post.delete'
   entityType String?  // vd 'Post'
   entityId   String?
@@ -70,9 +72,9 @@ model Post {
   coverImage  String?
   authorName  String?  // để trống thì hiển thị SiteConfig.siteName — bút danh CÔNG KHAI, khác authorId
 
-  authorId        String? // ai TẠO bài — User.id, không phải bút danh public
-  author          User?   @relation(fields: [authorId], references: [id])
-  updatedByUserId String? // ai SỬA LẦN CUỐI — có thể khác authorId
+  authorId        Int? // ai TẠO bài — User.leadbaseUserId, không phải bút danh public
+  author          User? @relation(fields: [authorId], references: [leadbaseUserId])
+  updatedByUserId Int? // ai SỬA LẦN CUỐI — có thể khác authorId
 
   metaTitle       String?
   metaDescription String?
@@ -313,36 +315,58 @@ Lỗi (bundle không hợp lệ, slug trùng, quá dung lượng...): trả lỗ
 
 ## 5. Đăng nhập + phân quyền (tenant/nhân viên shop vào `/admin` của 1 Website)
 
-### 5.1 Đăng nhập — độc lập bằng email/mật khẩu, KHÔNG qua LeadBase
+### 5.1 Đăng nhập — OAuth 2.1 THẬT với LeadBase (Laravel Passport), không còn mật khẩu riêng
 
-**Đảo ngược quyết định trước** (bản gốc dùng bàn giao định danh HMAC/SSO từ LeadBase — bị bỏ vì quá vòng vèo cho use case thực tế). Mỗi Website giờ có tài khoản admin **riêng, độc lập hoàn toàn**, giống WordPress: tạo lúc "Tạo Website" bên LeadBase (form nhập luôn email + mật khẩu), từ đó về sau đăng nhập thẳng vào chính domain đó, không cần qua LeadBase nữa.
+**Đảo ngược lần 3**: bản đầu dùng bàn giao HMAC/SSO tự chế (bị bỏ vì "loằng ngoằng"), bản 2 dùng email/mật khẩu độc lập (bị bỏ vì muốn LeadBase vẫn là nguồn xác thực, không phát sinh thêm 1 hệ tài khoản/mật khẩu nữa). Bản chốt: đăng nhập qua **OAuth 2.1 thật của LeadBase** — LeadBase đã có sẵn hạ tầng Passport hoàn chỉnh dùng cho AI/MCP (`McpController`, RFC 8414/9728/7591), site-engine tái dùng chính hạ tầng đó làm authorization server, không tự dựng gì thêm.
 
 ```
-Lúc "Tạo Website" (LeadBase):
-  Form nhập thêm 2 field: admin_email, admin_password (validate min 8 ký tự)
-  → LeadBase KHÔNG lưu mật khẩu này vào DB của mình — chỉ truyền 1 LẦN qua
-    ADMIN_EMAIL/ADMIN_PASSWORD trong .env sinh ra lúc provision (WebsiteProvisionService.php)
-  → instance tự seed (services/seedAdmin.ts, chạy lúc khởi động lần đầu, CHỈ khi bảng User
-    rỗng — không ghi đè nếu tenant đã đổi mật khẩu sau này) → tạo User { email, passwordHash
-    (bcrypt), permissions: ["admin"] }
+Lúc "Tạo Website" (LeadBase, WebsiteProvisionService.php):
+  → tự đăng ký 1 OAuth client PUBLIC/PKCE riêng cho đúng Website này (Passport
+    ClientRepository::createAuthorizationCodeGrantClient(confidential: false),
+    redirect_uris = ["https://{domain}/admin/oauth/callback"]) — KHÔNG qua HTTP
+    POST /oauth/register, gọi thẳng PHP vì cùng process Laravel
+  → ghi client_id vào .env instance (LEADBASE_OAUTH_CLIENT_ID), lưu lại vào
+    websites.oauth_client_id (để revoke khi xoá Website)
 
-Từ lần sau, đăng nhập thẳng tại {domain}/admin/login:
-POST /admin/login { email, password }
-  → so bcrypt.compare(password, User.passwordHash)
-  → đúng → tạo Session: lưu {userId, email, permissions} vào `data`, expiresAt = now + 30 ngày
-  → set cookie httpOnly, sameSite=lax, secure (nếu https)
-POST /admin/logout → xoá Session + clear cookie
+GET /admin/login (site-engine)
+  → sinh PKCE (code_verifier, code_challenge=S256) + state, lưu tạm vào 1 cookie
+    httpOnly ngắn hạn (5 phút) — CHƯA có session lúc này nên không lưu vào Session được
+  → redirect sang LEADBASE_URL/oauth/authorize?...&code_challenge=...&state=...
+  → tenant (đã đăng nhập LeadBase hoặc đăng nhập ngay lúc này) duyệt consent screen
+  → LeadBase redirect về {domain}/admin/oauth/callback?code=...&state=...
+
+GET /admin/oauth/callback
+  → so state với cookie tạm (chống CSRF), sai thì từ chối
+  → POST {LEADBASE_URL}/oauth/token (grant_type=authorization_code, code, code_verifier,
+    client_id, redirect_uri — KHÔNG có client_secret, public client) → lấy access_token
+  → GET {LEADBASE_URL}/api/oauth/userinfo (Bearer access_token) → { id, name, email,
+    role } — endpoint MỚI thêm bên LeadBase, dùng đúng guard auth('api') mà McpController
+    đang dùng, không tự verify JWT/JWKS ở phía site-engine. `role` LeadBase tự tính (không
+    phải danh sách permission thô) — xem §5.2.
+  → upsert User theo leadbaseUserId = id (tạo mới nếu chưa có, cập nhật name/email/role
+    nếu đã có — đồng bộ lại mỗi lần đăng nhập)
+  → tạo Session: lưu {userId, email, role} vào `data`, expiresAt = now + 30 ngày
+  → set cookie httpOnly, sameSite=lax, secure (nếu https) → redirect vào /admin
+
+POST /admin/logout → xoá Session + clear cookie (không cần gọi LeadBase revoke gì)
 ```
 
-- Không giới hạn số session đồng thời — đăng nhập nhiều máy/trình duyệt tạo nhiều session độc lập, không cái nào ghi đè cái nào (đúng như hầu hết dịch vụ web bình thường).
-- **Hết hạn (30 ngày)**: không tự gia hạn — đăng nhập lại bằng email/mật khẩu.
-- Không còn khái niệm "bàn giao định danh"/token/HMAC cho luồng này — `SITE_ENGINE_SECRET` giờ chỉ còn dùng cho 2 API còn lại ở §4 (đơn hàng, đồng bộ sản phẩm), không liên quan đăng nhập admin nữa.
+- Không giới hạn số session đồng thời — đăng nhập nhiều máy/trình duyệt tạo nhiều session độc lập.
+- **Hết hạn (30 ngày)**: không tự gia hạn — đăng nhập lại (chạy lại toàn bộ luồng OAuth).
+- `SITE_ENGINE_SECRET` không liên quan gì đăng nhập admin — chỉ dùng cho 2 API ở §4 (đơn hàng, đồng bộ sản phẩm). `LEADBASE_OAUTH_CLIENT_ID` là giá trị MỚI, riêng cho mục đích đăng nhập.
+- **Việc còn mở (TBD)**: LeadBase's `ResourceBoundAccessToken` hiện hardcode `aud` = `{APP_URL}/api/mcp` cho MỌI client (không đọc tham số `?resource=`) — do site-engine không tự verify JWT mà gọi ngược lại `/api/oauth/userinfo` (LeadBase tự validate bằng guard nội bộ) nên việc này không ảnh hưởng, nhưng cần ghi nhớ nếu sau này muốn site-engine tự verify JWT cục bộ (cần LeadBase thêm JWKS endpoint trước).
 
-### 5.2 Phân quyền — MVP chỉ 1 quyền `admin`, chưa mirror permission LeadBase
+### 5.2 Phân quyền — đúng 3 mức `admin`/`manager`/`edit`, LeadBase tự tính
 
-Vì không còn bàn giao qua LeadBase, không còn "quyền thật user có trên LeadBase" để lấy giao — `User.permissions` giờ là field local, MVP luôn là `["admin"]` (toàn quyền, tài khoản duy nhất). Middleware bảo vệ `/admin/*` ở MVP chỉ cần check **có session hợp lệ hay không**, chưa cần phân biệt permission cụ thể theo trang.
+Khác hẳn `Customer` (§6, khách mua hàng tự đăng ký phone+OTP) — `User.role` chỉ dành cho người quản trị nội dung, đúng 1 trong 3 giá trị, LeadBase tính sẵn từ role Spatie thật (`RolePermissionSeeder.php`) rồi trả về qua `/api/oauth/userinfo` — site-engine không tự suy luận từ danh sách permission thô:
 
-**Việc còn mở (TBD, không phải MVP)**: nếu sau này cần nhiều tài khoản/vai trò khác nhau trong 1 Website (vd người viết vs người duyệt bài) — thêm UI quản lý `User` ngay trong `/admin/settings/users` (tạo/sửa/xoá tài khoản, gán `permissions`), không cần liên quan gì tới LeadBase nữa.
+| `role` | LeadBase role tương ứng | Gate cái gì trong site-engine |
+|---|---|---|
+| `admin` | `admin` | Toàn quyền — kể cả `/admin/settings/*`, cài/đổi theme, kết nối AI (Phase 8). |
+| `manager` | `manager` | Nội dung + sản phẩm (nội dung hiển thị) + xem đơn hàng — không đụng settings hệ thống (domain read-only vốn dĩ chỉ xem được, không có gì để "cấm" thêm). |
+| `edit` | Bất kỳ role LeadBase nào khác (sale/marketing/report/tuỳ) | Chỉ tạo/sửa bài viết ở trạng thái nháp — không tự xuất bản, không sửa settings. |
+
+Middleware bảo vệ `/admin/*` ở MVP mới chỉ check **có session hợp lệ hay không**, CHƯA lọc theo `role` cụ thể cho từng trang — bảng trên là đích cần đạt, chưa phải trạng thái hiện tại của middleware.
 
 ## 6. Tài khoản khách hàng — đăng nhập lưu thông tin mua hàng
 
@@ -488,7 +512,7 @@ Tất cả nằm trong **cùng 1 DB** (schema §1) — không còn schema Orches
 | Bảng | Mục đích | Có từ Phase |
 |---|---|---|
 | `SiteConfig` | Thông tin cơ bản + SEO mặc định (1 row) | 1 |
-| `User` | Tài khoản admin ĐỘC LẬP (email/mật khẩu, §5.1) | 3 |
+| `User` | Tài khoản admin, đăng nhập qua OAuth LeadBase (§5.1) | 3 |
 | `Session` | Phiên admin vào `/admin` | 3 |
 | `AuditLog` | Lịch sử thao tác (ai làm gì, lúc nào) | 3 |
 | `Post` | Nội dung blog | 3 |
@@ -502,4 +526,4 @@ Tất cả nằm trong **cùng 1 DB** (schema §1) — không còn schema Orches
 | `ThemeConfig` | Theme đang active (1 row) | 3 |
 | `CustomTheme` | Theme tự tạo đã cài (agent-generated, §4.3) | 6 |
 
-`User` (đăng nhập admin) và `Customer` (khách mua hàng) là 2 hệ tài khoản ĐỘC LẬP hoàn toàn với nhau và với LeadBase — không dùng chung bảng, cookie, hay session (§5, §6).
+`User` (đăng nhập admin, danh tính tới từ LeadBase qua OAuth — §5) và `Customer` (khách mua hàng tự đăng ký phone+OTP, hoàn toàn độc lập với LeadBase — §6) là 2 hệ tài khoản KHÁC NHAU — không dùng chung bảng, cookie, hay session.
