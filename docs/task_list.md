@@ -45,14 +45,16 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [x] `/admin/products` — `routes/admin/products.ts` (JSON API, `/admin/api/products*`) + `routes/admin/productsUi.ts` (HTML) + `views/admin/{products-list,product-edit}.liquid`. Sửa tên/mô tả/ảnh/SEO, nút Xuất bản. `requireRole("manager")` — khác Post, role `edit` KHÔNG được đụng sản phẩm (§5.2: sản phẩm thuộc nhóm quyền manager).
 - [x] **[lead-base]** `ProductSyncService.php` + `Jobs/SyncProductToWebsite.php` — hook vào `Product::booted()` (`static::saved()`), fan-out sang MỌI `Website::running()` (LeadBase single-tenant, không có cột tenant/company scoping trên `Product` lẫn `Website` — xác nhận qua research trước khi code). `create` luôn đẩy, `update` chỉ đẩy khi `price/sale_price/stock/status` thực sự đổi (tránh gọi HTTP thừa khi chỉ sửa mô tả/ảnh — các trường đó site-engine tự quản, không nhận qua kênh này). Retry qua queue Laravel có sẵn (`onQueue('facebook-sync')` — **dùng lại** queue đã có worker chạy thật trên VPS `crm-worker-sync`, KHÔNG tạo queue tên mới vì sẽ không ai xử lý), `$tries=5`, `backoff()` giãn dần tới ~40 phút trước khi vào `failed_jobs`. **VERIFY THÀNH CÔNG trên VPS thật**: tạo/sửa `Product` qua tinker → `ProductCache` bên `blog.leadbase.vn` tự cập nhật đúng (giá/tồn đổi, `name` giữ nguyên ở lần update).
 - [x] Route public `/products`, `/products/:id` (`routes/public/products.ts`, `themes/default/{products-list,product-detail}.liquid`) — chỉ đọc `ProductCache.publishStatus='published'`. `description` escape + `newline_to_br` khi render (field nhập plain text ở admin, KHÔNG sanitize HTML như `Post.body` — escape ở lúc render thay vì lúc lưu vì đây chỉ 1 nơi hiển thị duy nhất, không như Post có thể nhiều theme khác nhau render lại).
-- [ ] Giỏ hàng (session/cookie phía khách hàng, không cần DB riêng cho cart trước khi checkout).
+- [x] Giỏ hàng (session/cookie phía khách hàng, không cần DB riêng cho cart trước khi checkout) — làm ở Phase 5 (`themes/default/cart.liquid`), xem chi tiết ở đó.
+- [x] `POST /cart/checkout` → tạo `CartOrder` (status `pending`) — làm ở Phase 5 (`routes/public/cart.ts`), gán `customerId` khi đăng nhập thì CHƯA làm (phụ thuộc mục dưới, đang tạm dừng).
+
+**TẠM DỪNG** (quyết định của user, 2026-07-19) — tài khoản khách (Customer OTP) dừng lại ở đây, chưa làm tiếp:
 - [ ] Chọn nhà cung cấp SMS OTP thật (`system_design.md` §6.4 #1), quyết định ngưỡng rate-limit (#2).
 - [ ] Model `Customer`/`CustomerOtp`/`CustomerSession` + `otpService.ts` + route `POST /auth/otp/request`, `POST /auth/otp/verify` (`system_design.md` §6.2).
-- [ ] `POST /cart/checkout` → tạo `CartOrder` (status `pending`), gán `customerId` nếu đã đăng nhập.
 - [ ] Trang xác nhận đơn hàng: mời "Lưu thông tin cho lần sau?" cho khách guest → luồng `save_guest_order` (`system_design.md` §6.3).
 - [ ] `/account/orders`, `/account/profile`, `/account/logout` — yêu cầu `CustomerSession` hợp lệ.
 
-**Verify Phase 4**: đặt hàng guest → tạo đơn được → bấm "Lưu thông tin", nhận OTP, verify đúng → đơn vừa đặt gắn `customerId`. Đăng nhập lại đúng số điện thoại đó ở phiên khác → thấy đúng đơn hàng cũ, tên/địa chỉ đã lưu.
+**Verify Phase 4** (khi làm tiếp): đặt hàng guest → tạo đơn được → bấm "Lưu thông tin", nhận OTP, verify đúng → đơn vừa đặt gắn `customerId`. Đăng nhập lại đúng số điện thoại đó ở phiên khác → thấy đúng đơn hàng cũ, tên/địa chỉ đã lưu.
 
 ## Phase 5 — Đơn hàng đổ về LeadBase + SEO cơ bản
 - [x] Giỏ hàng — `themes/default/cart.liquid` + nút "Thêm vào giỏ" (`product-detail.liquid`), sống ở `localStorage` phía trình duyệt (không có bảng DB cart), server chỉ tham gia lúc hydrate giá thật (`GET /api/cart/products?ids=`, không tin giá client tự lưu) và lúc checkout thật.
