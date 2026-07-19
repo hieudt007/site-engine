@@ -8,7 +8,7 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [x] `prisma/schema.prisma` theo `system_design.md` §1, chạy migration đầu tiên trên Postgres local.
 - [x] `scripts/build-release.sh` — build + đóng gói `site-engine.zip` (`tech_doc.md` §2) — bước `npm run build` đã chạy sạch; bước zip cần môi trường có lệnh `zip` (Linux/CI), chưa test full trên máy dev Windows.
 
-## Phase 1 — Bung được 1 app thật (code đã viết, GỘP LUÔN Phase 2 — chưa verify trên VPS thật)
+## Phase 1 — Bung được 1 app thật (ĐÃ VERIFY TRÊN VPS THẬT, GỘP LUÔN Phase 2)
 - [x] **[lead-base]** Model `Website` (Laravel, registry — `system_design.md` §2), migration (`2026_07_19_000001_create_websites_table.php`, đã chạy local, có cột `secret` mã hoá — KHÔNG có `tenant_id`, xem ghi chú dưới).
 - [x] **[lead-base]** `WebsiteProvisionService.php` (mirror `LandingDomainProvisionService`): bung `site-engine.zip` vào `/var/www/{domain}`, `npm ci --omit=dev`, `createdb`, sinh `SITE_ENGINE_SECRET` ngẫu nhiên lưu `Website.secret`, ghi `.env` (qua file tạm, tránh lộ secret trong `ps aux`), `prisma migrate deploy`, `systemctl enable --now`, Nginx vhost — code viết gộp luôn cả 2 bước systemd + nginx (Phase 2) trong 1 lần thay vì tách riêng như dự tính ban đầu.
 - [x] **[lead-base]** `scripts/site-engine-provision-app.sh` (mkdir/unzip/npm ci/createdb/env/migrate/systemd) + `scripts/site-engine-provision-domain.sh` (nginx dùng chung 1 cert Cloudflare Origin CA, `remove` — KHÔNG có action `ssl`/Certbot, `system_design.md` §3).
@@ -18,9 +18,10 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [x] Thêm check tồn tại thư mục trước khi tạo (cả Website lẫn Landing Page `store()`, không đụng các endpoint retry) — tránh ghi đè dữ liệu cũ chưa dọn sạch trên VPS.
 - [x] Thêm `App\Support\ReservedDomains` — chặn tạo Website/Landing Page trùng domain với chính LeadBase (`APP_URL`) hoặc subdomain 9router (`ai.{crm_root_domain}`) — phát hiện thiếu sau khi user hỏi trực tiếp, trước đó chỉ check trùng giữa các row trong cùng 1 bảng, không check trùng 2 service hạ tầng đang chạy thật.
 - [x] Đã tự phát hiện + sửa 1 lỗi thiết kế: field `tenant_id`/`leadbaseTenantId` bị loại bỏ khỏi toàn bộ schema (Website, SiteConfig, Session, SSO token, order API) sau khi verify thực tế `lead-base` không có khái niệm tenant nào (1 cài đặt = 1 doanh nghiệp).
-- [ ] **CHƯA XONG**: verify trên VPS thật — đã build `site-engine.zip` (PowerShell `System.IO.Compression.ZipArchive`, verify bằng `unzip -l`/giải nén thật để tránh bug entry dùng `\` thay vì `/`), copy vào `lead-base/resources/site-engine/site-engine.zip`, deploy 2 script mới + systemd unit mới lên VPS thay bản cũ, cấu hình sudoers + user hệ thống `site-engine` — đang chờ user thử lại "Tạo Website" trên VPS thật với code mới nhất.
+- [x] `createdb -O <dbOwner>` — DB tạo bằng `sudo -u postgres createdb` mặc định owner là `postgres`, user Laravel (`crm_user`) không có quyền `CREATE` trên schema `public` → prisma migrate lỗi "permission denied for schema public". Sửa: `create` action nhận thêm `dbOwner`, gán owner đúng lúc tạo DB.
+- [x] **VERIFY THÀNH CÔNG trên VPS thật** (`blog.leadbase.vn`) — bấm "Tạo Website" → app + DB + Nginx tự cấu hình xong, không lỗi.
 
-**Verify Phase 1+2 (chưa làm, cần VPS thật)**: bấm "Tạo Website" ở LeadBase → app chạy dưới systemd (không SSH tay) → domain thật (đã trỏ Cloudflare) truy cập HTTPS được ngay → không có bảng nào lẫn dữ liệu website khác (khác DB vật lý).
+**Verify Phase 1+2**: ✅ đã test thật trên VPS — "Tạo Website" → app chạy dưới systemd, DB tạo đúng owner, Nginx vhost tạo xong. Còn lại: xác nhận `https://blog.leadbase.vn` load được `/health` qua trình duyệt thật (DNS/Cloudflare phía domain này).
 
 ## Phase 3 — Blog + đăng nhập tenant vào 1 app
 
