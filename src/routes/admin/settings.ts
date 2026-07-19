@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
 
 // Cài đặt chung của CHÍNH website đang chạy (system_design.md §10.1) - đúng 1 row "singleton".
 // §5.2: settings là quyền admin duy nhất, manager/edit không đụng được.
@@ -25,19 +26,9 @@ const updateSettingsSchema = z.object({
   defaultOgImage: z.string().optional(),
 });
 
-async function getOrCreateSettings(domain: string) {
-  const existing = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
-  if (existing) {
-    return existing;
-  }
-  return prisma.siteConfig.create({
-    data: { id: "singleton", domain, siteName: domain },
-  });
-}
-
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/settings", { preHandler: requireRole("admin") }, async (request) => {
-    const settings = await getOrCreateSettings(request.hostname);
+    const settings = await getOrCreateSiteConfig(request.hostname);
     return { settings };
   });
 
@@ -47,7 +38,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       return reply.code(422).send({ error: parsed.error.flatten() });
     }
 
-    await getOrCreateSettings(request.hostname);
+    await getOrCreateSiteConfig(request.hostname);
     const updated = await prisma.siteConfig.update({
       where: { id: "singleton" },
       data: parsed.data,

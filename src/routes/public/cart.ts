@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { sendOrderToLeadbase, LeadbaseOrderError } from "../../services/leadbaseClient.js";
+import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
 
 // Giỏ hàng sống ở localStorage phía trình duyệt (system_design.md task_list — "không cần DB
 // riêng cho cart trước khi checkout"), server chỉ tham gia ở 2 điểm: hydrate giá/tên thật cho
@@ -36,6 +37,10 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       return reply.code(422).send({ error: parsed.error.flatten() });
     }
+
+    // Đảm bảo SiteConfig singleton tồn tại ngay từ đơn hàng ĐẦU TIÊN - orderRetry.ts cần
+    // domain của chính instance này để retry, không thể đợi tới lần đầu admin vào Settings.
+    await getOrCreateSiteConfig(request.hostname);
 
     const productIds = parsed.data.items.map((i) => i.productId);
     const products = await prisma.productCache.findMany({
