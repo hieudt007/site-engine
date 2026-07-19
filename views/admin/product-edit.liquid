@@ -1,0 +1,93 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Sửa sản phẩm</h1>
+  <a class="btn" href="/admin/products">← Danh sách</a>
+</div>
+
+<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#555;">
+  <strong>Đồng bộ từ LeadBase (chỉ đọc):</strong>
+  Giá <strong>{{ product.price }}₫</strong>{% if product.salePrice %} · Giá KM <strong>{{ product.salePrice }}₫</strong>{% endif %}
+  · Tồn kho <strong>{{ product.stock | default: "-" }}</strong>
+  · Trạng thái LeadBase <strong>{{ product.leadbaseStatus }}</strong>
+  <div style="margin-top:0.3rem;color:#999;">Đồng bộ lần cuối: {{ product.syncedAt }}</div>
+</div>
+
+<form id="product-form">
+  <label for="name">Tên sản phẩm</label>
+  <input type="text" id="name" name="name" value="{{ product.name | escape }}" required>
+
+  <label for="description">Mô tả</label>
+  <textarea id="description" name="description" style="min-height:140px;">{{ product.description }}</textarea>
+
+  <label for="imageUrls">Ảnh (mỗi dòng 1 URL, dòng đầu tiên là ảnh đại diện)</label>
+  <textarea id="imageUrls" name="imageUrls" style="min-height:100px;font-family:inherit;">{% for url in product.imageUrls %}{{ url }}
+{% endfor %}</textarea>
+
+  <label for="metaTitle">SEO — Meta title</label>
+  <input type="text" id="metaTitle" name="metaTitle" value="{{ product.metaTitle | escape }}">
+
+  <label for="metaDescription">SEO — Meta description</label>
+  <input type="text" id="metaDescription" name="metaDescription" value="{{ product.metaDescription | escape }}">
+
+  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <span id="publish-slot"></span>
+  </div>
+</form>
+
+<script>
+(function () {
+  const productId = "{{ product.id }}";
+  const isPublished = {% if product.publishStatus == "published" %}true{% else %}false{% endif %};
+  const form = document.getElementById("product-form");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  if (!isPublished) {
+    const publishBtn = document.createElement("button");
+    publishBtn.type = "button";
+    publishBtn.className = "btn";
+    publishBtn.textContent = "Xuất bản";
+    publishBtn.onclick = async () => {
+      const res = await fetch("/admin/api/products/" + productId + "/publish", { method: "POST" });
+      if (!res.ok) {
+        showFlash("Xuất bản thất bại", false);
+        return;
+      }
+      window.location.reload();
+    };
+    document.getElementById("publish-slot").appendChild(publishBtn);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      name: form.name.value,
+      description: form.description.value || undefined,
+      imageUrls: form.imageUrls.value.split("\n").map((s) => s.trim()).filter(Boolean),
+      metaTitle: form.metaTitle.value || undefined,
+      metaDescription: form.metaDescription.value || undefined,
+    };
+
+    const res = await fetch("/admin/api/products/" + productId, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Lưu thất bại", false);
+      return;
+    }
+
+    showFlash("Đã lưu.", true);
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Sản phẩm</h1>
+<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+  Đồng bộ tự động từ LeadBase (giá/tồn kho/trạng thái). Sửa tên/mô tả/ảnh/SEO tại đây, LeadBase không ghi đè.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Sản phẩm</th>
+      <th>Giá</th>
+      <th>Tồn kho</th>
+      <th>Trạng thái</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="products-body">
+    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("products-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(p) {
+    const statusBadge = p.publishStatus === "published"
+      ? '<span class="status-badge status-published">Đã xuất bản</span>'
+      : '<span class="status-badge status-draft">Nháp</span>';
+    const publishBtn = p.publishStatus !== "published"
+      ? '<button class="btn" data-action="publish" data-id="' + p.id + '">Xuất bản</button>'
+      : "";
+    return (
+      "<tr>" +
+      '<td><a href="/admin/products/' + p.id + '">' + escapeHtml(p.name) + "</a></td>" +
+      "<td>" + p.price + "₫</td>" +
+      "<td>" + (p.stock ?? "-") + "</td>" +
+      "<td>" + statusBadge + "</td>" +
+      '<td style="text-align:right;">' + publishBtn + "</td>" +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/products");
+    if (!res.ok) {
+      showError("Không tải được danh sách sản phẩm");
+      return;
+    }
+    const { products } = await res.json();
+    tbody.innerHTML = products.length
+      ? products.map(rowHtml).join("")
+      : '<tr><td colspan="5" style="color:#999;">Chưa có sản phẩm nào được đồng bộ.</td></tr>';
+  }
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-action=publish]");
+    if (!btn) return;
+    const res = await fetch("/admin/api/products/" + btn.dataset.id + "/publish", { method: "POST" });
+    if (!res.ok) {
+      showError("Xuất bản thất bại");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

@@ -39,6 +39,7 @@
   <nav class="admin-nav">
     <a class="brand" href="/admin">Quản trị</a>
     <a href="/admin/posts">Bài viết</a>
+    {% if role == "manager" or role == "admin" %}<a href="/admin/products">Sản phẩm</a>{% endif %}
     <div class="spacer"></div>
     {% if role %}<span class="role-badge">{{ role }}</span>{% endif %}
   </nav>

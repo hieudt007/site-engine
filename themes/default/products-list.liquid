@@ -1,0 +1,33 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin-top:0;">{{ pageTitle }}</h1>
+
+{% if products.size == 0 %}
+  <p style="color:#777;">Chưa có sản phẩm nào.</p>
+{% else %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem;">
+    {% for product in products %}
+      <a href="/products/{{ product.id }}" style="text-decoration:none;color:inherit;border:1px solid #eee;border-radius:8px;overflow:hidden;background:#fff;">
+        {% if product.imageUrls.size > 0 %}
+          <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" style="width:100%;height:180px;object-fit:cover;">
+        {% else %}
+          <div style="width:100%;height:180px;background:#f3f4f6;"></div>
+        {% endif %}
+        <div style="padding:0.75rem;">
+          <div style="font-size:0.95rem;color:#111;margin-bottom:0.3rem;">{{ product.name | escape }}</div>
+          {% if product.salePrice %}
+            <div><span style="color:#dc2626;font-weight:600;">{{ product.salePrice }}₫</span> <span style="color:#999;text-decoration:line-through;font-size:0.85rem;">{{ product.price }}₫</span></div>
+          {% else %}
+            <div style="font-weight:600;">{{ product.price }}₫</div>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex;justify-content:space-between;margin-top:2rem;">
+    {% if hasPrev %}<a href="/products?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="/products?page={{ nextPage }}">Trang sau →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}
