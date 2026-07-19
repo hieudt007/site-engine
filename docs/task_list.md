@@ -82,6 +82,17 @@ Nguyên tắc: **additive**, sản phẩm không bật `has_variants` đi nguyê
 
 **Verify Phase 5**: đặt 1 đơn thử từ website → thấy đúng Order trong LeadBase CRM. Tắt LeadBase giữa chừng → đặt đơn → bật lại → đơn tự gửi lại thành công (retry hoạt động). `/sitemap.xml` liệt kê đúng bài đã publish, không lộ bài `noindex`.
 
+## Phase 5.6 — Category/topic, Media library, Product review, Redirect URL
+
+Kế hoạch đầy đủ: `C:\Users\hieud\.claude\plans\playful-juggling-crab.md`. Additive hoàn toàn, không đụng gì đã chạy.
+
+- [x] `PostCategory` — CRUD tự quản hoàn toàn ở site-engine (`routes/admin/postCategories.ts` + `post-categories.liquid`, `requireRole("manager")` để quản lý DANH SÁCH, nhưng GÁN category cho 1 bài vẫn qua `requireRole("edit")` sẵn có trong `posts.ts`). Hiện tên category trên `/blog` + `/blog/:slug` public.
+- [x] `ProductCategoryCache` — mirror PHẲNG (bỏ `parent_id`) từ LeadBase `ProductCategory`, đồng bộ qua đúng `productsSync.ts` sẵn có (`SyncProductToWebsite.php` thêm field `category` vào payload) — chỉ hiển thị, không CRUD ở site-engine (giống price/stock/variant). **Bug phát hiện khi làm phần này**: `routes/admin/productsUi.ts` chưa từng `include: { variants: true }` trong query — bảng biến thể ở trang sửa sản phẩm admin (Phase 5.5) đã luôn TRỐNG trên thực tế dù logic hiển thị đúng, chưa ai phát hiện ra. Đã sửa cùng lúc.
+- [x] Media library — `services/mediaStorage.ts` lưu file vào `uploads/` trên đĩa VPS (KHÔNG resize/optimize, bỏ qua `sharp` tránh phụ thuộc native binary), serve qua `@fastify/static`, nhận qua `@fastify/multipart` (2 dep mới). `/admin/media` — lưới ảnh, nút Copy URL (dán tay vào ô ảnh bìa/nội dung, CHƯA có trình chọn ảnh tích hợp sẵn trong editor — TODO riêng). Trước đây hoàn toàn không có nơi lưu file, ảnh chỉ dán URL tay.
+- [x] `ProductReview` — khách KHÔNG cần tài khoản (chỉ nhập tên), tạo `status='pending'`, PHẢI duyệt tay (`requireRole("manager")`, `/admin/reviews`) mới hiện công khai trên `/products/:id` — bắt buộc kiểm duyệt vì là nội dung công khai không đăng nhập.
+- [x] `Redirect` — tự động tạo khi đổi slug bài viết (`PATCH /admin/api/posts/:id`), áp dụng qua `app.setNotFoundHandler()`. **Bug phát hiện + sửa ngay trong lúc verify trên VPS thật**: `/blog/:slug` là route ĐÃ ĐĂNG KÝ nên luôn "khớp" — `setNotFoundHandler` không bao giờ chạy tới khi slug không tồn tại, phải tự tra `Redirect` NGAY TRONG handler của chính route đó trước khi trả 404 (không thể dựa vào notFoundHandler cho các route dạng `:param`). Test lại sau khi sửa: redirect 301 hoạt động đúng, 404 thật (không khớp redirect nào) vẫn đúng.
+- [x] **VERIFY THẬT trên VPS**: category (tạo Product+category qua tinker → đúng `ProductCategoryCache` bên site-engine), media (lưu file thật vào `uploads/`, serve qua HTTP 200, xoá file thật, từ chối mimetype lạ), redirect (301 đúng target sau khi sửa bug, 404 thật vẫn đúng khi không khớp).
+
 ## Phase 6 — Multi-theme: dựng sẵn + tự tạo bằng agent (`architecture.md` §10)
 
 Chạy sau khi Phase 5 xong (agent cần nội dung/sản phẩm/SEO đã có để "biết thiết kế cho cái gì" — đây là bước cuối cùng của luồng setup 1 Website).
