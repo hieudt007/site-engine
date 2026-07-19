@@ -8,6 +8,7 @@ function requireEnv(name: string): string {
 
 export const config = {
   port: Number(process.env.PORT ?? 3040),
+  isProduction: process.env.NODE_ENV === "production",
   databaseUrl: requireEnv("DATABASE_URL"),
 
   siteEngineSecret: requireEnv("SITE_ENGINE_SECRET"),

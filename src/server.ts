@@ -1,5 +1,8 @@
 import Fastify from "fastify";
 import { config } from "./config.js";
+import { registerSession } from "./plugins/session.js";
+import { registerAdminRoutes } from "./routes/admin/index.js";
+import { registerSsoRoute } from "./routes/sso.js";
 
 const app = Fastify({ logger: true });
 
@@ -7,9 +10,15 @@ app.get("/health", async () => {
   return { status: "ok" };
 });
 
-app
-  .listen({ port: config.port, host: "0.0.0.0" })
-  .catch((err) => {
-    app.log.error(err);
-    process.exit(1);
-  });
+async function start(): Promise<void> {
+  await registerSession(app);
+  await registerSsoRoute(app);
+  await registerAdminRoutes(app);
+
+  await app.listen({ port: config.port, host: "0.0.0.0" });
+}
+
+start().catch((err) => {
+  app.log.error(err);
+  process.exit(1);
+});

@@ -27,7 +27,7 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 
 **Đã chốt**: editor bài viết là UI riêng trong chính app đã bung (`architecture.md` §6) — cần làm session/bàn giao định danh TRƯỚC UI soạn bài.
 
-- [ ] `plugins/session.ts` + route `GET /sso?token=...` verify token HMAC từ LeadBase (`system_design.md` §5.1, dùng `SITE_ENGINE_SECRET` của đúng instance — `tech_doc.md` §6), tạo `Session`.
+- [x] `plugins/session.ts` (Prisma-backed store, `services/sessionStore.ts`) + route `GET /sso?token=...` (`routes/sso.ts`) verify token HMAC từ LeadBase (`security.ts` `signSsoToken`/`verifySsoToken`), chống replay (in-memory), tạo `Session`, cookie 30 ngày. Stub `/admin` (`routes/admin/index.ts`) để verify end-to-end — đã test thật bằng curl (login/replay/token sai/thiếu token đều đúng) + 12 test tự động.
 - [ ] **[lead-base]** Nút "Quản lý nội dung" trong màn hình Website → tra registry lấy đúng URL app → phát token ngắn hạn `{userId, userName, permissions, exp}`, redirect sang `{app_url}/sso`.
 - [x] **[lead-base]** Thêm permission `manage-website-content`, `view-website-content` vào `RolePermissionSeeder.php` (`system_design.md` §5.2) — làm sớm ở Phase 1.
 - [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ + đúng `permissions`.

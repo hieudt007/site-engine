@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { signSiteEngineRequest, verifySiteEngineRequest } from "./security.js";
+import {
+  signSiteEngineRequest,
+  signSsoToken,
+  verifySiteEngineRequest,
+  verifySsoToken,
+} from "./security.js";
 
 const SECRET = "test-secret";
 
@@ -57,5 +62,45 @@ describe("signSiteEngineRequest / verifySiteEngineRequest", () => {
     const signature = signSiteEngineRequest(SECRET, recentTimestamp, body);
 
     expect(verifySiteEngineRequest(SECRET, recentTimestamp, body, signature)).toBe(true);
+  });
+});
+
+describe("signSsoToken / verifySsoToken", () => {
+  const basePayload = {
+    userId: 1,
+    userName: "Admin",
+    permissions: ["manage-website-content"],
+    exp: Math.floor(Date.now() / 1000) + 60,
+  };
+
+  it("verifies a token signed with the same secret", () => {
+    const token = signSsoToken(SECRET, basePayload);
+    expect(verifySsoToken(SECRET, token)).toEqual(basePayload);
+  });
+
+  it("rejects a token signed with a different secret", () => {
+    const token = signSsoToken("other-secret", basePayload);
+    expect(verifySsoToken(SECRET, token)).toBeNull();
+  });
+
+  it("rejects a tampered payload", () => {
+    const token = signSsoToken(SECRET, basePayload);
+    const [, signature] = token.split(".");
+    const tampered = Buffer.from(JSON.stringify({ ...basePayload, permissions: ["manage-assets"] }))
+      .toString("base64url");
+
+    expect(verifySsoToken(SECRET, `${tampered}.${signature}`)).toBeNull();
+  });
+
+  it("rejects an expired token", () => {
+    const expired = { ...basePayload, exp: Math.floor(Date.now() / 1000) - 1 };
+    const token = signSsoToken(SECRET, expired);
+
+    expect(verifySsoToken(SECRET, token)).toBeNull();
+  });
+
+  it("rejects a malformed token", () => {
+    expect(verifySsoToken(SECRET, "not-a-valid-token")).toBeNull();
+    expect(verifySsoToken(SECRET, "")).toBeNull();
   });
 });

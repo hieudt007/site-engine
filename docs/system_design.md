@@ -297,11 +297,11 @@ Tenant đã login LeadBase, đang xem 1 Website → bấm "Quản lý nội dung
   → redirect GET {instance_url}/sso?token=...
   → instance verify chữ ký + exp + chưa từng dùng token này (chống replay — TBD cách lưu, xem §5.2)
   → tạo Session (§2 schema instance): lưu {userId, userName, permissions} vào `data`,
-    expiresAt = now + 8h
+    expiresAt = now + 30 ngày
   → set cookie httpOnly, sameSite=lax, secure (nếu https) → redirect vào /admin
 ```
 
-- **Hết hạn (8h)**: không tự gia hạn — quay lại LeadBase bấm nút lần nữa.
+- **Hết hạn (30 ngày)**: không tự gia hạn — quay lại LeadBase bấm nút lần nữa.
 - **Chống replay token bàn giao**: lưu tạm hash token đã dùng trong bộ nhớ (TTL = đúng 60s sống của token), không cần bảng DB riêng vì thời gian sống quá ngắn.
 - **Logout**: xoá `Session` + clear cookie, không cần gọi LeadBase.
 
