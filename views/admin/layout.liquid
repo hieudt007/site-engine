@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ pageTitle | default: "Quản trị" }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; background: #f6f7f9; }
+    nav.admin-nav { background: #111827; color: #fff; padding: 0.85rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; }
+    nav.admin-nav a { color: #cbd5e1; text-decoration: none; font-size: 0.9rem; }
+    nav.admin-nav a.brand { color: #fff; font-weight: 700; }
+    nav.admin-nav .spacer { flex: 1; }
+    nav.admin-nav .role-badge { background: #2563eb; color: #fff; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; }
+    main { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .btn { display: inline-block; border: 1px solid #d1d5db; background: #fff; color: #111; padding: 0.45rem 0.9rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; text-decoration: none; }
+    .btn:hover { background: #f3f4f6; }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+    th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    th { background: #fafafa; color: #666; font-weight: 600; }
+    input[type=text], textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+    textarea { min-height: 260px; resize: vertical; font-family: ui-monospace, monospace; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin: 1rem 0 0.3rem; }
+    .field-hint { color: #888; font-size: 0.78rem; margin-top: 0.2rem; }
+    .status-badge { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; }
+    .status-published { background: #dcfce7; color: #166534; }
+    .status-draft { background: #f3f4f6; color: #666; }
+    #flash { margin-bottom: 1rem; padding: 0.6rem 0.9rem; border-radius: 6px; font-size: 0.85rem; display: none; }
+    #flash.error { background: #fee2e2; color: #991b1b; display: block; }
+    #flash.success { background: #dcfce7; color: #166534; display: block; }
+  </style>
+</head>
+<body>
+  <nav class="admin-nav">
+    <a class="brand" href="/admin">Quản trị</a>
+    <a href="/admin/posts">Bài viết</a>
+    <div class="spacer"></div>
+    {% if role %}<span class="role-badge">{{ role }}</span>{% endif %}
+  </nav>
+  <main>
+    <div id="flash"></div>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -23,6 +23,8 @@ trap 'rm -rf "$STAGE_DIR"' EXIT
 # vào đó (`unzip site-engine.zip -d /var/www/site-engine/{websiteId}`), không cần bước mv thừa.
 cp -r dist "$STAGE_DIR/dist"
 cp -r prisma "$STAGE_DIR/prisma"
+cp -r views "$STAGE_DIR/views"
+cp -r themes "$STAGE_DIR/themes"
 cp package.json "$STAGE_DIR/package.json"
 if [ -f package-lock.json ]; then
   cp package-lock.json "$STAGE_DIR/package-lock.json"

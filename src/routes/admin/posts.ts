@@ -27,7 +27,7 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 // CRUD bài viết (system_design.md §5.2): "edit" chỉ tạo/sửa được bài NHÁP (chưa publishedAt),
 // không tự xuất bản/xoá; "manager"/"admin" mới publish/xoá được.
 export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/posts", { preHandler: requireRole("edit") }, async () => {
+  app.get("/admin/api/posts", { preHandler: requireRole("edit") }, async () => {
     const posts = await prisma.post.findMany({
       orderBy: { createdAt: "desc" },
       include: { author: { select: { name: true } } },
@@ -36,7 +36,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get<{ Params: { id: string } }>(
-    "/admin/posts/:id",
+    "/admin/api/posts/:id",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
@@ -47,7 +47,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.post("/admin/posts", { preHandler: requireRole("edit") }, async (request, reply) => {
+  app.post("/admin/api/posts", { preHandler: requireRole("edit") }, async (request, reply) => {
     const parsed = createPostSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(422).send({ error: parsed.error.flatten() });
@@ -68,7 +68,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch<{ Params: { id: string } }>(
-    "/admin/posts/:id",
+    "/admin/api/posts/:id",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
       const parsed = updatePostSchema.safeParse(request.body);
@@ -105,7 +105,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
   );
 
   app.post<{ Params: { id: string } }>(
-    "/admin/posts/:id/publish",
+    "/admin/api/posts/:id/publish",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
@@ -125,7 +125,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
   );
 
   app.delete<{ Params: { id: string } }>(
-    "/admin/posts/:id",
+    "/admin/api/posts/:id",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });

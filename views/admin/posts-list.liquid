@@ -1,0 +1,98 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Bài viết</h1>
+  <a class="btn btn-primary" href="/admin/posts/new">+ Bài mới</a>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tiêu đề</th>
+      <th>Trạng thái</th>
+      <th>Tác giả</th>
+      <th>Cập nhật</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="posts-body">
+    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const CURRENT_ROLE = "{{ role }}";
+  const canManage = CURRENT_ROLE === "manager" || CURRENT_ROLE === "admin";
+  const tbody = document.getElementById("posts-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(post) {
+    const statusBadge = post.publishedAt
+      ? '<span class="status-badge status-published">Đã xuất bản</span>'
+      : '<span class="status-badge status-draft">Nháp</span>';
+    const author = post.author ? escapeHtml(post.author.name) : "-";
+    const updated = new Date(post.updatedAt).toLocaleString("vi-VN");
+    const publishBtn = !post.publishedAt && canManage
+      ? '<button class="btn" data-action="publish" data-id="' + post.id + '">Xuất bản</button>'
+      : "";
+    const deleteBtn = canManage
+      ? '<button class="btn btn-danger" data-action="delete" data-id="' + post.id + '">Xoá</button>'
+      : "";
+    return (
+      "<tr>" +
+      '<td><a href="/admin/posts/' + post.id + '">' + escapeHtml(post.title) + "</a></td>" +
+      "<td>" + statusBadge + "</td>" +
+      "<td>" + author + "</td>" +
+      "<td>" + updated + "</td>" +
+      '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' + publishBtn + deleteBtn + "</td>" +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/posts");
+    if (!res.ok) {
+      showError("Không tải được danh sách bài viết");
+      return;
+    }
+    const { posts } = await res.json();
+    tbody.innerHTML = posts.length
+      ? posts.map(rowHtml).join("")
+      : '<tr><td colspan="5" style="color:#999;">Chưa có bài viết nào.</td></tr>';
+  }
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    if (action === "delete" && !confirm("Xoá bài viết này?")) return;
+
+    const res = await fetch(
+      "/admin/api/posts/" + id + (action === "publish" ? "/publish" : ""),
+      { method: action === "publish" ? "POST" : "DELETE" },
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showError(body.error || "Thao tác thất bại");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

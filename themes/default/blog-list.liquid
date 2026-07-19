@@ -1,0 +1,33 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin-top:0;">{{ pageTitle }}</h1>
+
+{% if posts.size == 0 %}
+  <p style="color:#777;">Chưa có bài viết nào.</p>
+{% else %}
+  <div style="display:flex;flex-direction:column;gap:1.5rem;">
+    {% for post in posts %}
+      <article style="border-bottom:1px solid #eee;padding-bottom:1.5rem;">
+        {% if post.coverImage %}
+          <a href="/blog/{{ post.slug }}">
+            <img src="{{ post.coverImage }}" alt="{{ post.title }}" style="width:100%;max-height:280px;object-fit:cover;border-radius:8px;">
+          </a>
+        {% endif %}
+        <h2 style="margin-bottom:0.25rem;">
+          <a href="/blog/{{ post.slug }}" style="text-decoration:none;color:#111;">{{ post.title | escape }}</a>
+        </h2>
+        <div style="color:#999;font-size:0.85rem;margin-bottom:0.5rem;">
+          {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.authorName %} · {{ post.authorName | escape }}{% endif %}
+        </div>
+        {% if post.excerpt %}<p style="color:#444;">{{ post.excerpt | escape }}</p>{% endif %}
+        <a href="/blog/{{ post.slug }}">Đọc tiếp →</a>
+      </article>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex;justify-content:space-between;margin-top:2rem;">
+    {% if hasPrev %}<a href="/blog?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="/blog?page={{ nextPage }}">Trang sau →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}
