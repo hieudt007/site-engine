@@ -142,12 +142,16 @@ Không có secret riêng theo từng mục đích (đơn hàng/SSO/đồng bộ 
 
 ## 8. Việc cần chuẩn bị phía VPS (thực hiện 1 lần lúc `lead-base` bootstrap, không phải việc của repo này)
 
-Ghi chú để biết `lead-base/scripts/setup-vps.sh` cần thêm gì (không detail hoá ở đây vì thuộc repo khác):
-1. Node 22 cài sẵn trên VPS (đã có nếu VPS chạy 9router).
-2. Postgres — user Laravel chạy dưới có quyền `CREATE DATABASE`/`DROP DATABASE`.
+Ghi chú để biết `lead-base/scripts/setup-vps.sh` cần thêm gì (đã có code thật ở `lead-base` — `app/Services/WebsiteProvisionService.php`, `scripts/site-engine-provision-{app,domain}.sh`, `systemd/site-engine-instance@.service`, `config/services.php` `site_engine.*` — không detail hoá lại ở đây vì thuộc repo khác):
+1. Node 22 + npm cài sẵn trên VPS (đã có nếu VPS chạy 9router).
+2. Postgres — user Laravel chạy dưới có quyền `CREATE DATABASE`/`DROP DATABASE` (`createdb`/`dropdb` qua `sudo -u postgres`).
 3. Cài `systemd/site-engine-instance@.service` vào `/etc/systemd/system/`, `daemon-reload`.
-4. Sudoers `NOPASSWD` cho script `site-engine-provision-domain.sh` (mirror `crm-provision-domain.sh`).
-5. User hệ thống riêng chạy các tiến trình `site-engine-instance@*` (không phải `www-data`, không phải root) — mirror lý do LeadBase hiện dùng `www-data` riêng cho PHP-FPM.
+4. Deploy 2 script vào `/usr/local/bin/` + Sudoers `NOPASSWD` cho cả 2 (mirror `crm-provision-domain.sh`):
+   - `site-engine-provision-app.sh` (mkdir/unzip/npm ci/createdb/env/migrate/systemctl).
+   - `site-engine-provision-domain.sh` (nginx reverse-proxy vhost dùng chung cert Cloudflare Origin CA, §3).
+5. User hệ thống riêng `site-engine` chạy các tiến trình `site-engine-instance@*` (không phải `www-data`, không phải root) — mirror lý do LeadBase hiện dùng `www-data` riêng cho PHP-FPM.
+6. Thư mục `/etc/site-engine/instances/` (chứa `.env` từng instance, mode 600, đọc bởi systemd `EnvironmentFile=`) và `/var/www/site-engine/` (chứa app code từng instance) — cả 2 do `site-engine-provision-app.sh` tự tạo, chỉ cần đảm bảo user chạy Laravel có quyền `sudo` gọi script, không cần tạo tay trước.
+7. Copy `site-engine.zip` (build từ repo `site-engine`, `npm run release`) vào `lead-base/resources/site-engine/site-engine.zip` trước khi tạo Website đầu tiên (`resources/site-engine/README.md`).
 
 ## 9. Testing
 

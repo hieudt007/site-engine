@@ -8,22 +8,16 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [x] `prisma/schema.prisma` theo `system_design.md` §1, chạy migration đầu tiên trên Postgres local.
 - [x] `scripts/build-release.sh` — build + đóng gói `site-engine.zip` (`tech_doc.md` §2) — bước `npm run build` đã chạy sạch; bước zip cần môi trường có lệnh `zip` (Linux/CI), chưa test full trên máy dev Windows.
 
-## Phase 1 — Bung được 1 app thật bằng tay (chưa tự động hoá, chưa domain/SSL)
-- [ ] **[lead-base]** Model `Website` (Laravel, registry — `system_design.md` §2), migration.
-- [ ] **[lead-base]** `WebsiteProvisionService.php` (mirror `LandingDomainProvisionService`): bung `site-engine.zip` vào `/var/www/site-engine/{websiteId}`, `npm ci --omit=dev`, `createdb`, sinh `SITE_ENGINE_SECRET` ngẫu nhiên lưu `Website.secret`, ghi `.env`, `prisma migrate deploy`.
-- [ ] Chạy thử app vừa bung bằng tay (`node dist/server.js` với `.env` vừa sinh) — xác nhận app chạy độc lập, đọc đúng DB riêng, không đụng gì tới DB LeadBase hay app khác.
-- [ ] **[lead-base]** Màn hình danh sách Website + nút "Tạo Website" gọi `WebsiteProvisionService`.
+## Phase 1 — Bung được 1 app thật (code đã viết, GỘP LUÔN Phase 2 — chưa verify trên VPS thật)
+- [x] **[lead-base]** Model `Website` (Laravel, registry — `system_design.md` §2), migration (`2026_07_19_000001_create_websites_table.php`, đã chạy local, có cột `secret` mã hoá — KHÔNG có `tenant_id`, xem ghi chú dưới).
+- [x] **[lead-base]** `WebsiteProvisionService.php` (mirror `LandingDomainProvisionService`): bung `site-engine.zip` vào `/var/www/site-engine/{websiteId}`, `npm ci --omit=dev`, `createdb`, sinh `SITE_ENGINE_SECRET` ngẫu nhiên lưu `Website.secret`, ghi `.env` (qua file tạm, tránh lộ secret trong `ps aux`), `prisma migrate deploy`, `systemctl enable --now`, Nginx vhost — code viết gộp luôn cả 2 bước systemd + nginx (Phase 2) trong 1 lần thay vì tách riêng như dự tính ban đầu.
+- [x] **[lead-base]** `scripts/site-engine-provision-app.sh` (mkdir/unzip/npm ci/createdb/env/migrate/systemd) + `scripts/site-engine-provision-domain.sh` (nginx dùng chung 1 cert Cloudflare Origin CA, `remove` — KHÔNG có action `ssl`/Certbot, `system_design.md` §3).
+- [x] `systemd/site-engine-instance@.service` (`tech_doc.md` §5) — `EnvironmentFile=/etc/site-engine/instances/%i.env`.
+- [x] **[lead-base]** Màn hình danh sách Website (`Assets/Websites.tsx`) + nút "Tạo Website" gọi `WebsiteProvisionService`, nút xoá gọi `remove()`. Permission `manage-website-content`/`view-website-content` đã thêm vào `RolePermissionSeeder.php`.
+- [ ] **CHƯA XONG**: verify trên VPS thật — deploy 2 script + systemd unit, cấu hình sudoers, build `site-engine.zip` (cần máy Linux/CI có lệnh `zip`) và copy vào `lead-base/resources/site-engine/site-engine.zip`, tạo user hệ thống `site-engine`, rồi bấm "Tạo Website" thật từ UI.
+- [x] Đã tự phát hiện + sửa 1 lỗi thiết kế: field `tenant_id`/`leadbaseTenantId` bị loại bỏ khỏi toàn bộ schema (Website, SiteConfig, Session, SSO token, order API) sau khi verify thực tế `lead-base` không có khái niệm tenant nào (1 cài đặt = 1 doanh nghiệp).
 
-**Verify Phase 1**: bấm "Tạo Website" ở LeadBase → thư mục app mới xuất hiện trên VPS + DB mới tạo → chạy tay app đó, `curl localhost:{port}/health` trả về OK → không có bảng nào lẫn dữ liệu website khác (khác DB vật lý).
-
-## Phase 2 — systemd + domain (Cloudflare Full mode, không Certbot)
-- [ ] `systemd/site-engine-instance@.service` (`tech_doc.md` §5) — thay chạy tay ở Phase 1 bằng `systemctl enable --now site-engine-instance@{websiteId}`.
-- [ ] **[lead-base]** `scripts/site-engine-provision-domain.sh` — chỉ 2 action `nginx <domain> <port>` (vhost dùng chung 1 cert Cloudflare Origin CA), `remove` (`system_design.md` §3) — **không có action `ssl`/Certbot**.
-- [ ] **[lead-base]** `WebsiteProvisionService` gọi tiếp bước systemd + nginx sau khi DB/migrate xong (nối tiếp luồng Phase 1, vẫn cùng 1 service, không tách API).
-- [ ] **[lead-base]** UI: nút "Tạo Website" giờ chạy xong luôn (không cần bước "Xin SSL" riêng như Landing Page) — trạng thái chỉ còn `status` (`provisioning`/`running`/`failed`).
-- [ ] VPS: chuẩn bị theo `tech_doc.md` §8 (Node, Postgres quyền tạo/xoá DB, systemd unit, sudoers, user hệ thống riêng).
-
-**Verify Phase 2**: gắn domain thật (đã trỏ nameserver Cloudflare + DNS record) vào 1 Website mới → bấm "Tạo Website" → app chạy dưới systemd (không SSH tay) → domain truy cập HTTPS được **ngay, không cần bước SSL riêng**.
+**Verify Phase 1+2 (chưa làm, cần VPS thật)**: bấm "Tạo Website" ở LeadBase → app chạy dưới systemd (không SSH tay) → domain thật (đã trỏ Cloudflare) truy cập HTTPS được ngay → không có bảng nào lẫn dữ liệu website khác (khác DB vật lý).
 
 ## Phase 3 — Blog + đăng nhập tenant vào 1 app
 
@@ -31,7 +25,7 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 
 - [ ] `plugins/session.ts` + route `GET /sso?token=...` verify token HMAC từ LeadBase (`system_design.md` §5.1, dùng `SITE_ENGINE_SECRET` của đúng instance — `tech_doc.md` §6), tạo `Session`.
 - [ ] **[lead-base]** Nút "Quản lý nội dung" trong màn hình Website → tra registry lấy đúng URL app → phát token ngắn hạn `{userId, userName, permissions, exp}`, redirect sang `{app_url}/sso`.
-- [ ] **[lead-base]** Thêm permission `manage-website-content`, `view-website-content` vào `RolePermissionSeeder.php` (`system_design.md` §5.2).
+- [x] **[lead-base]** Thêm permission `manage-website-content`, `view-website-content` vào `RolePermissionSeeder.php` (`system_design.md` §5.2) — làm sớm ở Phase 1.
 - [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ + đúng `permissions`.
 - [ ] Model `Post` + CRUD trực tiếp trong app qua UI vừa có session.
 - [ ] UI soạn bài: list + editor (rich text — thư viện TBD).

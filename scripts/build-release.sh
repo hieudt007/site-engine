@@ -18,14 +18,16 @@ rm -f site-engine.zip
 STAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "$STAGE_DIR"' EXIT
 
-mkdir -p "$STAGE_DIR/site-engine"
-cp -r dist "$STAGE_DIR/site-engine/dist"
-cp -r prisma "$STAGE_DIR/site-engine/prisma"
-cp package.json "$STAGE_DIR/site-engine/package.json"
+# Zip PHẲNG (dist/, prisma/, package.json ở gốc zip, KHÔNG có thư mục "site-engine/" lồng bên
+# trong) — vì WebsiteProvisionService.php (lead-base) tạo sẵn thư mục instance rồi unzip thẳng
+# vào đó (`unzip site-engine.zip -d /var/www/site-engine/{websiteId}`), không cần bước mv thừa.
+cp -r dist "$STAGE_DIR/dist"
+cp -r prisma "$STAGE_DIR/prisma"
+cp package.json "$STAGE_DIR/package.json"
 if [ -f package-lock.json ]; then
-  cp package-lock.json "$STAGE_DIR/site-engine/package-lock.json"
+  cp package-lock.json "$STAGE_DIR/package-lock.json"
 fi
 
-(cd "$STAGE_DIR" && zip -r -q "$OLDPWD/site-engine.zip" site-engine)
+(cd "$STAGE_DIR" && zip -r -q "$OLDPWD/site-engine.zip" .)
 
 echo "==> xong: site-engine.zip"
