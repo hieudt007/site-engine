@@ -13,9 +13,8 @@ datasource db {
 // Đúng 1 record duy nhất trong DB này — thông tin cơ bản + SEO mặc định của CHÍNH website
 // đang chạy trên instance này. Không phải bảng registry (đó là việc của LeadBase).
 model SiteConfig {
-  id               String   @id @default("singleton") // luôn đúng 1 row
-  leadbaseTenantId String // tham chiếu logic, không FK thật (khác DB)
-  domain           String // để chính app tự biết domain mình đang chạy (canonical URL, sitemap...)
+  id     String @id @default("singleton") // luôn đúng 1 row
+  domain String // để chính app tự biết domain mình đang chạy (canonical URL, sitemap...)
 
   siteName        String
   tagline         String?
@@ -34,10 +33,9 @@ model SiteConfig {
 // Session TENANT/nhân viên shop vào /admin — KHÔNG có password, tạo từ token
 // bàn giao định danh do LeadBase ký (HMAC).
 model Session {
-  id               String   @id
-  leadbaseTenantId String
-  data             String // JSON: { userId, userName, permissions }
-  expiresAt        DateTime
+  id        String   @id
+  data      String // JSON: { userId, userName, permissions }
+  expiresAt DateTime
 }
 
 model Post {

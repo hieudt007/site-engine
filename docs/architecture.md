@@ -107,7 +107,7 @@ Soạn bài viết/nội dung có **UI riêng trong chính app đã bung** (khô
 ```
 Tenant (đã login LeadBase) bấm "Quản lý nội dung" cho 1 Website cụ thể
   → LeadBase tra registry lấy đúng URL của Website đó
-  → phát 1 token ngắn hạn, ký HMAC, chứa {tenantId, permissions, exp}
+  → phát 1 token ngắn hạn, ký HMAC, chứa {userId, permissions, exp}
   → redirect sang đúng URL Website đó kèm token (vd https://domain-khach.../sso?token=...)
   → Website verify chữ ký + hạn dùng, tạo session (cookie, Prisma-backed trong DB CHÍNH NÓ)
   → tenant thao tác UI soạn bài trong session đó, hết hạn thì bấm lại nút bên LeadBase

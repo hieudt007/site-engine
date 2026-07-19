@@ -11,7 +11,6 @@ Registry (danh sách Website: domain, tenant, trạng thái, port, tên DB) là 
 // đang chạy trên instance này. Không phải bảng registry (đó là việc của LeadBase).
 model SiteConfig {
   id                String   @id @default("singleton") // luôn đúng 1 row
-  leadbaseTenantId  String   // tham chiếu logic, không FK thật (khác DB)
   domain            String   // để chính app tự biết domain mình đang chạy (canonical URL, sitemap...)
 
   siteName          String
@@ -32,7 +31,6 @@ model SiteConfig {
 // bàn giao định danh do LeadBase ký (HMAC).
 model Session {
   id                String   @id
-  leadbaseTenantId  String
   data              String   // JSON: { userId, userName, permissions }
   expiresAt         DateTime
 }
@@ -168,7 +166,7 @@ Không có request/response qua mạng ở bước tạo/xoá — toàn bộ là
 
 ```
 Website (bảng mới bên lead-base, KHÔNG phải Prisma):
-  id, tenant_id, domain, name,
+  id, domain, name,
   status              // 'provisioning' | 'running' | 'failed' | 'stopped'
   port, db_name        // để LeadBase biết instance đang chạy ở đâu (chỉ dùng lúc tạo/xoá, architecture.md §1)
   secret               // sinh ngẫu nhiên lúc tạo (vd random_bytes(32)), mã hoá at-rest, RIÊNG mỗi Website —
@@ -208,7 +206,7 @@ Ký HMAC theo đúng mẫu facebook-gateway (`sha256=HMAC_SHA256(secret, "{times
 Mirror `LandingOrderController::store()` nhưng xác thực bằng chữ ký HMAC (service-to-service) thay vì honeypot (form JS public):
 
 ```
-Request: { leadbaseTenantId, websiteId, sourceDomain, customer: { name, phone, address }, items: [...], total }
+Request: { websiteId, sourceDomain, customer: { name, phone, address }, items: [...], total }
 Response: { success: true, orderCode: "DH..." }   // creator_id/status_id resolve server-side, KHÔNG nhận từ client
 ```
 
@@ -248,11 +246,12 @@ Instance **không có form đăng nhập, không có bảng password**. Danh tí
 Tenant đã login LeadBase, đang xem 1 Website → bấm "Quản lý nội dung"
   → LeadBase tra registry lấy URL đúng instance đó (mỗi instance domain khác nhau)
   → build token (HMAC, secret = SITE_ENGINE_SECRET của đúng Website này, §2):
-    { tenantId, userId, userName, permissions: string[], exp: now + 60s }
-    (không cần websiteId trong token — instance đích tự nó đã = đúng website đó)
+    { userId, userName, permissions: string[], exp: now + 60s }
+    (không cần tenantId — lead-base không có khái niệm tenant, 1 cài đặt = 1 doanh nghiệp; cũng
+    không cần websiteId trong token — instance đích tự nó đã = đúng website đó)
   → redirect GET {instance_url}/sso?token=...
   → instance verify chữ ký + exp + chưa từng dùng token này (chống replay — TBD cách lưu, xem §5.2)
-  → tạo Session (§2 schema instance): lưu {tenantId, userId, userName, permissions} vào `data`,
+  → tạo Session (§2 schema instance): lưu {userId, userName, permissions} vào `data`,
     expiresAt = now + 8h
   → set cookie httpOnly, sameSite=lax, secure (nếu https) → redirect vào /admin
 ```
