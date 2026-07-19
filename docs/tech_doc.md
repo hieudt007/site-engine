@@ -2,7 +2,7 @@
 
 ## 1. Stack
 
-Node 22 · TypeScript (ESM) · Fastify 5 · Prisma + PostgreSQL · `zod` cho input validation ở mọi route · `bcryptjs`/`crypto` cho HMAC (Node built-in `crypto`, không cần thư viện ngoài — xem cách `facebook-gateway/src/security.ts` implement `signGatewayRequest`/`verifyGatewaySignature`, port lại nguyên logic đó).
+Node 22 · TypeScript (ESM) · Fastify 5 · Prisma + PostgreSQL · `zod` cho input validation ở mọi route · `bcryptjs`/`crypto` cho HMAC (Node built-in `crypto`, không cần thư viện ngoài — xem cách `facebook-gateway/src/security.ts` implement `signGatewayRequest`/`verifyGatewaySignature`, port lại nguyên logic đó) · **Liquid** (`liquidjs`, qua `@fastify/view`) cho toàn bộ template hiển thị (blog/sản phẩm/theme) — **KHÔNG dùng EJS**, chốt ở `architecture.md` §10: theme tự tạo (agent-generated) cần cho phép logic thật (vòng lặp/if-else) nhưng không được có khả năng chạy code trên server; Liquid an toàn theo thiết kế (không expose `require`/filesystem/eval), EJS thì không. Dùng Liquid thống nhất cho cả theme built-in lẫn custom — không tách 2 pipeline render theo mức tin cậy.
 
 Lý do chọn (đã thống nhất trong `PRD.md`): khớp `chatbot-lite`/`facebook-gateway`, nhẹ, dễ đóng gói thành 1 gói chạy độc lập.
 
@@ -44,10 +44,35 @@ site-engine/
                                  LeadBase (system_design.md §4.2), verify HMAC bằng security.ts —
                                  chiều NGƯỢC với leadbaseClient.ts (LeadBase gọi vào, không phải
                                  app này gọi ra)
+        theme-install.ts          POST /api/theme/install — nhận bundle theme tự tạo TỪ LeadBase
+                                 (system_design.md §4.3), verify HMAC, validate slug + dung lượng,
+                                 giải nén vào themes/{slug}/, KHÔNG tự activate
     services/
       leadbaseClient.ts        gọi API §system_design.md #4.1 (tạo order), ký HMAC — app tự gọi,
                                KHÔNG có process trung gian nào
       otpService.ts             sinh/verify OTP, gọi nhà cung cấp SMS (TBD nhà cung cấp)
+      themeRenderer.ts          đọc ThemeConfig.activeTheme, trỏ @fastify/view sang đúng
+                               themes/{activeTheme}/views/ — 1 nguồn duy nhất quyết định theme
+                               nào đang hiển thị, dùng bởi mọi route public/
+
+  themes/
+    default/                  theme built-in đóng gói SẴN trong site-engine.zip (system_design.md
+                             §1 ThemeConfig) — mỗi theme built-in là 1 thư mục con y hệt cấu trúc
+                             theme tự tạo (views/*.liquid + theme.css), khác nhau ở chỗ được viết
+                             bởi chính đội site-engine, không qua kênh cài đặt §4.3
+      views/
+        layout.liquid
+        blog-list.liquid
+        blog-post.liquid
+        product-list.liquid
+        product-detail.liquid
+        cart.liquid
+        checkout.liquid
+        order-confirmation.liquid
+      theme.css
+    # minimal/, shop/ — thêm theme built-in khác cùng cấu trúc, TBD số lượng cho MVP
+    # custom-{slug}/ — theme tự tạo, KHÔNG nằm trong git repo này (giải nén lúc runtime bởi
+    #                  theme-install.ts vào đúng thư mục instance đang chạy, không phải build-time)
 
   prisma/
     schema.prisma            §system_design.md #1 — bản mẫu, mỗi lần bung ra 1 DB mới chạy
@@ -87,6 +112,11 @@ lead-base/
   scripts/site-engine-provision-domain.sh     mirror crm-provision-domain.sh, action nginx/remove
                                              (system_design.md §3 — KHÔNG còn action ssl)
   systemd/site-engine-instance@.service       template unit, %i = websiteId (§5)
+  app/Services/WebsiteThemeAgentService.php   (draft, chưa code) — sinh bundle theme (Liquid + CSS
+                                             + JS client-side, KHÔNG có code chạy server) qua LLM,
+                                             gọi POST {website.domain}/api/theme/install
+                                             (system_design.md §4.3, architecture.md §6) — bước
+                                             cuối cùng của luồng setup 1 Website
 ```
 
 ## 5. systemd template unit (`site-engine-instance@.service`)

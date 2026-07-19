@@ -29,6 +29,7 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ + đúng `permissions`.
 - [ ] Model `Post` + CRUD trực tiếp trong app qua UI vừa có session.
 - [ ] UI soạn bài: list + editor (rich text — thư viện TBD).
+- [ ] `@fastify/view` + Liquid (`liquidjs`) + theme built-in `themes/default/` (`tech_doc.md` §1, §3) — renderer đọc `ThemeConfig.activeTheme` (`themeRenderer.ts`), route public dùng renderer này thay vì hardcode 1 view.
 - [ ] Route public `/blog`, `/blog/:slug`.
 
 ## Phase 4 — Sản phẩm + giỏ hàng + tài khoản khách hàng
@@ -55,16 +56,30 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 
 **Verify Phase 5**: đặt 1 đơn thử từ website → thấy đúng Order trong LeadBase CRM. Tắt LeadBase giữa chừng → đặt đơn → bật lại → đơn tự gửi lại thành công (retry hoạt động). `/sitemap.xml` liệt kê đúng bài đã publish, không lộ bài `noindex`.
 
-## Phase 6 — Hoàn thiện vận hành
+## Phase 6 — Multi-theme: dựng sẵn + tự tạo bằng agent (`architecture.md` §10)
+
+Chạy sau khi Phase 5 xong (agent cần nội dung/sản phẩm/SEO đã có để "biết thiết kế cho cái gì" — đây là bước cuối cùng của luồng setup 1 Website).
+
+- [ ] Model `CustomTheme` (`system_design.md` §1) + migration.
+- [ ] `routes/public/theme-install.ts` — `POST /api/theme/install`, verify HMAC, validate `slug` (regex an toàn, không trùng theme built-in/đã cài) + giới hạn dung lượng bundle, giải nén vào `themes/{slug}/`, tạo `CustomTheme`, KHÔNG tự activate (`system_design.md` §4.3).
+- [ ] `/admin/settings/theme` — danh sách theme (built-in + `CustomTheme`) kèm xem trước, nút "Dùng theme này" đổi `ThemeConfig.activeTheme` (`system_design.md` §8).
+- [ ] Thêm ít nhất 1-2 theme built-in nữa ngoài `default/` (TBD số lượng, `tech_doc.md` §3).
+- [ ] **[lead-base]** `WebsiteThemeAgentService.php` (draft, chưa thiết kế prompt/luồng cụ thể) — sinh bundle Liquid+CSS+JS client-side qua LLM, gọi `POST /api/theme/install`.
+- [ ] **[lead-base]** UI: bước "Thiết kế giao diện" ở cuối luồng tạo Website (sau khi nội dung đã setup xong) — gọi `WebsiteThemeAgentService`.
+- [ ] **[lead-base]** Mở rộng backup (`architecture.md` §9 đã ghi chú) — thêm `themes/custom-*/` của mọi Website vào phạm vi backup (rsync/tar, khác `pg_dump` vì là file không phải DB — bung lại zip KHÔNG khôi phục được phần này).
+
+**Verify Phase 6**: agent sinh xong 1 theme cho 1 Website test → theme xuất hiện ở `/admin/settings/theme` dạng chưa active → bấm "Dùng theme này" → website đổi giao diện đúng như agent thiết kế → theme cũ (built-in) vẫn còn, chọn lại được. Thử 1 bundle theme cố tình có payload bất thường (file quá lớn/slug độc hại) → bị từ chối rõ ràng, không crash app.
+
+## Phase 7 — Hoàn thiện vận hành
 - [ ] **[lead-base]** "Xoá Website" — `systemctl disable --now`, gỡ Nginx vhost, `dropdb`, `rm -rf` thư mục app (có xác nhận rõ ràng trước khi xoá — hành động không thể hoàn tác, `architecture.md` §3).
-- [ ] **[lead-base]** Mở rộng `scripts/crm-backup-db.sh` (đã có sẵn — cron 2h sáng, pg_dump + rclone lên Google Drive) để `pg_dump` **thêm mọi DB `site_engine_*`**, không chỉ DB chính CRM (`architecture.md` §9). KHÔNG cần backup thư mục code app (`/var/www/site-engine/{id}`) hay thư mục deploy Landing Page (`/var/www/{domain}`) — cả 2 đều dựng lại được (bung zip lại / chạy lại `deploy()`), chỉ DB là dữ liệu không tái tạo được.
+- [ ] **[lead-base]** Mở rộng `scripts/crm-backup-db.sh` (đã có sẵn — cron 2h sáng, pg_dump + rclone lên Google Drive) để `pg_dump` **thêm mọi DB `site_engine_*`**, không chỉ DB chính CRM (`architecture.md` §9). KHÔNG cần backup thư mục code app (`/var/www/site-engine/{id}`) hay thư mục deploy Landing Page (`/var/www/{domain}`) — cả 2 đều dựng lại được (bung zip lại / chạy lại `deploy()`), chỉ DB và `themes/custom-*/` (Phase 6) là dữ liệu không tái tạo được.
 - [ ] **[lead-base]** Cập nhật retention/dung lượng ước tính khi số Website tăng (N DB thay vì 1) — kiểm tra `KEEP_DAYS_LOCAL` hiện tại còn hợp lý không khi backup gồm nhiều DB.
 - [ ] Theo dõi lỗi: log tập trung tối thiểu, đảm bảo lỗi gửi đơn không bị nuốt im lặng.
 - [ ] README + hướng dẫn build/release `site-engine.zip`, dựa trên `tech_doc.md` §2.
 
-## Phase 7 — MCP: kết nối AI qua OAuth (draft, chưa chốt nội dung tool)
+## Phase 8 — MCP: kết nối AI qua OAuth (draft, chưa chốt nội dung tool)
 
-Chỉ triển khai sau khi Phase 3 (blog) và có hình dạng theme rõ ràng. Xem `system_design.md` §9 và `architecture.md` §7 cho các mục còn mở (TBD):
+Chỉ triển khai sau khi Phase 3 (blog) và Phase 6 (theme) xong. Xem `system_design.md` §9 và `architecture.md` §7 cho các mục còn mở (TBD). **Không còn bao gồm sửa giao diện** — việc đó đã có kênh riêng ở Phase 6, đơn giản hơn MCP/OAuth nhiều.
 
 - [ ] Chọn thư viện OAuth server phía Node (ứng viên: `node-oidc-provider`), dựng discovery + dynamic client registration (RFC 8414/9728/7591) — mỗi app tự có OAuth server riêng của nó.
 - [ ] Tái dùng cơ chế bàn giao định danh §5.1 cho bước consent (không làm token riêng cho MCP).
@@ -72,12 +87,11 @@ Chỉ triển khai sau khi Phase 3 (blog) và có hình dạng theme rõ ràng. 
 - [ ] Access token resource-bound (RFC 8707), `aud` = base URL của chính app (không cần so khớp website — vốn dĩ chỉ có 1 website/app).
 - [ ] MCP server (`POST /mcp`, JSON-RPC 2.0) với tool set tối thiểu ban đầu (`list_posts`, `create_post`, `update_post`, `publish_post`).
 - [ ] **[lead-base]** Nút "Kết nối AI" trong trang quản lý Website + nút "Ngắt kết nối" (revoke `OAuthToken`).
-- [ ] `generate_content`, `update_theme_section` — làm sau khi chốt việc mở #2/#3 ở `system_design.md` §9.
+- [ ] `generate_content` — làm sau khi chốt việc mở #2 ở `system_design.md` §9.
 
-**Verify Phase 7**: từ LeadBase bấm "Kết nối AI" cho 1 Website → AI client (Claude) xin được access token → gọi `list_posts`/`create_post` thành công trên đúng app đó. Access token của app A không thể dùng cho app B (khác base URL, khác DB hoàn toàn — cô lập vật lý).
+**Verify Phase 8**: từ LeadBase bấm "Kết nối AI" cho 1 Website → AI client (Claude) xin được access token → gọi `list_posts`/`create_post` thành công trên đúng app đó. Access token của app A không thể dùng cho app B (khác base URL, khác DB hoàn toàn — cô lập vật lý).
 
 ## Ngoài phạm vi task list này (Phase sau, chưa lên kế hoạch chi tiết)
 - Cổng thanh toán online.
-- Nhiều theme.
 - Đa ngôn ngữ nội dung khách nhập.
 - Dời 1 website riêng sang VPS khác (làm được kỹ thuật nhưng SSL/domain phải cấu hình tay, xem `PRD.md` §3.6).

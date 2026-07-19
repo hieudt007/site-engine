@@ -125,7 +125,7 @@ Tenant bấm "Kết nối AI" cho 1 Website (đã có session từ §6, hoặc b
   → tenant Approve → Website cấp OAuth token (RFC 8707, aud = base URL của chính nó)
 ```
 
-Chưa chốt chi tiết implement — xem `system_design.md` §9 (TBD) và `task_list.md` Phase 7.
+Chưa chốt chi tiết implement — xem `system_design.md` §9 (TBD) và `task_list.md` Phase 8.
 
 ## 8. Ranh giới trách nhiệm
 
@@ -148,7 +148,25 @@ Chưa chốt chi tiết implement — xem `system_design.md` §9 (TBD) và `task
 `lead-base` đã có cơ chế backup thật đang chạy production: `scripts/crm-backup-db.sh` (cron 2h sáng hàng ngày) — `pg_dump` DB chính CRM + `storage/{app,data,landing-pages}` + `.env`, nén, upload Google Drive qua rclone, có retention local + remote. `site-engine` **tận dụng lại đúng cơ chế này**, không dựng backup riêng:
 
 - **DB từng Website (`site_engine_{websiteId}`) — PHẢI thêm vào phạm vi backup.** Đây là dữ liệu không tái tạo được (bài viết, tài khoản khách hàng, đơn hàng đang chờ gửi) — script cần loop qua mọi DB có prefix `site_engine_` và `pg_dump` từng cái, giống hệt cách nó đang dump DB chính.
-- **Thư mục code app (`/var/www/site-engine/{websiteId}`) — KHÔNG cần backup.** Dựng lại được bất cứ lúc nào bằng cách bung lại `site-engine.zip` + `prisma migrate deploy` — không có dữ liệu riêng nào nằm ở đây ngoài code.
+- **Thư mục code app (`/var/www/site-engine/{websiteId}`) — hầu hết KHÔNG cần backup**, dựng lại được bằng cách bung lại `site-engine.zip` + `prisma migrate deploy` — **NGOẠI TRỪ `themes/custom-*/`** (theme tự tạo, cài lúc runtime qua `POST /api/theme/install`, `system_design.md` §4.3 — KHÔNG nằm trong `site-engine.zip`, bung lại zip sẽ KHÔNG khôi phục được). Cần thêm đúng thư mục `themes/custom-*/` của mọi Website vào phạm vi backup (rsync/tar, không phải `pg_dump` vì đây là file không phải DB).
 - **Thư mục deploy Landing Page (`/var/www/{domain}/{slug}`) — cũng KHÔNG cần thêm** (đã đúng như hiện tại) — bản `storage/landing-pages` (draft, nguồn thật) đã nằm trong phạm vi backup sẵn có, và `deploy()` chạy lại là dựng ra đúng bản `/var/www` — không mất gì nếu chỉ backup draft.
 
 Tóm lại: chỉ cần **1 thay đổi** ở `crm-backup-db.sh` (thêm vòng lặp `pg_dump` theo mọi DB `site_engine_*`) là đủ phủ toàn bộ dữ liệu quan trọng của cả Landing Page lẫn Website — không cần 1 script backup riêng cho site-engine.
+
+## 10. Multi-theme — theme dựng sẵn + theme tự tạo bằng agent (bước cuối cùng của setup)
+
+**Nguyên tắc**: 1 Website có thể dùng 1 trong 2 loại theme, chọn ở `/admin/settings/theme` (`system_design.md` §8) — cả 2 dùng chung 1 renderer (Liquid, `tech_doc.md` §1), không có 2 pipeline khác nhau theo mức tin cậy:
+
+- **Built-in** — đóng gói sẵn trong `site-engine.zip` (`tech_doc.md` §3, thư mục `themes/default/` v.v.), do đội site-engine tự viết, có ngay từ lúc bung app, an toàn vì là code do chính team kiểm soát.
+- **Tự tạo (custom)** — do 1 agent chạy **bên LeadBase** sinh ra, đẩy sang đúng Website qua `POST /api/theme/install` (`system_design.md` §4.3) — **bước cuối cùng** trong luồng setup 1 Website (sau khi đã có nội dung: blog/sản phẩm/thông tin cơ bản, để agent biết "thiết kế cho cái gì").
+
+**Vì sao agent không ghi file trực tiếp vào app**: giữ đúng nguyên tắc đã chốt nhiều lần ở `PRD.md` §3.4 — LeadBase không bao giờ đọc/ghi trực tiếp vào 1 Website đang chạy. Thay vào đó, agent gói theme thành 1 bundle (chỉ gồm template Liquid + CSS + JS client-side) rồi gửi qua API đã ký HMAC — **chính Website đó tự giải nén vào thư mục theme của mình**, không phải LeadBase ghi hộ.
+
+**Vì sao Liquid chứ không phải EJS cho theme tự tạo** (quyết định đã chốt, `tech_doc.md` §1): theme tự tạo cần logic thật (vòng lặp/if-else) để agent linh hoạt thiết kế — nhưng code này đến từ bên ngoài (agent sinh ra, có thể lỗi hoặc bị injection). EJS compile thành JS rồi eval — cho phép logic thật đồng nghĩa cho phép chạy code tuỳ ý trên server (RCE). Liquid có logic thật nhưng an toàn theo thiết kế (không expose `require`/filesystem/eval), nên chấp nhận được rủi ro thấp hơn nhiều dù vẫn cho code ngoài chạy.
+
+**Chưa activate ngay**: theme mới cài luôn ở trạng thái "đã có, chưa dùng" — tenant phải tự vào `/admin/settings/theme` xem trước rồi bấm "Dùng theme này" mới đổi `ThemeConfig.activeTheme` (`system_design.md` §1). Tránh trường hợp agent sinh lỗi rồi tự động làm sập giao diện website đang chạy thật.
+
+**Việc còn mở (TBD)**:
+1. `WebsiteThemeAgentService.php` (bên `lead-base`) — prompt/luồng cụ thể để agent sinh bundle, chưa thiết kế.
+2. Giới hạn dung lượng/số lượng file trong 1 bundle theme.
+3. Có cho phép nhiều theme tự tạo cùng lúc (chọn qua lại) hay chỉ giữ bản mới nhất — hiện thiết kế cho phép nhiều (`CustomTheme` là bảng, không phải 1 row).
