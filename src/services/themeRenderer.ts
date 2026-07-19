@@ -21,7 +21,7 @@ export async function renderPublic(template: string, data: Record<string, unknow
 
   return engine.renderFile(template, {
     ...data,
-    site: siteConfig ?? { siteName: "Website", tagline: null, logoUrl: null },
+    site: siteConfig ?? { siteName: "Website", tagline: null, logoUrl: null, faviconUrl: null },
     year: new Date().getFullYear(),
   });
 }

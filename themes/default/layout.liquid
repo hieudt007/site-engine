@@ -6,6 +6,7 @@
   <title>{% if pageTitle %}{{ pageTitle }} — {% endif %}{{ site.siteName }}</title>
   {% if metaDescription %}<meta name="description" content="{{ metaDescription }}">{% endif %}
   {% if noindex %}<meta name="robots" content="noindex">{% endif %}
+  {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; background: #fafafa; }
@@ -19,7 +20,10 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">{{ site.siteName }}</a>
+    <a class="brand" href="/" style="display:inline-flex;align-items:center;gap:0.5rem;">
+      {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" style="height:28px;">{% endif %}
+      {{ site.siteName }}
+    </a>
     {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
   </header>
   <main>

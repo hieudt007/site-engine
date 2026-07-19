@@ -59,7 +59,7 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [ ] **[lead-base]** Endpoint nhận, tạo `Order`/`Customer` thật (mirror `LandingOrderController::store()` nhưng xác thực HMAC).
 - [ ] Retry khi gọi lỗi (`CartOrder.status = 'failed'`, cron nhẹ retry N lần).
 - [ ] Trang xác nhận `/order-confirmation/:id`.
-- [ ] Model `SiteConfig` + `/admin/settings/general` (`system_design.md` §10.1) — tên, tagline, logo, liên hệ, mạng xã hội.
+- [x] Model `SiteConfig` (đã có sẵn trong schema) + `/admin/settings/general` (`routes/admin/settings.ts` JSON API + `settingsUi.ts` HTML + `views/admin/settings-general.liquid`) — tên, tagline, logo, favicon, liên hệ, `socialLinks` (facebook/zalo/tiktok/youtube), số ĐKKD, ảnh OG mặc định. `requireRole("admin")` — duy nhất trong 3 role được đụng settings (§5.2). Row `singleton` tự tạo ở lần `GET` đầu tiên (`domain` lấy từ `request.hostname`). Theme `default` đã dùng `site.logoUrl`/`site.faviconUrl` trong `layout.liquid`.
 - [ ] `GET /sitemap.xml`, `GET /robots.txt` (`system_design.md` §10.3), fallback SEO chain cho Post/Product/trang chủ (§10.2), JSON-LD (§10.4).
 
 **Verify Phase 5**: đặt 1 đơn thử từ website → thấy đúng Order trong LeadBase CRM. Tắt LeadBase giữa chừng → đặt đơn → bật lại → đơn tự gửi lại thành công (retry hoạt động). `/sitemap.xml` liệt kê đúng bài đã publish, không lộ bài `noindex`.

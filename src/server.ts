@@ -7,6 +7,8 @@ import { registerPostRoutes } from "./routes/admin/posts.js";
 import { registerPostsUiRoutes } from "./routes/admin/postsUi.js";
 import { registerProductRoutes } from "./routes/admin/products.js";
 import { registerProductsUiRoutes } from "./routes/admin/productsUi.js";
+import { registerSettingsRoutes } from "./routes/admin/settings.js";
+import { registerSettingsUiRoutes } from "./routes/admin/settingsUi.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
@@ -44,6 +46,8 @@ async function start(): Promise<void> {
   await registerPostsUiRoutes(app);
   await registerProductRoutes(app);
   await registerProductsUiRoutes(app);
+  await registerSettingsRoutes(app);
+  await registerSettingsUiRoutes(app);
   await registerBlogRoutes(app);
   await registerProductsPublicRoutes(app);
   await registerProductsSyncRoutes(app);

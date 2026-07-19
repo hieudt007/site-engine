@@ -1,0 +1,113 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Cài đặt chung</h1>
+
+<form id="settings-form">
+  <label for="siteName">Tên website</label>
+  <input type="text" id="siteName" name="siteName" required>
+
+  <label for="tagline">Slogan / tagline</label>
+  <input type="text" id="tagline" name="tagline">
+
+  <label for="logoUrl">Logo (URL)</label>
+  <input type="text" id="logoUrl" name="logoUrl">
+
+  <label for="faviconUrl">Favicon (URL)</label>
+  <input type="text" id="faviconUrl" name="faviconUrl">
+
+  <label for="contactEmail">Email liên hệ</label>
+  <input type="text" id="contactEmail" name="contactEmail">
+
+  <label for="contactPhone">Số điện thoại</label>
+  <input type="text" id="contactPhone" name="contactPhone">
+
+  <label for="contactAddress">Địa chỉ</label>
+  <input type="text" id="contactAddress" name="contactAddress">
+
+  <label for="facebook">Facebook</label>
+  <input type="text" id="facebook" name="facebook">
+
+  <label for="zalo">Zalo</label>
+  <input type="text" id="zalo" name="zalo">
+
+  <label for="tiktok">TikTok</label>
+  <input type="text" id="tiktok" name="tiktok">
+
+  <label for="youtube">YouTube</label>
+  <input type="text" id="youtube" name="youtube">
+
+  <label for="businessLicense">Số ĐKKD</label>
+  <input type="text" id="businessLicense" name="businessLicense">
+
+  <label for="defaultOgImage">Ảnh chia sẻ mặc định (Open Graph, URL)</label>
+  <input type="text" id="defaultOgImage" name="defaultOgImage">
+
+  <div style="margin-top:1.5rem;">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  const form = document.getElementById("settings-form");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/settings");
+    if (!res.ok) {
+      showFlash("Không tải được cài đặt", false);
+      return;
+    }
+    const { settings } = await res.json();
+    ["siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage"].forEach((key) => {
+      form[key].value = settings[key] ?? "";
+    });
+    const social = settings.socialLinks || {};
+    ["facebook", "zalo", "tiktok", "youtube"].forEach((key) => {
+      form[key].value = social[key] ?? "";
+    });
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      siteName: form.siteName.value,
+      tagline: form.tagline.value || undefined,
+      logoUrl: form.logoUrl.value || undefined,
+      faviconUrl: form.faviconUrl.value || undefined,
+      contactEmail: form.contactEmail.value || undefined,
+      contactPhone: form.contactPhone.value || undefined,
+      contactAddress: form.contactAddress.value || undefined,
+      businessLicense: form.businessLicense.value || undefined,
+      defaultOgImage: form.defaultOgImage.value || undefined,
+      socialLinks: {
+        facebook: form.facebook.value || undefined,
+        zalo: form.zalo.value || undefined,
+        tiktok: form.tiktok.value || undefined,
+        youtube: form.youtube.value || undefined,
+      },
+    };
+
+    const res = await fetch("/admin/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      showFlash("Lưu thất bại", false);
+      return;
+    }
+
+    showFlash("Đã lưu.", true);
+  });
+
+  load();
+})();
+</script>
+{% endblock %}
