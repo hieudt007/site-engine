@@ -122,6 +122,31 @@ model ProductCache {
   publishStatus String @default("draft") // 'draft' | 'published'
 
   syncedAt DateTime @default(now()) // lần cuối nhận được cú đẩy từ LeadBase
+
+  // Sản phẩm có biến thể (màu/size...) — LeadBase Product.has_variants. Khi true, price/salePrice/
+  // stock ở TRÊN vẫn giữ (= giá thấp nhất/tổng tồn, LeadBase tự tính) để chỗ nào chưa biết variant
+  // vẫn hiển thị được số hợp lý — nhưng nguồn thật cho khách CHỌN mua là bảng variants dưới đây.
+  hasVariants Boolean          @default(false)
+  variants    ProductVariantCache[]
+}
+
+// 1 tổ hợp biến thể (vd "Đỏ / M") của 1 ProductCache — hoàn toàn do LeadBase đẩy sang, instance
+// KHÔNG sửa tay (khác chính ProductCache, nơi name/description/imageUrls do website tự quản).
+model ProductVariantCache {
+  id                String       @id @default(cuid())
+  productCacheId    String
+  product           ProductCache @relation(fields: [productCacheId], references: [id], onDelete: Cascade)
+  leadbaseVariantId String       @unique
+
+  sku        String?
+  attributes Json? // vd {"Màu":"Đỏ","Size":"M"} — dùng build bộ chọn ở trang sản phẩm
+
+  price          Decimal
+  salePrice      Decimal?
+  stock          Int?
+  leadbaseStatus String
+
+  syncedAt DateTime @default(now())
 }
 
 model CartOrder {

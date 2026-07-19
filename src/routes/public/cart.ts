@@ -1,15 +1,24 @@
 import { FastifyInstance } from "fastify";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
-import { sendOrderToLeadbase, LeadbaseOrderError } from "../../services/leadbaseClient.js";
+import { sendOrderToLeadbase, LeadbaseOrderError, OrderItemPayload } from "../../services/leadbaseClient.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
 
 // Giỏ hàng sống ở localStorage phía trình duyệt (system_design.md task_list — "không cần DB
 // riêng cho cart trước khi checkout"), server chỉ tham gia ở 2 điểm: hydrate giá/tên thật cho
 // UI giỏ hàng (không tin giá client tự lưu), và POST /cart/checkout tạo CartOrder thật.
 const checkoutSchema = z.object({
-  items: z.array(z.object({ productId: z.string().min(1), quantity: z.number().int().min(1) })).min(1),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        variantId: z.string().min(1).optional(),
+        quantity: z.number().int().min(1),
+      }),
+    )
+    .min(1),
   customerName: z.string().min(1),
   customerPhone: z.string().min(1),
   customerAddress: z.string().optional(),
@@ -23,6 +32,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     }
     const products = await prisma.productCache.findMany({
       where: { id: { in: ids }, publishStatus: "published" },
+      include: { variants: true },
     });
     return { products };
   });
@@ -45,20 +55,40 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     const productIds = parsed.data.items.map((i) => i.productId);
     const products = await prisma.productCache.findMany({
       where: { id: { in: productIds }, publishStatus: "published" },
+      include: { variants: true },
     });
     const productById = new Map(products.map((p) => [p.id, p]));
 
-    const orderItems = [];
+    const orderItems: OrderItemPayload[] = [];
     let total = 0;
     for (const item of parsed.data.items) {
       const product = productById.get(item.productId);
       if (!product) {
         return reply.code(422).send({ error: `Sản phẩm ${item.productId} không tồn tại hoặc chưa xuất bản` });
       }
-      const unitPrice = product.salePrice ? Number(product.salePrice) : Number(product.price);
+
+      let unitPrice: number;
+      let displayName = product.name;
+      let leadbaseVariantId: string | undefined;
+
+      if (item.variantId) {
+        const variant = product.variants.find((v) => v.id === item.variantId);
+        if (!variant) {
+          return reply.code(422).send({ error: `Biến thể ${item.variantId} không tồn tại` });
+        }
+        unitPrice = variant.salePrice ? Number(variant.salePrice) : Number(variant.price);
+        const attrs = (variant.attributes as Record<string, string> | null) ?? {};
+        const attrText = Object.entries(attrs).map(([k, v]) => `${k}: ${v}`).join(", ");
+        displayName = attrText ? `${product.name} - ${attrText}` : product.name;
+        leadbaseVariantId = variant.leadbaseVariantId;
+      } else {
+        unitPrice = product.salePrice ? Number(product.salePrice) : Number(product.price);
+      }
+
       orderItems.push({
         leadbaseProductId: product.leadbaseProductId,
-        name: product.name,
+        leadbaseVariantId,
+        name: displayName,
         price: unitPrice,
         quantity: item.quantity,
       });
@@ -71,7 +101,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
         customerName: parsed.data.customerName,
         customerPhone: parsed.data.customerPhone,
         customerAddress: parsed.data.customerAddress,
-        items: orderItems,
+        items: orderItems as unknown as Prisma.InputJsonValue,
         total,
       },
     });

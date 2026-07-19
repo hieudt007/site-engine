@@ -55,17 +55,30 @@
     const byId = Object.fromEntries(products.map((p) => [p.id, p]));
 
     let total = 0;
-    const rows = cart.map((item) => {
+    const rows = cart.map((item, index) => {
       const p = byId[item.productId];
       if (!p) return "";
-      const unitPrice = p.salePrice ? Number(p.salePrice) : Number(p.price);
+
+      let unitPrice, label;
+      if (item.variantId) {
+        const v = (p.variants || []).find((x) => x.id === item.variantId);
+        if (!v) return "";
+        unitPrice = v.salePrice ? Number(v.salePrice) : Number(v.price);
+        const attrs = v.attributes || {};
+        const attrText = Object.entries(attrs).map(([k, val]) => k + ": " + val).join(", ");
+        label = escapeHtml(p.name) + (attrText ? ' <span style="color:#999;">(' + escapeHtml(attrText) + ')</span>' : "");
+      } else {
+        unitPrice = p.salePrice ? Number(p.salePrice) : Number(p.price);
+        label = escapeHtml(p.name);
+      }
+
       total += unitPrice * item.quantity;
       return (
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.8rem 0;border-bottom:1px solid #eee;">' +
-        '<div><div>' + escapeHtml(p.name) + '</div><div style="color:#999;font-size:0.85rem;">' + unitPrice + '₫ × ' + item.quantity + '</div></div>' +
+        '<div><div>' + label + '</div><div style="color:#999;font-size:0.85rem;">' + unitPrice + '₫ × ' + item.quantity + '</div></div>' +
         '<div style="display:flex;align-items:center;gap:0.5rem;">' +
         '<div style="font-weight:600;">' + (unitPrice * item.quantity) + '₫</div>' +
-        '<button data-id="' + item.productId + '" class="cart-remove" style="border:1px solid #ddd;background:#fff;border-radius:6px;padding:0.3rem 0.6rem;cursor:pointer;">Xoá</button>' +
+        '<button data-index="' + index + '" class="cart-remove" style="border:1px solid #ddd;background:#fff;border-radius:6px;padding:0.3rem 0.6rem;cursor:pointer;">Xoá</button>' +
         '</div></div>'
       );
     });
@@ -76,7 +89,8 @@
 
     container.querySelectorAll(".cart-remove").forEach((btn) => {
       btn.addEventListener("click", () => {
-        writeCart(readCart().filter((c) => c.productId !== btn.dataset.id));
+        const idx = Number(btn.dataset.index);
+        writeCart(readCart().filter((_, i) => i !== idx));
         render();
       });
     });
@@ -93,7 +107,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: cart.map((c) => ({ productId: c.productId, quantity: c.quantity })),
+        items: cart.map((c) => ({ productId: c.productId, variantId: c.variantId, quantity: c.quantity })),
         customerName: form.customerName.value,
         customerPhone: form.customerPhone.value,
         customerAddress: form.customerAddress.value || undefined,

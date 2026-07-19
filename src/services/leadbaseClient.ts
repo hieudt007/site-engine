@@ -3,6 +3,7 @@ import { signSiteEngineRequest } from "../security.js";
 
 export interface OrderItemPayload {
   leadbaseProductId: string;
+  leadbaseVariantId?: string;
   name: string;
   price: number;
   quantity: number;

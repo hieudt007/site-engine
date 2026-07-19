@@ -35,15 +35,23 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
   });
 
   app.get<{ Params: { id: string } }>("/products/:id", async (request, reply) => {
-    const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
+    const product = await prisma.productCache.findUnique({
+      where: { id: request.params.id },
+      include: { variants: true },
+    });
     if (!product || product.publishStatus !== "published") {
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
     }
+
+    // Escape "</" trước khi nhúng JSON vào <script> - tránh chuỗi thuộc tính variant (sku/attr)
+    // vô tình chứa "</script>" phá vỡ thẻ script (an toàn hơn là tin dữ liệu do LeadBase gửi).
+    const variantsJson = JSON.stringify(product.variants).replace(/<\//g, "<\\/");
 
     const html = await renderPublic("product-detail", {
       pageTitle: product.name,
       metaDescription: product.metaDescription ?? undefined,
       product,
+      variantsJson,
     });
 
     return reply.type("text/html").send(html);

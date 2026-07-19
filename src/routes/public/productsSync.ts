@@ -9,6 +9,21 @@ import { verifySiteEngineRequest } from "../../security.js";
 // instance này). "create" tạo ProductCache MỚI (publishStatus mặc định 'draft', name/description/
 // imageUrls chỉ là giá trị khởi tạo — sync sau không ghi đè). "update" CHỈ đụng price/salePrice/
 // stock/leadbaseStatus/syncedAt, không đụng nội dung do website tự quản.
+//
+// "variants" (optional, cả 2 action) — sản phẩm có biến thể (LeadBase Product.has_variants).
+// Khi có mặt: set hasVariants=true + upsert từng ProductVariantCache theo leadbaseVariantId (idempotent
+// y hệt cách product tự xử lý retry trùng ở trên). price/salePrice/stock/status TOP-LEVEL vẫn nhận
+// bình thường (LeadBase tự gửi giá thấp nhất/tổng tồn) để nơi nào chưa biết variant vẫn có số dùng.
+const variantSchema = z.object({
+  leadbaseVariantId: z.string().min(1),
+  sku: z.string().nullable().optional(),
+  attributes: z.record(z.string()).optional(),
+  price: z.number(),
+  salePrice: z.number().nullable().optional(),
+  stock: z.number().nullable().optional(),
+  status: z.string().min(1),
+});
+
 const syncSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create"),
@@ -18,6 +33,7 @@ const syncSchema = z.discriminatedUnion("action", [
     salePrice: z.number().nullable().optional(),
     stock: z.number().nullable().optional(),
     status: z.string().min(1),
+    variants: z.array(variantSchema).optional(),
   }),
   z.object({
     action: z.literal("update"),
@@ -26,8 +42,36 @@ const syncSchema = z.discriminatedUnion("action", [
     salePrice: z.number().nullable().optional(),
     stock: z.number().nullable().optional(),
     status: z.string().min(1),
+    variants: z.array(variantSchema).optional(),
   }),
 ]);
+
+async function upsertVariants(productCacheId: string, variants: z.infer<typeof variantSchema>[]): Promise<void> {
+  for (const v of variants) {
+    await prisma.productVariantCache.upsert({
+      where: { leadbaseVariantId: v.leadbaseVariantId },
+      create: {
+        leadbaseVariantId: v.leadbaseVariantId,
+        productCacheId,
+        sku: v.sku ?? null,
+        attributes: v.attributes ?? {},
+        price: v.price,
+        salePrice: v.salePrice ?? null,
+        stock: v.stock ?? null,
+        leadbaseStatus: v.status,
+      },
+      update: {
+        sku: v.sku ?? null,
+        attributes: v.attributes ?? {},
+        price: v.price,
+        salePrice: v.salePrice ?? null,
+        stock: v.stock ?? null,
+        leadbaseStatus: v.status,
+        syncedAt: new Date(),
+      },
+    });
+  }
+}
 
 export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/products/sync", async (request, reply) => {
@@ -46,6 +90,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
     }
 
     const { leadbaseProductId } = parsed.data;
+    const hasVariants = !!parsed.data.variants && parsed.data.variants.length > 0;
 
     if (parsed.data.action === "create") {
       const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId } });
@@ -58,13 +103,17 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
             salePrice: parsed.data.salePrice ?? null,
             stock: parsed.data.stock ?? null,
             leadbaseStatus: parsed.data.status,
+            hasVariants,
             syncedAt: new Date(),
           },
         });
+        if (hasVariants) {
+          await upsertVariants(existing.id, parsed.data.variants!);
+        }
         return { success: true };
       }
 
-      await prisma.productCache.create({
+      const created = await prisma.productCache.create({
         data: {
           leadbaseProductId,
           name: parsed.data.name,
@@ -74,8 +123,12 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
           leadbaseStatus: parsed.data.status,
           imageUrls: [],
           publishStatus: "draft",
+          hasVariants,
         },
       });
+      if (hasVariants) {
+        await upsertVariants(created.id, parsed.data.variants!);
+      }
       return { success: true };
     }
 
@@ -92,9 +145,13 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         salePrice: parsed.data.salePrice ?? null,
         stock: parsed.data.stock ?? null,
         leadbaseStatus: parsed.data.status,
+        hasVariants,
         syncedAt: new Date(),
       },
     });
+    if (hasVariants) {
+      await upsertVariants(existing.id, parsed.data.variants!);
+    }
 
     return { success: true };
   });

@@ -5,13 +5,46 @@
   <a class="btn" href="/admin/products">← Danh sách</a>
 </div>
 
-<div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#555;">
-  <strong>Đồng bộ từ LeadBase (chỉ đọc):</strong>
-  Giá <strong>{{ product.price }}₫</strong>{% if product.salePrice %} · Giá KM <strong>{{ product.salePrice }}₫</strong>{% endif %}
-  · Tồn kho <strong>{{ product.stock | default: "-" }}</strong>
-  · Trạng thái LeadBase <strong>{{ product.leadbaseStatus }}</strong>
-  <div style="margin-top:0.3rem;color:#999;">Đồng bộ lần cuối: {{ product.syncedAt }}</div>
-</div>
+{% if product.hasVariants %}
+  <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;">
+    <strong style="font-size:0.85rem;color:#555;">Biến thể — đồng bộ từ LeadBase, chỉ đọc:</strong>
+    <table style="margin-top:0.6rem;">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Thuộc tính</th>
+          <th>Giá</th>
+          <th>Giá KM</th>
+          <th>Tồn</th>
+          <th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in product.variants %}
+          <tr>
+            <td>{{ v.sku | default: "-" }}</td>
+            <td>
+              {% for pair in v.attributes %}{{ pair[0] }}: {{ pair[1] }}{% unless forloop.last %}, {% endunless %}{% endfor %}
+            </td>
+            <td>{{ v.price }}₫</td>
+            <td>{% if v.salePrice %}{{ v.salePrice }}₫{% else %}-{% endif %}</td>
+            <td>{{ v.stock | default: "-" }}</td>
+            <td>{{ v.leadbaseStatus }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:0.5rem;font-size:0.8rem;color:#999;">Đồng bộ lần cuối: {{ product.syncedAt }}</div>
+  </div>
+{% else %}
+  <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;font-size:0.85rem;color:#555;">
+    <strong>Đồng bộ từ LeadBase (chỉ đọc):</strong>
+    Giá <strong>{{ product.price }}₫</strong>{% if product.salePrice %} · Giá KM <strong>{{ product.salePrice }}₫</strong>{% endif %}
+    · Tồn kho <strong>{{ product.stock | default: "-" }}</strong>
+    · Trạng thái LeadBase <strong>{{ product.leadbaseStatus }}</strong>
+    <div style="margin-top:0.3rem;color:#999;">Đồng bộ lần cuối: {{ product.syncedAt }}</div>
+  </div>
+{% endif %}
 
 <form id="product-form">
   <label for="name">Tên sản phẩm</label>
