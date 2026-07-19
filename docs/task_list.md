@@ -55,12 +55,14 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 **Verify Phase 4**: đặt hàng guest → tạo đơn được → bấm "Lưu thông tin", nhận OTP, verify đúng → đơn vừa đặt gắn `customerId`. Đăng nhập lại đúng số điện thoại đó ở phiên khác → thấy đúng đơn hàng cũ, tên/địa chỉ đã lưu.
 
 ## Phase 5 — Đơn hàng đổ về LeadBase + SEO cơ bản
-- [ ] `leadbaseClient.ts` — gọi `POST /api/site-engine/orders` (ký HMAC, `system_design.md` §4.1) — app tự gọi thẳng, không qua service trung gian nào.
-- [ ] **[lead-base]** Endpoint nhận, tạo `Order`/`Customer` thật (mirror `LandingOrderController::store()` nhưng xác thực HMAC).
-- [ ] Retry khi gọi lỗi (`CartOrder.status = 'failed'`, cron nhẹ retry N lần).
-- [ ] Trang xác nhận `/order-confirmation/:id`.
+- [x] Giỏ hàng — `themes/default/cart.liquid` + nút "Thêm vào giỏ" (`product-detail.liquid`), sống ở `localStorage` phía trình duyệt (không có bảng DB cart), server chỉ tham gia lúc hydrate giá thật (`GET /api/cart/products?ids=`, không tin giá client tự lưu) và lúc checkout thật.
+- [x] `leadbaseClient.ts` — `sendOrderToLeadbase()`, gọi `POST /api/site-engine/orders` ký HMAC (cùng secret 2 chiều với `productsSync.ts`), header `x-site-engine-domain` để LeadBase tra đúng `Website.secret`. `POST /cart/checkout` (`routes/public/cart.ts`) validate zod, tính giá/tổng THẬT từ `ProductCache` (không tin giá client gửi), tạo `CartOrder(status='pending')` trước rồi mới gọi LeadBase — đơn không bao giờ mất kể cả khi gọi lỗi.
+- [x] **[lead-base]** `SiteEngineOrderController::store()` (mirror `LandingOrderController::store()`, xác thực HMAC qua `Website.secret` tra theo header `x-site-engine-domain` thay vì honeypot) — tạo `Order`+`OrderItem` thật qua `CustomerResolver`, `creator_id=null` (đơn từ website công khai, không có nhân viên tạo — cột đã nullable, không cần migration), recompute `total` từ items thay vì tin giá trị `total` client gửi.
+- [x] Retry khi gọi lỗi — `services/orderRetry.ts`, `node-cron` mỗi 5 phút quét `CartOrder.status='failed'` retry lại. KHÔNG có cột đếm số lần retry trong schema (tránh migration) — dùng tuổi đơn (`createdAt` < 24h) làm giới hạn thay vì đếm lượt.
+- [x] Trang xác nhận `/order-confirmation/:id` (`themes/default/order-confirmation.liquid`) — luôn hiện "đặt hàng thành công" phía khách bất kể `CartOrder.status` nội bộ là gì (kể cả `failed`, cron sẽ tự gửi lại) — không lộ lỗi hạ tầng ra khách hàng.
+- [ ] **Chưa làm**: mời "Lưu thông tin cho lần sau?" cho khách guest sau khi đặt hàng (§6.3, `save_guest_order`) — phụ thuộc `Customer`/OTP (mục dưới Phase 4) vẫn chưa xây, cố tình hoãn theo đúng thứ tự ưu tiên đã thống nhất (lõi thương mại trước, tài khoản khách sau).
 - [x] Model `SiteConfig` (đã có sẵn trong schema) + `/admin/settings/general` (`routes/admin/settings.ts` JSON API + `settingsUi.ts` HTML + `views/admin/settings-general.liquid`) — tên, tagline, logo, favicon, liên hệ, `socialLinks` (facebook/zalo/tiktok/youtube), số ĐKKD, ảnh OG mặc định. `requireRole("admin")` — duy nhất trong 3 role được đụng settings (§5.2). Row `singleton` tự tạo ở lần `GET` đầu tiên (`domain` lấy từ `request.hostname`). Theme `default` đã dùng `site.logoUrl`/`site.faviconUrl` trong `layout.liquid`.
-- [ ] `GET /sitemap.xml`, `GET /robots.txt` (`system_design.md` §10.3), fallback SEO chain cho Post/Product/trang chủ (§10.2), JSON-LD (§10.4).
+- [x] `GET /sitemap.xml`, `GET /robots.txt` (`routes/public/seo.ts`) — sitemap gồm trang chủ/`/blog`/`/products` + từng bài/sản phẩm đã publish. **Chưa làm**: fallback SEO chain cho Post/Product/trang chủ (§10.2), JSON-LD (§10.4).
 
 **Verify Phase 5**: đặt 1 đơn thử từ website → thấy đúng Order trong LeadBase CRM. Tắt LeadBase giữa chừng → đặt đơn → bật lại → đơn tự gửi lại thành công (retry hoạt động). `/sitemap.xml` liệt kê đúng bài đã publish, không lộ bài `noindex`.
 

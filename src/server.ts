@@ -10,8 +10,11 @@ import { registerProductsUiRoutes } from "./routes/admin/productsUi.js";
 import { registerSettingsRoutes } from "./routes/admin/settings.js";
 import { registerSettingsUiRoutes } from "./routes/admin/settingsUi.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
+import { registerCartRoutes } from "./routes/public/cart.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
+import { registerSeoRoutes } from "./routes/public/seo.js";
+import { startOrderRetryCron } from "./services/orderRetry.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -51,6 +54,10 @@ async function start(): Promise<void> {
   await registerBlogRoutes(app);
   await registerProductsPublicRoutes(app);
   await registerProductsSyncRoutes(app);
+  await registerCartRoutes(app);
+  await registerSeoRoutes(app);
+
+  startOrderRetryCron();
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 }

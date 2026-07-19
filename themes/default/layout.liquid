@@ -19,12 +19,19 @@
   </style>
 </head>
 <body>
-  <header class="site-header">
-    <a class="brand" href="/" style="display:inline-flex;align-items:center;gap:0.5rem;">
-      {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" style="height:28px;">{% endif %}
-      {{ site.siteName }}
-    </a>
-    {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
+  <header class="site-header" style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <a class="brand" href="/" style="display:inline-flex;align-items:center;gap:0.5rem;">
+        {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" style="height:28px;">{% endif %}
+        {{ site.siteName }}
+      </a>
+      {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
+    </div>
+    <nav>
+      <a href="/products" style="margin-right:1rem;">Sản phẩm</a>
+      <a href="/blog" style="margin-right:1rem;">Blog</a>
+      <a href="/cart">Giỏ hàng</a>
+    </nav>
   </header>
   <main>
     {% block content %}{% endblock %}

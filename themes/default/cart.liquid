@@ -1,0 +1,116 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin-top:0;">Giỏ hàng</h1>
+
+<div id="cart-items"></div>
+
+<form id="checkout-form" style="display:none;margin-top:2rem;border-top:1px solid #eee;padding-top:1.5rem;">
+  <h2 style="font-size:1.1rem;">Thông tin nhận hàng</h2>
+  <div style="display:flex;flex-direction:column;gap:0.7rem;max-width:420px;">
+    <input type="text" name="customerName" placeholder="Họ tên" required style="padding:0.55rem 0.7rem;border:1px solid #d1d5db;border-radius:6px;">
+    <input type="text" name="customerPhone" placeholder="Số điện thoại" required style="padding:0.55rem 0.7rem;border:1px solid #d1d5db;border-radius:6px;">
+    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" style="padding:0.55rem 0.7rem;border:1px solid #d1d5db;border-radius:6px;">
+  </div>
+  <div id="cart-total" style="margin:1rem 0;font-weight:700;font-size:1.1rem;"></div>
+  <button type="submit" style="background:#2563eb;color:#fff;border:none;padding:0.65rem 1.4rem;border-radius:6px;font-size:0.95rem;cursor:pointer;">Đặt hàng</button>
+  <div id="checkout-error" style="color:#dc2626;margin-top:0.6rem;font-size:0.85rem;"></div>
+</form>
+
+<script>
+(function () {
+  const CART_KEY = "site_engine_cart";
+
+  function readCart() {
+    try {
+      return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function writeCart(items) {
+    localStorage.setItem(CART_KEY, JSON.stringify(items));
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  async function render() {
+    const cart = readCart();
+    const container = document.getElementById("cart-items");
+    const form = document.getElementById("checkout-form");
+
+    if (cart.length === 0) {
+      container.innerHTML = '<p style="color:#777;">Giỏ hàng trống. <a href="/products">Xem sản phẩm</a></p>';
+      form.style.display = "none";
+      return;
+    }
+
+    const ids = cart.map((c) => c.productId).join(",");
+    const res = await fetch("/api/cart/products?ids=" + encodeURIComponent(ids));
+    const { products } = await res.json();
+    const byId = Object.fromEntries(products.map((p) => [p.id, p]));
+
+    let total = 0;
+    const rows = cart.map((item) => {
+      const p = byId[item.productId];
+      if (!p) return "";
+      const unitPrice = p.salePrice ? Number(p.salePrice) : Number(p.price);
+      total += unitPrice * item.quantity;
+      return (
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.8rem 0;border-bottom:1px solid #eee;">' +
+        '<div><div>' + escapeHtml(p.name) + '</div><div style="color:#999;font-size:0.85rem;">' + unitPrice + '₫ × ' + item.quantity + '</div></div>' +
+        '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+        '<div style="font-weight:600;">' + (unitPrice * item.quantity) + '₫</div>' +
+        '<button data-id="' + item.productId + '" class="cart-remove" style="border:1px solid #ddd;background:#fff;border-radius:6px;padding:0.3rem 0.6rem;cursor:pointer;">Xoá</button>' +
+        '</div></div>'
+      );
+    });
+
+    container.innerHTML = rows.join("");
+    document.getElementById("cart-total").textContent = "Tổng cộng: " + total + "₫";
+    form.style.display = cart.length ? "block" : "none";
+
+    container.querySelectorAll(".cart-remove").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        writeCart(readCart().filter((c) => c.productId !== btn.dataset.id));
+        render();
+      });
+    });
+  }
+
+  document.getElementById("checkout-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const errorEl = document.getElementById("checkout-error");
+    errorEl.textContent = "";
+
+    const cart = readCart();
+    const res = await fetch("/cart/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: cart.map((c) => ({ productId: c.productId, quantity: c.quantity })),
+        customerName: form.customerName.value,
+        customerPhone: form.customerPhone.value,
+        customerAddress: form.customerAddress.value || undefined,
+      }),
+    });
+
+    if (!res.ok) {
+      errorEl.textContent = "Đặt hàng thất bại, vui lòng thử lại.";
+      return;
+    }
+
+    const { orderId } = await res.json();
+    writeCart([]);
+    window.location.href = "/order-confirmation/" + orderId;
+  });
+
+  render();
+})();
+</script>
+{% endblock %}
