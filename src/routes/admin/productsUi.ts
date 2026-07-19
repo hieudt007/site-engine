@@ -15,7 +15,10 @@ export async function registerProductsUiRoutes(app: FastifyInstance): Promise<vo
     "/admin/products/:id",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
-      const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
+      const product = await prisma.productCache.findUnique({
+        where: { id: request.params.id },
+        include: { variants: true, category: true },
+      });
       if (!product) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
       }

@@ -18,6 +18,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         orderBy: { syncedAt: "desc" },
         skip,
         take: PAGE_SIZE,
+        include: { category: { select: { name: true, slug: true } } },
       }),
       prisma.productCache.count({ where }),
     ]);
@@ -37,7 +38,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
   app.get<{ Params: { id: string } }>("/products/:id", async (request, reply) => {
     const product = await prisma.productCache.findUnique({
       where: { id: request.params.id },
-      include: { variants: true },
+      include: { variants: true, category: { select: { name: true, slug: true } } },
     });
     if (!product || product.publishStatus !== "published") {
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
@@ -47,11 +48,21 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     // vô tình chứa "</script>" phá vỡ thẻ script (an toàn hơn là tin dữ liệu do LeadBase gửi).
     const variantsJson = JSON.stringify(product.variants).replace(/<\//g, "<\\/");
 
+    const reviews = await prisma.productReview.findMany({
+      where: { productCacheId: product.id, status: "approved" },
+      orderBy: { createdAt: "desc" },
+    });
+    const avgRating = reviews.length
+      ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
+      : null;
+
     const html = await renderPublic("product-detail", {
       pageTitle: product.name,
       metaDescription: product.metaDescription ?? undefined,
       product,
       variantsJson,
+      reviews,
+      avgRating,
     });
 
     return reply.type("text/html").send(html);

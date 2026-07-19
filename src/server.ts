@@ -1,18 +1,32 @@
+import fs from "node:fs";
+import path from "node:path";
 import Fastify from "fastify";
+import fastifyMultipart from "@fastify/multipart";
+import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
+import { prisma } from "./db.js";
 import { registerSession } from "./plugins/session.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerOAuthRoutes } from "./routes/admin/oauth.js";
 import { registerPostRoutes } from "./routes/admin/posts.js";
 import { registerPostsUiRoutes } from "./routes/admin/postsUi.js";
+import { registerPostCategoryRoutes } from "./routes/admin/postCategories.js";
+import { registerPostCategoriesUiRoutes } from "./routes/admin/postCategoriesUi.js";
+import { registerMediaRoutes } from "./routes/admin/media.js";
+import { registerMediaUiRoutes } from "./routes/admin/mediaUi.js";
 import { registerProductRoutes } from "./routes/admin/products.js";
 import { registerProductsUiRoutes } from "./routes/admin/productsUi.js";
+import { registerRedirectRoutes } from "./routes/admin/redirects.js";
+import { registerRedirectsUiRoutes } from "./routes/admin/redirectsUi.js";
+import { registerReviewAdminRoutes } from "./routes/admin/reviews.js";
+import { registerReviewsUiRoutes } from "./routes/admin/reviewsUi.js";
 import { registerSettingsRoutes } from "./routes/admin/settings.js";
 import { registerSettingsUiRoutes } from "./routes/admin/settingsUi.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
 import { registerCartRoutes } from "./routes/public/cart.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
+import { registerReviewRoutes } from "./routes/public/reviews.js";
 import { registerSeoRoutes } from "./routes/public/seo.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
 
@@ -41,19 +55,50 @@ app.get("/health", async () => {
   return { status: "ok" };
 });
 
+// Bat ky route nao khong khop deu tu tra Redirect truoc khi tra 404 that (system_design.md,
+// tinh nang Redirect URL) - chu yeu phuc vu link cu bai viet/san pham da doi slug (tu dong tao
+// o routes/admin/posts.ts khi PATCH doi slug), quan tri tay bo sung o routes/admin/redirects.ts.
+app.setNotFoundHandler(async (request, reply) => {
+  const pathname = request.url.split("?")[0];
+  const redirect = await prisma.redirect.findUnique({ where: { fromPath: pathname } });
+  if (redirect) {
+    return reply.code(redirect.statusCode).redirect(redirect.toPath);
+  }
+  return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
+});
+
 async function start(): Promise<void> {
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  fs.mkdirSync(uploadsDir, { recursive: true }); // @fastify/static doi root ton tai luc dang ky
+
+  await app.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
+  await app.register(fastifyStatic, {
+    root: uploadsDir,
+    prefix: "/uploads/",
+    decorateReply: false,
+  });
+
   await registerSession(app);
   await registerOAuthRoutes(app);
   await registerAdminRoutes(app);
   await registerPostRoutes(app);
   await registerPostsUiRoutes(app);
+  await registerPostCategoryRoutes(app);
+  await registerPostCategoriesUiRoutes(app);
+  await registerMediaRoutes(app);
+  await registerMediaUiRoutes(app);
   await registerProductRoutes(app);
   await registerProductsUiRoutes(app);
+  await registerRedirectRoutes(app);
+  await registerRedirectsUiRoutes(app);
+  await registerReviewAdminRoutes(app);
+  await registerReviewsUiRoutes(app);
   await registerSettingsRoutes(app);
   await registerSettingsUiRoutes(app);
   await registerBlogRoutes(app);
   await registerProductsPublicRoutes(app);
   await registerProductsSyncRoutes(app);
+  await registerReviewRoutes(app);
   await registerCartRoutes(app);
   await registerSeoRoutes(app);
 

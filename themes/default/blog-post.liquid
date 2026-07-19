@@ -8,7 +8,7 @@
   {% endif %}
   <h1 style="margin-bottom:0.25rem;">{{ post.title | escape }}</h1>
   <div style="color:#999;font-size:0.85rem;margin-bottom:1.5rem;">
-    {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.authorName %} · {{ post.authorName | escape }}{% endif %}
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.authorName %} · {{ post.authorName | escape }}{% endif %}{% if post.category %} · {{ post.category.name | escape }}{% endif %}
   </div>
   <div style="line-height:1.7;font-size:1.05rem;">
     {{ post.body }}

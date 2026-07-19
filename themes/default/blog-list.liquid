@@ -17,7 +17,7 @@
           <a href="/blog/{{ post.slug }}" style="text-decoration:none;color:#111;">{{ post.title | escape }}</a>
         </h2>
         <div style="color:#999;font-size:0.85rem;margin-bottom:0.5rem;">
-          {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.authorName %} · {{ post.authorName | escape }}{% endif %}
+          {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.authorName %} · {{ post.authorName | escape }}{% endif %}{% if post.category %} · {{ post.category.name | escape }}{% endif %}
         </div>
         {% if post.excerpt %}<p style="color:#444;">{{ post.excerpt | escape }}</p>{% endif %}
         <a href="/blog/{{ post.slug }}">Đọc tiếp →</a>

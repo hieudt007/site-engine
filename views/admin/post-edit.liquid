@@ -22,6 +22,14 @@
   <label for="authorName">Bút danh hiển thị (để trống dùng tên website)</label>
   <input type="text" id="authorName" name="authorName" value="{% if post %}{{ post.authorName | escape }}{% endif %}">
 
+  <label for="categoryId">Danh mục</label>
+  <select id="categoryId" name="categoryId">
+    <option value="">— Không có danh mục —</option>
+    {% for c in categories %}
+      <option value="{{ c.id }}" {% if post.categoryId == c.id %}selected{% endif %}>{{ c.name | escape }}</option>
+    {% endfor %}
+  </select>
+
   <label for="body">Nội dung (HTML đã làm sạch)</label>
   <textarea id="body" name="body" required>{% if post %}{{ post.body }}{% endif %}</textarea>
   <div class="field-hint">Chưa có trình soạn thảo rich-text (đang TBD) — nhập HTML/markdown thô.</div>
@@ -105,6 +113,7 @@
       excerpt: form.excerpt.value || undefined,
       coverImage: form.coverImage.value || undefined,
       authorName: form.authorName.value || undefined,
+      categoryId: form.categoryId.value || null,
       metaTitle: form.metaTitle.value || undefined,
       metaDescription: form.metaDescription.value || undefined,
       noindex: form.noindex.checked,

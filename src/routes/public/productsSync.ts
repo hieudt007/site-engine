@@ -24,6 +24,15 @@ const variantSchema = z.object({
   status: z.string().min(1),
 });
 
+// Danh mục — LeadBase sở hữu (mirror phẳng, bỏ qua parent_id), site-engine chỉ upsert theo
+// leadbaseCategoryId rồi gán categoryId lên ProductCache, KHÔNG có CRUD riêng cho category
+// sản phẩm ở site-engine (khác PostCategory, hoàn toàn tự quản).
+const categorySchema = z.object({
+  leadbaseCategoryId: z.string().min(1),
+  name: z.string().min(1),
+  slug: z.string().min(1),
+});
+
 const syncSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create"),
@@ -34,6 +43,7 @@ const syncSchema = z.discriminatedUnion("action", [
     stock: z.number().nullable().optional(),
     status: z.string().min(1),
     variants: z.array(variantSchema).optional(),
+    category: categorySchema.optional(),
   }),
   z.object({
     action: z.literal("update"),
@@ -43,8 +53,21 @@ const syncSchema = z.discriminatedUnion("action", [
     stock: z.number().nullable().optional(),
     status: z.string().min(1),
     variants: z.array(variantSchema).optional(),
+    category: categorySchema.optional(),
   }),
 ]);
+
+async function resolveCategoryId(category: z.infer<typeof categorySchema> | undefined): Promise<string | null> {
+  if (!category) {
+    return null;
+  }
+  const upserted = await prisma.productCategoryCache.upsert({
+    where: { leadbaseCategoryId: category.leadbaseCategoryId },
+    create: { leadbaseCategoryId: category.leadbaseCategoryId, name: category.name, slug: category.slug },
+    update: { name: category.name, slug: category.slug, syncedAt: new Date() },
+  });
+  return upserted.id;
+}
 
 async function upsertVariants(productCacheId: string, variants: z.infer<typeof variantSchema>[]): Promise<void> {
   for (const v of variants) {
@@ -91,6 +114,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
 
     const { leadbaseProductId } = parsed.data;
     const hasVariants = !!parsed.data.variants && parsed.data.variants.length > 0;
+    const categoryId = await resolveCategoryId(parsed.data.category);
 
     if (parsed.data.action === "create") {
       const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId } });
@@ -104,6 +128,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
             stock: parsed.data.stock ?? null,
             leadbaseStatus: parsed.data.status,
             hasVariants,
+            categoryId,
             syncedAt: new Date(),
           },
         });
@@ -124,6 +149,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
           imageUrls: [],
           publishStatus: "draft",
           hasVariants,
+          categoryId,
         },
       });
       if (hasVariants) {
@@ -146,6 +172,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         stock: parsed.data.stock ?? null,
         leadbaseStatus: parsed.data.status,
         hasVariants,
+        categoryId,
         syncedAt: new Date(),
       },
     });

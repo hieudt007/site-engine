@@ -5,6 +5,12 @@
   <a class="btn" href="/admin/products">← Danh sách</a>
 </div>
 
+{% if product.category %}
+  <div style="font-size:0.85rem;color:#555;margin-bottom:0.8rem;">
+    Danh mục: <strong>{{ product.category.name | escape }}</strong> <span style="color:#999;">(đồng bộ từ LeadBase, chỉ đọc)</span>
+  </div>
+{% endif %}
+
 {% if product.hasVariants %}
   <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;">
     <strong style="font-size:0.85rem;color:#555;">Biến thể — đồng bộ từ LeadBase, chỉ đọc:</strong>

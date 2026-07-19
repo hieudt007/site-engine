@@ -13,7 +13,8 @@ export async function registerPostsUiRoutes(app: FastifyInstance): Promise<void>
   });
 
   app.get("/admin/posts/new", { preHandler: requireRole("edit") }, async (request, reply) => {
-    const html = await renderAdmin("post-edit", { post: null, role: request.session.get("role") });
+    const categories = await prisma.postCategory.findMany({ orderBy: { name: "asc" } });
+    const html = await renderAdmin("post-edit", { post: null, categories, role: request.session.get("role") });
     return reply.type("text/html").send(html);
   });
 
@@ -21,11 +22,14 @@ export async function registerPostsUiRoutes(app: FastifyInstance): Promise<void>
     "/admin/posts/:id",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
-      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      const [post, categories] = await Promise.all([
+        prisma.post.findUnique({ where: { id: request.params.id } }),
+        prisma.postCategory.findMany({ orderBy: { name: "asc" } }),
+      ]);
       if (!post) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
       }
-      const html = await renderAdmin("post-edit", { post, role: request.session.get("role") });
+      const html = await renderAdmin("post-edit", { post, categories, role: request.session.get("role") });
       return reply.type("text/html").send(html);
     },
   );

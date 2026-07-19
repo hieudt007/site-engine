@@ -15,6 +15,7 @@ const createPostSchema = z.object({
   metaDescription: z.string().optional(),
   ogImage: z.string().optional(),
   noindex: z.boolean().optional(),
+  categoryId: z.string().nullable().optional(),
 });
 
 const updatePostSchema = createPostSchema.partial();
@@ -40,7 +41,10 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/posts/:id",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
-      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      const post = await prisma.post.findUnique({
+        where: { id: request.params.id },
+        include: { category: true },
+      });
       if (!post) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
@@ -92,7 +96,8 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(403).send({ error: "Bài đã xuất bản — chỉ manager/admin được sửa" });
       }
 
-      if (parsed.data.slug && parsed.data.slug !== post.slug) {
+      const slugChanged = !!parsed.data.slug && parsed.data.slug !== post.slug;
+      if (slugChanged) {
         const slugTaken = await prisma.post.findUnique({ where: { slug: parsed.data.slug } });
         if (slugTaken) {
           return reply.code(409).send({ error: "Slug đã tồn tại" });
@@ -109,6 +114,18 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       await auditLog(userId, "post.update", post.id);
+
+      // Doi slug -> tu tao redirect URL cu sang moi (system_design.md, tinh nang Redirect) - link
+      // cu (da chia se/da SEO) khong bi 404 khi bai viet doi duong dan.
+      if (slugChanged) {
+        const fromPath = `/blog/${post.slug}`;
+        const toPath = `/blog/${updated.slug}`;
+        await prisma.redirect.upsert({
+          where: { fromPath },
+          create: { fromPath, toPath },
+          update: { toPath },
+        });
+      }
 
       return { post: updated };
     },

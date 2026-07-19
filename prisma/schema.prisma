@@ -46,6 +46,7 @@ model User {
 
   posts     Post[]
   auditLogs AuditLog[]
+  media     Media[]
 }
 
 // Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange + lấy userinfo từ LeadBase.
@@ -72,6 +73,17 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
+// Danh mục bài viết — khái niệm CỦA RIÊNG website (không có gì tương ứng bên LeadBase), tự quản
+// hoàn toàn qua CRUD trong site-engine (khác ProductCategoryCache dưới, chỉ đọc từ LeadBase).
+model PostCategory {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  posts Post[]
+}
+
 model Post {
   id         String  @id @default(cuid())
   title      String
@@ -84,6 +96,9 @@ model Post {
   authorId        Int? // ai TẠO bài — User.leadbaseUserId, không phải bút danh public
   author          User? @relation(fields: [authorId], references: [leadbaseUserId])
   updatedByUserId Int? // ai SỬA LẦN CUỐI — có thể khác authorId
+
+  categoryId String?
+  category   PostCategory? @relation(fields: [categoryId], references: [id])
 
   metaTitle       String?
   metaDescription String?
@@ -128,6 +143,41 @@ model ProductCache {
   // vẫn hiển thị được số hợp lý — nhưng nguồn thật cho khách CHỌN mua là bảng variants dưới đây.
   hasVariants Boolean          @default(false)
   variants    ProductVariantCache[]
+
+  // Danh mục — CŨNG do LeadBase sở hữu (giống price/stock), chỉ hiển thị, không CRUD ở đây.
+  categoryId String?
+  category   ProductCategoryCache? @relation(fields: [categoryId], references: [id])
+
+  reviews ProductReview[]
+}
+
+// Danh mục sản phẩm — mirror phẳng (bỏ qua parent_id/cây phân cấp) từ LeadBase ProductCategory,
+// đồng bộ qua CHÍNH endpoint productsSync.ts đã có (không route riêng) — sửa tên/gộp phải sửa ở
+// LeadBase, instance chỉ đọc.
+model ProductCategoryCache {
+  id                 String   @id @default(cuid())
+  leadbaseCategoryId String   @unique
+  name               String
+  slug               String
+  syncedAt           DateTime @default(now())
+
+  products ProductCache[]
+}
+
+// Đánh giá sản phẩm — khách KHÔNG cần tài khoản (Customer/OTP đang tạm dừng), chỉ nhập tên. Luôn
+// tạo ở "pending", PHẢI duyệt tay (manager/admin) mới hiện công khai — nội dung công khai không
+// đăng nhập, bắt buộc kiểm duyệt để tránh spam/nội dung xấu hiện thẳng lên site.
+model ProductReview {
+  id             String       @id @default(cuid())
+  productCacheId String
+  product        ProductCache @relation(fields: [productCacheId], references: [id], onDelete: Cascade)
+
+  customerName String
+  rating       Int // 1-5
+  comment      String?
+  status       String @default("pending") // 'pending' | 'approved' | 'rejected'
+
+  createdAt DateTime @default(now())
 }
 
 // 1 tổ hợp biến thể (vd "Đỏ / M") của 1 ProductCache — hoàn toàn do LeadBase đẩy sang, instance
@@ -209,4 +259,30 @@ model CustomTheme {
   name        String
   installedAt DateTime @default(now())
   source      String // 'agent-generated' — CHƯA CHỐT giá trị khác
+}
+
+// File upload thật (ảnh bìa bài viết, ảnh chèn nội dung...) — lưu trên đĩa VPS ở uploads/
+// (services/mediaStorage.ts), KHÔNG resize/optimize (bỏ qua sharp — tránh phụ thuộc native binary
+// khó cài trên VPS, đơn giản hoá có chủ đích). Trước đây ảnh chỉ là URL dán tay, không có nơi lưu.
+model Media {
+  id               String   @id @default(cuid())
+  filename         String // tên file gốc lúc upload, chỉ để hiển thị
+  url              String // /uploads/{uuid}.{ext} — dùng thẳng trong coverImage/imageUrls/body
+  mimeType         String
+  size             Int // bytes
+  uploadedByUserId Int?
+  uploadedBy       User? @relation(fields: [uploadedByUserId], references: [leadbaseUserId])
+  createdAt        DateTime @default(now())
+}
+
+// URL cũ -> URL mới, tránh 404 khi đổi slug bài viết/sản phẩm. Áp dụng qua
+// app.setNotFoundHandler() (server.ts) — bất kỳ route không khớp nào cũng tự tra bảng này trước
+// khi trả 404 thật. Tự động tạo khi đổi slug bài viết (routes/admin/posts.ts) — quản trị tay
+// (routes/admin/redirects.ts) chỉ để bổ sung case đặc biệt, không phải nguồn chính.
+model Redirect {
+  id         String   @id @default(cuid())
+  fromPath   String   @unique // vd "/blog/bai-viet-cu"
+  toPath     String // vd "/blog/bai-viet-moi"
+  statusCode Int      @default(301)
+  createdAt  DateTime @default(now())
 }

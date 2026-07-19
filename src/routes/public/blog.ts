@@ -25,6 +25,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
           coverImage: true,
           authorName: true,
           publishedAt: true,
+          category: { select: { name: true, slug: true } },
         },
       }),
       prisma.post.count({ where }),
@@ -43,7 +44,10 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get<{ Params: { slug: string } }>("/blog/:slug", async (request, reply) => {
-    const post = await prisma.post.findUnique({ where: { slug: request.params.slug } });
+    const post = await prisma.post.findUnique({
+      where: { slug: request.params.slug },
+      include: { category: { select: { name: true, slug: true } } },
+    });
     if (!post || !post.publishedAt) {
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
     }

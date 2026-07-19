@@ -1,0 +1,77 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Đánh giá sản phẩm</h1>
+
+<table>
+  <thead>
+    <tr><th>Sản phẩm</th><th>Người đánh giá</th><th>Sao</th><th>Nhận xét</th><th>Trạng thái</th><th></th></tr>
+  </thead>
+  <tbody id="reviews-body">
+    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("reviews-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function statusBadge(status) {
+    const map = { pending: ["Chờ duyệt", "status-draft"], approved: ["Đã duyệt", "status-published"], rejected: ["Từ chối", "status-draft"] };
+    const [label, cls] = map[status] || [status, "status-draft"];
+    return '<span class="status-badge ' + cls + '">' + label + '</span>';
+  }
+
+  function rowHtml(r) {
+    const actions = r.status === "pending"
+      ? '<button class="btn" data-action="approve" data-id="' + r.id + '">Duyệt</button> ' +
+        '<button class="btn btn-danger" data-action="reject" data-id="' + r.id + '">Từ chối</button>'
+      : "";
+    return (
+      "<tr>" +
+      "<td>" + escapeHtml(r.product ? r.product.name : "-") + "</td>" +
+      "<td>" + escapeHtml(r.customerName) + "</td>" +
+      "<td>" + "★".repeat(r.rating) + "</td>" +
+      "<td>" + escapeHtml(r.comment || "-") + "</td>" +
+      "<td>" + statusBadge(r.status) + "</td>" +
+      '<td style="white-space:nowrap;">' + actions + "</td>" +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/reviews");
+    const { reviews } = await res.json();
+    tbody.innerHTML = reviews.length
+      ? reviews.map(rowHtml).join("")
+      : '<tr><td colspan="6" style="color:#999;">Chưa có đánh giá nào.</td></tr>';
+  }
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    const res = await fetch("/admin/api/reviews/" + id + "/" + action, { method: "POST" });
+    if (!res.ok) {
+      showError("Thao tác thất bại");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}
