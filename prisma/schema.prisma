@@ -197,28 +197,6 @@ model CustomerSession {
   expiresAt  DateTime
 }
 
-// --- Draft cho tính năng MCP (Phase 7) — TÊN/FIELD CHƯA CHỐT ---
-
-model OAuthClient {
-  id           String   @id @default(cuid())
-  name         String
-  redirectUris String[]
-  isPublic     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-}
-
-model OAuthToken {
-  id           String    @id @default(cuid())
-  clientId     String
-  accessToken  String    @unique
-  refreshToken String?   @unique
-  resource     String // RFC 8707 aud — luôn = base URL của chính instance này
-  scopes       String[]
-  expiresAt    DateTime
-  revokedAt    DateTime?
-  createdAt    DateTime  @default(now())
-}
-
 model ThemeConfig {
   id          String   @id @default("singleton") // đúng 1 row, giống SiteConfig
   activeTheme String   @default("default")
