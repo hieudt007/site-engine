@@ -107,6 +107,7 @@
       <div class="sidebar-group-label">Nội dung</div>
       <a class="sidebar-link{% if currentPath contains "/admin/posts" %} active{% endif %}" href="/admin/posts">Bài viết</a>
       {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/post-categories" %} active{% endif %}" href="/admin/post-categories">Danh mục bài viết</a>{% endif %}
+      <a class="sidebar-link{% if currentPath contains "/admin/pages" %} active{% endif %}" href="/admin/pages">Trang tĩnh</a>
       <a class="sidebar-link{% if currentPath contains "/admin/media" %} active{% endif %}" href="/admin/media">Media</a>
     </div>
 

@@ -1,0 +1,133 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">{% if page %}Sửa trang{% else %}Trang mới{% endif %}</h1>
+  <a class="btn" href="/admin/pages">← Danh sách</a>
+</div>
+
+<form id="page-form" class="card">
+  <label for="title">Tiêu đề</label>
+  <input type="text" id="title" name="title" value="{% if page %}{{ page.title | escape }}{% endif %}" required>
+
+  <label for="slug">Slug (đường dẫn — /trang/slug)</label>
+  <input type="text" id="slug" name="slug" value="{% if page %}{{ page.slug | escape }}{% endif %}" required>
+  <div class="field-hint">Chỉ chữ thường/số, cách nhau bằng dấu gạch ngang. Vd: gioi-thieu</div>
+
+  <label for="excerpt">Tóm tắt</label>
+  <input type="text" id="excerpt" name="excerpt" value="{% if page %}{{ page.excerpt | escape }}{% endif %}">
+
+  <label for="coverImage">Ảnh bìa (URL)</label>
+  <input type="text" id="coverImage" name="coverImage" value="{% if page %}{{ page.coverImage | escape }}{% endif %}">
+
+  <label for="authorName">Bút danh hiển thị (để trống dùng tên website)</label>
+  <input type="text" id="authorName" name="authorName" value="{% if page %}{{ page.authorName | escape }}{% endif %}">
+
+  <label for="body">Nội dung (HTML đã làm sạch)</label>
+  <textarea id="body" name="body" required>{% if page %}{{ page.body }}{% endif %}</textarea>
+  <div class="field-hint">Chưa có trình soạn thảo rich-text (đang TBD) — nhập HTML/markdown thô.</div>
+
+  <label for="metaTitle">SEO — Meta title</label>
+  <input type="text" id="metaTitle" name="metaTitle" value="{% if page %}{{ page.metaTitle | escape }}{% endif %}">
+
+  <label for="metaDescription">SEO — Meta description</label>
+  <input type="text" id="metaDescription" name="metaDescription" value="{% if page %}{{ page.metaDescription | escape }}{% endif %}">
+
+  <label style="display:flex;align-items:center;gap:0.4rem;">
+    <input type="checkbox" id="noindex" name="noindex" style="width:auto;" {% if page.noindex %}checked{% endif %}>
+    noindex (ẩn khỏi công cụ tìm kiếm)
+  </label>
+
+  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <span id="publish-slot"></span>
+    <span id="delete-slot"></span>
+  </div>
+</form>
+
+<script>
+(function () {
+  const CURRENT_ROLE = "{{ role }}";
+  const canManage = CURRENT_ROLE === "manager" || CURRENT_ROLE === "admin";
+  const pageId = {% if page %}"{{ page.id }}"{% else %}null{% endif %};
+  const isPublished = {% if page.publishedAt %}true{% else %}false{% endif %};
+  const form = document.getElementById("page-form");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  if (pageId && isPublished && CURRENT_ROLE === "edit") {
+    [...form.elements].forEach((el) => (el.disabled = true));
+    showFlash("Trang đã xuất bản — chỉ manager/admin được sửa.", false);
+  }
+
+  if (pageId && canManage) {
+    if (!isPublished) {
+      const publishBtn = document.createElement("button");
+      publishBtn.type = "button";
+      publishBtn.className = "btn";
+      publishBtn.textContent = "Xuất bản";
+      publishBtn.onclick = async () => {
+        const res = await fetch("/admin/api/pages/" + pageId + "/publish", { method: "POST" });
+        if (!res.ok) {
+          showFlash("Xuất bản thất bại", false);
+          return;
+        }
+        window.location.reload();
+      };
+      document.getElementById("publish-slot").appendChild(publishBtn);
+    }
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "btn btn-danger";
+    deleteBtn.textContent = "Xoá";
+    deleteBtn.onclick = async () => {
+      if (!confirm("Xoá trang này?")) return;
+      const res = await fetch("/admin/api/pages/" + pageId, { method: "DELETE" });
+      if (!res.ok) {
+        showFlash("Xoá thất bại", false);
+        return;
+      }
+      window.location.href = "/admin/pages";
+    };
+    document.getElementById("delete-slot").appendChild(deleteBtn);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      title: form.title.value,
+      slug: form.slug.value,
+      body: form.body.value,
+      excerpt: form.excerpt.value || undefined,
+      coverImage: form.coverImage.value || undefined,
+      authorName: form.authorName.value || undefined,
+      metaTitle: form.metaTitle.value || undefined,
+      metaDescription: form.metaDescription.value || undefined,
+      noindex: form.noindex.checked,
+    };
+
+    const res = await fetch(pageId ? "/admin/api/pages/" + pageId : "/admin/api/pages", {
+      method: pageId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Lưu thất bại", false);
+      return;
+    }
+
+    const { page } = await res.json();
+    showFlash("Đã lưu.", true);
+    if (!pageId) {
+      window.location.href = "/admin/pages/" + page.id;
+    }
+  });
+})();
+</script>
+{% endblock %}

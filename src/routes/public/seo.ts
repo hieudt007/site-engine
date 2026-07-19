@@ -7,9 +7,10 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
   app.get("/sitemap.xml", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
 
-    const [posts, products] = await Promise.all([
+    const [posts, products, pages] = await Promise.all([
       prisma.post.findMany({ where: { publishedAt: { not: null } }, select: { slug: true, updatedAt: true } }),
       prisma.productCache.findMany({ where: { publishStatus: "published" }, select: { id: true, syncedAt: true } }),
+      prisma.page.findMany({ where: { publishedAt: { not: null } }, select: { slug: true, updatedAt: true } }),
     ]);
 
     const staticUrls = [
@@ -25,8 +26,12 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
       loc: `${baseUrl}/products/${p.id}`,
       lastmod: p.syncedAt.toISOString(),
     }));
+    const pageUrls = pages.map((p) => ({
+      loc: `${baseUrl}/trang/${p.slug}`,
+      lastmod: p.updatedAt.toISOString(),
+    }));
 
-    const urls = [...staticUrls, ...postUrls, ...productUrls];
+    const urls = [...staticUrls, ...postUrls, ...productUrls, ...pageUrls];
     const xml =
       '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +

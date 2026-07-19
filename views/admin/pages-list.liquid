@@ -1,0 +1,129 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Trang tĩnh</h1>
+  <a class="btn btn-primary" href="/admin/pages/new">+ Trang mới</a>
+</div>
+
+<div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+  <input type="search" id="search-input" class="search-input" placeholder="Tìm theo tiêu đề...">
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tiêu đề</th>
+      <th>Trạng thái</th>
+      <th>Tác giả</th>
+      <th>Cập nhật</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="pages-body">
+    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+<div class="pagination" id="pagination"></div>
+
+<script>
+(function () {
+  const CURRENT_ROLE = "{{ role }}";
+  const canManage = CURRENT_ROLE === "manager" || CURRENT_ROLE === "admin";
+  const tbody = document.getElementById("pages-body");
+  const pagination = document.getElementById("pagination");
+  const flash = document.getElementById("flash");
+  const searchInput = document.getElementById("search-input");
+
+  let currentPage = 1;
+  let searchTimer;
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(page) {
+    const statusBadge = page.publishedAt
+      ? '<span class="status-badge status-published">Đã xuất bản</span>'
+      : '<span class="status-badge status-draft">Nháp</span>';
+    const author = page.author ? escapeHtml(page.author.name) : "-";
+    const updated = new Date(page.updatedAt).toLocaleString("vi-VN");
+    const publishBtn = !page.publishedAt && canManage
+      ? '<button class="btn" data-action="publish" data-id="' + page.id + '">Xuất bản</button>'
+      : "";
+    const deleteBtn = canManage
+      ? '<button class="btn btn-danger" data-action="delete" data-id="' + page.id + '">Xoá</button>'
+      : "";
+    return (
+      "<tr>" +
+      '<td><a href="/admin/pages/' + page.id + '">' + escapeHtml(page.title) + "</a></td>" +
+      "<td>" + statusBadge + "</td>" +
+      "<td>" + author + "</td>" +
+      "<td>" + updated + "</td>" +
+      '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' + publishBtn + deleteBtn + "</td>" +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const params = new URLSearchParams({ page: String(currentPage) });
+    if (searchInput.value) params.set("q", searchInput.value);
+
+    const res = await fetch("/admin/api/pages?" + params.toString());
+    if (!res.ok) {
+      showError("Không tải được danh sách trang");
+      return;
+    }
+    const { pages, hasNext, hasPrev } = await res.json();
+    tbody.innerHTML = pages.length
+      ? pages.map(rowHtml).join("")
+      : '<tr><td colspan="5" class="empty-state">Không tìm thấy trang nào.</td></tr>';
+
+    pagination.innerHTML =
+      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
+      "<span>Trang " + currentPage + "</span>" +
+      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
+  }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; load(); }, 300);
+  });
+
+  pagination.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-page]");
+    if (!link) return;
+    event.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    if (action === "delete" && !confirm("Xoá trang này?")) return;
+
+    const res = await fetch(
+      "/admin/api/pages/" + id + (action === "publish" ? "/publish" : ""),
+      { method: action === "publish" ? "POST" : "DELETE" },
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showError(body.error || "Thao tác thất bại");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}
