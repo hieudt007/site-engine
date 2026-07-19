@@ -33,8 +33,8 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 - [x] **[lead-base]** `GET /api/oauth/userinfo` (`OAuthUserInfoController`, dùng đúng guard `auth('api')` như `McpController`) trả về `{id, name, email, role}` — `role` tự tính từ Spatie role thật (`admin`/`manager`/`edit`).
 - [x] **[lead-base]** `WebsiteProvisionService::provision()` tự đăng ký 1 OAuth client public/PKCE riêng cho từng Website (`ClientRepository::createAuthorizationCodeGrantClient`), ghi `client_id` vào `.env` + `websites.oauth_client_id` (revoke khi xoá Website).
 - [x] **[lead-base]** Bỏ hẳn field `admin_email`/`admin_password` khỏi form "Tạo Website" (`Websites.tsx`) — không còn cần thiết.
-- [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ + đúng `role` theo bảng ở `system_design.md` §5.2 (MVP mới chỉ check có session, chưa lọc theo `role`).
-- [ ] Model `Post` + CRUD trực tiếp trong app qua UI vừa có session.
+- [x] Middleware bảo vệ `/admin/*` — `plugins/requireRole.ts` (`requireRole(minRole)`, so theo thứ bậc `edit < manager < admin`), áp cho `/admin`, `/admin/posts*`. `publish`/`delete` yêu cầu tối thiểu `manager`; `edit` chỉ tạo/sửa được bài NHÁP (chặn sửa bài đã `publishedAt`), khớp đúng bảng `system_design.md` §5.2.
+- [x] Model `Post` + CRUD (`routes/admin/posts.ts`) — `GET/POST /admin/posts`, `GET/PATCH /admin/posts/:id`, `POST /admin/posts/:id/publish`, `DELETE /admin/posts/:id`. Validate bằng zod, check trùng `slug`, ghi `AuditLog` mỗi hành động (`post.create/update/publish/delete`).
 - [ ] UI soạn bài: list + editor (rich text — thư viện TBD).
 - [ ] `@fastify/view` + Liquid (`liquidjs`) + theme built-in `themes/default/` (`tech_doc.md` §1, §3) — renderer đọc `ThemeConfig.activeTheme` (`themeRenderer.ts`), route public dùng renderer này thay vì hardcode 1 view.
 - [ ] Route public `/blog`, `/blog/:slug`.

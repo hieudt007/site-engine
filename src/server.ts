@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import { registerSession } from "./plugins/session.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerOAuthRoutes } from "./routes/admin/oauth.js";
+import { registerPostRoutes } from "./routes/admin/posts.js";
 
 const app = Fastify({ logger: true, trustProxy: true });
 
@@ -14,6 +15,7 @@ async function start(): Promise<void> {
   await registerSession(app);
   await registerOAuthRoutes(app);
   await registerAdminRoutes(app);
+  await registerPostRoutes(app);
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 }
