@@ -121,15 +121,15 @@ lead-base/
 
 ## 5. systemd template unit (`site-engine-instance@.service`)
 
-Vẫn dùng systemd template (`%i` = websiteId) dù không còn Orchestrator — vì lý do chọn nó **không đổi**: cần chạy N bản của cùng 1 app, mỗi bản đọc `.env` riêng. Chỉ khác ai tạo file `.env`/enable unit: giờ là `WebsiteProvisionService.php` (Laravel) thay vì 1 process Node riêng.
+Vẫn dùng systemd template (`%i` = **domain**, không phải websiteId — đổi lại sau khi chốt dùng domain làm định danh chính, xem §3 lý do) dù không còn Orchestrator — vì lý do chọn nó **không đổi**: cần chạy N bản của cùng 1 app, mỗi bản đọc `.env` riêng. Chỉ khác ai tạo file `.env`/enable unit: giờ là `WebsiteProvisionService.php` (Laravel) thay vì 1 process Node riêng.
 
 ```ini
 [Unit]
-Description=site-engine app for website %i
+Description=site-engine app for %i
 
 [Service]
 WorkingDirectory=/var/www/site-engine/%i
-EnvironmentFile=/etc/site-engine/instances/%i.env
+EnvironmentFile=/var/www/site-engine/%i/.env
 ExecStart=/usr/bin/node dist/server.js
 Restart=on-failure
 User=site-engine
@@ -138,13 +138,13 @@ User=site-engine
 WantedBy=multi-user.target
 ```
 
-Laravel tạo `/etc/site-engine/instances/{websiteId}.env` (chứa `PORT`, `DATABASE_URL` riêng) rồi `sudo systemctl enable --now site-engine-instance@{websiteId}` — đúng pattern `escapeshellarg`/`execFile`, validate `websiteId` bằng regex trước khi đưa vào lệnh shell, giống cách `LandingDomainProvisionService::run()` validate domain hiện có.
+`.env` nằm ngay trong thư mục app (`/var/www/site-engine/{domain}/.env`), **không phải `/etc/`** — quyết định đảo ngược sau khi gặp lỗi thật trên VPS: `/etc` bị mount read-only trên 1 số VPS (container hoá/hardening), trong khi thư mục app đã chắc chắn ghi được (vừa unzip xong ở bước `create`). Laravel ghi `.env` (chứa `PORT`, `DATABASE_URL` riêng) rồi `sudo systemctl enable --now site-engine-instance@{domain}` — đúng pattern `escapeshellarg`/`execFile`, validate `domain` bằng đúng regex `LandingDomainProvisionService::run()` đang dùng cho Landing Page.
 
 ## 6. Biến môi trường (1 file `.env` riêng/website, do Laravel sinh ra lúc bung app)
 
 ```
 PORT=...                            # do Laravel cấp, duy nhất/instance
-DATABASE_URL=postgresql://.../site_engine_{websiteId}
+DATABASE_URL=postgresql://.../site_engine_{domain viết lại bằng gạch dưới}
 
 SITE_ENGINE_SECRET=...               # RIÊNG từng Website, do Laravel sinh ngẫu nhiên lúc tạo
                                      # (architecture.md §3, system_design.md §2) — dùng ký/verify
@@ -180,7 +180,7 @@ Ghi chú để biết `lead-base/scripts/setup-vps.sh` cần thêm gì (đã có
    - `site-engine-provision-app.sh` (mkdir/unzip/npm ci/createdb/env/migrate/systemctl).
    - `site-engine-provision-domain.sh` (nginx reverse-proxy vhost dùng chung cert Cloudflare Origin CA, §3).
 5. User hệ thống riêng `site-engine` chạy các tiến trình `site-engine-instance@*` (không phải `www-data`, không phải root) — mirror lý do LeadBase hiện dùng `www-data` riêng cho PHP-FPM.
-6. Thư mục `/etc/site-engine/instances/` (chứa `.env` từng instance, mode 600, đọc bởi systemd `EnvironmentFile=`) và `/var/www/site-engine/` (chứa app code từng instance) — cả 2 do `site-engine-provision-app.sh` tự tạo, chỉ cần đảm bảo user chạy Laravel có quyền `sudo` gọi script, không cần tạo tay trước.
+6. Thư mục `/var/www/site-engine/` (chứa cả app code lẫn `.env`, mode 600, từng instance — `.env` KHÔNG đặt ở `/etc/` vì 1 số VPS mount `/etc` read-only) — do `site-engine-provision-app.sh` tự tạo, chỉ cần đảm bảo user chạy Laravel có quyền `sudo` gọi script, không cần tạo tay trước.
 7. Copy `site-engine.zip` (build từ repo `site-engine`, `npm run release`) vào `lead-base/resources/site-engine/site-engine.zip` trước khi tạo Website đầu tiên (`resources/site-engine/README.md`).
 
 ## 9. Testing

@@ -42,15 +42,18 @@ Muốn dời **1 website cụ thể** sang VPS khác vẫn làm được (dời 
 ```
 Tenant bấm "Tạo Website" (domain, tên) trên UI LeadBase
   → Laravel (service mới, mirror LandingDomainProvisionService — xem system_design.md §2):
-    1. mkdir /var/www/site-engine/{websiteId}
+    0. kiểm tra /var/www/site-engine/{domain} CHƯA tồn tại trên VPS — từ chối tạo nếu đã có
+       (tránh ghi đè dữ liệu cũ chưa dọn sạch), mirror check tương tự vừa thêm cho Landing Page
+    1. mkdir /var/www/site-engine/{domain}
     2. unzip resources/site-engine/site-engine.zip  vào thư mục đó
     3. npm ci --omit=dev  (nếu zip không nhúng sẵn node_modules — quyết định lúc build, TBD)
-    4. createdb site_engine_{websiteId}
+    4. createdb site_engine_{domain viết lại bằng gạch dưới, vd blog_leadbase_vn}
     5. sinh SITE_ENGINE_SECRET ngẫu nhiên, lưu Website.secret (mã hoá, riêng từng Website —
-       system_design.md §2), ghi file .env riêng cho instance (PORT, DATABASE_URL, secret vừa
-       sinh — xem tech_doc.md §6)
+       system_design.md §2), ghi file .env NGAY TRONG thư mục app (KHÔNG phải /etc — 1 số VPS
+       mount /etc read-only, thư mục app thì chắc chắn ghi được vì vừa unzip xong ở bước 2 —
+       xem tech_doc.md §6)
     6. prisma migrate deploy  (chạy trên DB vừa tạo)
-    7. systemctl enable --now site-engine-instance@{websiteId}   (systemd TEMPLATE UNIT)
+    7. systemctl enable --now site-engine-instance@{domain}   (systemd TEMPLATE UNIT, %i = domain)
     8. viết Nginx vhost cho domain, proxy_pass → 127.0.0.1:{port vừa cấp}, dùng chung
        cert Cloudflare Origin CA (§4) — không có bước "xin SSL" riêng, xong bước này là
        domain đã HTTPS được luôn
@@ -60,7 +63,7 @@ Tenant bấm "Tạo Website" (domain, tên) trên UI LeadBase
 
 Không có webhook/API call nào ở đây — toàn bộ 9 bước chạy trong CÙNG 1 request/job phía Laravel (có thể queue hoá nếu cần, giống pattern `GenerateFanpageContentCalendar` đã dùng cho việc nặng khác trong repo) vì tất cả local, không có "phía bên kia" nào cần gọi qua mạng.
 
-Mỗi instance là 1 `systemd` **template unit** (`site-engine-instance@.service`, `%i` = websiteId) — đúng tính năng systemd làm ra cho "chạy N bản của cùng 1 service, mỗi bản 1 tham số riêng".
+Mỗi instance là 1 `systemd` **template unit** (`site-engine-instance@.service`, `%i` = domain) — đúng tính năng systemd làm ra cho "chạy N bản của cùng 1 service, mỗi bản 1 tham số riêng".
 
 **Xoá 1 Website** = ngược lại đúng 9 bước: `systemctl disable --now`, gỡ Nginx vhost, `dropdb`, `rm -rf` thư mục app — dọn sạch hoàn toàn, không để lại rác.
 
@@ -147,8 +150,8 @@ Chưa chốt chi tiết implement — xem `system_design.md` §9 (TBD) và `task
 
 `lead-base` đã có cơ chế backup thật đang chạy production: `scripts/crm-backup-db.sh` (cron 2h sáng hàng ngày) — `pg_dump` DB chính CRM + `storage/{app,data,landing-pages}` + `.env`, nén, upload Google Drive qua rclone, có retention local + remote. `site-engine` **tận dụng lại đúng cơ chế này**, không dựng backup riêng:
 
-- **DB từng Website (`site_engine_{websiteId}`) — PHẢI thêm vào phạm vi backup.** Đây là dữ liệu không tái tạo được (bài viết, tài khoản khách hàng, đơn hàng đang chờ gửi) — script cần loop qua mọi DB có prefix `site_engine_` và `pg_dump` từng cái, giống hệt cách nó đang dump DB chính.
-- **Thư mục code app (`/var/www/site-engine/{websiteId}`) — hầu hết KHÔNG cần backup**, dựng lại được bằng cách bung lại `site-engine.zip` + `prisma migrate deploy` — **NGOẠI TRỪ `themes/custom-*/`** (theme tự tạo, cài lúc runtime qua `POST /api/theme/install`, `system_design.md` §4.3 — KHÔNG nằm trong `site-engine.zip`, bung lại zip sẽ KHÔNG khôi phục được). Cần thêm đúng thư mục `themes/custom-*/` của mọi Website vào phạm vi backup (rsync/tar, không phải `pg_dump` vì đây là file không phải DB).
+- **DB từng Website (`site_engine_{domain viết lại bằng gạch dưới}`) — PHẢI thêm vào phạm vi backup.** Đây là dữ liệu không tái tạo được (bài viết, tài khoản khách hàng, đơn hàng đang chờ gửi) — script cần loop qua mọi DB có prefix `site_engine_` và `pg_dump` từng cái, giống hệt cách nó đang dump DB chính.
+- **Thư mục code app (`/var/www/site-engine/{domain}`) — hầu hết KHÔNG cần backup**, dựng lại được bằng cách bung lại `site-engine.zip` + `prisma migrate deploy` — **NGOẠI TRỪ `themes/custom-*/`** (theme tự tạo, cài lúc runtime qua `POST /api/theme/install`, `system_design.md` §4.3 — KHÔNG nằm trong `site-engine.zip`, bung lại zip sẽ KHÔNG khôi phục được). Cần thêm đúng thư mục `themes/custom-*/` của mọi Website vào phạm vi backup (rsync/tar, không phải `pg_dump` vì đây là file không phải DB).
 - **Thư mục deploy Landing Page (`/var/www/{domain}/{slug}`) — cũng KHÔNG cần thêm** (đã đúng như hiện tại) — bản `storage/landing-pages` (draft, nguồn thật) đã nằm trong phạm vi backup sẵn có, và `deploy()` chạy lại là dựng ra đúng bản `/var/www` — không mất gì nếu chỉ backup draft.
 
 Tóm lại: chỉ cần **1 thay đổi** ở `crm-backup-db.sh` (thêm vòng lặp `pg_dump` theo mọi DB `site_engine_*`) là đủ phủ toàn bộ dữ liệu quan trọng của cả Landing Page lẫn Website — không cần 1 script backup riêng cho site-engine.
