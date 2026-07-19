@@ -49,6 +49,13 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       include: { category: { select: { name: true, slug: true } } },
     });
     if (!post || !post.publishedAt) {
+      // "/blog/:slug" la route DA DANG KY nen luon khop pattern - app.setNotFoundHandler()
+      // (server.ts) KHONG BAO GIO chay toi day, phai tu tra Redirect ngay trong handler nay
+      // (khac cac path hoan toan khong ton tai, moi roi xuong setNotFoundHandler that).
+      const redirect = await prisma.redirect.findUnique({ where: { fromPath: request.url } });
+      if (redirect) {
+        return reply.code(redirect.statusCode).redirect(redirect.toPath);
+      }
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
     }
 

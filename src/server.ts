@@ -55,9 +55,10 @@ app.get("/health", async () => {
   return { status: "ok" };
 });
 
-// Bat ky route nao khong khop deu tu tra Redirect truoc khi tra 404 that (system_design.md,
-// tinh nang Redirect URL) - chu yeu phuc vu link cu bai viet/san pham da doi slug (tu dong tao
-// o routes/admin/posts.ts khi PATCH doi slug), quan tri tay bo sung o routes/admin/redirects.ts.
+// Chi bat duoc path KHONG khop bat ky route pattern nao (vd go sai URL hoan toan). "/blog/:slug"
+// hay "/products/:id" van la route DA DANG KY nen luon "khop", moi khi slug/id khong ton tai thi
+// handler cua chinh no phai TU tra Redirect roi moi 404 that (xem routes/public/blog.ts) - khong
+// the dua vao handler nay cho case do. Quan tri tay bo sung o routes/admin/redirects.ts.
 app.setNotFoundHandler(async (request, reply) => {
   const pathname = request.url.split("?")[0];
   const redirect = await prisma.redirect.findUnique({ where: { fromPath: pathname } });
