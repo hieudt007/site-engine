@@ -23,14 +23,16 @@ Thứ tự phase theo phụ thuộc kỹ thuật (không phải độ ưu tiên 
 
 **Verify Phase 1+2**: ✅ đã test thật trên VPS — "Tạo Website" → app chạy dưới systemd, DB tạo đúng owner, Nginx vhost tạo xong. Còn lại: xác nhận `https://blog.leadbase.vn` load được `/health` qua trình duyệt thật (DNS/Cloudflare phía domain này).
 
-## Phase 3 — Blog + đăng nhập tenant vào 1 app
+## Phase 3 — Blog + đăng nhập admin vào 1 app
 
-**Đã chốt**: editor bài viết là UI riêng trong chính app đã bung (`architecture.md` §6) — cần làm session/bàn giao định danh TRƯỚC UI soạn bài.
+**Đã chốt**: editor bài viết là UI riêng trong chính app đã bung (`architecture.md` §6). **Đảo ngược quyết định ban đầu**: bỏ hẳn bàn giao định danh HMAC/SSO từ LeadBase — đăng nhập ĐỘC LẬP bằng email/mật khẩu, giống WordPress. Tài khoản admin đầu tiên tạo lúc "Tạo Website" bên LeadBase.
 
-- [x] `plugins/session.ts` (Prisma-backed store, `services/sessionStore.ts`) + route `GET /sso?token=...` (`routes/sso.ts`) verify token HMAC từ LeadBase (`security.ts` `signSsoToken`/`verifySsoToken`), chống replay (in-memory), tạo `Session`, cookie 30 ngày. Stub `/admin` (`routes/admin/index.ts`) để verify end-to-end — đã test thật bằng curl (login/replay/token sai/thiếu token đều đúng) + 12 test tự động.
-- [ ] **[lead-base]** Nút "Quản lý nội dung" trong màn hình Website → tra registry lấy đúng URL app → phát token ngắn hạn `{userId, userName, permissions, exp}`, redirect sang `{app_url}/sso`.
-- [x] **[lead-base]** Thêm permission `manage-website-content`, `view-website-content` vào `RolePermissionSeeder.php` (`system_design.md` §5.2) — làm sớm ở Phase 1.
-- [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ + đúng `permissions`.
+- [x] Model `User` (email+passwordHash+permissions), `AuditLog`, `Post.authorId`/`updatedByUserId` (migration `independent_admin_auth`) — thêm sau khi bàn về việc cần biết "ai đã xuất bản/sửa bài nào", không cần bảng riêng vì `User` đã đủ.
+- [x] `services/seedAdmin.ts` — tạo `User` đầu tiên từ `ADMIN_EMAIL`/`ADMIN_PASSWORD` (chỉ khi bảng rỗng, không ghi đè nếu tenant đã đổi mật khẩu).
+- [x] `plugins/session.ts` (Prisma-backed store, `services/sessionStore.ts`) + `routes/admin/auth.ts` (`POST /admin/login` bcrypt.compare, `POST /admin/logout`), cookie 30 ngày. Stub `/admin` (`routes/admin/index.ts`) để verify end-to-end — đã test thật bằng curl (sai mật khẩu/đúng mật khẩu/đọc session/logout đều đúng) + test tự động.
+- [x] **[lead-base]** Form "Tạo Website" (`Websites.tsx`) thêm 2 field `admin_email`/`admin_password` (validate ở `WebsiteController::store()`) — LeadBase KHÔNG lưu mật khẩu, chỉ truyền qua `.env` lúc provision (`WebsiteProvisionService::writeEnv()`), không lưu vào bảng `websites`.
+- [ ] ~~Nút "Quản lý nội dung" phát token, permission `manage-website-content`/`view-website-content`~~ — không còn cần thiết, đăng nhập giờ độc lập tại `{domain}/admin/login`, không qua LeadBase nữa. Permission `manage-website-content`/`view-website-content` đã thêm ở Phase 1 giờ không dùng cho mục đích này nữa (có thể dùng lại sau nếu cần).
+- [ ] Middleware bảo vệ `/admin/*`: yêu cầu session hợp lệ (MVP chỉ check có session, chưa cần phân biệt permission cụ thể — `system_design.md` §5.2).
 - [ ] Model `Post` + CRUD trực tiếp trong app qua UI vừa có session.
 - [ ] UI soạn bài: list + editor (rich text — thư viện TBD).
 - [ ] `@fastify/view` + Liquid (`liquidjs`) + theme built-in `themes/default/` (`tech_doc.md` §1, §3) — renderer đọc `ThemeConfig.activeTheme` (`themeRenderer.ts`), route public dùng renderer này thay vì hardcode 1 view.
@@ -86,7 +88,7 @@ Chạy sau khi Phase 5 xong (agent cần nội dung/sản phẩm/SEO đã có đ
 Chỉ triển khai sau khi Phase 3 (blog) và Phase 6 (theme) xong. Xem `system_design.md` §9 và `architecture.md` §7 cho các mục còn mở (TBD). **Không còn bao gồm sửa giao diện** — việc đó đã có kênh riêng ở Phase 6, đơn giản hơn MCP/OAuth nhiều.
 
 - [ ] Chọn thư viện OAuth server phía Node (ứng viên: `node-oidc-provider`), dựng discovery + dynamic client registration (RFC 8414/9728/7591) — mỗi app tự có OAuth server riêng của nó.
-- [ ] Tái dùng cơ chế bàn giao định danh §5.1 cho bước consent (không làm token riêng cho MCP).
+- [ ] Consent yêu cầu đã đăng nhập admin hợp lệ (§5.1, session email/mật khẩu) — không còn cơ chế bàn giao riêng để tái dùng, MCP tự có luồng OAuth độc lập.
 - [ ] Consent screen, mirror UX `resources/js/Pages/OAuth/Authorize.tsx` bên LeadBase.
 - [ ] Access token resource-bound (RFC 8707), `aud` = base URL của chính app (không cần so khớp website — vốn dĩ chỉ có 1 website/app).
 - [ ] MCP server (`POST /mcp`, JSON-RPC 2.0) với tool set tối thiểu ban đầu (`list_posts`, `create_post`, `update_post`, `publish_post`).

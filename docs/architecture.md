@@ -103,27 +103,28 @@ Tenant thêm/sửa sản phẩm trong LeadBase
 
 Đánh đổi so với hướng pull-and-cache (bị bỏ): LeadBase phải tự có hàng đợi/retry khi Website đang down lúc push (`system_design.md` §4.2, TBD cơ chế cụ thể) — bù lại giá/tồn kho hiển thị luôn tức thời khi Website online, không có độ trễ TTL như pull.
 
-## 6. Xác thực tenant vào UI 1 Website (từ Phase 3)
+## 6. Đăng nhập vào UI 1 Website (từ Phase 3)
 
-Soạn bài viết/nội dung có **UI riêng trong chính app đã bung** (không nhúng trong LeadBase) — cần trải nghiệm soạn thảo thật. Giữ nguyên tắc **LeadBase là nguồn identity duy nhất**: Website không có form đăng ký/đăng nhập/mật khẩu riêng.
+**Đảo ngược quyết định trước**: KHÔNG còn bàn giao định danh HMAC/SSO từ LeadBase — quá vòng vèo cho use case thực tế. Mỗi Website có tài khoản admin **độc lập hoàn toàn** (email/mật khẩu, giống WordPress), soạn bài viết/nội dung ở **UI riêng trong chính app đã bung** (không nhúng trong LeadBase).
 
 ```
-Tenant (đã login LeadBase) bấm "Quản lý nội dung" cho 1 Website cụ thể
-  → LeadBase tra registry lấy đúng URL của Website đó
-  → phát 1 token ngắn hạn, ký HMAC, chứa {userId, permissions, exp}
-  → redirect sang đúng URL Website đó kèm token (vd https://domain-khach.../sso?token=...)
-  → Website verify chữ ký + hạn dùng, tạo session (cookie, Prisma-backed trong DB CHÍNH NÓ)
-  → tenant thao tác UI soạn bài trong session đó, hết hạn thì bấm lại nút bên LeadBase
+Lúc "Tạo Website" bên LeadBase: form nhập luôn admin_email + admin_password
+  → LeadBase KHÔNG lưu mật khẩu — chỉ truyền 1 lần qua .env (ADMIN_EMAIL/ADMIN_PASSWORD)
+  → Website tự seed tài khoản admin đầu tiên lúc khởi động (services/seedAdmin.ts)
+
+Từ lần sau: tenant tự vào thẳng https://domain-khach.../admin/login, nhập email/mật khẩu
+  → Website tự verify (bcrypt), tạo session (cookie, Prisma-backed trong DB CHÍNH NÓ)
+  → tenant thao tác UI soạn bài trong session đó, hết hạn (30 ngày) thì đăng nhập lại
 ```
 
-Cơ chế bàn giao token này là **hạ tầng dùng chung**, không chỉ phục vụ riêng MCP — §7 (MCP) tái sử dụng đúng cơ chế này.
+Không còn phụ thuộc LeadBase ở bước đăng nhập hàng ngày — chỉ dùng LeadBase 1 lần duy nhất lúc tạo Website để khởi tạo tài khoản. Chi tiết schema/route ở `system_design.md` §5.
 
 ## 7. Tính năng MCP — kết nối AI (draft, chưa chốt nội dung)
 
 LeadBase đã có sẵn hệ OAuth 2.1 + MCP hoàn chỉnh (Laravel Passport, RFC 8414/9728/7591/8707). Mỗi Website site-engine sẽ **mirror đúng bộ RFC này** để AI client (Claude...) kết nối đồng nhất dù đang nói chuyện với LeadBase hay 1 website cụ thể. Vì mỗi Website chỉ phục vụ đúng 1 domain, `aud` claim (RFC 8707) tự nhiên = base URL của chính nó — đơn giản hơn 1 service multi-tenant sẽ phải tự so khớp scope.
 
 ```
-Tenant bấm "Kết nối AI" cho 1 Website (đã có session từ §6, hoặc bàn giao mới nếu chưa)
+Tenant bấm "Kết nối AI" cho 1 Website (cần đã đăng nhập admin, §6)
   → hiện consent screen (mirror UI "Cấp quyền kết nối AI" của LeadBase)
   → tenant Approve → Website cấp OAuth token (RFC 8707, aud = base URL của chính nó)
 ```

@@ -6,14 +6,14 @@ import { PrismaSessionStore } from "../services/sessionStore.js";
 
 declare module "fastify" {
   interface Session {
-    userId?: number;
-    userName?: string;
+    userId?: string;
+    email?: string;
     permissions?: string[];
   }
 }
 
-// Session TENANT vào /admin (system_design.md §5.1) — cookie riêng, KHÁC cookie khách hàng
-// (plugins/customerSession.ts, chưa code — Phase 4).
+// Session admin vào /admin (đăng nhập độc lập email/mật khẩu, prisma/schema.prisma model User)
+// — cookie riêng, KHÁC cookie khách hàng (plugins/customerSession.ts, chưa code — Phase 4).
 export async function registerSession(app: FastifyInstance): Promise<void> {
   await app.register(cookie);
   await app.register(fastifySession, {

@@ -30,12 +30,44 @@ model SiteConfig {
   updatedAt DateTime @updatedAt
 }
 
-// Session TENANT/nhân viên shop vào /admin — KHÔNG có password, tạo từ token
-// bàn giao định danh do LeadBase ký (HMAC).
+// Tài khoản quản trị ĐỘC LẬP của chính website này — KHÔNG qua LeadBase, KHÔNG SSO/HMAC nữa
+// (đảo ngược quyết định trước). Tài khoản admin đầu tiên được tạo lúc "Tạo Website" bên
+// LeadBase (nhập email/mật khẩu ngay trên form) — LeadBase truyền qua ADMIN_EMAIL/ADMIN_PASSWORD
+// trong .env, site-engine tự seed lúc khởi động đầu tiên (services/seedAdmin.ts), KHÔNG ghi
+// thẳng vào DB của Website (giữ đúng nguyên tắc LeadBase không đọc/ghi DB instance).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  permissions  String[] @default(["admin"]) // MVP chỉ 1 permission "admin" — mở rộng sau nếu cần nhiều tài khoản/vai trò
+  createdAt    DateTime @default(now())
+
+  posts     Post[]
+  auditLogs AuditLog[]
+}
+
+// Session admin vào /admin — tạo sau khi đăng nhập email/mật khẩu (routes/admin/auth.ts).
 model Session {
   id        String   @id
-  data      String // JSON: { userId, userName, permissions }
+  data      String // JSON: { userId, email, permissions }
   expiresAt DateTime
+}
+
+// Lịch sử thao tác — trả lời "ai đã làm gì, lúc nào" cho các hành động nhạy cảm (xuất bản,
+// xoá...). KHÔNG thay thế authorId/updatedByUserId trên chính Post (đó là tra cứu nhanh cho
+// case phổ biến "ai sửa lần cuối"; bảng này là lịch sử ĐẦY ĐỦ theo thời gian, kể cả các lần
+// sửa trước đó không còn thấy trên chính record).
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String // vd 'post.create' | 'post.update' | 'post.publish' | 'post.delete'
+  entityType String? // vd 'Post'
+  entityId   String?
+  metadata   Json? // chi tiết thêm, CHƯA CHỐT cấu trúc
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
 }
 
 model Post {
@@ -45,7 +77,11 @@ model Post {
   body       String // markdown hoặc HTML đã sanitize
   excerpt    String?
   coverImage String?
-  authorName String? // để trống thì hiển thị SiteConfig.siteName
+  authorName String? // để trống thì hiển thị SiteConfig.siteName — bút danh CÔNG KHAI, khác authorId
+
+  authorId        String? // ai TẠO bài — User.id, không phải bút danh public
+  author          User?   @relation(fields: [authorId], references: [id])
+  updatedByUserId String? // ai SỬA LẦN CUỐI — có thể khác authorId
 
   metaTitle       String?
   metaDescription String?
@@ -157,7 +193,15 @@ model OAuthToken {
 }
 
 model ThemeConfig {
-  id        String   @id @default("singleton") // đúng 1 row, giống SiteConfig
-  config    Json // cấu trúc CHƯA CHỐT
-  updatedAt DateTime @updatedAt
+  id          String   @id @default("singleton") // đúng 1 row, giống SiteConfig
+  activeTheme String   @default("default")
+  updatedAt   DateTime @updatedAt
+}
+
+model CustomTheme {
+  id          String   @id @default(cuid())
+  slug        String   @unique // tên thư mục theme, vd "custom-a1b2c3"
+  name        String
+  installedAt DateTime @default(now())
+  source      String // 'agent-generated' — CHƯA CHỐT giá trị khác
 }

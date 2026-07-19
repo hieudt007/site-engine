@@ -27,12 +27,38 @@ model SiteConfig {
   updatedAt         DateTime @updatedAt
 }
 
-// Session TENANT/nhân viên shop vào /admin — xem §6. KHÔNG có password, tạo từ token
-// bàn giao định danh do LeadBase ký (HMAC).
+// Tài khoản quản trị ĐỘC LẬP của chính website này — KHÔNG qua LeadBase (§5.1, đảo ngược quyết
+// định SSO/HMAC ban đầu). id = LeadBase userId KHÔNG còn đúng nữa — tự sinh cuid, tách biệt
+// hoàn toàn. MVP chỉ 1 tài khoản, permissions luôn ["admin"] — mở rộng sau nếu cần nhiều vai trò.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  permissions  String[] @default(["admin"])
+  createdAt    DateTime @default(now())
+
+  posts     Post[]
+  auditLogs AuditLog[]
+}
+
+// Session admin vào /admin — tạo sau khi đăng nhập email/mật khẩu (§5.1), KHÔNG còn từ token.
 model Session {
   id                String   @id
-  data              String   // JSON: { userId, userName, permissions }
+  data              String   // JSON: { userId, email, permissions }
   expiresAt         DateTime
+}
+
+// Lịch sử thao tác — "ai làm gì, lúc nào" cho hành động nhạy cảm (xuất bản, xoá...). Post tự có
+// authorId/updatedByUserId cho tra cứu nhanh "ai sửa lần cuối"; bảng này là lịch sử ĐẦY ĐỦ.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String   // vd 'post.create' | 'post.update' | 'post.publish' | 'post.delete'
+  entityType String?  // vd 'Post'
+  entityId   String?
+  metadata   Json?    // chi tiết thêm, CHƯA CHỐT cấu trúc
+  createdAt  DateTime @default(now())
 }
 
 model Post {
@@ -42,7 +68,11 @@ model Post {
   body        String   // markdown hoặc HTML đã sanitize
   excerpt     String?
   coverImage  String?
-  authorName  String?  // để trống thì hiển thị SiteConfig.siteName
+  authorName  String?  // để trống thì hiển thị SiteConfig.siteName — bút danh CÔNG KHAI, khác authorId
+
+  authorId        String? // ai TẠO bài — User.id, không phải bút danh public
+  author          User?   @relation(fields: [authorId], references: [id])
+  updatedByUserId String? // ai SỬA LẦN CUỐI — có thể khác authorId
 
   metaTitle       String?
   metaDescription String?
@@ -192,7 +222,7 @@ Website (bảng mới bên lead-base, KHÔNG phải Prisma):
   port, db_name        // để LeadBase biết instance đang chạy ở đâu (chỉ dùng lúc tạo/xoá, architecture.md §1)
   secret               // sinh ngẫu nhiên lúc tạo (vd random_bytes(32)), mã hoá at-rest, RIÊNG mỗi Website —
                        // ghi vào .env instance (SITE_ENGINE_SECRET, tech_doc.md §6), dùng ký/verify
-                       // cả 3 chiều giao tiếp của đúng website này (đơn hàng, SSO, đồng bộ sản phẩm §4)
+                       // cả 2 chiều giao tiếp của đúng website này (đơn hàng, đồng bộ sản phẩm §4)
   provision_error
 ```
 
@@ -283,54 +313,36 @@ Lỗi (bundle không hợp lệ, slug trùng, quá dung lượng...): trả lỗ
 
 ## 5. Đăng nhập + phân quyền (tenant/nhân viên shop vào `/admin` của 1 Website)
 
-### 5.1 Đăng nhập — bàn giao định danh, không phải login độc lập
+### 5.1 Đăng nhập — độc lập bằng email/mật khẩu, KHÔNG qua LeadBase
 
-Instance **không có form đăng nhập, không có bảng password**. Danh tính + quyền hạn tới từ LeadBase tại thời điểm bàn giao.
+**Đảo ngược quyết định trước** (bản gốc dùng bàn giao định danh HMAC/SSO từ LeadBase — bị bỏ vì quá vòng vèo cho use case thực tế). Mỗi Website giờ có tài khoản admin **riêng, độc lập hoàn toàn**, giống WordPress: tạo lúc "Tạo Website" bên LeadBase (form nhập luôn email + mật khẩu), từ đó về sau đăng nhập thẳng vào chính domain đó, không cần qua LeadBase nữa.
 
 ```
-Tenant đã login LeadBase, đang xem 1 Website → bấm "Quản lý nội dung"
-  → LeadBase tra registry lấy URL đúng instance đó (mỗi instance domain khác nhau)
-  → build token (HMAC, secret = SITE_ENGINE_SECRET của đúng Website này, §2):
-    { userId, userName, permissions: string[], exp: now + 60s }
-    (không cần tenantId — lead-base không có khái niệm tenant, 1 cài đặt = 1 doanh nghiệp; cũng
-    không cần websiteId trong token — instance đích tự nó đã = đúng website đó)
-  → redirect GET {instance_url}/sso?token=...
-  → instance verify chữ ký + exp + chưa từng dùng token này (chống replay — TBD cách lưu, xem §5.2)
-  → tạo Session (§2 schema instance): lưu {userId, userName, permissions} vào `data`,
-    expiresAt = now + 30 ngày
-  → set cookie httpOnly, sameSite=lax, secure (nếu https) → redirect vào /admin
+Lúc "Tạo Website" (LeadBase):
+  Form nhập thêm 2 field: admin_email, admin_password (validate min 8 ký tự)
+  → LeadBase KHÔNG lưu mật khẩu này vào DB của mình — chỉ truyền 1 LẦN qua
+    ADMIN_EMAIL/ADMIN_PASSWORD trong .env sinh ra lúc provision (WebsiteProvisionService.php)
+  → instance tự seed (services/seedAdmin.ts, chạy lúc khởi động lần đầu, CHỈ khi bảng User
+    rỗng — không ghi đè nếu tenant đã đổi mật khẩu sau này) → tạo User { email, passwordHash
+    (bcrypt), permissions: ["admin"] }
+
+Từ lần sau, đăng nhập thẳng tại {domain}/admin/login:
+POST /admin/login { email, password }
+  → so bcrypt.compare(password, User.passwordHash)
+  → đúng → tạo Session: lưu {userId, email, permissions} vào `data`, expiresAt = now + 30 ngày
+  → set cookie httpOnly, sameSite=lax, secure (nếu https)
+POST /admin/logout → xoá Session + clear cookie
 ```
 
-- **Hết hạn (30 ngày)**: không tự gia hạn — quay lại LeadBase bấm nút lần nữa.
-- **Chống replay token bàn giao**: lưu tạm hash token đã dùng trong bộ nhớ (TTL = đúng 60s sống của token), không cần bảng DB riêng vì thời gian sống quá ngắn.
-- **Logout**: xoá `Session` + clear cookie, không cần gọi LeadBase.
+- Không giới hạn số session đồng thời — đăng nhập nhiều máy/trình duyệt tạo nhiều session độc lập, không cái nào ghi đè cái nào (đúng như hầu hết dịch vụ web bình thường).
+- **Hết hạn (30 ngày)**: không tự gia hạn — đăng nhập lại bằng email/mật khẩu.
+- Không còn khái niệm "bàn giao định danh"/token/HMAC cho luồng này — `SITE_ENGINE_SECRET` giờ chỉ còn dùng cho 2 API còn lại ở §4 (đơn hàng, đồng bộ sản phẩm), không liên quan đăng nhập admin nữa.
 
-### 5.2 Phân quyền — dùng đúng permission string Spatie của LeadBase
+### 5.2 Phân quyền — MVP chỉ 1 quyền `admin`, chưa mirror permission LeadBase
 
-LeadBase đã có Spatie `laravel-permission` thật, và **đã có sẵn convention cặp `manage-X`/`view-X`** cho từng nhóm dữ liệu (vd `manage-orders`/`view-orders`, `manage-customers`/`view-customers` — xem `RolePermissionSeeder.php`). Instance đi theo đúng convention đó, không phát minh hệ role riêng, không tự bịa format permission khác.
+Vì không còn bàn giao qua LeadBase, không còn "quyền thật user có trên LeadBase" để lấy giao — `User.permissions` giờ là field local, MVP luôn là `["admin"]` (toàn quyền, tài khoản duy nhất). Middleware bảo vệ `/admin/*` ở MVP chỉ cần check **có session hợp lệ hay không**, chưa cần phân biệt permission cụ thể theo trang.
 
-**4 permission, 2 đã có sẵn + 2 mới cần thêm**:
-
-| Permission | Trạng thái | Gate cái gì |
-|---|---|---|
-| `manage-assets` | Đã có sẵn (đang gate Landing Page) | Toàn bộ tính năng Website ở **LeadBase** (tạo/xoá, §2). Bên website: `/admin/settings/domain` (read-only). |
-| `view-orders` | Đã có sẵn (đang gate xem đơn hàng CRM) | Xem `/admin/orders` (chỉ xem trạng thái gửi LeadBase, debug) — tái dùng permission xem-đơn-hàng sẵn có, hợp lý vì đây vốn dĩ cũng là "đơn hàng", không cần bịa permission riêng cho site-engine. |
-| `manage-website-content` (**mới**) | Cần thêm vào `RolePermissionSeeder.php` | Toàn quyền: tạo/sửa/xuất bản bài viết (`/admin/posts/*`), sửa `SiteConfig` (`/admin/settings/general`, §10), (Phase 8) kết nối/ngắt AI. |
-| `view-website-content` (**mới**) | Cần thêm vào `RolePermissionSeeder.php` | Chỉ xem `/admin/posts` (list, không sửa/xuất bản được) và `/admin/settings/general` (read-only) — dành cho người chỉ cần xem, không được sửa (theo đúng convention manage/view LeadBase đã có ở mọi nhóm khác). |
-
-`permissions` nhét vào token = giao của (quyền thật user có trên LeadBase) ∩ (4 permission trên) — 1 user có thể có cả `manage-website-content` lẫn `view-orders` mà không có `manage-assets`, ví dụ.
-
-Route guard (`middleware requirePermission(perm)`):
-- `/admin` — cần bất kỳ permission nào trong 4 cái trên.
-- `/admin/posts` (xem danh sách) — `manage-website-content` HOẶC `view-website-content`.
-- `/admin/posts/new`, `/admin/posts/:id` (sửa/xuất bản) — chỉ `manage-website-content`.
-- `/admin/settings/general` (xem) — `manage-website-content` HOẶC `view-website-content`; (sửa) — chỉ `manage-website-content`.
-- `/admin/settings/domain` — `manage-assets`.
-- `/admin/orders` — `view-orders` (hoặc `manage-website-content`, xem như quyền cao hơn bao gồm quyền thấp — TBD có cần liệt kê tường minh mọi tổ hợp hay dùng rule "manage bao trùm view" cho gọn code).
-
-Không có khái niệm "role" trong instance — chỉ check `permissions.includes(x)` thẳng trên session, không có bảng `Role`.
-
-**TBD**: có cần tách riêng quyền "publish" khỏi "edit" không (vd người viết được nháp nhưng không tự xuất bản, cần người khác duyệt)? Chưa làm ở MVP — 1 permission `manage-website-content` gộp chung viết + xuất bản, tránh over-engineer khi chưa có nhu cầu thật.
+**Việc còn mở (TBD, không phải MVP)**: nếu sau này cần nhiều tài khoản/vai trò khác nhau trong 1 Website (vd người viết vs người duyệt bài) — thêm UI quản lý `User` ngay trong `/admin/settings/users` (tạo/sửa/xoá tài khoản, gán `permissions`), không cần liên quan gì tới LeadBase nữa.
 
 ## 6. Tài khoản khách hàng — đăng nhập lưu thông tin mua hàng
 
@@ -476,7 +488,9 @@ Tất cả nằm trong **cùng 1 DB** (schema §1) — không còn schema Orches
 | Bảng | Mục đích | Có từ Phase |
 |---|---|---|
 | `SiteConfig` | Thông tin cơ bản + SEO mặc định (1 row) | 1 |
-| `Session` | Phiên tenant vào `/admin` | 3 |
+| `User` | Tài khoản admin ĐỘC LẬP (email/mật khẩu, §5.1) | 3 |
+| `Session` | Phiên admin vào `/admin` | 3 |
+| `AuditLog` | Lịch sử thao tác (ai làm gì, lúc nào) | 3 |
 | `Post` | Nội dung blog | 3 |
 | `ProductCache` | Bản sao sản phẩm cache từ LeadBase | 4 |
 | `CartOrder` | Đơn hàng, hàng đợi gửi LeadBase | 4-5 |
@@ -488,4 +502,4 @@ Tất cả nằm trong **cùng 1 DB** (schema §1) — không còn schema Orches
 | `ThemeConfig` | Theme đang active (1 row) | 3 |
 | `CustomTheme` | Theme tự tạo đã cài (agent-generated, §4.3) | 6 |
 
-Không có bảng `User`/`Role`/`Permission` cho tenant ở bất kỳ đâu trong site-engine — định danh + quyền hạn luôn tới từ LeadBase (§7.2). `Customer` là ngoại lệ có chủ đích (khách mua hàng không có tài khoản LeadBase).
+`User` (đăng nhập admin) và `Customer` (khách mua hàng) là 2 hệ tài khoản ĐỘC LẬP hoàn toàn với nhau và với LeadBase — không dùng chung bảng, cookie, hay session (§5, §6).

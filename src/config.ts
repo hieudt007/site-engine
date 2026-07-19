@@ -17,6 +17,11 @@ export const config = {
   sessionSecret: requireEnv("SESSION_SECRET"),
   customerSessionSecret: requireEnv("CUSTOMER_SESSION_SECRET"),
 
+  // Chỉ dùng 1 lần lúc seed tài khoản admin đầu tiên (services/seedAdmin.ts) — không bắt buộc
+  // sau đó, các lần khởi động sau không cần (đã có User trong DB).
+  adminEmail: process.env.ADMIN_EMAIL ?? "",
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
+
   smsProvider: process.env.SMS_PROVIDER ?? "",
   smsApiKey: process.env.SMS_API_KEY ?? "",
   smsApiSecret: process.env.SMS_API_SECRET ?? "",

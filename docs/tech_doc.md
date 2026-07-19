@@ -29,8 +29,9 @@ site-engine/
       session.ts               @fastify/session + Session Prisma-backed, cookie TENANT (mirror chatbot-lite)
       customerSession.ts        cookie KHÁCH HÀNG — plugin/tên cookie RIÊNG, không lẫn với session.ts
     routes/
-      sso.ts                   GET /sso — verify token bàn giao định danh từ LeadBase (system_design.md §5.1)
-      admin/                   UI soạn nội dung, yêu cầu session TENANT (Phase 3)
+      admin/                   UI soạn nội dung, yêu cầu session admin (Phase 3)
+        auth.ts                  POST /admin/login, /admin/logout — đăng nhập ĐỘC LẬP email/mật
+                                khẩu (system_design.md §5.1), KHÔNG qua LeadBase
         posts.ts
         settings.ts
       public/
@@ -48,6 +49,8 @@ site-engine/
                                  (system_design.md §4.3), verify HMAC, validate slug + dung lượng,
                                  giải nén vào themes/{slug}/, KHÔNG tự activate
     services/
+      seedAdmin.ts              tạo tài khoản admin đầu tiên từ ADMIN_EMAIL/ADMIN_PASSWORD (chỉ
+                               chạy khi bảng User rỗng, system_design.md §5.1)
       leadbaseClient.ts        gọi API §system_design.md #4.1 (tạo order), ký HMAC — app tự gọi,
                                KHÔNG có process trung gian nào
       otpService.ts             sinh/verify OTP, gọi nhà cung cấp SMS (TBD nhà cung cấp)
@@ -148,21 +151,23 @@ DATABASE_URL=postgresql://.../site_engine_{domain viết lại bằng gạch dư
 
 SITE_ENGINE_SECRET=...               # RIÊNG từng Website, do Laravel sinh ngẫu nhiên lúc tạo
                                      # (architecture.md §3, system_design.md §2) — dùng ký/verify
-                                     # CẢ 3 chiều của đúng instance này: đơn hàng (§4.1), đồng bộ
-                                     # sản phẩm (§4.2), bàn giao định danh SSO (§5.1). KHÔNG dùng
-                                     # chung 1 giá trị cho mọi Website — lộ .env 1 instance chỉ
-                                     # ảnh hưởng đúng instance đó
+                                     # CẢ 2 chiều của đúng instance này: đơn hàng (§4.1), đồng bộ
+                                     # sản phẩm (§4.2). KHÔNG dùng chung 1 giá trị cho mọi Website
+                                     # — lộ .env 1 instance chỉ ảnh hưởng đúng instance đó
 LEADBASE_API_URL=https://{tenant_domain}   # domain LeadBase của CHÍNH tenant đó (cùng VPS)
 
-SESSION_SECRET=...                  # ký cookie session TENANT — RIÊNG theo từng website
+SESSION_SECRET=...                  # ký cookie session admin — RIÊNG theo từng website
 CUSTOMER_SESSION_SECRET=...         # ký cookie session KHÁCH HÀNG — riêng theo từng website
+
+ADMIN_EMAIL=...                     # CHỈ dùng 1 lần lúc seed tài khoản admin đầu tiên
+ADMIN_PASSWORD=...                  # (system_design.md §5.1) — không còn ý nghĩa sau đó
 
 SMS_PROVIDER=...                    # OTP SMS (system_design.md §6.2) — TBD nhà cung cấp
 SMS_API_KEY=...
 SMS_API_SECRET=...
 ```
 
-Không có secret riêng theo từng mục đích (đơn hàng/SSO/đồng bộ sản phẩm) — cả 3 dùng chung đúng 1 `SITE_ENGINE_SECRET`/instance, vì đây là quan hệ 2 phía cố định (LeadBase ↔ đúng 1 Website đó), không phải mô hình 3 bên như facebook-gateway (vốn cần 2 secret để tách chiều forge webhook/impersonate API). Khác biệt so với bản thiết kế đầu: secret giờ **sinh riêng theo từng Website** (không phải 1 biến `.env` cố định toàn cục của LeadBase) — xem `architecture.md` §3.
+Không có secret riêng theo từng mục đích (đơn hàng/đồng bộ sản phẩm) — cả 2 dùng chung đúng 1 `SITE_ENGINE_SECRET`/instance, vì đây là quan hệ 2 phía cố định (LeadBase ↔ đúng 1 Website đó), không phải mô hình 3 bên như facebook-gateway (vốn cần 2 secret để tách chiều forge webhook/impersonate API). Khác biệt so với bản thiết kế đầu: secret giờ **sinh riêng theo từng Website** (không phải 1 biến `.env` cố định toàn cục của LeadBase) — xem `architecture.md` §3. `SITE_ENGINE_SECRET` KHÔNG còn liên quan gì tới đăng nhập admin nữa (§5.1 đã bỏ SSO/HMAC, dùng email/mật khẩu độc lập).
 
 ## 7. Coding conventions (kế thừa từ facebook-gateway/chatbot-lite)
 
@@ -187,5 +192,5 @@ Ghi chú để biết `lead-base/scripts/setup-vps.sh` cần thêm gì (đã có
 
 Chưa có framework test cụ thể — khuyến nghị `vitest` (nhẹ, hợp ESM/TS). Bắt buộc có test cho:
 - HMAC sign/verify cả 2 chiều (app → LeadBase gửi đơn hàng, VÀ LeadBase → app đồng bộ sản phẩm), timestamp window, tamper detection.
-- Token bàn giao định danh `/sso` (verify chữ ký, hết hạn, chống replay).
+- Đăng nhập admin (`/admin/login`): đúng mật khẩu → session, sai → từ chối, seed admin chỉ chạy khi bảng `User` rỗng.
 - Toàn bộ flow OTP (rate-limit, sai code, hết hạn).
