@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 
 const createPostSchema = z.object({
   title: z.string().min(1),
@@ -60,7 +61,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const post = await prisma.post.create({
-      data: { ...parsed.data, authorId: userId, updatedByUserId: userId },
+      data: {
+        ...parsed.data,
+        body: sanitizePostBody(parsed.data.body),
+        authorId: userId,
+        updatedByUserId: userId,
+      },
     });
     await auditLog(userId, "post.create", post.id);
 
@@ -96,7 +102,11 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
-        data: { ...parsed.data, updatedByUserId: userId },
+        data: {
+          ...parsed.data,
+          ...(parsed.data.body ? { body: sanitizePostBody(parsed.data.body) } : {}),
+          updatedByUserId: userId,
+        },
       });
       await auditLog(userId, "post.update", post.id);
 

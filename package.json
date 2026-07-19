@@ -21,13 +21,15 @@
     "@fastify/view": "^11.0.0",
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
-    "liquidjs": "^10.21.0",
     "fastify": "^5.2.1",
+    "liquidjs": "^10.21.0",
+    "sanitize-html": "^2.17.6",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.5",
+    "@types/sanitize-html": "^2.16.1",
     "prisma": "^6.2.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
