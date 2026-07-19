@@ -4,7 +4,7 @@ import { registerSession } from "./plugins/session.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerOAuthRoutes } from "./routes/admin/oauth.js";
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: true, trustProxy: true });
 
 app.get("/health", async () => {
   return { status: "ok" };
