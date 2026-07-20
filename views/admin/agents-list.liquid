@@ -1,0 +1,85 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">AI Agent</h1>
+  <a class="btn btn-primary" href="/admin/agents/new">+ Agent mới</a>
+</div>
+<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+  Cấu hình nhà cung cấp AI + API key. Chưa nối vào tính năng nào — chuẩn bị sẵn để dùng sau.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tên</th>
+      <th>Nhà cung cấp</th>
+      <th>Model</th>
+      <th>Trạng thái</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="agents-body">
+    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("agents-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(agent) {
+    const statusBadge = agent.isActive
+      ? '<span class="status-badge status-published">Đang bật</span>'
+      : '<span class="status-badge status-draft">Đã tắt</span>';
+    return (
+      "<tr>" +
+      '<td><a href="/admin/agents/' + agent.id + '">' + escapeHtml(agent.name) + "</a></td>" +
+      "<td>" + escapeHtml(agent.provider) + "</td>" +
+      "<td>" + escapeHtml(agent.model) + "</td>" +
+      "<td>" + statusBadge + "</td>" +
+      '<td style="text-align:right;"><button class="btn btn-danger" data-action="delete" data-id="' + agent.id + '">Xoá</button></td>' +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/agents");
+    if (!res.ok) {
+      showError("Không tải được danh sách agent");
+      return;
+    }
+    const { agents } = await res.json();
+    tbody.innerHTML = agents.length
+      ? agents.map(rowHtml).join("")
+      : '<tr><td colspan="5" class="empty-state">Chưa có agent nào.</td></tr>';
+  }
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-action=delete]");
+    if (!btn) return;
+    if (!confirm("Xoá agent này?")) return;
+
+    const res = await fetch("/admin/api/agents/" + btn.dataset.id, { method: "DELETE" });
+    if (!res.ok) {
+      showError("Xoá thất bại");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

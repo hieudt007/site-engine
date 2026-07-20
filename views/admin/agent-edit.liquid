@@ -1,0 +1,108 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">{% if agent %}Sửa Agent{% else %}Agent mới{% endif %}</h1>
+  <a class="btn" href="/admin/agents">← Danh sách</a>
+</div>
+
+<form id="agent-form" class="card">
+  <label for="name">Tên</label>
+  <input type="text" id="name" name="name" value="{% if agent %}{{ agent.name | escape }}{% endif %}" required>
+
+  <label for="provider">Nhà cung cấp</label>
+  <select id="provider" name="provider">
+    <option value="openai" {% if agent.provider == "openai" %}selected{% endif %}>OpenAI</option>
+    <option value="anthropic" {% if agent.provider == "anthropic" %}selected{% endif %}>Anthropic</option>
+    <option value="google" {% if agent.provider == "google" %}selected{% endif %}>Google</option>
+    <option value="deepseek" {% if agent.provider == "deepseek" %}selected{% endif %}>DeepSeek</option>
+    <option value="openrouter" {% if agent.provider == "openrouter" %}selected{% endif %}>OpenRouter</option>
+    <option value="ai-router" {% if agent.provider == "ai-router" %}selected{% endif %}>AI Router (9router)</option>
+    <option value="custom" {% if agent.provider == "custom" %}selected{% endif %}>Custom</option>
+  </select>
+
+  <label for="model">Model</label>
+  <input type="text" id="model" name="model" value="{% if agent %}{{ agent.model | escape }}{% endif %}" placeholder="vd: gpt-5.4-mini, claude-sonnet-5" required>
+
+  <label for="baseUrl">Base URL <span style="font-weight:400;color:#888;">(chỉ cần khi chọn Custom hoặc AI Router)</span></label>
+  <input type="text" id="baseUrl" name="baseUrl" value="{% if agent %}{{ agent.baseUrl | escape }}{% endif %}" placeholder="http://localhost:20128/v1">
+
+  <label for="apiKey">API key</label>
+  <input type="password" id="apiKey" name="apiKey" autocomplete="off" placeholder="{% if agent.apiKey %}Để trống nếu giữ key cũ{% else %}sk-...{% endif %}">
+
+  <label for="systemPrompt">System prompt</label>
+  <textarea id="systemPrompt" name="systemPrompt" style="min-height:160px;">{% if agent %}{{ agent.systemPrompt }}{% endif %}</textarea>
+
+  <label style="display:flex;align-items:center;gap:0.4rem;">
+    <input type="checkbox" id="isActive" name="isActive" style="width:auto;" {% if agent == null or agent.isActive %}checked{% endif %}>
+    Đang bật
+  </label>
+
+  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <span id="delete-slot"></span>
+  </div>
+</form>
+
+<script>
+(function () {
+  const agentId = {% if agent %}"{{ agent.id }}"{% else %}null{% endif %};
+  const form = document.getElementById("agent-form");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  if (agentId) {
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "btn btn-danger";
+    deleteBtn.textContent = "Xoá";
+    deleteBtn.onclick = async () => {
+      if (!confirm("Xoá agent này?")) return;
+      const res = await fetch("/admin/api/agents/" + agentId, { method: "DELETE" });
+      if (!res.ok) {
+        showFlash("Xoá thất bại", false);
+        return;
+      }
+      window.location.href = "/admin/agents";
+    };
+    document.getElementById("delete-slot").appendChild(deleteBtn);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      name: form.name.value,
+      provider: form.provider.value,
+      model: form.model.value,
+      baseUrl: form.baseUrl.value || undefined,
+      systemPrompt: form.systemPrompt.value || undefined,
+      isActive: form.isActive.checked,
+    };
+    if (form.apiKey.value) {
+      payload.apiKey = form.apiKey.value;
+    }
+
+    const res = await fetch(agentId ? "/admin/api/agents/" + agentId : "/admin/api/agents", {
+      method: agentId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Lưu thất bại", false);
+      return;
+    }
+
+    const { agent } = await res.json();
+    showFlash("Đã lưu.", true);
+    if (!agentId) {
+      window.location.href = "/admin/agents/" + agent.id;
+    }
+  });
+})();
+</script>
+{% endblock %}

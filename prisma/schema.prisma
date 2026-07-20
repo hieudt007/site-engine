@@ -111,6 +111,22 @@ model Post {
   updatedAt   DateTime  @updatedAt
 }
 
+// Cau hinh AI Agent — CHUA noi vao tinh nang nao (chatbot/tro ly viet noi dung se dung sau).
+// provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'openrouter' | 'ai-router' | 'custom'
+// ('ai-router' = 9router, dung baseUrl mac dinh cua 9router; 'custom' bat buoc phai co baseUrl).
+model Agent {
+  id           String   @id @default(cuid())
+  name         String
+  provider     String   @default("openai")
+  model        String
+  systemPrompt String?
+  apiKey       String?
+  baseUrl      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 // Trang tĩnh của website (Giới thiệu, Liên hệ...) — CÙNG cấu trúc với Post nhưng KHÔNG có
 // danh mục (khái niệm danh mục chỉ áp dụng cho bài viết blog). URL public: /trang/{slug}.
 model Page {
