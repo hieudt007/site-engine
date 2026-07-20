@@ -1,7 +1,9 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { saveRevision, listRevisions } from "../../services/revisions.js";
 
 // §5.2: sản phẩm thuộc nhóm "nội dung + sản phẩm" của manager — role "edit" KHÔNG được đụng vào
 // (khác Post, nơi edit tạo/sửa được bài nháp) — nên không có bước "nộp duyệt" như posts.ts,
@@ -87,10 +89,76 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
       }
 
+      const userId = request.session.get("userId") ?? null;
+      await saveRevision(
+        "Product",
+        product.id,
+        {
+          name: product.name,
+          description: product.description,
+          imageUrls: product.imageUrls,
+          seo: product.seo,
+        },
+        userId,
+      );
+
       const updated = await prisma.productCache.update({
         where: { id: product.id },
         data: parsed.data,
       });
+
+      return { product: updated };
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    "/admin/api/products/:id/revisions",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
+      if (!product) {
+        return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
+      }
+      const revisions = await listRevisions("Product", product.id);
+      return { revisions };
+    },
+  );
+
+  app.post<{ Params: { id: string; revisionId: string } }>(
+    "/admin/api/products/:id/revisions/:revisionId/restore",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
+      if (!product) {
+        return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
+      }
+
+      const revision = await prisma.revision.findUnique({ where: { id: request.params.revisionId } });
+      if (!revision || revision.entityType !== "Product" || revision.entityId !== product.id) {
+        return reply.code(404).send({ error: "Không tìm thấy bản ghi lịch sử" });
+      }
+
+      const userId = request.session.get("userId") ?? null;
+      await saveRevision(
+        "Product",
+        product.id,
+        {
+          name: product.name,
+          description: product.description,
+          imageUrls: product.imageUrls,
+          seo: product.seo,
+        },
+        userId,
+      );
+
+      const snapshot = revision.data as {
+        name: string;
+        description: string | null;
+        imageUrls: string[];
+        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+      };
+
+      const updated = await prisma.productCache.update({ where: { id: product.id }, data: snapshot });
 
       return { product: updated };
     },

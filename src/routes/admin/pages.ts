@@ -1,9 +1,11 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
+import { saveRevision, listRevisions } from "../../services/revisions.js";
 
 const TYPE = "page";
 
@@ -139,6 +141,21 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const userId = request.session.get("userId")!;
+
+      await saveRevision(
+        "Page",
+        page.id,
+        {
+          title: page.title,
+          slug: page.slug,
+          body: page.body,
+          excerpt: page.excerpt,
+          coverImage: page.coverImage,
+          seo: page.seo,
+        },
+        userId,
+      );
+
       const updated = await prisma.post.update({
         where: { id: page.id },
         data: {
@@ -157,6 +174,78 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
           update: { toPath },
         });
       }
+
+      return { page: updated };
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    "/admin/api/pages/:id/revisions",
+    { preHandler: requireRole("edit") },
+    async (request, reply) => {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
+        return reply.code(404).send({ error: "Không tìm thấy trang" });
+      }
+      const revisions = await listRevisions("Page", page.id);
+      return { revisions };
+    },
+  );
+
+  app.post<{ Params: { id: string; revisionId: string } }>(
+    "/admin/api/pages/:id/revisions/:revisionId/restore",
+    { preHandler: requireRole("edit") },
+    async (request, reply) => {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
+        return reply.code(404).send({ error: "Không tìm thấy trang" });
+      }
+
+      const role = request.session.get("role") as Role;
+      if (!canEditContentFields(role, page.status)) {
+        return reply.code(403).send({ error: "Trang đã lên lịch/xuất bản — chỉ manager/admin được sửa" });
+      }
+
+      const revision = await prisma.revision.findUnique({ where: { id: request.params.revisionId } });
+      if (!revision || revision.entityType !== "Page" || revision.entityId !== page.id) {
+        return reply.code(404).send({ error: "Không tìm thấy bản ghi lịch sử" });
+      }
+
+      const userId = request.session.get("userId")!;
+      await saveRevision(
+        "Page",
+        page.id,
+        {
+          title: page.title,
+          slug: page.slug,
+          body: page.body,
+          excerpt: page.excerpt,
+          coverImage: page.coverImage,
+          seo: page.seo,
+        },
+        userId,
+      );
+
+      const snapshot = revision.data as {
+        title: string;
+        slug: string;
+        body: string;
+        excerpt: string | null;
+        coverImage: string | null;
+        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+      };
+
+      if (snapshot.slug !== page.slug) {
+        const slugTaken = await prisma.post.findUnique({
+          where: { type_slug: { type: TYPE, slug: snapshot.slug } },
+        });
+        if (slugTaken) {
+          return reply.code(409).send({ error: "Slug trong bản ghi lịch sử đã bị trang khác dùng, không khôi phục được" });
+        }
+      }
+
+      const updated = await prisma.post.update({ where: { id: page.id }, data: snapshot });
+      await auditLog(userId, "page.restore", page.id, { revisionId: revision.id });
 
       return { page: updated };
     },

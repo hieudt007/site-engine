@@ -98,6 +98,16 @@
   </div>
 </form>
 
+<div class="card" style="margin-top:1.2rem;">
+  <h2 style="font-size:0.95rem;margin:0 0 0.8rem;">Lịch sử chỉnh sửa</h2>
+  <table>
+    <thead><tr><th>Thời điểm</th><th>Người sửa</th><th></th></tr></thead>
+    <tbody id="revisions-body">
+      <tr><td colspan="3" style="color:#999;">Đang tải...</td></tr>
+    </tbody>
+  </table>
+</div>
+
 <script>
 (function () {
   const productId = "{{ product.id }}";
@@ -187,6 +197,37 @@
 
     showFlash("Đã lưu.", true);
   });
+
+  async function loadRevisions() {
+    const res = await fetch("/admin/api/products/" + productId + "/revisions");
+    if (!res.ok) return;
+    const { revisions } = await res.json();
+    const tbody = document.getElementById("revisions-body");
+
+    tbody.innerHTML = revisions.length
+      ? revisions.map((r) => {
+          const when = new Date(r.createdAt).toLocaleString("vi-VN");
+          const who = r.user ? r.user.name : "-";
+          const restoreBtn = '<button class="btn" data-revision-id="' + r.id + '">Khôi phục</button>';
+          return "<tr><td>" + when + "</td><td>" + who + "</td><td style=\"text-align:right;\">" + restoreBtn + "</td></tr>";
+        }).join("")
+      : '<tr><td colspan="3" class="empty-state">Chưa có lịch sử chỉnh sửa nào.</td></tr>';
+  }
+
+  document.getElementById("revisions-body").addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-revision-id]");
+    if (!btn) return;
+    if (!confirm("Khôi phục sản phẩm về bản ghi này? Nội dung hiện tại sẽ được lưu lại thành 1 bản ghi mới trước khi ghi đè.")) return;
+
+    const res = await fetch("/admin/api/products/" + productId + "/revisions/" + btn.dataset.revisionId + "/restore", { method: "POST" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Khôi phục thất bại", false);
+      return;
+    }
+    window.location.reload();
+  });
+  loadRevisions();
 })();
 </script>
 {% endblock %}

@@ -1,9 +1,11 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
+import { saveRevision, listRevisions } from "../../services/revisions.js";
 
 const TYPE = "post";
 
@@ -155,6 +157,23 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
 
       const { categoryIds, ...rest } = parsed.data;
       const userId = request.session.get("userId")!;
+
+      // Snapshot NGUYEN VAN noi dung truoc khi ghi de - xem services/revisions.ts.
+      await saveRevision(
+        "Post",
+        post.id,
+        {
+          title: post.title,
+          slug: post.slug,
+          body: post.body,
+          excerpt: post.excerpt,
+          coverImage: post.coverImage,
+          seo: post.seo,
+          password: post.password,
+        },
+        userId,
+      );
+
       const updated = await prisma.post.update({
         where: { id: post.id },
         data: {
@@ -176,6 +195,82 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           update: { toPath },
         });
       }
+
+      return { post: updated };
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    "/admin/api/posts/:id/revisions",
+    { preHandler: requireRole("edit") },
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!post || post.type !== TYPE) {
+        return reply.code(404).send({ error: "Không tìm thấy bài viết" });
+      }
+      const revisions = await listRevisions("Post", post.id);
+      return { revisions };
+    },
+  );
+
+  app.post<{ Params: { id: string; revisionId: string } }>(
+    "/admin/api/posts/:id/revisions/:revisionId/restore",
+    { preHandler: requireRole("edit") },
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!post || post.type !== TYPE) {
+        return reply.code(404).send({ error: "Không tìm thấy bài viết" });
+      }
+
+      const role = request.session.get("role") as Role;
+      if (!canEditContentFields(role, post.status)) {
+        return reply.code(403).send({ error: "Bài đã lên lịch/xuất bản — chỉ manager/admin được sửa" });
+      }
+
+      const revision = await prisma.revision.findUnique({ where: { id: request.params.revisionId } });
+      if (!revision || revision.entityType !== "Post" || revision.entityId !== post.id) {
+        return reply.code(404).send({ error: "Không tìm thấy bản ghi lịch sử" });
+      }
+
+      const userId = request.session.get("userId")!;
+      // Snapshot trang thai HIEN TAI truoc khi ghi de bang ban cu - de "khoi phuc" cung xoa
+      // duoc, khong mat du lieu.
+      await saveRevision(
+        "Post",
+        post.id,
+        {
+          title: post.title,
+          slug: post.slug,
+          body: post.body,
+          excerpt: post.excerpt,
+          coverImage: post.coverImage,
+          seo: post.seo,
+          password: post.password,
+        },
+        userId,
+      );
+
+      const snapshot = revision.data as {
+        title: string;
+        slug: string;
+        body: string;
+        excerpt: string | null;
+        coverImage: string | null;
+        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        password: string | null;
+      };
+
+      if (snapshot.slug !== post.slug) {
+        const slugTaken = await prisma.post.findUnique({
+          where: { type_slug: { type: TYPE, slug: snapshot.slug } },
+        });
+        if (slugTaken) {
+          return reply.code(409).send({ error: "Slug trong bản ghi lịch sử đã bị bài khác dùng, không khôi phục được" });
+        }
+      }
+
+      const updated = await prisma.post.update({ where: { id: post.id }, data: snapshot });
+      await auditLog(userId, "post.restore", post.id, { revisionId: revision.id });
 
       return { post: updated };
     },

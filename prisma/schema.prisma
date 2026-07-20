@@ -47,6 +47,7 @@ model User {
   posts     Post[]
   auditLogs AuditLog[]
   media     Media[]
+  revisions Revision[]
 }
 
 // Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange + lấy userinfo từ LeadBase.
@@ -68,6 +69,24 @@ model AuditLog {
   entityType String? // vd 'Post'
   entityId   String?
   metadata   Json? // chi tiết thêm, CHƯA CHỐT cấu trúc
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+// Lịch sử chỉnh sửa nội dung — snapshot TOÀN BỘ field nội dung của Post/Page/Product NGAY TRƯỚC
+// mỗi lần PATCH sửa nội dung (KHÔNG snapshot khi chỉ đổi status/lên lịch/xuất bản, và KHÔNG
+// snapshot khi LeadBase tự sync giá/tồn kho — chỉ khi ADMIN thật sự sửa nội dung). entityType
+// dùng cùng quy ước với AuditLog.entityType ('Post'|'Page'|'Product') dù Post/Page chung 1 bảng
+// Prisma — entityId luôn là Post.id hoặc ProductCache.id tương ứng. userId null nếu không xác
+// định được người sửa (không xảy ra trong luồng hiện tại, chỉ để chỗ trống).
+model Revision {
+  id         String   @id @default(cuid())
+  entityType String // 'Post' | 'Page' | 'Product'
+  entityId   String
+  data       Json // snapshot cac field noi dung TRUOC khi update (khong phai toan bo row)
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [leadbaseUserId])
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId])
