@@ -19,8 +19,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       ordersFailed,
       reviewsPending,
     ] = await Promise.all([
-      prisma.post.count({ where: { status: "published" } }),
-      prisma.post.count({ where: { status: { not: "published" } } }),
+      prisma.post.count({ where: { type: "post", status: "published" } }),
+      prisma.post.count({ where: { type: "post", status: { not: "published" } } }),
       prisma.productCache.count({ where: { status: "published" } }),
       prisma.productCache.count({ where: { status: { not: "published" } } }),
       prisma.cartOrder.count({ where: { createdAt: { gte: sevenDaysAgo } } }),

@@ -25,9 +25,6 @@
   <label for="coverImage">Ảnh bìa (URL)</label>
   <input type="text" id="coverImage" name="coverImage" value="{% if post %}{{ post.coverImage | escape }}{% endif %}">
 
-  <label for="authorName">Bút danh hiển thị (để trống dùng tên website)</label>
-  <input type="text" id="authorName" name="authorName" value="{% if post %}{{ post.authorName | escape }}{% endif %}">
-
   <label for="categoryId">Danh mục</label>
   <select id="categoryId" name="categoryId">
     <option value="">— Không có danh mục —</option>
@@ -179,7 +176,6 @@
       body: form.body.value,
       excerpt: form.excerpt.value || undefined,
       coverImage: form.coverImage.value || undefined,
-      authorName: form.authorName.value || undefined,
       categoryId: form.categoryId.value || null,
       seo: {
         metaTitle: form.metaTitle.value || undefined,

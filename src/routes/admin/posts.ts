@@ -5,6 +5,8 @@ import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
 
+const TYPE = "post";
+
 const seoSchema = z
   .object({
     metaTitle: z.string().optional(),
@@ -22,7 +24,6 @@ const createPostSchema = z.object({
   body: z.string().min(1),
   excerpt: z.string().optional(),
   coverImage: z.string().optional(),
-  authorName: z.string().optional(),
   categoryId: z.string().nullable().optional(),
   seo: seoSchema,
 });
@@ -39,7 +40,9 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 
 // CRUD bài viết + luồng duyệt 4 trạng thái (draft/pending_review/scheduled/published, xem
 // services/contentStatus.ts): "edit" soạn/nộp duyệt (draft <-> pending_review), "manager"/"admin"
-// mới lên lịch/xuất bản/gỡ/xoá được — thay cho luật cũ chỉ có publishedAt.
+// mới lên lịch/xuất bản/gỡ/xoá được. Bảng Post GỘP CHUNG với trang tĩnh, phân biệt bằng
+// type='post' (routes/admin/pages.ts dùng type='page' trên CÙNG bảng) — mọi query ở đây LUÔN
+// lọc/set type='post' để không bao giờ lộ/động vào trang tĩnh.
 export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { page?: string; q?: string; categoryId?: string; status?: string } }>(
     "/admin/api/posts",
@@ -50,6 +53,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       const { q, categoryId, status } = request.query;
 
       const where = {
+        type: TYPE,
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
         ...(categoryId ? { categoryId } : {}),
         ...(status ? { status } : {}),
@@ -78,7 +82,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         where: { id: request.params.id },
         include: { category: true },
       });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
       return { post };
@@ -92,7 +96,9 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
-    const existing = await prisma.post.findUnique({ where: { slug: parsed.data.slug } });
+    const existing = await prisma.post.findUnique({
+      where: { type_slug: { type: TYPE, slug: parsed.data.slug } },
+    });
     if (existing) {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
     }
@@ -100,9 +106,9 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     const post = await prisma.post.create({
       data: {
         ...parsed.data,
+        type: TYPE,
         body: sanitizePostBody(parsed.data.body),
         authorId: userId,
-        updatedByUserId: userId,
       },
     });
     await auditLog(userId, "post.create", post.id);
@@ -120,7 +126,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 
@@ -131,7 +137,9 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
 
       const slugChanged = !!parsed.data.slug && parsed.data.slug !== post.slug;
       if (slugChanged) {
-        const slugTaken = await prisma.post.findUnique({ where: { slug: parsed.data.slug } });
+        const slugTaken = await prisma.post.findUnique({
+          where: { type_slug: { type: TYPE, slug: parsed.data.slug! } },
+        });
         if (slugTaken) {
           return reply.code(409).send({ error: "Slug đã tồn tại" });
         }
@@ -143,7 +151,6 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         data: {
           ...parsed.data,
           ...(parsed.data.body ? { body: sanitizePostBody(parsed.data.body) } : {}),
-          updatedByUserId: userId,
         },
       });
       await auditLog(userId, "post.update", post.id);
@@ -169,14 +176,14 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireRole("edit") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
-        data: { status: "pending_review", updatedByUserId: userId },
+        data: { status: "pending_review" },
       });
       await auditLog(userId, "post.submit", post.id);
 
@@ -189,14 +196,14 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
-        data: { status: "published", publishedAt: new Date(), scheduledAt: null, updatedByUserId: userId },
+        data: { status: "published", publishedAt: new Date(), scheduledAt: null },
       });
       await auditLog(userId, "post.publish", post.id);
 
@@ -219,14 +226,14 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
-        data: { status: "scheduled", scheduledAt, publishedAt: null, updatedByUserId: userId },
+        data: { status: "scheduled", scheduledAt, publishedAt: null },
       });
       await auditLog(userId, "post.schedule", post.id, { scheduledAt: updated.scheduledAt });
 
@@ -239,14 +246,14 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
-        data: { status: "draft", publishedAt: null, scheduledAt: null, updatedByUserId: userId },
+        data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
       await auditLog(userId, "post.unpublish", post.id);
 
@@ -259,7 +266,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const post = await prisma.post.findUnique({ where: { id: request.params.id } });
-      if (!post) {
+      if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 

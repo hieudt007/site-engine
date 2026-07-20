@@ -12,7 +12,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
     const page = Math.max(1, Number(request.query.page ?? 1) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
-    const where = { status: "published" };
+    const where = { type: "post", status: "published" };
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
         where,
@@ -24,7 +24,6 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
           title: true,
           excerpt: true,
           coverImage: true,
-          authorName: true,
           publishedAt: true,
           category: { select: { name: true, slug: true } },
         },
@@ -46,7 +45,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { slug: string } }>("/blog/:slug", async (request, reply) => {
     const post = await prisma.post.findUnique({
-      where: { slug: request.params.slug },
+      where: { type_slug: { type: "post", slug: request.params.slug } },
       include: { category: { select: { name: true, slug: true } } },
     });
     if (!post || post.status !== "published") {

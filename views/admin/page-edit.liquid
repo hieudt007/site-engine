@@ -25,9 +25,6 @@
   <label for="coverImage">Ảnh bìa (URL)</label>
   <input type="text" id="coverImage" name="coverImage" value="{% if page %}{{ page.coverImage | escape }}{% endif %}">
 
-  <label for="authorName">Bút danh hiển thị (để trống dùng tên website)</label>
-  <input type="text" id="authorName" name="authorName" value="{% if page %}{{ page.authorName | escape }}{% endif %}">
-
   <label for="body">Nội dung (HTML đã làm sạch)</label>
   <textarea id="body" name="body" required>{% if page %}{{ page.body }}{% endif %}</textarea>
   <div class="field-hint">Chưa có trình soạn thảo rich-text (đang TBD) — nhập HTML/markdown thô.</div>
@@ -171,7 +168,6 @@
       body: form.body.value,
       excerpt: form.excerpt.value || undefined,
       coverImage: form.coverImage.value || undefined,
-      authorName: form.authorName.value || undefined,
       seo: {
         metaTitle: form.metaTitle.value || undefined,
         metaDescription: form.metaDescription.value || undefined,

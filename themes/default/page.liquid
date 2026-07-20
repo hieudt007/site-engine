@@ -4,10 +4,7 @@
   {% if page.coverImage %}
     <img src="{{ page.coverImage }}" alt="{{ page.title }}" style="width:100%;max-height:360px;object-fit:cover;border-radius:8px;">
   {% endif %}
-  <h1 style="margin-bottom:0.25rem;">{{ page.title | escape }}</h1>
-  {% if page.authorName %}
-    <div style="color:#999;font-size:0.85rem;margin-bottom:1.5rem;">{{ page.authorName | escape }}</div>
-  {% endif %}
+  <h1 style="margin-bottom:1.5rem;">{{ page.title | escape }}</h1>
   <div style="line-height:1.7;font-size:1.05rem;">
     {{ page.body }}
   </div>

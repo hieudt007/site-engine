@@ -15,9 +15,9 @@ export async function publishDueContent(): Promise<void> {
   const where = { status: "scheduled", scheduledAt: { lte: now } };
   const data = { status: "published", publishedAt: now };
 
+  // Post gộp cả 'post' và 'page' (phân biệt qua type) - 1 updateMany là đủ cho cả 2.
   await Promise.all([
     prisma.post.updateMany({ where, data }),
-    prisma.page.updateMany({ where, data }),
     prisma.productCache.updateMany({ where, data }),
   ]);
 }

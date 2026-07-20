@@ -45,7 +45,6 @@ model User {
   createdAt      DateTime @default(now())
 
   posts     Post[]
-  pages     Page[]
   auditLogs AuditLog[]
   media     Media[]
 }
@@ -85,20 +84,27 @@ model PostCategory {
   posts Post[]
 }
 
+// Bai viet blog VA trang tinh GOP CHUNG 1 bang, phan biet qua "type" ('post' | 'page') - trang
+// tinh (Gioi thieu, Lien he...) dung cau truc giong het bai viet nen khong can bang rieng nua
+// (truoc day la model Page riêng). "type" khong doi duoc sau khi tao (khong co trong UPDATE
+// schema o routes/admin/{posts,pages}.ts) - moi file van la 2 man hinh/route rieng (posts.ts
+// luon set/loc type='post', pages.ts luon set/loc type='page'), chi gop o TANG DU LIEU.
+// slug unique THEO TUNG type (khong global) - vd 1 post va 1 page co the cung slug "gioi-thieu"
+// vi hien o 2 URL khac nhau (/blog/gioi-thieu vs /trang/gioi-thieu), khong that su dung do.
 model Post {
-  id         String  @id @default(cuid())
-  title      String
-  slug       String  @unique
+  id    String @id @default(cuid())
+  type  String @default("post") // 'post' | 'page'
+  title String
+  slug  String
+
   body       String // markdown hoặc HTML đã sanitize
   excerpt    String?
   coverImage String?
-  authorName String? // để trống thì hiển thị SiteConfig.siteName — bút danh CÔNG KHAI, khác authorId
 
-  authorId        Int? // ai TẠO bài — User.leadbaseUserId, không phải bút danh public
-  author          User? @relation(fields: [authorId], references: [leadbaseUserId])
-  updatedByUserId Int? // ai SỬA LẦN CUỐI — có thể khác authorId
+  authorId Int? // ai TẠO — User.leadbaseUserId
+  author   User? @relation(fields: [authorId], references: [leadbaseUserId])
 
-  categoryId String?
+  categoryId String? // chỉ dùng khi type='post' — page không có danh mục
   category   PostCategory? @relation(fields: [categoryId], references: [id])
 
   // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? } - score la cho danh
@@ -113,6 +119,8 @@ model Post {
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@unique([type, slug])
 }
 
 // Cau hinh AI Agent — CHUA noi vao tinh nang nao (chatbot/tro ly viet noi dung se dung sau).
@@ -129,31 +137,6 @@ model Agent {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-}
-
-// Trang tĩnh của website (Giới thiệu, Liên hệ...) — CÙNG cấu trúc với Post nhưng KHÔNG có
-// danh mục (khái niệm danh mục chỉ áp dụng cho bài viết blog). URL public: /trang/{slug}.
-model Page {
-  id         String  @id @default(cuid())
-  title      String
-  slug       String  @unique
-  body       String // markdown hoặc HTML đã sanitize
-  excerpt    String?
-  coverImage String?
-  authorName String? // để trống thì hiển thị SiteConfig.siteName — bút danh CÔNG KHAI, khác authorId
-
-  authorId        Int? // ai TẠO trang — User.leadbaseUserId, không phải bút danh public
-  author          User? @relation(fields: [authorId], references: [leadbaseUserId])
-  updatedByUserId Int? // ai SỬA LẦN CUỐI — có thể khác authorId
-
-  // Cùng cấu trúc với Post.seo — { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
-  seo Json?
-
-  status      String    @default("draft") // 'draft' | 'pending_review' | 'scheduled' | 'published'
-  scheduledAt DateTime?
-  publishedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 }
 
 // Sản phẩm liên kết với LeadBase — sở hữu dữ liệu CHIA ĐÔI, không phải cache thuần:

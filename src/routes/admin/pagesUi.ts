@@ -23,8 +23,8 @@ export async function registerPagesUiRoutes(app: FastifyInstance): Promise<void>
     "/admin/pages/:id",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== "page") {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
       }
       const html = await renderAdmin("page-edit", { page, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });

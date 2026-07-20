@@ -5,6 +5,8 @@ import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
 
+const TYPE = "page";
+
 const seoSchema = z
   .object({
     metaTitle: z.string().optional(),
@@ -22,7 +24,6 @@ const createPageSchema = z.object({
   body: z.string().min(1),
   excerpt: z.string().optional(),
   coverImage: z.string().optional(),
-  authorName: z.string().optional(),
   seo: seoSchema,
 });
 
@@ -37,7 +38,8 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 }
 
 // CRUD trang tĩnh + luồng duyệt 4 trạng thái — cùng luật với Post (posts.ts, xem
-// services/contentStatus.ts): "edit" soạn/nộp duyệt, "manager"/"admin" lên lịch/xuất bản/xoá.
+// services/contentStatus.ts). Dùng CHUNG bảng Post, phân biệt qua type='page' — mọi query ở
+// đây LUÔN lọc/set type='page' để không bao giờ lộ/động vào bài viết blog.
 export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { page?: string; q?: string; status?: string } }>(
     "/admin/api/pages",
@@ -48,19 +50,20 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       const { q, status } = request.query;
 
       const where = {
+        type: TYPE,
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
         ...(status ? { status } : {}),
       };
 
       const [pages, total] = await Promise.all([
-        prisma.page.findMany({
+        prisma.post.findMany({
           where,
           orderBy: { createdAt: "desc" },
           skip,
           take: PAGE_SIZE,
           include: { author: { select: { name: true } } },
         }),
-        prisma.page.count({ where }),
+        prisma.post.count({ where }),
       ]);
 
       return { pages, total, page, hasNext: skip + pages.length < total, hasPrev: page > 1 };
@@ -71,8 +74,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/pages/:id",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
       return { page };
@@ -86,17 +89,19 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
-    const existing = await prisma.page.findUnique({ where: { slug: parsed.data.slug } });
+    const existing = await prisma.post.findUnique({
+      where: { type_slug: { type: TYPE, slug: parsed.data.slug } },
+    });
     if (existing) {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
     }
 
-    const page = await prisma.page.create({
+    const page = await prisma.post.create({
       data: {
         ...parsed.data,
+        type: TYPE,
         body: sanitizePostBody(parsed.data.body),
         authorId: userId,
-        updatedByUserId: userId,
       },
     });
     await auditLog(userId, "page.create", page.id);
@@ -113,8 +118,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(422).send({ error: parsed.error.flatten() });
       }
 
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
 
@@ -125,19 +130,20 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
 
       const slugChanged = !!parsed.data.slug && parsed.data.slug !== page.slug;
       if (slugChanged) {
-        const slugTaken = await prisma.page.findUnique({ where: { slug: parsed.data.slug } });
+        const slugTaken = await prisma.post.findUnique({
+          where: { type_slug: { type: TYPE, slug: parsed.data.slug! } },
+        });
         if (slugTaken) {
           return reply.code(409).send({ error: "Slug đã tồn tại" });
         }
       }
 
       const userId = request.session.get("userId")!;
-      const updated = await prisma.page.update({
+      const updated = await prisma.post.update({
         where: { id: page.id },
         data: {
           ...parsed.data,
           ...(parsed.data.body ? { body: sanitizePostBody(parsed.data.body) } : {}),
-          updatedByUserId: userId,
         },
       });
       await auditLog(userId, "page.update", page.id);
@@ -160,15 +166,15 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/pages/:id/submit",
     { preHandler: requireRole("edit") },
     async (request, reply) => {
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
 
       const userId = request.session.get("userId")!;
-      const updated = await prisma.page.update({
+      const updated = await prisma.post.update({
         where: { id: page.id },
-        data: { status: "pending_review", updatedByUserId: userId },
+        data: { status: "pending_review" },
       });
       await auditLog(userId, "page.submit", page.id);
 
@@ -180,15 +186,15 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/pages/:id/publish",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
 
       const userId = request.session.get("userId")!;
-      const updated = await prisma.page.update({
+      const updated = await prisma.post.update({
         where: { id: page.id },
-        data: { status: "published", publishedAt: new Date(), scheduledAt: null, updatedByUserId: userId },
+        data: { status: "published", publishedAt: new Date(), scheduledAt: null },
       });
       await auditLog(userId, "page.publish", page.id);
 
@@ -210,15 +216,15 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(422).send({ error: "Thời điểm lên lịch phải ở tương lai" });
       }
 
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
 
       const userId = request.session.get("userId")!;
-      const updated = await prisma.page.update({
+      const updated = await prisma.post.update({
         where: { id: page.id },
-        data: { status: "scheduled", scheduledAt, publishedAt: null, updatedByUserId: userId },
+        data: { status: "scheduled", scheduledAt, publishedAt: null },
       });
       await auditLog(userId, "page.schedule", page.id, { scheduledAt: updated.scheduledAt });
 
@@ -230,15 +236,15 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/pages/:id/unpublish",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
 
       const userId = request.session.get("userId")!;
-      const updated = await prisma.page.update({
+      const updated = await prisma.post.update({
         where: { id: page.id },
-        data: { status: "draft", publishedAt: null, scheduledAt: null, updatedByUserId: userId },
+        data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
       await auditLog(userId, "page.unpublish", page.id);
 
@@ -250,13 +256,13 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/pages/:id",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
-      const page = await prisma.page.findUnique({ where: { id: request.params.id } });
-      if (!page) {
+      const page = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!page || page.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy trang" });
       }
 
       const userId = request.session.get("userId")!;
-      await prisma.page.delete({ where: { id: page.id } });
+      await prisma.post.delete({ where: { id: page.id } });
       await auditLog(userId, "page.delete", page.id, { title: page.title, slug: page.slug });
 
       return { success: true };

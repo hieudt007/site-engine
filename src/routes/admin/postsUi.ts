@@ -31,7 +31,7 @@ export async function registerPostsUiRoutes(app: FastifyInstance): Promise<void>
         prisma.post.findUnique({ where: { id: request.params.id } }),
         prisma.postCategory.findMany({ orderBy: { name: "asc" } }),
       ]);
-      if (!post) {
+      if (!post || post.type !== "post") {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
       }
       const html = await renderAdmin("post-edit", { post, categories, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });

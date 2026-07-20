@@ -7,7 +7,9 @@ import { readSeo } from "../../services/seoJson.js";
 // routes/public/blog.ts. KHÔNG yêu cầu đăng nhập, khác /admin/pages (quản trị nội bộ).
 export async function registerPagesPublicRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { slug: string } }>("/trang/:slug", async (request, reply) => {
-    const page = await prisma.page.findUnique({ where: { slug: request.params.slug } });
+    const page = await prisma.post.findUnique({
+      where: { type_slug: { type: "page", slug: request.params.slug } },
+    });
     if (!page || page.status !== "published") {
       // "/trang/:slug" là route ĐÃ ĐĂNG KÝ nên luôn khớp pattern - app.setNotFoundHandler()
       // (server.ts) KHÔNG BAO GIỜ chạy tới đây, phải tự trả Redirect ngay trong handler này
