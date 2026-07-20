@@ -1,0 +1,42 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 0.3rem;">Danh mục sản phẩm</h1>
+<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
+  Tên/slug đồng bộ tự động từ LeadBase, không tạo/xoá tay được ở đây. Sửa tóm tắt/nội dung/SEO cho từng danh mục.
+</p>
+
+<table>
+  <thead>
+    <tr><th>Tên</th><th>Slug</th><th>Đồng bộ lần cuối</th><th></th></tr>
+  </thead>
+  <tbody id="categories-body">
+    <tr><td colspan="4" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("categories-body");
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/product-categories");
+    const { categories } = await res.json();
+    tbody.innerHTML = categories.length
+      ? categories.map((c) =>
+          '<tr><td><a href="/admin/product-categories/' + c.id + '">' + escapeHtml(c.name) + "</a></td><td>" + escapeHtml(c.slug) + "</td>" +
+          "<td>" + (c.syncedAt ? new Date(c.syncedAt).toLocaleString("vi-VN") : "-") + "</td>" +
+          '<td style="text-align:right;"><a class="btn" href="/admin/product-categories/' + c.id + '">Sửa nội dung</a></td></tr>'
+        ).join("")
+      : '<tr><td colspan="4" class="empty-state">Chưa có danh mục nào đồng bộ.</td></tr>';
+  }
+
+  load();
+})();
+</script>
+{% endblock %}

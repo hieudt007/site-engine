@@ -1,0 +1,78 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Sửa danh mục: {{ category.name | escape }}</h1>
+  <a class="btn" href="/admin/post-categories">← Danh sách</a>
+</div>
+
+<form id="category-form" class="card">
+  <label for="name">Tên</label>
+  <input type="text" id="name" name="name" value="{{ category.name | escape }}" required>
+
+  <label for="slug">Slug (đường dẫn — /blog/danh-muc/slug)</label>
+  <input type="text" id="slug" name="slug" value="{{ category.slug | escape }}" required>
+
+  <label for="excerpt">Tóm tắt</label>
+  <input type="text" id="excerpt" name="excerpt" value="{{ category.excerpt | escape }}">
+
+  <label for="body">Nội dung trang danh mục (hiện phía trên danh sách bài viết)</label>
+  <textarea id="body" name="body" style="min-height:160px;">{{ category.body }}</textarea>
+
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
+
+  <label for="metaTitle">Meta title</label>
+  <input type="text" id="metaTitle" name="metaTitle" value="{% if category.seo %}{{ category.seo.metaTitle | escape }}{% endif %}">
+
+  <label for="metaDescription">Meta description</label>
+  <input type="text" id="metaDescription" name="metaDescription" value="{% if category.seo %}{{ category.seo.metaDescription | escape }}{% endif %}">
+
+  <label for="keyword">Từ khoá chính</label>
+  <input type="text" id="keyword" name="keyword" value="{% if category.seo %}{{ category.seo.keyword | escape }}{% endif %}">
+
+  <div style="margin-top:1.5rem;">
+    <button type="submit" class="btn btn-primary">Lưu</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  const categoryId = "{{ category.id }}";
+  const form = document.getElementById("category-form");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      name: form.name.value,
+      slug: form.slug.value,
+      excerpt: form.excerpt.value || undefined,
+      body: form.body.value || undefined,
+      seo: {
+        metaTitle: form.metaTitle.value || undefined,
+        metaDescription: form.metaDescription.value || undefined,
+        keyword: form.keyword.value || undefined,
+      },
+    };
+
+    const res = await fetch("/admin/api/post-categories/" + categoryId, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Lưu thất bại", false);
+      return;
+    }
+
+    showFlash("Đã lưu.", true);
+  });
+})();
+</script>
+{% endblock %}

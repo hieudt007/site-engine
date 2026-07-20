@@ -24,9 +24,12 @@ const variantSchema = z.object({
   status: z.string().min(1),
 });
 
-// Danh mục — LeadBase sở hữu (mirror phẳng, bỏ qua parent_id), site-engine chỉ upsert theo
-// leadbaseCategoryId rồi gán categoryId lên ProductCache, KHÔNG có CRUD riêng cho category
-// sản phẩm ở site-engine (khác PostCategory, hoàn toàn tự quản).
+// Danh mục — LeadBase sở hữu name/slug (mirror phẳng, bỏ qua parent_id), site-engine chỉ upsert
+// theo leadbaseCategoryId rồi gán categoryId lên ProductCache. Dùng CHUNG bảng Category với danh
+// mục bài viết (type='product' ở đây) — nếu LeadBase gửi 1 category CHƯA từng có trong Category
+// thì upsert TỰ TẠO MỚI ngay (create branch dưới), khớp đúng leadbaseCategoryId lần sau. excerpt/
+// body/seo (nội dung trang danh mục, sửa ở routes/admin/productCategories.ts) KHÔNG nằm trong
+// "update" nên không bao giờ bị đồng bộ đè mất.
 const categorySchema = z.object({
   leadbaseCategoryId: z.string().min(1),
   name: z.string().min(1),
@@ -61,9 +64,15 @@ async function resolveCategoryId(category: z.infer<typeof categorySchema> | unde
   if (!category) {
     return null;
   }
-  const upserted = await prisma.productCategoryCache.upsert({
+  const upserted = await prisma.category.upsert({
     where: { leadbaseCategoryId: category.leadbaseCategoryId },
-    create: { leadbaseCategoryId: category.leadbaseCategoryId, name: category.name, slug: category.slug },
+    create: {
+      type: "product",
+      leadbaseCategoryId: category.leadbaseCategoryId,
+      name: category.name,
+      slug: category.slug,
+      syncedAt: new Date(),
+    },
     update: { name: category.name, slug: category.slug, syncedAt: new Date() },
   });
   return upserted.id;

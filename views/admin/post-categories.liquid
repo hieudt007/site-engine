@@ -38,8 +38,10 @@
     const { categories } = await res.json();
     tbody.innerHTML = categories.length
       ? categories.map((c) =>
-          "<tr><td>" + escapeHtml(c.name) + "</td><td>" + escapeHtml(c.slug) + "</td>" +
-          '<td style="text-align:right;"><button class="btn btn-danger" data-id="' + c.id + '">Xoá</button></td></tr>'
+          '<tr><td><a href="/admin/post-categories/' + c.id + '">' + escapeHtml(c.name) + "</a></td><td>" + escapeHtml(c.slug) + "</td>" +
+          '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' +
+          '<a class="btn" href="/admin/post-categories/' + c.id + '">Sửa nội dung</a>' +
+          '<button class="btn btn-danger" data-id="' + c.id + '">Xoá</button></td></tr>'
         ).join("")
       : '<tr><td colspan="3" style="color:#999;">Chưa có danh mục nào.</td></tr>';
   }

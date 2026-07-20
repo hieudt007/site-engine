@@ -7,7 +7,7 @@ import { requireRole } from "../../plugins/requireRole.js";
 // requireRole("manager") ngay từ middleware, không cần check thêm trong handler.
 export async function registerProductsUiRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/products", { preHandler: requireRole("manager") }, async (request, reply) => {
-    const categories = await prisma.productCategoryCache.findMany({ orderBy: { name: "asc" } });
+    const categories = await prisma.category.findMany({ where: { type: "product" }, orderBy: { name: "asc" } });
     const html = await renderAdmin("products-list", {
       categories,
       userName: request.session.get("name"), role: request.session.get("role"),

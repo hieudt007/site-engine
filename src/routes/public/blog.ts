@@ -43,6 +43,48 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
     return reply.type("text/html").send(html);
   });
 
+  app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
+    "/blog/danh-muc/:slug",
+    async (request, reply) => {
+      const category = await prisma.category.findUnique({
+        where: { type_slug: { type: "post", slug: request.params.slug } },
+      });
+      if (!category) {
+        return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy danh mục</h1>");
+      }
+
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+      const where = { type: "post", status: "published", categoryId: category.id };
+
+      const [posts, total] = await Promise.all([
+        prisma.post.findMany({
+          where,
+          orderBy: { publishedAt: "desc" },
+          skip,
+          take: PAGE_SIZE,
+          select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
+        }),
+        prisma.post.count({ where }),
+      ]);
+
+      const seo = readSeo(category.seo);
+      const html = await renderPublic("blog-category", {
+        pageTitle: seo.metaTitle ?? category.name,
+        metaDescription: seo.metaDescription ?? category.excerpt ?? undefined,
+        noindex: seo.noindex,
+        category,
+        posts,
+        hasPrev: page > 1,
+        hasNext: skip + posts.length < total,
+        prevPage: page - 1,
+        nextPage: page + 1,
+      });
+
+      return reply.type("text/html").send(html);
+    },
+  );
+
   app.get<{ Params: { slug: string } }>("/blog/:slug", async (request, reply) => {
     const post = await prisma.post.findUnique({
       where: { type_slug: { type: "post", slug: request.params.slug } },

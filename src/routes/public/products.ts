@@ -37,6 +37,42 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     return reply.type("text/html").send(html);
   });
 
+  app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
+    "/products/danh-muc/:slug",
+    async (request, reply) => {
+      const category = await prisma.category.findUnique({
+        where: { type_slug: { type: "product", slug: request.params.slug } },
+      });
+      if (!category) {
+        return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy danh mục</h1>");
+      }
+
+      const page = Math.max(1, Number(request.query.page ?? 1) || 1);
+      const skip = (page - 1) * PAGE_SIZE;
+      const where = { status: "published", categoryId: category.id };
+
+      const [products, total] = await Promise.all([
+        prisma.productCache.findMany({ where, orderBy: { syncedAt: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.productCache.count({ where }),
+      ]);
+
+      const seo = readSeo(category.seo);
+      const html = await renderPublic("product-category", {
+        pageTitle: seo.metaTitle ?? category.name,
+        metaDescription: seo.metaDescription ?? category.excerpt ?? undefined,
+        noindex: seo.noindex,
+        category,
+        products,
+        hasPrev: page > 1,
+        hasNext: skip + products.length < total,
+        prevPage: page - 1,
+        nextPage: page + 1,
+      });
+
+      return reply.type("text/html").send(html);
+    },
+  );
+
   app.get<{ Params: { id: string } }>("/products/:id", async (request, reply) => {
     const product = await prisma.productCache.findUnique({
       where: { id: request.params.id },

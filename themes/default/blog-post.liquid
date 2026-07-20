@@ -8,7 +8,7 @@
   {% endif %}
   <h1 style="margin-bottom:0.25rem;">{{ post.title | escape }}</h1>
   <div style="color:#999;font-size:0.85rem;margin-bottom:1.5rem;">
-    {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.category %} · {{ post.category.name | escape }}{% endif %}
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.category %} · <a href="/blog/danh-muc/{{ post.category.slug }}" style="color:#999;">{{ post.category.name | escape }}</a>{% endif %}
   </div>
   <div style="line-height:1.7;font-size:1.05rem;">
     {{ post.body }}

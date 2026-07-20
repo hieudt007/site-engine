@@ -73,15 +73,34 @@ model AuditLog {
   @@index([entityType, entityId])
 }
 
-// Danh mục bài viết — khái niệm CỦA RIÊNG website (không có gì tương ứng bên LeadBase), tự quản
-// hoàn toàn qua CRUD trong site-engine (khác ProductCategoryCache dưới, chỉ đọc từ LeadBase).
-model PostCategory {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
+// Danh mục bài viết VA danh mục sản phẩm GỘP CHUNG 1 bảng, phân biệt qua "type" ('post' |
+// 'product') — cả 2 đều là 1 "trang danh mục" công khai thật (có excerpt/body/seo riêng, xem
+// route /blog/danh-muc/:slug và /products/danh-muc/:slug), chỉ khác NGUỒN: 'post' CRUD hoàn
+// toàn tại site-engine; 'product' đồng bộ name/slug từ LeadBase (routes/public/productsSync.ts
+// resolveCategoryId — KHÔNG sửa tay 2 field đó), nhưng excerpt/body/seo vẫn site tự quản y hệt
+// cách ProductCache.description không bị LeadBase ghi đè sau lần tạo đầu.
+model Category {
+  id   String @id @default(cuid())
+  type String @default("post") // 'post' | 'product'
+  name String
+  slug String
 
-  posts Post[]
+  // Chỉ có giá trị khi type='product' — LeadBase sở hữu, đồng bộ mỗi lần sync sản phẩm.
+  leadbaseCategoryId String?   @unique
+  syncedAt           DateTime?
+
+  // Nội dung trang danh mục — site tự quản, áp dụng cho CẢ 2 type.
+  excerpt String?
+  body    String?
+  seo     Json? // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts    Post[]
+  products ProductCache[]
+
+  @@unique([type, slug])
 }
 
 // Bai viet blog VA trang tinh GOP CHUNG 1 bang, phan biet qua "type" ('post' | 'page') - trang
@@ -105,7 +124,7 @@ model Post {
   author   User? @relation(fields: [authorId], references: [leadbaseUserId])
 
   categoryId String? // chỉ dùng khi type='post' — page không có danh mục
-  category   PostCategory? @relation(fields: [categoryId], references: [id])
+  category   Category? @relation(fields: [categoryId], references: [id])
 
   // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? } - score la cho danh
   // truoc cho tinh nang cham diem SEO SAU NAY, hien CHUA co logic tinh, luon null.
@@ -177,24 +196,12 @@ model ProductCache {
   hasVariants Boolean          @default(false)
   variants    ProductVariantCache[]
 
-  // Danh mục — CŨNG do LeadBase sở hữu (giống price/stock), chỉ hiển thị, không CRUD ở đây.
+  // Danh mục — name/slug do LeadBase sở hữu (giống price/stock), excerpt/body/seo site tự quản.
+  // Xem model Category (gộp chung với danh mục bài viết, phân biệt type).
   categoryId String?
-  category   ProductCategoryCache? @relation(fields: [categoryId], references: [id])
+  category   Category? @relation(fields: [categoryId], references: [id])
 
   reviews ProductReview[]
-}
-
-// Danh mục sản phẩm — mirror phẳng (bỏ qua parent_id/cây phân cấp) từ LeadBase ProductCategory,
-// đồng bộ qua CHÍNH endpoint productsSync.ts đã có (không route riêng) — sửa tên/gộp phải sửa ở
-// LeadBase, instance chỉ đọc.
-model ProductCategoryCache {
-  id                 String   @id @default(cuid())
-  leadbaseCategoryId String   @unique
-  name               String
-  slug               String
-  syncedAt           DateTime @default(now())
-
-  products ProductCache[]
 }
 
 // Đánh giá sản phẩm — khách KHÔNG cần tài khoản (Customer/OTP đang tạm dừng), chỉ nhập tên. Luôn

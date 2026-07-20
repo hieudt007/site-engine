@@ -1,0 +1,37 @@
+{% layout "layout" %}
+{% block content %}
+<a href="/products" style="color:#777;font-size:0.9rem;">← Tất cả sản phẩm</a>
+
+<h1 style="margin-top:0.5rem;margin-bottom:0.25rem;">{{ category.name | escape }}</h1>
+{% if category.excerpt %}<p style="color:#666;">{{ category.excerpt | escape }}</p>{% endif %}
+{% if category.body %}<div style="line-height:1.7;margin-bottom:1.5rem;">{{ category.body }}</div>{% endif %}
+
+{% if products.size == 0 %}
+  <p style="color:#777;margin-top:1.5rem;">Chưa có sản phẩm nào trong danh mục này.</p>
+{% else %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem;margin-top:1.5rem;">
+    {% for product in products %}
+      <a href="/products/{{ product.id }}" style="text-decoration:none;color:inherit;border:1px solid #eee;border-radius:8px;overflow:hidden;background:#fff;">
+        {% if product.imageUrls.size > 0 %}
+          <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" style="width:100%;height:180px;object-fit:cover;">
+        {% else %}
+          <div style="width:100%;height:180px;background:#f3f4f6;"></div>
+        {% endif %}
+        <div style="padding:0.75rem;">
+          <div style="font-size:0.95rem;color:#111;margin-bottom:0.3rem;">{{ product.name | escape }}</div>
+          {% if product.salePrice %}
+            <div><span style="color:#dc2626;font-weight:600;">{{ product.salePrice }}₫</span> <span style="color:#999;text-decoration:line-through;font-size:0.85rem;">{{ product.price }}₫</span></div>
+          {% else %}
+            <div style="font-weight:600;">{{ product.price }}₫</div>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex;justify-content:space-between;margin-top:2rem;">
+    {% if hasPrev %}<a href="/products/danh-muc/{{ category.slug }}?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="/products/danh-muc/{{ category.slug }}?page={{ nextPage }}">Trang sau →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

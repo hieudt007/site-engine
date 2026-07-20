@@ -7,10 +7,12 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
   app.get("/sitemap.xml", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
 
-    const [posts, products, pages] = await Promise.all([
+    const [posts, products, pages, postCategories, productCategories] = await Promise.all([
       prisma.post.findMany({ where: { type: "post", status: "published" }, select: { slug: true, updatedAt: true } }),
       prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, syncedAt: true } }),
       prisma.post.findMany({ where: { type: "page", status: "published" }, select: { slug: true, updatedAt: true } }),
+      prisma.category.findMany({ where: { type: "post" }, select: { slug: true, updatedAt: true } }),
+      prisma.category.findMany({ where: { type: "product" }, select: { slug: true, updatedAt: true } }),
     ]);
 
     const staticUrls = [
@@ -30,8 +32,16 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
       loc: `${baseUrl}/trang/${p.slug}`,
       lastmod: p.updatedAt.toISOString(),
     }));
+    const postCategoryUrls = postCategories.map((c) => ({
+      loc: `${baseUrl}/blog/danh-muc/${c.slug}`,
+      lastmod: c.updatedAt.toISOString(),
+    }));
+    const productCategoryUrls = productCategories.map((c) => ({
+      loc: `${baseUrl}/products/danh-muc/${c.slug}`,
+      lastmod: c.updatedAt.toISOString(),
+    }));
 
-    const urls = [...staticUrls, ...postUrls, ...productUrls, ...pageUrls];
+    const urls = [...staticUrls, ...postUrls, ...productUrls, ...pageUrls, ...postCategoryUrls, ...productCategoryUrls];
     const xml =
       '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
