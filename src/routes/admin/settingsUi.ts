@@ -7,7 +7,7 @@ export async function registerSettingsUiRoutes(app: FastifyInstance): Promise<vo
     "/admin/settings/general",
     { preHandler: requireRole("admin") },
     async (request, reply) => {
-      const html = await renderAdmin("settings-general", { role: request.session.get("role"), currentPath: request.url });
+      const html = await renderAdmin("settings-general", { userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
       return reply.type("text/html").send(html);
     },
   );

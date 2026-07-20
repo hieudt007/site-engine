@@ -8,14 +8,14 @@ import { requireRole } from "../../plugins/requireRole.js";
 export async function registerPagesUiRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/pages", { preHandler: requireRole("edit") }, async (request, reply) => {
     const html = await renderAdmin("pages-list", {
-      role: request.session.get("role"),
+      userName: request.session.get("name"), role: request.session.get("role"),
       currentPath: request.url,
     });
     return reply.type("text/html").send(html);
   });
 
   app.get("/admin/pages/new", { preHandler: requireRole("edit") }, async (request, reply) => {
-    const html = await renderAdmin("page-edit", { page: null, role: request.session.get("role"), currentPath: request.url });
+    const html = await renderAdmin("page-edit", { page: null, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
     return reply.type("text/html").send(html);
   });
 
@@ -27,7 +27,7 @@ export async function registerPagesUiRoutes(app: FastifyInstance): Promise<void>
       if (!page) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
       }
-      const html = await renderAdmin("page-edit", { page, role: request.session.get("role"), currentPath: request.url });
+      const html = await renderAdmin("page-edit", { page, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
       return reply.type("text/html").send(html);
     },
   );

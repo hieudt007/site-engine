@@ -1,0 +1,59 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 0.3rem;">Người dùng</h1>
+<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
+  Tài khoản đăng nhập qua OAuth LeadBase — tự đồng bộ tên/email/vai trò mỗi lần đăng nhập, không tạo/sửa tay được ở đây.
+</p>
+
+<table>
+  <thead>
+    <tr><th>Tên</th><th>Email</th><th>Vai trò</th><th>Đăng nhập lần cuối</th></tr>
+  </thead>
+  <tbody id="users-body">
+    <tr><td colspan="4" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("users-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(u) {
+    return (
+      "<tr>" +
+      "<td>" + escapeHtml(u.name) + "</td>" +
+      "<td>" + escapeHtml(u.email) + "</td>" +
+      "<td><span class=\"status-badge status-published\">" + escapeHtml(u.role) + "</span></td>" +
+      "<td>" + new Date(u.lastLoginAt).toLocaleString("vi-VN") + "</td>" +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/users");
+    if (!res.ok) {
+      showError("Không tải được danh sách người dùng");
+      return;
+    }
+    const { users } = await res.json();
+    tbody.innerHTML = users.length
+      ? users.map(rowHtml).join("")
+      : '<tr><td colspan="4" class="empty-state">Chưa có người dùng nào.</td></tr>';
+  }
+
+  load();
+})();
+</script>
+{% endblock %}

@@ -8,6 +8,7 @@ declare module "fastify" {
   interface Session {
     userId?: number;
     email?: string;
+    name?: string;
     role?: string; // 'admin' | 'manager' | 'edit'
   }
 }

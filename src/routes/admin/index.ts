@@ -30,7 +30,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const html = await renderAdmin("dashboard", {
       pageTitle: "Tổng quan",
-      role: request.session.get("role"),
+      userName: request.session.get("name"), role: request.session.get("role"),
       currentPath: request.url,
       stats: {
         postsPublished,

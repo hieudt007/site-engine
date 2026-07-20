@@ -9,7 +9,7 @@ export async function registerOrdersUiRoutes(app: FastifyInstance): Promise<void
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const html = await renderAdmin("orders-list", {
-        role: request.session.get("role"),
+        userName: request.session.get("name"), role: request.session.get("role"),
         currentPath: request.url,
         initialStatus: request.query.status ?? "",
       });
@@ -27,7 +27,7 @@ export async function registerOrdersUiRoutes(app: FastifyInstance): Promise<void
       }
       const html = await renderAdmin("order-detail", {
         order,
-        role: request.session.get("role"),
+        userName: request.session.get("name"), role: request.session.get("role"),
         currentPath: request.url,
       });
       return reply.type("text/html").send(html);

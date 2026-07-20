@@ -10,7 +10,7 @@ export async function registerProductsUiRoutes(app: FastifyInstance): Promise<vo
     const categories = await prisma.productCategoryCache.findMany({ orderBy: { name: "asc" } });
     const html = await renderAdmin("products-list", {
       categories,
-      role: request.session.get("role"),
+      userName: request.session.get("name"), role: request.session.get("role"),
       currentPath: request.url,
     });
     return reply.type("text/html").send(html);
@@ -27,7 +27,7 @@ export async function registerProductsUiRoutes(app: FastifyInstance): Promise<vo
       if (!product) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
       }
-      const html = await renderAdmin("product-edit", { product, role: request.session.get("role"), currentPath: request.url });
+      const html = await renderAdmin("product-edit", { product, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
       return reply.type("text/html").send(html);
     },
   );

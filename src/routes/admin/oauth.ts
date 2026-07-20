@@ -74,6 +74,7 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
 
         request.session.set("userId", user.leadbaseUserId);
         request.session.set("email", user.email);
+        request.session.set("name", user.name);
         request.session.set("role", user.role);
       } catch (err) {
         request.log.error(err);

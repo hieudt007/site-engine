@@ -9,7 +9,7 @@ export async function registerReviewsUiRoutes(app: FastifyInstance): Promise<voi
     async (request, reply) => {
       const html = await renderAdmin("reviews-list", {
         initialStatus: request.query.status || "pending",
-        role: request.session.get("role"),
+        userName: request.session.get("name"), role: request.session.get("role"),
         currentPath: request.url,
       });
       return reply.type("text/html").send(html);
