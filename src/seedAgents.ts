@@ -12,14 +12,14 @@ const DEFAULT_MODEL = "cx/gpt-5.4-mini"; // model 9router re, du dung cho ca 2 m
 
 const DEFAULT_AGENTS: { name: string; purpose: "content" | "design"; systemPrompt: string }[] = [
   {
-    name: "Trợ lý nội dung",
+    name: "Content Agent",
     purpose: "content",
     systemPrompt:
       "Bạn là trợ lý viết nội dung tiếng Việt cho blog/website bán hàng. Viết tự nhiên, đúng ngữ pháp, " +
       "không lan man, không bịa số liệu/cam kết cụ thể không được cung cấp.",
   },
   {
-    name: "Trợ lý thiết kế",
+    name: "Developer Agent",
     purpose: "design",
     systemPrompt: "Bạn là chuyên gia thiết kế giao diện web, viết Liquid + Tailwind CSS.",
   },
