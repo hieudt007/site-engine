@@ -26,6 +26,7 @@ const createPostSchema = z.object({
   coverImage: z.string().optional(),
   categoryIds: z.array(z.string()).optional(), // nhiều-nhiều, xem Category.type='post'
   topicId: z.string().nullable().optional(), // 1-1, xem model Topic
+  password: z.string().nullable().optional(), // rỗng/null = bài mở tự do, xem routes/public/blog.ts
   seo: seoSchema,
 });
 

@@ -1,0 +1,43 @@
+{% layout "layout" %}
+{% block content %}
+<a href="/blog" style="color:#777;font-size:0.9rem;">← Tất cả bài viết</a>
+
+<div style="max-width:360px;margin:2rem auto;text-align:center;">
+  <h1 style="font-size:1.2rem;">Bài viết được bảo vệ</h1>
+  <p style="color:#666;font-size:0.9rem;">Nhập mật khẩu để xem "{{ pageTitle | escape }}".</p>
+
+  <form id="unlock-form" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.6rem;">
+    <input type="password" id="password" name="password" placeholder="Mật khẩu" required
+      style="padding:0.6rem 0.8rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;">
+    <button type="submit" style="padding:0.6rem;border-radius:6px;border:none;background:#2563eb;color:#fff;font-size:0.95rem;cursor:pointer;">Xem bài viết</button>
+    <div id="unlock-error" style="color:#dc2626;font-size:0.85rem;display:none;"></div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const form = document.getElementById("unlock-form");
+  const errorBox = document.getElementById("unlock-error");
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    errorBox.style.display = "none";
+
+    const res = await fetch(window.location.pathname + "/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: document.getElementById("password").value }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      errorBox.textContent = typeof body.error === "string" ? body.error : "Sai mật khẩu";
+      errorBox.style.display = "block";
+      return;
+    }
+
+    window.location.reload();
+  });
+})();
+</script>
+{% endblock %}

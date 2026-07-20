@@ -46,6 +46,10 @@
     {% endfor %}
   </select>
 
+  <label for="password">Mật khẩu xem bài (để trống = mở tự do)</label>
+  <input type="text" id="password" name="password" value="{% if post %}{{ post.password | escape }}{% endif %}" placeholder="Để trống nếu không cần bảo vệ">
+  <div class="field-hint">Khách phải nhập đúng mật khẩu này mới đọc được bài — không phải tài khoản đăng nhập, chỉ là lớp hạn chế xem đơn giản.</div>
+
   <label for="body">Nội dung (HTML đã làm sạch)</label>
   <textarea id="body" name="body" required>{% if post %}{{ post.body }}{% endif %}</textarea>
   <div class="field-hint">Chưa có trình soạn thảo rich-text (đang TBD) — nhập HTML/markdown thô.</div>
@@ -192,6 +196,7 @@
       coverImage: form.coverImage.value || undefined,
       categoryIds: categoryIds,
       topicId: form.topicId.value || null,
+      password: form.password.value || null,
       seo: {
         metaTitle: form.metaTitle.value || undefined,
         metaDescription: form.metaDescription.value || undefined,

@@ -5,6 +5,12 @@ import { readSeo } from "../../services/seoJson.js";
 
 const PAGE_SIZE = 10;
 
+// Cookie riêng cho từng bài có mật khẩu (khác cookie session admin) - đặt sau khi khách nhập
+// đúng mật khẩu, chỉ đơn giản là "đã từng nhập đúng", không phải token đăng nhập thật.
+function unlockCookieName(postId: string): string {
+  return `post_unlock_${postId}`;
+}
+
 // Route public — chỉ hiện bài status='published' (system_design.md §10). Không yêu cầu đăng
 // nhập, khác hoàn toàn /admin/posts (§5, quản trị nội bộ).
 export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
@@ -103,6 +109,19 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const seo = readSeo(post.seo);
+
+    if (post.password) {
+      const unlocked = request.cookies[unlockCookieName(post.id)] === "1";
+      if (!unlocked) {
+        const html = await renderPublic("blog-post-locked", {
+          pageTitle: post.title,
+          noindex: true,
+          slug: post.slug,
+        });
+        return reply.type("text/html").send(html);
+      }
+    }
+
     const html = await renderPublic("blog-post", {
       pageTitle: post.title,
       metaDescription: seo.metaDescription ?? post.excerpt ?? undefined,
@@ -112,4 +131,29 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.type("text/html").send(html);
   });
+
+  app.post<{ Params: { slug: string }; Body: { password?: string } }>(
+    "/blog/:slug/unlock",
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({
+        where: { type_slug: { type: "post", slug: request.params.slug } },
+      });
+      if (!post || post.status !== "published" || !post.password) {
+        return reply.code(404).send({ error: "Không tìm thấy bài viết" });
+      }
+
+      if (request.body?.password !== post.password) {
+        return reply.code(403).send({ error: "Mật khẩu không đúng" });
+      }
+
+      reply.setCookie(unlockCookieName(post.id), "1", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 30 * 24 * 60 * 60,
+      });
+
+      return { success: true };
+    },
+  );
 }

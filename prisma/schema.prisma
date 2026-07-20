@@ -139,6 +139,11 @@ model Post {
   excerpt    String?
   coverImage String?
 
+  // Bảo vệ bài viết bằng mật khẩu (chỉ type='post', lưu trơn KHÔNG hash - giống WordPress
+  // post_password, đây là lớp "hạn chế xem" cho khách chưa có mã, KHÔNG phải tài khoản đăng
+  // nhập nên admin cần thấy lại được mật khẩu mình đã đặt). null/rỗng = bài mở tự do.
+  password String?
+
   authorId Int? // ai TẠO — User.leadbaseUserId
   author   User? @relation(fields: [authorId], references: [leadbaseUserId])
 
