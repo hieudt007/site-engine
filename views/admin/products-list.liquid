@@ -15,8 +15,10 @@
   </select>
   <select id="status-filter" style="max-width:180px;">
     <option value="">Tất cả trạng thái</option>
-    <option value="published">Đã xuất bản</option>
     <option value="draft">Nháp</option>
+    <option value="pending_review">Chờ duyệt</option>
+    <option value="scheduled">Đã lên lịch</option>
+    <option value="published">Đã xuất bản</option>
   </select>
 </div>
 
@@ -60,11 +62,11 @@
     return div.innerHTML;
   }
 
+  const STATUS_LABEL = { draft: "Nháp", pending_review: "Chờ duyệt", scheduled: "Đã lên lịch", published: "Đã xuất bản" };
+
   function rowHtml(p) {
-    const statusBadge = p.publishStatus === "published"
-      ? '<span class="status-badge status-published">Đã xuất bản</span>'
-      : '<span class="status-badge status-draft">Nháp</span>';
-    const publishBtn = p.publishStatus !== "published"
+    const statusBadge = '<span class="status-badge status-' + p.status + '">' + (STATUS_LABEL[p.status] || p.status) + '</span>';
+    const publishBtn = p.status !== "published"
       ? '<button class="btn" data-action="publish" data-id="' + p.id + '">Xuất bản</button>'
       : "";
     const category = p.category ? escapeHtml(p.category.name) : "-";

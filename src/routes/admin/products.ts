@@ -4,16 +4,28 @@ import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 // §5.2: sản phẩm thuộc nhóm "nội dung + sản phẩm" của manager — role "edit" KHÔNG được đụng vào
-// (khác Post, nơi edit tạo/sửa được bài nháp). price/salePrice/stock/leadbaseStatus là read-only
-// từ phía website — chỉ LeadBase mới sửa được (qua routes/public/productsSync.ts, §4.2).
+// (khác Post, nơi edit tạo/sửa được bài nháp) — nên không có bước "nộp duyệt" như posts.ts,
+// manager đi thẳng draft -> scheduled/published. price/salePrice/stock/leadbaseStatus là
+// read-only từ phía website — chỉ LeadBase mới sửa được (qua routes/public/productsSync.ts, §4.2).
+const seoSchema = z
+  .object({
+    metaTitle: z.string().optional(),
+    metaDescription: z.string().optional(),
+    ogImage: z.string().optional(),
+    noindex: z.boolean().optional(),
+    keyword: z.string().optional(),
+    score: z.number().optional(),
+  })
+  .optional();
+
 const updateContentSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
-  metaTitle: z.string().optional(),
-  metaDescription: z.string().optional(),
+  seo: seoSchema,
 });
 
+const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
 const PAGE_SIZE = 20;
 
 export async function registerProductRoutes(app: FastifyInstance): Promise<void> {
@@ -28,7 +40,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       const where = {
         ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
         ...(categoryId ? { categoryId } : {}),
-        ...(status ? { publishStatus: status } : {}),
+        ...(status ? { status } : {}),
       };
 
       const [products, total] = await Promise.all([
@@ -95,7 +107,53 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
 
       const updated = await prisma.productCache.update({
         where: { id: product.id },
-        data: { publishStatus: "published" },
+        data: { status: "published", publishedAt: new Date(), scheduledAt: null },
+      });
+
+      return { product: updated };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/admin/api/products/:id/schedule",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const parsed = scheduleSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(422).send({ error: parsed.error.flatten() });
+      }
+
+      const scheduledAt = new Date(parsed.data.scheduledAt);
+      if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {
+        return reply.code(422).send({ error: "Thời điểm lên lịch phải ở tương lai" });
+      }
+
+      const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
+      if (!product) {
+        return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
+      }
+
+      const updated = await prisma.productCache.update({
+        where: { id: product.id },
+        data: { status: "scheduled", scheduledAt, publishedAt: null },
+      });
+
+      return { product: updated };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/admin/api/products/:id/unpublish",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
+      if (!product) {
+        return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
+      }
+
+      const updated = await prisma.productCache.update({
+        where: { id: product.id },
+        data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
 
       return { product: updated };

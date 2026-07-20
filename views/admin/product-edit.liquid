@@ -5,6 +5,10 @@
   <a class="btn" href="/admin/products">← Danh sách</a>
 </div>
 
+<div style="margin-bottom:1rem;">
+  <span class="status-badge status-{{ product.status }}">{{ product.status }}</span>
+</div>
+
 {% if product.category %}
   <div style="font-size:0.85rem;color:#555;margin-bottom:0.8rem;">
     Danh mục: <strong>{{ product.category.name | escape }}</strong> <span style="color:#999;">(đồng bộ từ LeadBase, chỉ đọc)</span>
@@ -63,22 +67,41 @@
   <textarea id="imageUrls" name="imageUrls" style="min-height:100px;font-family:inherit;">{% for url in product.imageUrls %}{{ url }}
 {% endfor %}</textarea>
 
-  <label for="metaTitle">SEO — Meta title</label>
-  <input type="text" id="metaTitle" name="metaTitle" value="{{ product.metaTitle | escape }}">
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
-  <label for="metaDescription">SEO — Meta description</label>
-  <input type="text" id="metaDescription" name="metaDescription" value="{{ product.metaDescription | escape }}">
+  <label for="metaTitle">Meta title</label>
+  <input type="text" id="metaTitle" name="metaTitle" value="{% if product.seo %}{{ product.seo.metaTitle | escape }}{% endif %}">
 
-  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
+  <label for="metaDescription">Meta description</label>
+  <input type="text" id="metaDescription" name="metaDescription" value="{% if product.seo %}{{ product.seo.metaDescription | escape }}{% endif %}">
+
+  <label for="ogImage">Ảnh chia sẻ (Open Graph, URL)</label>
+  <input type="text" id="ogImage" name="ogImage" value="{% if product.seo %}{{ product.seo.ogImage | escape }}{% endif %}">
+
+  <label for="keyword">Từ khoá chính</label>
+  <input type="text" id="keyword" name="keyword" value="{% if product.seo %}{{ product.seo.keyword | escape }}{% endif %}">
+
+  {% if product.seo.score %}
+    <div class="field-hint">Điểm SEO: {{ product.seo.score }}</div>
+  {% endif %}
+
+  <label style="display:flex;align-items:center;gap:0.4rem;">
+    <input type="checkbox" id="noindex" name="noindex" style="width:auto;" {% if product.seo.noindex %}checked{% endif %}>
+    noindex (ẩn khỏi công cụ tìm kiếm)
+  </label>
+
+  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
     <button type="submit" class="btn btn-primary">Lưu</button>
     <span id="publish-slot"></span>
+    <span id="schedule-slot"></span>
+    <span id="unpublish-slot"></span>
   </div>
 </form>
 
 <script>
 (function () {
   const productId = "{{ product.id }}";
-  const isPublished = {% if product.publishStatus == "published" %}true{% else %}false{% endif %};
+  const status = "{{ product.status }}";
   const form = document.getElementById("product-form");
   const flash = document.getElementById("flash");
 
@@ -87,20 +110,52 @@
     flash.className = ok ? "success" : "error";
   }
 
-  if (!isPublished) {
+  async function callAction(path, body) {
+    const res = await fetch("/admin/api/products/" + productId + path, {
+      method: "POST",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      showFlash(typeof errBody.error === "string" ? errBody.error : "Thao tác thất bại", false);
+      return false;
+    }
+    return true;
+  }
+
+  if (status !== "published") {
     const publishBtn = document.createElement("button");
     publishBtn.type = "button";
     publishBtn.className = "btn";
-    publishBtn.textContent = "Xuất bản";
+    publishBtn.textContent = "Xuất bản ngay";
     publishBtn.onclick = async () => {
-      const res = await fetch("/admin/api/products/" + productId + "/publish", { method: "POST" });
-      if (!res.ok) {
-        showFlash("Xuất bản thất bại", false);
-        return;
-      }
-      window.location.reload();
+      if (await callAction("/publish")) window.location.reload();
     };
     document.getElementById("publish-slot").appendChild(publishBtn);
+
+    const scheduleBtn = document.createElement("button");
+    scheduleBtn.type = "button";
+    scheduleBtn.className = "btn";
+    scheduleBtn.textContent = "Lên lịch...";
+    scheduleBtn.onclick = async () => {
+      const value = prompt("Nhập thời điểm xuất bản (vd 2026-08-01T09:00):");
+      if (!value) return;
+      if (await callAction("/schedule", { scheduledAt: value })) window.location.reload();
+    };
+    document.getElementById("schedule-slot").appendChild(scheduleBtn);
+  }
+
+  if (status === "scheduled" || status === "published") {
+    const unpublishBtn = document.createElement("button");
+    unpublishBtn.type = "button";
+    unpublishBtn.className = "btn";
+    unpublishBtn.textContent = "Gỡ về nháp";
+    unpublishBtn.onclick = async () => {
+      if (!confirm("Gỡ sản phẩm này về nháp?")) return;
+      if (await callAction("/unpublish")) window.location.reload();
+    };
+    document.getElementById("unpublish-slot").appendChild(unpublishBtn);
   }
 
   form.addEventListener("submit", async (event) => {
@@ -109,8 +164,13 @@
       name: form.name.value,
       description: form.description.value || undefined,
       imageUrls: form.imageUrls.value.split("\n").map((s) => s.trim()).filter(Boolean),
-      metaTitle: form.metaTitle.value || undefined,
-      metaDescription: form.metaDescription.value || undefined,
+      seo: {
+        metaTitle: form.metaTitle.value || undefined,
+        metaDescription: form.metaDescription.value || undefined,
+        ogImage: form.ogImage.value || undefined,
+        keyword: form.keyword.value || undefined,
+        noindex: form.noindex.checked,
+      },
     };
 
     const res = await fetch("/admin/api/products/" + productId, {

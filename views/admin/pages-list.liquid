@@ -7,6 +7,13 @@
 
 <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
   <input type="search" id="search-input" class="search-input" placeholder="Tìm theo tiêu đề...">
+  <select id="status-filter" style="max-width:180px;">
+    <option value="">Tất cả trạng thái</option>
+    <option value="draft">Nháp</option>
+    <option value="pending_review">Chờ duyệt</option>
+    <option value="scheduled">Đã lên lịch</option>
+    <option value="published">Đã xuất bản</option>
+  </select>
 </div>
 
 <table>
@@ -33,6 +40,7 @@
   const pagination = document.getElementById("pagination");
   const flash = document.getElementById("flash");
   const searchInput = document.getElementById("search-input");
+  const statusFilter = document.getElementById("status-filter");
 
   let currentPage = 1;
   let searchTimer;
@@ -48,13 +56,16 @@
     return div.innerHTML;
   }
 
+  const STATUS_LABEL = { draft: "Nháp", pending_review: "Chờ duyệt", scheduled: "Đã lên lịch", published: "Đã xuất bản" };
+
   function rowHtml(page) {
-    const statusBadge = page.publishedAt
-      ? '<span class="status-badge status-published">Đã xuất bản</span>'
-      : '<span class="status-badge status-draft">Nháp</span>';
+    const statusBadge = '<span class="status-badge status-' + page.status + '">' + (STATUS_LABEL[page.status] || page.status) + '</span>';
     const author = page.author ? escapeHtml(page.author.name) : "-";
     const updated = new Date(page.updatedAt).toLocaleString("vi-VN");
-    const publishBtn = !page.publishedAt && canManage
+    const submitBtn = page.status === "draft"
+      ? '<button class="btn" data-action="submit" data-id="' + page.id + '">Nộp duyệt</button>'
+      : "";
+    const publishBtn = (page.status === "pending_review" || page.status === "scheduled") && canManage
       ? '<button class="btn" data-action="publish" data-id="' + page.id + '">Xuất bản</button>'
       : "";
     const deleteBtn = canManage
@@ -66,7 +77,7 @@
       "<td>" + statusBadge + "</td>" +
       "<td>" + author + "</td>" +
       "<td>" + updated + "</td>" +
-      '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' + publishBtn + deleteBtn + "</td>" +
+      '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' + submitBtn + publishBtn + deleteBtn + "</td>" +
       "</tr>"
     );
   }
@@ -74,6 +85,7 @@
   async function load() {
     const params = new URLSearchParams({ page: String(currentPage) });
     if (searchInput.value) params.set("q", searchInput.value);
+    if (statusFilter.value) params.set("status", statusFilter.value);
 
     const res = await fetch("/admin/api/pages?" + params.toString());
     if (!res.ok) {
@@ -95,6 +107,7 @@
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => { currentPage = 1; load(); }, 300);
   });
+  statusFilter.addEventListener("change", () => { currentPage = 1; load(); });
 
   pagination.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-page]");
@@ -112,8 +125,8 @@
     if (action === "delete" && !confirm("Xoá trang này?")) return;
 
     const res = await fetch(
-      "/admin/api/pages/" + id + (action === "publish" ? "/publish" : ""),
-      { method: action === "publish" ? "POST" : "DELETE" },
+      "/admin/api/pages/" + id + (action === "delete" ? "" : "/" + action),
+      { method: action === "delete" ? "DELETE" : "POST" },
     );
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

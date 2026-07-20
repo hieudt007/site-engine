@@ -1,17 +1,18 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
+import { readSeo } from "../../services/seoJson.js";
 
 const PAGE_SIZE = 10;
 
-// Route public — chỉ hiện bài đã publishedAt (system_design.md §10). Không yêu cầu đăng nhập,
-// khác hoàn toàn /admin/posts (§5, quản trị nội bộ).
+// Route public — chỉ hiện bài status='published' (system_design.md §10). Không yêu cầu đăng
+// nhập, khác hoàn toàn /admin/posts (§5, quản trị nội bộ).
 export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { page?: string } }>("/blog", async (request, reply) => {
     const page = Math.max(1, Number(request.query.page ?? 1) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
-    const where = { publishedAt: { not: null } };
+    const where = { status: "published" };
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
         where,
@@ -48,7 +49,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       where: { slug: request.params.slug },
       include: { category: { select: { name: true, slug: true } } },
     });
-    if (!post || !post.publishedAt) {
+    if (!post || post.status !== "published") {
       // "/blog/:slug" la route DA DANG KY nen luon khop pattern - app.setNotFoundHandler()
       // (server.ts) KHONG BAO GIO chay toi day, phai tu tra Redirect ngay trong handler nay
       // (khac cac path hoan toan khong ton tai, moi roi xuong setNotFoundHandler that).
@@ -59,10 +60,11 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
     }
 
+    const seo = readSeo(post.seo);
     const html = await renderPublic("blog-post", {
       pageTitle: post.title,
-      metaDescription: post.metaDescription ?? post.excerpt ?? undefined,
-      noindex: post.noindex,
+      metaDescription: seo.metaDescription ?? post.excerpt ?? undefined,
+      noindex: seo.noindex,
       post,
     });
 

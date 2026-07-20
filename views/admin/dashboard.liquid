@@ -9,7 +9,7 @@
   </a>
   <a class="stat-card" href="/admin/posts">
     <div class="stat-value">{{ stats.postsDraft }}</div>
-    <div class="stat-label">Bài viết nháp</div>
+    <div class="stat-label">Bài viết chưa xuất bản</div>
   </a>
 
   {% if role == "manager" or role == "admin" %}
@@ -19,7 +19,7 @@
     </a>
     <a class="stat-card" href="/admin/products">
       <div class="stat-value">{{ stats.productsDraft }}</div>
-      <div class="stat-label">Sản phẩm nháp</div>
+      <div class="stat-label">Sản phẩm chưa xuất bản</div>
     </a>
     <a class="stat-card" href="/admin/orders">
       <div class="stat-value">{{ stats.ordersRecent }}</div>

@@ -6,7 +6,7 @@ import { verifySiteEngineRequest } from "../../security.js";
 
 // LeadBase chủ động đẩy mỗi khi sản phẩm đổi (system_design.md §4.2) — 1 trong 3 API HTTP thật
 // duy nhất của toàn hệ thống, ký HMAC bằng Website.secret (= config.siteEngineSecret của CHÍNH
-// instance này). "create" tạo ProductCache MỚI (publishStatus mặc định 'draft', name/description/
+// instance này). "create" tạo ProductCache MỚI (status mặc định 'draft', name/description/
 // imageUrls chỉ là giá trị khởi tạo — sync sau không ghi đè). "update" CHỈ đụng price/salePrice/
 // stock/leadbaseStatus/syncedAt, không đụng nội dung do website tự quản.
 //
@@ -147,7 +147,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
           stock: parsed.data.stock ?? null,
           leadbaseStatus: parsed.data.status,
           imageUrls: [],
-          publishStatus: "draft",
+          status: "draft",
           hasVariants,
           categoryId,
         },

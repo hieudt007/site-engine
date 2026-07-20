@@ -38,6 +38,7 @@ import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
 import { registerReviewRoutes } from "./routes/public/reviews.js";
 import { registerSeoRoutes } from "./routes/public/seo.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
+import { startPublishScheduler } from "./services/publishScheduler.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -122,6 +123,7 @@ async function start(): Promise<void> {
   await registerSeoRoutes(app);
 
   startOrderRetryCron();
+  startPublishScheduler();
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 }

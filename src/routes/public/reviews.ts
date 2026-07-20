@@ -19,7 +19,7 @@ export async function registerReviewRoutes(app: FastifyInstance): Promise<void> 
     }
 
     const product = await prisma.productCache.findUnique({ where: { id: request.params.id } });
-    if (!product || product.publishStatus !== "published") {
+    if (!product || product.status !== "published") {
       return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
     }
 

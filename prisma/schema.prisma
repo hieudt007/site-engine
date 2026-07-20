@@ -101,11 +101,15 @@ model Post {
   categoryId String?
   category   PostCategory? @relation(fields: [categoryId], references: [id])
 
-  metaTitle       String?
-  metaDescription String?
-  ogImage         String?
-  noindex         Boolean @default(false)
+  // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? } - score la cho danh
+  // truoc cho tinh nang cham diem SEO SAU NAY, hien CHUA co logic tinh, luon null.
+  seo Json?
 
+  // 'draft' | 'pending_review' | 'scheduled' | 'published' - xem services/contentStatus.ts cho
+  // ma tran quyen chuyen trang thai theo role. scheduledAt tu dong -> published qua cron
+  // (services/publishScheduler.ts), luc do publishedAt cung tu dong duoc set.
+  status      String    @default("draft")
+  scheduledAt DateTime?
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -142,11 +146,11 @@ model Page {
   author          User? @relation(fields: [authorId], references: [leadbaseUserId])
   updatedByUserId Int? // ai SỬA LẦN CUỐI — có thể khác authorId
 
-  metaTitle       String?
-  metaDescription String?
-  ogImage         String?
-  noindex         Boolean @default(false)
+  // Cùng cấu trúc với Post.seo — { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
+  seo Json?
 
+  status      String    @default("draft") // 'draft' | 'pending_review' | 'scheduled' | 'published'
+  scheduledAt DateTime?
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -168,15 +172,19 @@ model ProductCache {
   leadbaseStatus String // giá trị đồng bộ nguyên văn từ LeadBase — enum cụ thể TBD
 
   // --- Do CHÍNH website tự quản, LeadBase chỉ set giá trị khởi tạo lúc tạo mới, không ghi đè sau đó ---
-  name            String
-  description     String?
-  imageUrls       String[]
-  metaTitle       String?
-  metaDescription String?
+  name        String
+  description String?
+  imageUrls   String[]
+
+  // Cùng cấu trúc với Post.seo — { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
+  seo Json?
 
   // Cổng xuất bản riêng của website — sản phẩm mới từ LeadBase luôn vào ở trạng thái draft,
-  // tenant phải tự vào /admin/products sửa/bổ sung nội dung rồi publish
-  publishStatus String @default("draft") // 'draft' | 'published'
+  // tenant phải tự vào /admin/products sửa/bổ sung nội dung rồi publish. Cùng 4 trạng thái với
+  // Post/Page (services/contentStatus.ts) — thay cho publishStatus 2 trạng thái cũ.
+  status      String    @default("draft") // 'draft' | 'pending_review' | 'scheduled' | 'published'
+  scheduledAt DateTime?
+  publishedAt DateTime?
 
   syncedAt DateTime @default(now()) // lần cuối nhận được cú đẩy từ LeadBase
 

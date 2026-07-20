@@ -1,8 +1,20 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
-import { requireRole } from "../../plugins/requireRole.js";
+import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
+import { canEditContentFields } from "../../services/contentStatus.js";
+
+const seoSchema = z
+  .object({
+    metaTitle: z.string().optional(),
+    metaDescription: z.string().optional(),
+    ogImage: z.string().optional(),
+    noindex: z.boolean().optional(),
+    keyword: z.string().optional(),
+    score: z.number().optional(),
+  })
+  .optional();
 
 const createPostSchema = z.object({
   title: z.string().min(1),
@@ -11,14 +23,12 @@ const createPostSchema = z.object({
   excerpt: z.string().optional(),
   coverImage: z.string().optional(),
   authorName: z.string().optional(),
-  metaTitle: z.string().optional(),
-  metaDescription: z.string().optional(),
-  ogImage: z.string().optional(),
-  noindex: z.boolean().optional(),
   categoryId: z.string().nullable().optional(),
+  seo: seoSchema,
 });
 
 const updatePostSchema = createPostSchema.partial();
+const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
 const PAGE_SIZE = 20;
 
 function auditLog(userId: number, action: string, entityId: string, metadata?: object) {
@@ -27,20 +37,22 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
   });
 }
 
-// CRUD bài viết (system_design.md §5.2): "edit" chỉ tạo/sửa được bài NHÁP (chưa publishedAt),
-// không tự xuất bản/xoá; "manager"/"admin" mới publish/xoá được.
+// CRUD bài viết + luồng duyệt 4 trạng thái (draft/pending_review/scheduled/published, xem
+// services/contentStatus.ts): "edit" soạn/nộp duyệt (draft <-> pending_review), "manager"/"admin"
+// mới lên lịch/xuất bản/gỡ/xoá được — thay cho luật cũ chỉ có publishedAt.
 export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { page?: string; q?: string; categoryId?: string } }>(
+  app.get<{ Querystring: { page?: string; q?: string; categoryId?: string; status?: string } }>(
     "/admin/api/posts",
     { preHandler: requireRole("edit") },
     async (request) => {
       const page = Math.max(1, Number(request.query.page ?? 1) || 1);
       const skip = (page - 1) * PAGE_SIZE;
-      const { q, categoryId } = request.query;
+      const { q, categoryId, status } = request.query;
 
       const where = {
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
         ...(categoryId ? { categoryId } : {}),
+        ...(status ? { status } : {}),
       };
 
       const [posts, total] = await Promise.all([
@@ -112,9 +124,9 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
 
-      const role = request.session.get("role");
-      if (role === "edit" && post.publishedAt) {
-        return reply.code(403).send({ error: "Bài đã xuất bản — chỉ manager/admin được sửa" });
+      const role = request.session.get("role") as Role;
+      if (!canEditContentFields(role, post.status)) {
+        return reply.code(403).send({ error: "Bài đã lên lịch/xuất bản — chỉ manager/admin được sửa" });
       }
 
       const slugChanged = !!parsed.data.slug && parsed.data.slug !== post.slug;
@@ -153,6 +165,26 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
   );
 
   app.post<{ Params: { id: string } }>(
+    "/admin/api/posts/:id/submit",
+    { preHandler: requireRole("edit") },
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!post) {
+        return reply.code(404).send({ error: "Không tìm thấy bài viết" });
+      }
+
+      const userId = request.session.get("userId")!;
+      const updated = await prisma.post.update({
+        where: { id: post.id },
+        data: { status: "pending_review", updatedByUserId: userId },
+      });
+      await auditLog(userId, "post.submit", post.id);
+
+      return { post: updated };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
     "/admin/api/posts/:id/publish",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
@@ -164,9 +196,59 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
-        data: { publishedAt: new Date(), updatedByUserId: userId },
+        data: { status: "published", publishedAt: new Date(), scheduledAt: null, updatedByUserId: userId },
       });
       await auditLog(userId, "post.publish", post.id);
+
+      return { post: updated };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/admin/api/posts/:id/schedule",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const parsed = scheduleSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(422).send({ error: parsed.error.flatten() });
+      }
+
+      const scheduledAt = new Date(parsed.data.scheduledAt);
+      if (Number.isNaN(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {
+        return reply.code(422).send({ error: "Thời điểm lên lịch phải ở tương lai" });
+      }
+
+      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!post) {
+        return reply.code(404).send({ error: "Không tìm thấy bài viết" });
+      }
+
+      const userId = request.session.get("userId")!;
+      const updated = await prisma.post.update({
+        where: { id: post.id },
+        data: { status: "scheduled", scheduledAt, publishedAt: null, updatedByUserId: userId },
+      });
+      await auditLog(userId, "post.schedule", post.id, { scheduledAt: updated.scheduledAt });
+
+      return { post: updated };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/admin/api/posts/:id/unpublish",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      if (!post) {
+        return reply.code(404).send({ error: "Không tìm thấy bài viết" });
+      }
+
+      const userId = request.session.get("userId")!;
+      const updated = await prisma.post.update({
+        where: { id: post.id },
+        data: { status: "draft", publishedAt: null, scheduledAt: null, updatedByUserId: userId },
+      });
+      await auditLog(userId, "post.unpublish", post.id);
 
       return { post: updated };
     },

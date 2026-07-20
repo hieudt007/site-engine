@@ -5,7 +5,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 // (OAuthUserInfoController::siteEngineRole bên lead-base), nên ở đây chỉ cần so đúng 3 giá trị.
 export type Role = "admin" | "manager" | "edit";
 
-const ROLE_RANK: Record<Role, number> = { edit: 0, manager: 1, admin: 2 };
+export const ROLE_RANK: Record<Role, number> = { edit: 0, manager: 1, admin: 2 };
 
 function isRole(value: unknown): value is Role {
   return value === "admin" || value === "manager" || value === "edit";

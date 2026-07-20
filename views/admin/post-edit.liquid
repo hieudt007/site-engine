@@ -5,6 +5,12 @@
   <a class="btn" href="/admin/posts">← Danh sách</a>
 </div>
 
+{% if post %}
+  <div style="margin-bottom:1rem;">
+    <span class="status-badge status-{{ post.status }}" id="status-badge-display">{{ post.status }}</span>
+  </div>
+{% endif %}
+
 <form id="post-form" class="card">
   <label for="title">Tiêu đề</label>
   <input type="text" id="title" name="title" value="{% if post %}{{ post.title | escape }}{% endif %}" required>
@@ -34,20 +40,35 @@
   <textarea id="body" name="body" required>{% if post %}{{ post.body }}{% endif %}</textarea>
   <div class="field-hint">Chưa có trình soạn thảo rich-text (đang TBD) — nhập HTML/markdown thô.</div>
 
-  <label for="metaTitle">SEO — Meta title</label>
-  <input type="text" id="metaTitle" name="metaTitle" value="{% if post %}{{ post.metaTitle | escape }}{% endif %}">
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
-  <label for="metaDescription">SEO — Meta description</label>
-  <input type="text" id="metaDescription" name="metaDescription" value="{% if post %}{{ post.metaDescription | escape }}{% endif %}">
+  <label for="metaTitle">Meta title</label>
+  <input type="text" id="metaTitle" name="metaTitle" value="{% if post.seo %}{{ post.seo.metaTitle | escape }}{% endif %}">
+
+  <label for="metaDescription">Meta description</label>
+  <input type="text" id="metaDescription" name="metaDescription" value="{% if post.seo %}{{ post.seo.metaDescription | escape }}{% endif %}">
+
+  <label for="ogImage">Ảnh chia sẻ (Open Graph, URL)</label>
+  <input type="text" id="ogImage" name="ogImage" value="{% if post.seo %}{{ post.seo.ogImage | escape }}{% endif %}">
+
+  <label for="keyword">Từ khoá chính</label>
+  <input type="text" id="keyword" name="keyword" value="{% if post.seo %}{{ post.seo.keyword | escape }}{% endif %}">
+
+  {% if post.seo.score %}
+    <div class="field-hint">Điểm SEO: {{ post.seo.score }}</div>
+  {% endif %}
 
   <label style="display:flex;align-items:center;gap:0.4rem;">
-    <input type="checkbox" id="noindex" name="noindex" style="width:auto;" {% if post.noindex %}checked{% endif %}>
+    <input type="checkbox" id="noindex" name="noindex" style="width:auto;" {% if post.seo.noindex %}checked{% endif %}>
     noindex (ẩn khỏi công cụ tìm kiếm)
   </label>
 
-  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
+  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
     <button type="submit" class="btn btn-primary">Lưu</button>
+    <span id="submit-slot"></span>
     <span id="publish-slot"></span>
+    <span id="schedule-slot"></span>
+    <span id="unpublish-slot"></span>
     <span id="delete-slot"></span>
   </div>
 </form>
@@ -57,7 +78,7 @@
   const CURRENT_ROLE = "{{ role }}";
   const canManage = CURRENT_ROLE === "manager" || CURRENT_ROLE === "admin";
   const postId = {% if post %}"{{ post.id }}"{% else %}null{% endif %};
-  const isPublished = {% if post.publishedAt %}true{% else %}false{% endif %};
+  const status = {% if post %}"{{ post.status }}"{% else %}"draft"{% endif %};
   const form = document.getElementById("post-form");
   const flash = document.getElementById("flash");
 
@@ -66,42 +87,88 @@
     flash.className = ok ? "success" : "error";
   }
 
-  if (postId && isPublished && CURRENT_ROLE === "edit") {
+  const locked = (status === "scheduled" || status === "published") && CURRENT_ROLE === "edit";
+  if (postId && locked) {
     [...form.elements].forEach((el) => (el.disabled = true));
-    showFlash("Bài đã xuất bản — chỉ manager/admin được sửa.", false);
+    showFlash("Bài đã lên lịch/xuất bản — chỉ manager/admin được sửa.", false);
   }
 
-  if (postId && canManage) {
-    if (!isPublished) {
+  async function callAction(path, body) {
+    const res = await fetch("/admin/api/posts/" + postId + path, {
+      method: "POST",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      showFlash(typeof errBody.error === "string" ? errBody.error : "Thao tác thất bại", false);
+      return false;
+    }
+    return true;
+  }
+
+  if (postId) {
+    if (status === "draft") {
+      const submitBtn = document.createElement("button");
+      submitBtn.type = "button";
+      submitBtn.className = "btn";
+      submitBtn.textContent = "Nộp duyệt";
+      submitBtn.onclick = async () => {
+        if (await callAction("/submit")) window.location.reload();
+      };
+      document.getElementById("submit-slot").appendChild(submitBtn);
+    }
+
+    if (canManage && (status === "pending_review" || status === "scheduled" || status === "draft")) {
       const publishBtn = document.createElement("button");
       publishBtn.type = "button";
       publishBtn.className = "btn";
-      publishBtn.textContent = "Xuất bản";
+      publishBtn.textContent = "Xuất bản ngay";
       publishBtn.onclick = async () => {
-        const res = await fetch("/admin/api/posts/" + postId + "/publish", { method: "POST" });
-        if (!res.ok) {
-          showFlash("Xuất bản thất bại", false);
-          return;
-        }
-        window.location.reload();
+        if (await callAction("/publish")) window.location.reload();
       };
       document.getElementById("publish-slot").appendChild(publishBtn);
+
+      const scheduleBtn = document.createElement("button");
+      scheduleBtn.type = "button";
+      scheduleBtn.className = "btn";
+      scheduleBtn.textContent = "Lên lịch...";
+      scheduleBtn.onclick = async () => {
+        const value = prompt("Nhập thời điểm xuất bản (vd 2026-08-01T09:00):");
+        if (!value) return;
+        if (await callAction("/schedule", { scheduledAt: value })) window.location.reload();
+      };
+      document.getElementById("schedule-slot").appendChild(scheduleBtn);
     }
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "btn btn-danger";
-    deleteBtn.textContent = "Xoá";
-    deleteBtn.onclick = async () => {
-      if (!confirm("Xoá bài viết này?")) return;
-      const res = await fetch("/admin/api/posts/" + postId, { method: "DELETE" });
-      if (!res.ok) {
-        showFlash("Xoá thất bại", false);
-        return;
-      }
-      window.location.href = "/admin/posts";
-    };
-    document.getElementById("delete-slot").appendChild(deleteBtn);
+    if (canManage && (status === "scheduled" || status === "published")) {
+      const unpublishBtn = document.createElement("button");
+      unpublishBtn.type = "button";
+      unpublishBtn.className = "btn";
+      unpublishBtn.textContent = "Gỡ về nháp";
+      unpublishBtn.onclick = async () => {
+        if (!confirm("Gỡ bài viết này về nháp?")) return;
+        if (await callAction("/unpublish")) window.location.reload();
+      };
+      document.getElementById("unpublish-slot").appendChild(unpublishBtn);
+    }
+
+    if (canManage) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "btn btn-danger";
+      deleteBtn.textContent = "Xoá";
+      deleteBtn.onclick = async () => {
+        if (!confirm("Xoá bài viết này?")) return;
+        const res = await fetch("/admin/api/posts/" + postId, { method: "DELETE" });
+        if (!res.ok) {
+          showFlash("Xoá thất bại", false);
+          return;
+        }
+        window.location.href = "/admin/posts";
+      };
+      document.getElementById("delete-slot").appendChild(deleteBtn);
+    }
   }
 
   form.addEventListener("submit", async (event) => {
@@ -114,9 +181,13 @@
       coverImage: form.coverImage.value || undefined,
       authorName: form.authorName.value || undefined,
       categoryId: form.categoryId.value || null,
-      metaTitle: form.metaTitle.value || undefined,
-      metaDescription: form.metaDescription.value || undefined,
-      noindex: form.noindex.checked,
+      seo: {
+        metaTitle: form.metaTitle.value || undefined,
+        metaDescription: form.metaDescription.value || undefined,
+        ogImage: form.ogImage.value || undefined,
+        keyword: form.keyword.value || undefined,
+        noindex: form.noindex.checked,
+      },
     };
 
     const res = await fetch(postId ? "/admin/api/posts/" + postId : "/admin/api/posts", {

@@ -1,17 +1,19 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
+import { readSeo } from "../../services/seoJson.js";
 
 const PAGE_SIZE = 12;
 
-// Chỉ đọc ProductCache.publishStatus='published' (system_design.md §4.2/§8) — 'draft' (vừa
-// sync từ LeadBase, chưa được website tự bổ sung nội dung) không lộ ra public.
+// Chỉ đọc ProductCache.status='published' (system_design.md §4.2/§8) — 'draft'/'pending_review'/
+// 'scheduled' (chưa tới giờ) không lộ ra public. scheduled tự chuyển 'published' qua cron
+// (services/publishScheduler.ts) nên ở đây chỉ cần lọc đúng 1 giá trị 'published'.
 export async function registerProductsPublicRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { page?: string } }>("/products", async (request, reply) => {
     const page = Math.max(1, Number(request.query.page ?? 1) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
-    const where = { publishStatus: "published" };
+    const where = { status: "published" };
     const [products, total] = await Promise.all([
       prisma.productCache.findMany({
         where,
@@ -40,7 +42,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       where: { id: request.params.id },
       include: { variants: true, category: { select: { name: true, slug: true } } },
     });
-    if (!product || product.publishStatus !== "published") {
+    if (!product || product.status !== "published") {
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
     }
 
@@ -58,7 +60,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
 
     const html = await renderPublic("product-detail", {
       pageTitle: product.name,
-      metaDescription: product.metaDescription ?? undefined,
+      metaDescription: readSeo(product.seo).metaDescription,
       product,
       variantsJson,
       reviews,

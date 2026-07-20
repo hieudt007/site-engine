@@ -8,9 +8,9 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
     const baseUrl = `https://${request.hostname}`;
 
     const [posts, products, pages] = await Promise.all([
-      prisma.post.findMany({ where: { publishedAt: { not: null } }, select: { slug: true, updatedAt: true } }),
-      prisma.productCache.findMany({ where: { publishStatus: "published" }, select: { id: true, syncedAt: true } }),
-      prisma.page.findMany({ where: { publishedAt: { not: null } }, select: { slug: true, updatedAt: true } }),
+      prisma.post.findMany({ where: { status: "published" }, select: { slug: true, updatedAt: true } }),
+      prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, syncedAt: true } }),
+      prisma.page.findMany({ where: { status: "published" }, select: { slug: true, updatedAt: true } }),
     ]);
 
     const staticUrls = [

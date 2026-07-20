@@ -31,7 +31,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
       return { products: [] };
     }
     const products = await prisma.productCache.findMany({
-      where: { id: { in: ids }, publishStatus: "published" },
+      where: { id: { in: ids }, status: "published" },
       include: { variants: true },
     });
     return { products };
@@ -54,7 +54,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
 
     const productIds = parsed.data.items.map((i) => i.productId);
     const products = await prisma.productCache.findMany({
-      where: { id: { in: productIds }, publishStatus: "published" },
+      where: { id: { in: productIds }, status: "published" },
       include: { variants: true },
     });
     const productById = new Map(products.map((p) => [p.id, p]));
