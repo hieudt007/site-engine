@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 const TYPE = "post";
 
@@ -29,6 +30,7 @@ const updateCategorySchema = z.object({
   excerpt: z.string().optional(),
   body: z.string().optional(),
   seo: seoSchema,
+  customFields: customFieldsSchema,
 });
 
 // Danh mục bài viết — khái niệm CỦA RIÊNG website, CRUD đầy đủ (khác danh mục sản phẩm,

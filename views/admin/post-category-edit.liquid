@@ -37,8 +37,9 @@
   <label for="keyword">Từ khoá chính</label>
   <input type="text" id="keyword" name="keyword" value="{% if category.seo %}{{ category.seo.keyword | escape }}{% endif %}">
 
-  <div style="margin-top:1.5rem;">
+  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
     <button type="submit" class="btn btn-primary">Lưu</button>
+    <button type="button" class="btn" id="custom-fields-btn">Trường tùy biến</button>
   </div>
 </form>
 
@@ -81,6 +82,24 @@
     }
 
     showFlash("Đã lưu.", true);
+  });
+
+  document.getElementById("custom-fields-btn").addEventListener("click", async () => {
+    const res = await fetch("/admin/api/post-categories/" + categoryId);
+    const { category: current } = await res.json();
+    openCustomFieldsEditor({
+      title: "Trường tùy biến — danh mục",
+      initial: current.customFields || {},
+      onSave: async (customFields) => {
+        const saveRes = await fetch("/admin/api/post-categories/" + categoryId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customFields }),
+        });
+        if (!saveRes.ok) throw new Error("Lưu thất bại");
+        showFlash("Đã lưu trường tùy biến.", true);
+      },
+    });
   });
 })();
 </script>

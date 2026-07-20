@@ -41,6 +41,8 @@
     <div class="font-serif leading-relaxed text-left">{{ product.description | escape | newline_to_br }}</div>
   {% endif %}
 
+  {% render "_custom-fields", fields: product.customFields %}
+
   {% if product.imageUrls.size > 1 %}
     <div class="flex gap-2 mt-6 flex-wrap justify-center">
       {% for url in product.imageUrls offset: 1 %}

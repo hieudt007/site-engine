@@ -120,6 +120,10 @@ model Category {
   body    String?
   seo     Json? // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
 
+  // Trường tùy biến do admin tự đặt tay (vd "Xuất xứ": "Việt Nam") — map string->string đơn giản,
+  // KHÔNG dùng cho số liệu hệ thống tự tính (vd lượt xem) — xem services/customFields.ts.
+  customFields Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -136,6 +140,7 @@ model Topic {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  customFields Json?
   createdAt DateTime @default(now())
 
   posts Post[]
@@ -200,6 +205,9 @@ model Post {
   // truoc cho tinh nang cham diem SEO SAU NAY, hien CHUA co logic tinh, luon null.
   seo Json?
 
+  // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts, model Category.
+  customFields Json?
+
   // 'draft' | 'pending_review' | 'scheduled' | 'published' - xem services/contentStatus.ts cho
   // ma tran quyen chuyen trang thai theo role. scheduledAt tu dong -> published qua cron
   // (services/publishScheduler.ts), luc do publishedAt cung tu dong duoc set.
@@ -251,6 +259,9 @@ model ProductCache {
   // Cùng cấu trúc với Post.seo — { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
   seo Json?
 
+  // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts.
+  customFields Json?
+
   // Cổng xuất bản riêng của website — sản phẩm mới từ LeadBase luôn vào ở trạng thái draft,
   // tenant phải tự vào /admin/products sửa/bổ sung nội dung rồi publish. Cùng 4 trạng thái với
   // Post/Page (services/contentStatus.ts) — thay cho publishStatus 2 trạng thái cũ.
@@ -286,6 +297,9 @@ model ProductReview {
   rating       Int // 1-5
   comment      String?
   status       String @default("pending") // 'pending' | 'approved' | 'rejected'
+
+  // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts.
+  customFields Json?
 
   createdAt DateTime @default(now())
 }

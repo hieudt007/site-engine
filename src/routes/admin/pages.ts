@@ -6,6 +6,7 @@ import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 const TYPE = "page";
 
@@ -27,6 +28,7 @@ const createPageSchema = z.object({
   excerpt: z.string().optional(),
   coverImage: z.string().optional(),
   seo: seoSchema,
+  customFields: customFieldsSchema,
 });
 
 const updatePageSchema = createPageSchema.partial();
@@ -152,6 +154,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
           excerpt: page.excerpt,
           coverImage: page.coverImage,
           seo: page.seo,
+          customFields: page.customFields,
         },
         userId,
       );
@@ -222,6 +225,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
           excerpt: page.excerpt,
           coverImage: page.coverImage,
           seo: page.seo,
+          customFields: page.customFields,
         },
         userId,
       );
@@ -233,6 +237,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         excerpt: string | null;
         coverImage: string | null;
         seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
       };
 
       if (snapshot.slug !== page.slug) {

@@ -88,6 +88,7 @@
     <span id="unpublish-slot"></span>
     <span id="delete-slot"></span>
     {% if post %}<a class="btn" href="/admin/preview/post/{{ post.id }}" target="_blank" rel="noopener">Xem thử</a>{% endif %}
+    {% if post %}<button type="button" class="btn" id="custom-fields-btn">Trường tùy biến</button>{% endif %}
   </div>
 </form>
 
@@ -141,6 +142,27 @@
       if (editorBody) editorBody.contentEditable = "false";
     }
   });
+
+  const customFieldsBtn = document.getElementById("custom-fields-btn");
+  if (customFieldsBtn) {
+    customFieldsBtn.addEventListener("click", async () => {
+      const res = await fetch("/admin/api/posts/" + postId);
+      const { post: current } = await res.json();
+      openCustomFieldsEditor({
+        title: "Trường tùy biến — bài viết",
+        initial: current.customFields || {},
+        onSave: async (customFields) => {
+          const saveRes = await fetch("/admin/api/posts/" + postId, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ customFields }),
+          });
+          if (!saveRes.ok) throw new Error("Lưu thất bại");
+          showFlash("Đã lưu trường tùy biến.", true);
+        },
+      });
+    });
+  }
 
   const locked = (status === "scheduled" || status === "published") && CURRENT_ROLE === "edit";
   if (postId && locked) {

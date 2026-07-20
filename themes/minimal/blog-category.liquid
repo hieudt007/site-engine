@@ -5,6 +5,7 @@
 <h1 class="font-serif text-3xl font-bold mt-3 mb-2 text-center">{{ category.name | escape }}</h1>
 {% if category.excerpt %}<p class="text-stone-600 text-center">{{ category.excerpt | escape }}</p>{% endif %}
 {% if category.body %}<div class="font-serif leading-relaxed mb-8">{{ category.body }}</div>{% endif %}
+{% render "_custom-fields", fields: category.customFields %}
 
 {% if category.children.size > 0 %}
   <div class="flex flex-wrap justify-center gap-2 mb-8">

@@ -38,10 +38,12 @@
     return div.innerHTML;
   }
 
+  let currentReviews = [];
+
   function rowHtml(r) {
     const actions = r.status === "pending"
       ? '<button class="btn" data-action="approve" data-id="' + r.id + '">Duyệt</button> ' +
-        '<button class="btn btn-danger" data-action="reject" data-id="' + r.id + '">Từ chối</button>'
+        '<button class="btn btn-danger" data-action="reject" data-id="' + r.id + '">Từ chối</button> '
       : "";
     return (
       "<tr>" +
@@ -49,7 +51,8 @@
       "<td>" + escapeHtml(r.customerName) + "</td>" +
       "<td>" + "★".repeat(r.rating) + "</td>" +
       "<td>" + escapeHtml(r.comment || "-") + "</td>" +
-      '<td style="white-space:nowrap;">' + actions + "</td>" +
+      '<td style="white-space:nowrap;">' + actions +
+      '<button class="btn" data-custom-fields="' + r.id + '">Trường tùy biến</button></td>' +
       "</tr>"
     );
   }
@@ -65,6 +68,7 @@
 
     const res = await fetch("/admin/api/reviews?" + params.toString());
     const { reviews, hasNext, hasPrev } = await res.json();
+    currentReviews = reviews;
 
     tbody.innerHTML = reviews.length
       ? reviews.map(rowHtml).join("")
@@ -95,6 +99,25 @@
   });
 
   tbody.addEventListener("click", async (event) => {
+    const cfBtn = event.target.closest("button[data-custom-fields]");
+    if (cfBtn) {
+      const review = currentReviews.find((r) => r.id === cfBtn.dataset.customFields);
+      openCustomFieldsEditor({
+        title: "Trường tùy biến — đánh giá",
+        initial: (review && review.customFields) || {},
+        onSave: async (customFields) => {
+          const res = await fetch("/admin/api/reviews/" + cfBtn.dataset.customFields, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ customFields }),
+          });
+          if (!res.ok) throw new Error("Lưu thất bại");
+          load();
+        },
+      });
+      return;
+    }
+
     const btn = event.target.closest("button[data-action]");
     if (!btn) return;
     const { action, id } = btn.dataset;

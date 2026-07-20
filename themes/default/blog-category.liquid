@@ -5,6 +5,7 @@
 <h1 class="text-2xl font-bold mt-2 mb-1">{{ category.name | escape }}</h1>
 {% if category.excerpt %}<p class="text-gray-600">{{ category.excerpt | escape }}</p>{% endif %}
 {% if category.body %}<div class="leading-relaxed mb-6">{{ category.body }}</div>{% endif %}
+{% render "_custom-fields", fields: category.customFields %}
 
 {% if category.children.size > 0 %}
   <div class="flex flex-wrap gap-2 mb-6">

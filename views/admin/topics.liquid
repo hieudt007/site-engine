@@ -36,13 +36,18 @@
     return div.innerHTML;
   }
 
+  let currentTopics = [];
+
   async function load() {
     const res = await fetch("/admin/api/topics");
     const { topics } = await res.json();
+    currentTopics = topics;
     tbody.innerHTML = topics.length
       ? topics.map((t) =>
           "<tr><td>" + escapeHtml(t.name) + "</td><td>" + escapeHtml(t.slug) + "</td>" +
-          '<td style="text-align:right;"><button class="btn btn-danger" data-id="' + t.id + '">Xoá</button></td></tr>'
+          '<td style="text-align:right;white-space:nowrap;">' +
+          '<button class="btn" data-custom-fields="' + t.id + '">Trường tùy biến</button> ' +
+          '<button class="btn btn-danger" data-id="' + t.id + '">Xoá</button></td></tr>'
         ).join("")
       : '<tr><td colspan="3" class="empty-state">Chưa có chủ đề nào.</td></tr>';
   }
@@ -70,6 +75,25 @@
   });
 
   tbody.addEventListener("click", async (event) => {
+    const cfBtn = event.target.closest("button[data-custom-fields]");
+    if (cfBtn) {
+      const topic = currentTopics.find((t) => t.id === cfBtn.dataset.customFields);
+      openCustomFieldsEditor({
+        title: "Trường tùy biến — chủ đề",
+        initial: (topic && topic.customFields) || {},
+        onSave: async (customFields) => {
+          const res = await fetch("/admin/api/topics/" + cfBtn.dataset.customFields, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ customFields }),
+          });
+          if (!res.ok) throw new Error("Lưu thất bại");
+          load();
+        },
+      });
+      return;
+    }
+
     const btn = event.target.closest("button[data-id]");
     if (!btn) return;
     if (!confirm("Xoá chủ đề này? Bài viết đang gán sẽ về trạng thái không có chủ đề.")) return;

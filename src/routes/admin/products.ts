@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 // §5.2: sản phẩm thuộc nhóm "nội dung + sản phẩm" của manager — role "edit" KHÔNG được đụng vào
 // (khác Post, nơi edit tạo/sửa được bài nháp) — nên không có bước "nộp duyệt" như posts.ts,
@@ -25,6 +26,7 @@ const updateContentSchema = z.object({
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
   seo: seoSchema,
+  customFields: customFieldsSchema,
 });
 
 const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
@@ -98,6 +100,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           description: product.description,
           imageUrls: product.imageUrls,
           seo: product.seo,
+          customFields: product.customFields,
         },
         userId,
       );
@@ -147,6 +150,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           description: product.description,
           imageUrls: product.imageUrls,
           seo: product.seo,
+          customFields: product.customFields,
         },
         userId,
       );
@@ -156,6 +160,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         description: string | null;
         imageUrls: string[];
         seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
       };
 
       const updated = await prisma.productCache.update({ where: { id: product.id }, data: snapshot });

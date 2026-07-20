@@ -176,6 +176,21 @@
     {% block content %}{% endblock %}
   </main>
 
+  <div id="custom-fields-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--color-card-bg);border-radius:var(--radius-md);padding:var(--space-5);width:480px;max-width:92vw;max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
+        <strong id="custom-fields-title">Trường tùy biến</strong>
+        <button type="button" class="btn" id="custom-fields-close">Đóng</button>
+      </div>
+      <div id="custom-fields-rows" style="display:flex;flex-direction:column;gap:0.5rem;"></div>
+      <div style="margin-top:0.8rem;display:flex;gap:0.6rem;">
+        <button type="button" class="btn" id="custom-fields-add">+ Thêm trường</button>
+        <button type="button" class="btn btn-primary" id="custom-fields-save">Lưu</button>
+      </div>
+      <div id="custom-fields-error" style="color:var(--color-danger);font-size:0.82rem;margin-top:0.5rem;"></div>
+    </div>
+  </div>
+
   <div id="media-picker-overlay">
     <div id="media-picker-panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
@@ -371,6 +386,91 @@
     textarea.parentNode.insertBefore(toolbar, textarea);
     textarea.parentNode.insertBefore(body, textarea);
   };
+  </script>
+
+  <script>
+  // Modal sua "customFields" (Post/Page/Product/Category/Topic/ProductReview, xem
+  // services/customFields.ts) - dung chung 1 modal cho moi man hinh admin thay vi 7 UI rieng.
+  // API: openCustomFieldsEditor({ title, initial: {k:v,...}, onSave: async (obj) => {...} }).
+  // Luu NGAY khi bam nut Luu trong modal (goi onSave rieng, khong gop vao form chinh cua trang).
+  (function () {
+    const overlay = document.getElementById("custom-fields-overlay");
+    const titleEl = document.getElementById("custom-fields-title");
+    const rowsEl = document.getElementById("custom-fields-rows");
+    const errorEl = document.getElementById("custom-fields-error");
+    const closeBtn = document.getElementById("custom-fields-close");
+    const addBtn = document.getElementById("custom-fields-add");
+    const saveBtn = document.getElementById("custom-fields-save");
+
+    let onSaveCallback = null;
+
+    function addRow(key, value) {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.gap = "0.5rem";
+      row.innerHTML =
+        '<input type="text" class="cf-key" placeholder="Tên trường" style="flex:1;">' +
+        '<input type="text" class="cf-value" placeholder="Giá trị" style="flex:1;">' +
+        '<button type="button" class="btn btn-danger" data-remove>×</button>';
+      row.querySelector(".cf-key").value = key || "";
+      row.querySelector(".cf-value").value = value || "";
+      rowsEl.appendChild(row);
+    }
+
+    function collect() {
+      const result = {};
+      rowsEl.querySelectorAll("div").forEach((row) => {
+        const key = row.querySelector(".cf-key").value.trim();
+        const value = row.querySelector(".cf-value").value.trim();
+        if (key) result[key] = value;
+      });
+      return result;
+    }
+
+    function close() {
+      overlay.style.display = "none";
+      onSaveCallback = null;
+      errorEl.textContent = "";
+    }
+
+    closeBtn.addEventListener("click", close);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+
+    addBtn.addEventListener("click", () => addRow("", ""));
+
+    rowsEl.addEventListener("click", (event) => {
+      const btn = event.target.closest("button[data-remove]");
+      if (!btn) return;
+      btn.closest("div").remove();
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      errorEl.textContent = "";
+      try {
+        await onSaveCallback(collect());
+        close();
+      } catch (err) {
+        errorEl.textContent = err && err.message ? err.message : "Lưu thất bại";
+      }
+    });
+
+    window.openCustomFieldsEditor = function (options) {
+      options = options || {};
+      titleEl.textContent = options.title || "Trường tùy biến";
+      onSaveCallback = options.onSave || (async () => {});
+      rowsEl.innerHTML = "";
+      const initial = options.initial || {};
+      const keys = Object.keys(initial);
+      if (keys.length === 0) {
+        addRow("", "");
+      } else {
+        keys.forEach((k) => addRow(k, initial[k]));
+      }
+      overlay.style.display = "flex";
+    };
+  })();
   </script>
 
   <script>

@@ -100,6 +100,7 @@
     <span id="schedule-slot"></span>
     <span id="unpublish-slot"></span>
     <a class="btn" href="/admin/preview/product/{{ product.id }}" target="_blank" rel="noopener">Xem thử</a>
+    <button type="button" class="btn" id="custom-fields-btn">Trường tùy biến</button>
   </div>
 </form>
 
@@ -167,6 +168,24 @@
   });
 
   renderImageUrlsPreview();
+
+  document.getElementById("custom-fields-btn").addEventListener("click", async () => {
+    const res = await fetch("/admin/api/products/" + productId);
+    const { product: current } = await res.json();
+    openCustomFieldsEditor({
+      title: "Trường tùy biến — sản phẩm",
+      initial: current.customFields || {},
+      onSave: async (customFields) => {
+        const saveRes = await fetch("/admin/api/products/" + productId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customFields }),
+        });
+        if (!saveRes.ok) throw new Error("Lưu thất bại");
+        showFlash("Đã lưu trường tùy biến.", true);
+      },
+    });
+  });
 
   async function callAction(path, body) {
     const res = await fetch("/admin/api/products/" + productId + path, {

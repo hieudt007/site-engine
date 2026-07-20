@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 const TYPE = "product";
 
@@ -21,6 +22,7 @@ const updateCategorySchema = z.object({
   excerpt: z.string().optional(),
   body: z.string().optional(),
   seo: seoSchema,
+  customFields: customFieldsSchema,
 });
 
 // Danh mục sản phẩm — name/slug do LeadBase sở hữu (đồng bộ qua productsSync.ts), KHÔNG có

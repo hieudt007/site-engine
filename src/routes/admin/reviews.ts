@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 const PAGE_SIZE = 20;
 
@@ -28,6 +30,25 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
       ]);
 
       return { reviews, total, page, hasNext: skip + reviews.length < total, hasPrev: page > 1 };
+    },
+  );
+
+  app.patch<{ Params: { id: string } }>(
+    "/admin/api/reviews/:id",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const parsed = z.object({ customFields: customFieldsSchema }).safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(422).send({ error: parsed.error.flatten() });
+      }
+
+      const review = await prisma.productReview.findUnique({ where: { id: request.params.id } });
+      if (!review) {
+        return reply.code(404).send({ error: "Không tìm thấy đánh giá" });
+      }
+
+      const updated = await prisma.productReview.update({ where: { id: review.id }, data: parsed.data });
+      return { review: updated };
     },
   );
 

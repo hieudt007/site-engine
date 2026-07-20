@@ -6,6 +6,7 @@ import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 const TYPE = "post";
 
@@ -30,6 +31,7 @@ const createPostSchema = z.object({
   topicId: z.string().nullable().optional(), // 1-1, xem model Topic
   password: z.string().nullable().optional(), // rỗng/null = bài mở tự do, xem routes/public/blog.ts
   seo: seoSchema,
+  customFields: customFieldsSchema,
 });
 
 const updatePostSchema = createPostSchema.partial();
@@ -170,6 +172,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           coverImage: post.coverImage,
           seo: post.seo,
           password: post.password,
+          customFields: post.customFields,
         },
         userId,
       );
@@ -246,6 +249,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           coverImage: post.coverImage,
           seo: post.seo,
           password: post.password,
+          customFields: post.customFields,
         },
         userId,
       );
@@ -258,6 +262,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         coverImage: string | null;
         seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
         password: string | null;
+        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
       };
 
       if (snapshot.slug !== post.slug) {
