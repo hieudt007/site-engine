@@ -1,31 +1,31 @@
 {% layout "layout" %}
 {% block content %}
-<div style="text-align:center;padding:2rem 0;">
-  <div style="font-size:2.5rem;">✅</div>
-  <h1>Đặt hàng thành công</h1>
-  <p style="color:#555;">Cảm ơn <strong>{{ order.customerName | escape }}</strong>, chúng tôi đã nhận được đơn hàng và sẽ liên hệ sớm.</p>
-  <p style="color:#999;font-size:0.85rem;">Mã đơn: {{ order.id }}</p>
+<div class="text-center py-8">
+  <div class="text-4xl">✅</div>
+  <h1 class="text-2xl font-bold mt-2">Đặt hàng thành công</h1>
+  <p class="text-gray-600">Cảm ơn <strong>{{ order.customerName | escape }}</strong>, chúng tôi đã nhận được đơn hàng và sẽ liên hệ sớm.</p>
+  <p class="text-gray-400 text-sm">Mã đơn: {{ order.id }}</p>
 </div>
 
-<div style="max-width:480px;margin:0 auto;border:1px solid #eee;border-radius:8px;padding:1.2rem;">
-  <h2 style="font-size:1rem;margin-top:0;">Chi tiết đơn hàng</h2>
+<div class="max-w-md mx-auto border border-gray-200 rounded-lg p-5">
+  <h2 class="text-base font-semibold mt-0">Chi tiết đơn hàng</h2>
   {% for item in order.items %}
-    <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid #f3f4f6;">
+    <div class="flex justify-between py-2 border-b border-gray-100">
       <span>{{ item.name | escape }} × {{ item.quantity }}</span>
       <span>{{ item.price }}₫</span>
     </div>
   {% endfor %}
-  <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:0.8rem;">
+  <div class="flex justify-between font-bold mt-3">
     <span>Tổng cộng</span>
     <span>{{ order.total }}₫</span>
   </div>
-  <div style="margin-top:0.8rem;font-size:0.85rem;color:#777;">
+  <div class="mt-3 text-sm text-gray-500">
     Giao tới: {{ order.customerAddress | default: "-" | escape }}<br>
     SĐT: {{ order.customerPhone | escape }}
   </div>
 </div>
 
-<div style="text-align:center;margin-top:1.5rem;">
-  <a href="/products">← Tiếp tục mua sắm</a>
+<div class="text-center mt-6">
+  <a href="/products" class="text-brand">← Tiếp tục mua sắm</a>
 </div>
 {% endblock %}

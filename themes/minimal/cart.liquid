@@ -1,19 +1,21 @@
 {% layout "layout" %}
 {% block content %}
-<h1 class="text-2xl font-bold mt-0 mb-6">Giỏ hàng</h1>
+<h1 class="font-serif text-3xl font-bold text-center mb-10">Giỏ hàng</h1>
 
 <div id="cart-items"></div>
 
-<form id="checkout-form" class="hidden mt-8 border-t border-gray-200 pt-6">
-  <h2 class="text-lg font-semibold">Thông tin nhận hàng</h2>
-  <div class="flex flex-col gap-3 max-w-md">
-    <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2.5 border border-gray-300 rounded-md">
-    <input type="text" name="customerPhone" placeholder="Số điện thoại" required class="px-3 py-2.5 border border-gray-300 rounded-md">
-    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2.5 border border-gray-300 rounded-md">
+<form id="checkout-form" class="hidden mt-10 border-t border-stone-200 pt-8">
+  <h2 class="font-serif text-xl font-semibold">Thông tin nhận hàng</h2>
+  <div class="flex flex-col gap-3 max-w-md mx-auto">
+    <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2.5 border border-stone-300 rounded-md">
+    <input type="text" name="customerPhone" placeholder="Số điện thoại" required class="px-3 py-2.5 border border-stone-300 rounded-md">
+    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2.5 border border-stone-300 rounded-md">
   </div>
-  <div id="cart-total" class="my-4 font-bold text-lg"></div>
-  <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 rounded-md text-[0.95rem] cursor-pointer">Đặt hàng</button>
-  <div id="checkout-error" class="text-red-600 mt-2 text-sm"></div>
+  <div id="cart-total" class="my-4 font-bold text-lg text-center"></div>
+  <div class="text-center">
+    <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 text-[0.95rem] cursor-pointer">Đặt hàng</button>
+  </div>
+  <div id="checkout-error" class="text-red-700 mt-2 text-sm text-center"></div>
 </form>
 
 <script>
@@ -44,7 +46,7 @@
     const form = document.getElementById("checkout-form");
 
     if (cart.length === 0) {
-      container.innerHTML = '<p class="text-gray-500">Giỏ hàng trống. <a href="/products" class="text-brand">Xem sản phẩm</a></p>';
+      container.innerHTML = '<p class="text-stone-500 text-center">Giỏ hàng trống. <a href="/products" class="text-brand">Xem sản phẩm</a></p>';
       form.classList.add("hidden");
       return;
     }
@@ -66,7 +68,7 @@
         unitPrice = v.salePrice ? Number(v.salePrice) : Number(v.price);
         const attrs = v.attributes || {};
         const attrText = Object.entries(attrs).map(([k, val]) => k + ": " + val).join(", ");
-        label = escapeHtml(p.name) + (attrText ? ' <span class="text-gray-400">(' + escapeHtml(attrText) + ')</span>' : "");
+        label = escapeHtml(p.name) + (attrText ? ' <span class="text-stone-400">(' + escapeHtml(attrText) + ')</span>' : "");
       } else {
         unitPrice = p.salePrice ? Number(p.salePrice) : Number(p.price);
         label = escapeHtml(p.name);
@@ -74,11 +76,11 @@
 
       total += unitPrice * item.quantity;
       return (
-        '<div class="flex justify-between items-center py-3 border-b border-gray-200">' +
-        '<div><div>' + label + '</div><div class="text-gray-400 text-sm">' + unitPrice + '₫ × ' + item.quantity + '</div></div>' +
+        '<div class="flex justify-between items-center py-3 border-b border-stone-200">' +
+        '<div><div>' + label + '</div><div class="text-stone-400 text-sm">' + unitPrice + '₫ × ' + item.quantity + '</div></div>' +
         '<div class="flex items-center gap-2">' +
         '<div class="font-semibold">' + (unitPrice * item.quantity) + '₫</div>' +
-        '<button data-index="' + index + '" class="cart-remove border border-gray-300 bg-white rounded-md px-2.5 py-1 cursor-pointer">Xoá</button>' +
+        '<button data-index="' + index + '" class="cart-remove border border-stone-300 bg-white rounded-md px-2.5 py-1 cursor-pointer">Xoá</button>' +
         '</div></div>'
       );
     });

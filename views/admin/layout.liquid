@@ -161,7 +161,8 @@
         <a class="sidebar-link{% if currentPath contains "/admin/menus" %} active{% endif %}" href="/admin/menus">Menu điều hướng</a>
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">Người dùng</a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">AI Agent</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings" %} active{% endif %}" href="/admin/settings/general">Cài đặt</a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">Cài đặt</a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/theme" %} active{% endif %}" href="/admin/settings/theme">Giao diện</a>{% endif %}
       </div>
     {% endif %}
 

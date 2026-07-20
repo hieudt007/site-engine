@@ -1,33 +1,33 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin-top:0;">{{ pageTitle }}</h1>
+<h1 class="text-2xl font-bold mt-0 mb-6">{{ pageTitle }}</h1>
 
 {% if products.size == 0 %}
-  <p style="color:#777;">Chưa có sản phẩm nào.</p>
+  <p class="text-gray-500">Chưa có sản phẩm nào.</p>
 {% else %}
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem;">
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-5">
     {% for product in products %}
-      <a href="/products/{{ product.id }}" style="text-decoration:none;color:inherit;border:1px solid #eee;border-radius:8px;overflow:hidden;background:#fff;">
+      <a href="/products/{{ product.id }}" class="no-underline text-inherit border border-gray-200 rounded-lg overflow-hidden bg-white hover:border-brand transition-colors">
         {% if product.imageUrls.size > 0 %}
-          <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" style="width:100%;height:180px;object-fit:cover;">
+          <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" class="w-full h-44 object-cover">
         {% else %}
-          <div style="width:100%;height:180px;background:#f3f4f6;"></div>
+          <div class="w-full h-44 bg-gray-100"></div>
         {% endif %}
-        <div style="padding:0.75rem;">
-          <div style="font-size:0.95rem;color:#111;margin-bottom:0.3rem;">{{ product.name | escape }}</div>
+        <div class="p-3">
+          <div class="text-sm text-gray-900 mb-1">{{ product.name | escape }}</div>
           {% if product.salePrice %}
-            <div><span style="color:#dc2626;font-weight:600;">{{ product.salePrice }}₫</span> <span style="color:#999;text-decoration:line-through;font-size:0.85rem;">{{ product.price }}₫</span></div>
+            <div><span class="text-red-600 font-semibold">{{ product.salePrice }}₫</span> <span class="text-gray-400 line-through text-sm">{{ product.price }}₫</span></div>
           {% else %}
-            <div style="font-weight:600;">{{ product.price }}₫</div>
+            <div class="font-semibold">{{ product.price }}₫</div>
           {% endif %}
         </div>
       </a>
     {% endfor %}
   </div>
 
-  <div style="display:flex;justify-content:space-between;margin-top:2rem;">
-    {% if hasPrev %}<a href="/products?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
-    {% if hasNext %}<a href="/products?page={{ nextPage }}">Trang sau →</a>{% endif %}
+  <div class="flex justify-between mt-8 text-sm">
+    {% if hasPrev %}<a href="/products?page={{ prevPage }}" class="text-brand">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="/products?page={{ nextPage }}" class="text-brand">Trang sau →</a>{% endif %}
   </div>
 {% endif %}
 {% endblock %}

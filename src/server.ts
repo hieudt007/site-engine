@@ -36,6 +36,8 @@ import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
+import { registerThemeRoutes } from "./routes/admin/themes.js";
+import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
@@ -128,6 +130,8 @@ async function start(): Promise<void> {
   await registerAgentsUiRoutes(app);
   await registerMenuRoutes(app);
   await registerMenusUiRoutes(app);
+  await registerThemeRoutes(app);
+  await registerThemesUiRoutes(app);
   await registerSearchRoutes(app);
   await registerPreviewRoutes(app);
   await registerBlogRoutes(app);

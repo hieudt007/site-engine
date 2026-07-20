@@ -1,0 +1,15 @@
+import { FastifyInstance } from "fastify";
+import { renderAdmin } from "../../services/adminView.js";
+import { requireRole } from "../../plugins/requireRole.js";
+
+export async function registerThemesUiRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/admin/settings/theme", { preHandler: requireRole("admin") }, async (request, reply) => {
+    const html = await renderAdmin("settings-theme", {
+      pageTitle: "Giao diện",
+      userName: request.session.get("name"),
+      role: request.session.get("role"),
+      currentPath: request.url,
+    });
+    return reply.type("text/html").send(html);
+  });
+}

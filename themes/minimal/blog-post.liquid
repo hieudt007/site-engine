@@ -1,0 +1,17 @@
+{% layout "layout" %}
+{% block content %}
+<a href="/blog" class="text-stone-500 text-sm no-underline">← Tất cả bài viết</a>
+
+<article class="mt-6 text-center">
+  {% if post.coverImage %}
+    <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full max-h-96 object-cover mb-6">
+  {% endif %}
+  <h1 class="font-serif text-4xl font-bold mb-2">{{ post.title | escape }}</h1>
+  <div class="text-stone-400 text-sm mb-10 uppercase tracking-wide">
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}" class="text-stone-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
+  </div>
+  <div class="prose prose-stone font-serif max-w-none text-left leading-relaxed text-[1.05rem]">
+    {{ post.body }}
+  </div>
+</article>
+{% endblock %}

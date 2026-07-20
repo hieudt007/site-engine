@@ -8,43 +8,51 @@
   {% if noindex %}<meta name="robots" content="noindex">{% endif %}
   {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
   <link rel="alternate" type="application/rss+xml" title="{{ site.siteName }} RSS" href="/feed.xml">
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; background: #fafafa; }
-    header.site-header { background: #fff; border-bottom: 1px solid #eee; padding: 1rem 1.5rem; }
-    header.site-header a.brand { font-weight: 700; font-size: 1.1rem; color: #111; text-decoration: none; }
-    header.site-header .tagline { color: #777; font-size: 0.85rem; margin-top: 0.15rem; }
-    main { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem; }
-    footer.site-footer { text-align: center; color: #999; font-size: 0.8rem; padding: 2rem 1rem; }
-    a { color: #2563eb; }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=typography,forms"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "sans-serif"] },
+          colors: { brand: { DEFAULT: "#2563eb", dark: "#1d4ed8" } },
+        },
+      },
+    };
+  </script>
 </head>
-<body>
-  <header class="site-header" style="display:flex;align-items:center;justify-content:space-between;">
-    <div>
-      <a class="brand" href="/" style="display:inline-flex;align-items:center;gap:0.5rem;">
-        {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" style="height:28px;">{% endif %}
-        {{ site.siteName }}
-      </a>
-      {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
+<body class="font-sans text-gray-900 bg-gray-50 flex flex-col min-h-screen">
+  <header class="bg-white border-b border-gray-200">
+    <div class="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <a href="/" class="inline-flex items-center gap-2 font-bold text-lg text-gray-900 no-underline">
+          {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-7">{% endif %}
+          {{ site.siteName }}
+        </a>
+        {% if site.tagline %}<div class="text-sm text-gray-500 mt-0.5">{{ site.tagline }}</div>{% endif %}
+      </div>
+      <nav class="flex items-center gap-5 text-sm">
+        {% if headerMenu and headerMenu.items.size > 0 %}
+          {% for item in headerMenu.items %}<a href="{{ item.url }}" class="text-gray-700 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
+        {% else %}
+          <a href="/products" class="text-gray-700 hover:text-brand">Sản phẩm</a>
+          <a href="/blog" class="text-gray-700 hover:text-brand">Blog</a>
+          <a href="/cart" class="text-gray-700 hover:text-brand">Giỏ hàng</a>
+        {% endif %}
+      </nav>
     </div>
-    <nav>
-      {% if headerMenu and headerMenu.items.size > 0 %}
-        {% for item in headerMenu.items %}<a href="{{ item.url }}" style="margin-right:1rem;">{{ item.label | escape }}</a>{% endfor %}
-      {% else %}
-        <a href="/products" style="margin-right:1rem;">Sản phẩm</a>
-        <a href="/blog" style="margin-right:1rem;">Blog</a>
-        <a href="/cart">Giỏ hàng</a>
-      {% endif %}
-    </nav>
   </header>
-  <main>
+
+  <main class="flex-1 max-w-3xl w-full mx-auto px-6 py-10">
     {% block content %}{% endblock %}
   </main>
-  <footer class="site-footer">
+
+  <footer class="text-center text-gray-400 text-sm py-8 border-t border-gray-200">
     {% if footerMenu and footerMenu.items.size > 0 %}
-      <nav style="margin-bottom:0.6rem;">
-        {% for item in footerMenu.items %}<a href="{{ item.url }}" style="margin:0 0.6rem;color:#777;">{{ item.label | escape }}</a>{% endfor %}
+      <nav class="mb-2 flex items-center justify-center gap-4">
+        {% for item in footerMenu.items %}<a href="{{ item.url }}" class="text-gray-500 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
       </nav>
     {% endif %}
     © {{ year }} {{ site.siteName }}

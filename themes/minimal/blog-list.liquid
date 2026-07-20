@@ -1,0 +1,34 @@
+{% layout "layout" %}
+{% block content %}
+<h1 class="font-serif text-3xl font-bold text-center mb-10">{{ pageTitle }}</h1>
+
+{% if posts.size == 0 %}
+  <p class="text-stone-500 text-center">Chưa có bài viết nào.</p>
+{% else %}
+  <div class="flex flex-col gap-10">
+    {% for post in posts %}
+      <article class="text-center">
+        {% if post.coverImage %}
+          <a href="/blog/{{ post.slug }}">
+            <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full max-h-72 object-cover mb-4">
+          </a>
+        {% endif %}
+        <h2 class="font-serif text-2xl font-semibold mb-1">
+          <a href="/blog/{{ post.slug }}" class="text-stone-900 no-underline hover:text-brand">{{ post.title | escape }}</a>
+        </h2>
+        <div class="text-stone-400 text-sm mb-3 uppercase tracking-wide">
+          {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}" class="text-stone-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
+        </div>
+        {% if post.excerpt %}<p class="text-stone-600 font-serif">{{ post.excerpt | escape }}</p>{% endif %}
+        <a href="/blog/{{ post.slug }}" class="text-brand text-sm mt-2 inline-block">Đọc tiếp →</a>
+      </article>
+      <hr class="border-stone-200">
+    {% endfor %}
+  </div>
+
+  <div class="flex justify-between mt-8 text-sm">
+    {% if hasPrev %}<a href="/blog?page={{ prevPage }}" class="text-brand">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="/blog?page={{ nextPage }}" class="text-brand">Trang sau →</a>{% endif %}
+  </div>
+{% endif %}
+{% endblock %}

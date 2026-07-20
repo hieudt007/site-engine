@@ -1,0 +1,66 @@
+{% layout "layout" %}
+{% block content %}
+<h1 class="text-2xl font-bold mt-0 mb-1" style="margin:0 0 0.3rem;">Giao diện</h1>
+<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
+  Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
+</p>
+
+<div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;">
+  <p style="color:#999;">Đang tải...</p>
+</div>
+
+<script>
+(function () {
+  const grid = document.getElementById("theme-grid");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  const SOURCE_LABEL = { "built-in": "Có sẵn", "agent-generated": "AI tạo" };
+
+  function cardHtml(theme) {
+    const badge = theme.active
+      ? '<span class="status-badge status-published">Đang dùng</span>'
+      : '<button class="btn" data-activate="' + theme.slug + '">Dùng theme này</button>';
+    return (
+      '<div class="card">' +
+      '<div style="font-weight:600;margin-bottom:0.3rem;">' + theme.name + '</div>' +
+      '<div style="font-size:0.78rem;color:#999;margin-bottom:0.7rem;">' + (SOURCE_LABEL[theme.source] || theme.source) + '</div>' +
+      badge +
+      '</div>'
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/themes");
+    const { themes } = await res.json();
+    grid.innerHTML = themes.length ? themes.map(cardHtml).join("") : '<p style="color:#999;">Chưa có theme nào.</p>';
+  }
+
+  grid.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-activate]");
+    if (!btn) return;
+
+    const res = await fetch("/admin/api/themes/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: btn.dataset.activate }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Đổi theme thất bại", false);
+      return;
+    }
+
+    showFlash("Đã đổi theme.", true);
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}
