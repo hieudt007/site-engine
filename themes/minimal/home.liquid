@@ -1,0 +1,60 @@
+{% layout "layout" %}
+{% block content %}
+<section class="text-center py-8 mb-12">
+  <h1 class="font-serif text-4xl font-bold mb-2">{{ site.siteName }}</h1>
+  {% if site.tagline %}<p class="text-stone-500 text-lg italic">{{ site.tagline }}</p>{% endif %}
+  <div class="flex justify-center gap-4 mt-6">
+    <a href="/products" class="bg-brand hover:bg-brand-dark text-white no-underline px-5 py-2.5 text-sm">Xem sản phẩm</a>
+    <a href="/blog" class="border border-stone-300 hover:border-brand text-stone-700 no-underline px-5 py-2.5 text-sm">Đọc blog</a>
+  </div>
+</section>
+
+{% if posts.size > 0 %}
+  <section class="mb-12">
+    <h2 class="font-serif text-2xl font-semibold text-center mb-8">Bài viết mới</h2>
+    <div class="flex flex-col gap-8">
+      {% for post in posts %}
+        <article class="text-center">
+          {% if post.coverImage %}
+            <a href="/blog/{{ post.slug }}"><img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full max-h-56 object-cover mb-3"></a>
+          {% endif %}
+          <h3 class="font-serif text-xl font-semibold mb-1">
+            <a href="/blog/{{ post.slug }}" class="text-stone-900 no-underline hover:text-brand">{{ post.title | escape }}</a>
+          </h3>
+          <div class="text-stone-400 text-xs mb-2 uppercase tracking-wide">{{ post.publishedAt | date: "%d/%m/%Y" }}</div>
+          {% if post.excerpt %}<p class="text-stone-600 font-serif text-sm">{{ post.excerpt | escape }}</p>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
+    <div class="text-center mt-6"><a href="/blog" class="text-brand text-sm">Xem tất cả bài viết →</a></div>
+  </section>
+{% endif %}
+
+{% if products.size > 0 %}
+  <section>
+    <h2 class="font-serif text-2xl font-semibold text-center mb-8">Sản phẩm mới</h2>
+    <div class="grid grid-cols-2 gap-8">
+      {% for product in products %}
+        <a href="/products/{{ product.id }}" class="no-underline text-inherit text-center block">
+          {% if product.imageUrls.size > 0 %}
+            <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" class="w-full h-40 object-cover mb-2">
+          {% else %}
+            <div class="w-full h-40 bg-stone-100 mb-2"></div>
+          {% endif %}
+          <div class="text-sm text-stone-900 mb-1">{{ product.name | escape }}</div>
+          {% if product.salePrice %}
+            <div><span class="text-brand font-semibold">{{ product.salePrice }}₫</span> <span class="text-stone-400 line-through text-sm">{{ product.price }}₫</span></div>
+          {% else %}
+            <div class="font-semibold">{{ product.price }}₫</div>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+    <div class="text-center mt-6"><a href="/products" class="text-brand text-sm">Xem tất cả sản phẩm →</a></div>
+  </section>
+{% endif %}
+
+{% if posts.size == 0 and products.size == 0 %}
+  <p class="text-stone-500 text-center">Chưa có nội dung nào được xuất bản.</p>
+{% endif %}
+{% endblock %}

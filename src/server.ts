@@ -40,6 +40,7 @@ import { registerThemeRoutes } from "./routes/admin/themes.js";
 import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
+import { registerHomeRoutes } from "./routes/public/home.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
 import { registerPagesPublicRoutes } from "./routes/public/pages.js";
 import { registerCartRoutes } from "./routes/public/cart.js";
@@ -134,6 +135,7 @@ async function start(): Promise<void> {
   await registerThemesUiRoutes(app);
   await registerSearchRoutes(app);
   await registerPreviewRoutes(app);
+  await registerHomeRoutes(app);
   await registerBlogRoutes(app);
   await registerPagesPublicRoutes(app);
   await registerProductsPublicRoutes(app);
