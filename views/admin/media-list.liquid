@@ -3,7 +3,7 @@
 <h1 style="margin:0 0 1.2rem;">Media</h1>
 
 <div style="margin-bottom:1.2rem;">
-  <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/gif">
+  <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
   <span id="upload-status" style="font-size:0.85rem;color:#777;margin-left:0.5rem;"></span>
 </div>
 
@@ -71,21 +71,31 @@
   });
 
   fileInput.addEventListener("change", async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    const files = [...fileInput.files];
+    if (!files.length) return;
 
-    status.textContent = "Đang tải lên...";
-    const formData = new FormData();
-    formData.append("file", file);
+    let uploaded = 0;
+    const failed = [];
 
-    const res = await fetch("/admin/api/media", { method: "POST", body: formData });
+    for (const file of files) {
+      status.textContent = "Đang tải lên " + (uploaded + 1) + "/" + files.length + "...";
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/admin/api/media", { method: "POST", body: formData });
+      if (res.ok) {
+        uploaded++;
+      } else {
+        const body = await res.json().catch(() => ({}));
+        failed.push(file.name + (typeof body.error === "string" ? ": " + body.error : ""));
+      }
+    }
+
     status.textContent = "";
     fileInput.value = "";
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      showError(typeof body.error === "string" ? body.error : "Tải lên thất bại");
-      return;
+    if (failed.length) {
+      showError("Lỗi " + failed.length + "/" + files.length + " file: " + failed.join("; "));
     }
 
     load();
