@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
+import { renderNotFound } from "../../services/notFoundPage.js";
 
 const PAGE_SIZE = 12;
 
@@ -45,7 +46,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         include: { children: { select: { name: true, slug: true } } },
       });
       if (!category) {
-        return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy danh mục</h1>");
+        return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy danh mục"));
       }
 
       const page = Math.max(1, Number(request.query.page ?? 1) || 1);
@@ -80,7 +81,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       include: { variants: true, categories: { select: { name: true, slug: true } } },
     });
     if (!product || product.status !== "published") {
-      return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
+      return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy sản phẩm"));
     }
 
     // Escape "</" trước khi nhúng JSON vào <script> - tránh chuỗi thuộc tính variant (sku/attr)
@@ -95,14 +96,16 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
       : null;
 
-    const html = await renderPublic("product-detail", {
-      pageTitle: product.name,
-      metaDescription: readSeo(product.seo).metaDescription,
-      product,
-      variantsJson,
-      reviews,
-      avgRating,
-    });
+    const pageData = { pageTitle: product.name, metaDescription: readSeo(product.seo).metaDescription };
+
+    let html: string;
+    if (product.layoutMode === "landing") {
+      html = await renderPublic("landing", { ...pageData, rawHtml: product.description ?? "" });
+    } else if (product.layoutMode === "custom") {
+      html = await renderPublic("custom-content", { ...pageData, rawHtml: product.description ?? "" });
+    } else {
+      html = await renderPublic("product-detail", { ...pageData, product, variantsJson, reviews, avgRating });
+    }
 
     return reply.type("text/html").send(html);
   });

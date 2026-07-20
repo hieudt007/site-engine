@@ -23,6 +23,14 @@
   <label for="model">Model</label>
   <input type="text" id="model" name="model" value="{% if agent %}{{ agent.model | escape }}{% endif %}" placeholder="vd: gpt-5.4-mini, claude-sonnet-5" required>
 
+  <label for="purpose">Mục đích</label>
+  <select id="purpose" name="purpose">
+    <option value="">— Không chỉ định —</option>
+    <option value="content" {% if agent.purpose == "content" %}selected{% endif %}>Viết/sửa nội dung bài viết</option>
+    <option value="design" {% if agent.purpose == "design" %}selected{% endif %}>Tuỳ chỉnh giao diện (theme)</option>
+  </select>
+  <div class="field-hint">Agent có mục đích sẽ tự động được chọn làm mặc định cho đúng tính năng đó.</div>
+
   <label for="baseUrl">Base URL <span style="font-weight:400;color:#888;">(chỉ cần khi chọn Custom hoặc AI Router)</span></label>
   <input type="text" id="baseUrl" name="baseUrl" value="{% if agent %}{{ agent.baseUrl | escape }}{% endif %}" placeholder="http://localhost:20128/v1">
 
@@ -79,6 +87,7 @@
       model: form.model.value,
       baseUrl: form.baseUrl.value || undefined,
       systemPrompt: form.systemPrompt.value || undefined,
+      purpose: form.purpose.value || null,
       isActive: form.isActive.checked,
     };
     if (form.apiKey.value) {

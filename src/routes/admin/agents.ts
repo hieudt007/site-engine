@@ -4,6 +4,7 @@ import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "ai-router", "custom"] as const;
+const PURPOSES = ["content", "design"] as const;
 
 const agentSchema = z.object({
   name: z.string().min(1),
@@ -12,6 +13,7 @@ const agentSchema = z.object({
   systemPrompt: z.string().optional(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
+  purpose: z.enum(PURPOSES).nullable().optional(),
   isActive: z.boolean().optional(),
 });
 

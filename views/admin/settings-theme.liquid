@@ -48,6 +48,16 @@
     <thead><tr><th>File</th><th>Mô tả</th><th></th></tr></thead>
     <tbody id="detail-files-body"></tbody>
   </table>
+
+  <div style="margin-top:1.5rem;border-top:1px solid #eee;padding-top:1rem;">
+    <h3 style="font-size:0.95rem;margin:0 0 0.6rem;">Chat sửa giao diện bằng AI</h3>
+    <div id="chat-messages" style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:0.6rem;margin-bottom:0.6rem;font-size:0.85rem;"></div>
+    <div id="chat-progress" style="font-size:0.78rem;color:#888;min-height:1.2rem;margin-bottom:0.4rem;"></div>
+    <div style="display:flex;gap:0.5rem;">
+      <textarea id="chat-input" placeholder="Vd: đổi màu nút mua hàng sang cam, hoặc thêm banner khuyến mãi ở trang chủ..." style="flex:1;min-height:50px;"></textarea>
+      <button type="button" class="btn btn-primary" id="chat-send" style="align-self:flex-end;">Gửi</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -76,8 +86,12 @@
     const customizeBtn = theme.source === "agent-generated"
       ? '<button class="btn" data-detail="' + theme.slug + '" style="margin-top:0.4rem;">Sửa từng file</button>'
       : "";
+    const screenshot = theme.hasScreenshot
+      ? '<img src="/theme-assets/' + theme.slug + '/screenshot.png" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.6rem;">'
+      : "";
     return (
       '<div class="card">' +
+      screenshot +
       '<div style="font-weight:600;margin-bottom:0.3rem;">' + escapeHtml(theme.name) + '</div>' +
       '<div style="font-size:0.78rem;color:#999;margin-bottom:0.7rem;">' + (SOURCE_LABEL[theme.source] || theme.source) + '</div>' +
       badge + customizeBtn +
@@ -104,6 +118,11 @@
     select.innerHTML = agents.length
       ? agents.map((a) => '<option value="' + a.id + '">' + escapeHtml(a.name) + " (" + escapeHtml(a.provider) + ")</option>").join("")
       : '<option value="">— Chưa có agent nào —</option>';
+
+    // Agent co purpose="design" tu dong duoc chon san - tenant khong phai tu tim dung agent moi
+    // lan vao trang nay (xem prisma/schema.prisma Agent.purpose + seedAgents.ts).
+    const designAgent = agents.find((a) => a.purpose === "design");
+    if (designAgent) select.value = designAgent.id;
   }
 
   grid.addEventListener("click", async (event) => {
@@ -175,6 +194,8 @@
     loadThemes();
   });
 
+  let currentDetailSlug = null;
+
   async function openDetail(slug) {
     const res = await fetch("/admin/api/themes/" + slug + "/files");
     if (!res.ok) {
@@ -183,6 +204,7 @@
     }
     const { files } = await res.json();
 
+    currentDetailSlug = slug;
     document.getElementById("detail-title").textContent = "Sửa từng file — " + slug;
     document.getElementById("detail-files-body").innerHTML = files.map((f) =>
       "<tr><td>" + escapeHtml(f.file) + "</td><td style=\"color:#777;font-size:0.82rem;\">" + escapeHtml(f.description) + "</td>" +
@@ -190,7 +212,124 @@
     ).join("");
     document.getElementById("theme-detail").style.display = "block";
     document.getElementById("theme-detail").scrollIntoView({ behavior: "smooth" });
+
+    await loadChatHistory(slug);
   }
+
+  function chatMessageHtml(role, content) {
+    const isUser = role === "user";
+    return (
+      '<div style="margin-bottom:0.5rem;text-align:' + (isUser ? "right" : "left") + ';">' +
+      '<div style="display:inline-block;max-width:85%;padding:0.4rem 0.6rem;border-radius:6px;background:' +
+      (isUser ? "#2563eb;color:#fff" : "#f3f4f6;color:#111") + ';white-space:pre-wrap;">' +
+      escapeHtml(content) + "</div></div>"
+    );
+  }
+
+  async function loadChatHistory(slug) {
+    const box = document.getElementById("chat-messages");
+    const res = await fetch("/admin/api/themes/" + slug + "/chat/history");
+    if (!res.ok) {
+      box.innerHTML = '<p style="color:#999;">Không tải được lịch sử chat</p>';
+      return;
+    }
+    const { messages } = await res.json();
+    box.innerHTML = messages.length
+      ? messages.map((m) => chatMessageHtml(m.role, m.content)).join("")
+      : '<p style="color:#999;">Chưa có tin nhắn nào — hỏi AI để bắt đầu chỉnh sửa theme này.</p>';
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendChatMessage() {
+    if (!currentDetailSlug) return;
+    const input = document.getElementById("chat-input");
+    const message = input.value.trim();
+    if (!message) return;
+    if (!agentsCache.length) {
+      showFlash("Chưa có agent nào — vào Quản trị → AI Agent tạo trước.", false);
+      return;
+    }
+    const agentId = (agentsCache.find((a) => a.purpose === "design") || agentsCache[0]).id;
+
+    const box = document.getElementById("chat-messages");
+    const progress = document.getElementById("chat-progress");
+    const sendBtn = document.getElementById("chat-send");
+
+    box.insertAdjacentHTML("beforeend", chatMessageHtml("user", message));
+    box.scrollTop = box.scrollHeight;
+    input.value = "";
+    input.disabled = true;
+    sendBtn.disabled = true;
+    progress.textContent = "Đang gửi...";
+
+    try {
+      const res = await fetch("/admin/api/themes/" + currentDetailSlug + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, agentId }),
+      });
+      if (!res.ok || !res.body) {
+        progress.textContent = "";
+        showFlash("Gửi chat thất bại", false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+          const event = JSON.parse(line.slice(5).trim());
+          handleChatEvent(event, progress, box);
+        }
+      }
+    } catch (err) {
+      progress.textContent = "";
+      showFlash("Lỗi kết nối khi chat với AI", false);
+    } finally {
+      input.disabled = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function handleChatEvent(event, progress, box) {
+    if (event.step === "classify") {
+      progress.textContent = "⏳ " + event.label;
+    } else if (event.step === "intent_updated") {
+      progress.textContent = "⏳ " + event.label;
+    } else if (event.step === "files") {
+      progress.textContent = "⏳ " + event.label;
+    } else if (event.step === "editing") {
+      progress.textContent = "⏳ " + event.label;
+    } else if (event.step === "validating") {
+      progress.textContent = "⏳ " + (event.ok ? "Đã sửa xong " + event.file : "Lỗi ở " + event.file + " — giữ bản cũ");
+    } else if (event.step === "done") {
+      progress.textContent = "";
+      box.insertAdjacentHTML("beforeend", chatMessageHtml("assistant", event.reply));
+      box.scrollTop = box.scrollHeight;
+    } else if (event.step === "error") {
+      progress.textContent = "";
+      showFlash("AI lỗi: " + event.label, false);
+    }
+  }
+
+  document.getElementById("chat-send").addEventListener("click", sendChatMessage);
+  document.getElementById("chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
 
   document.getElementById("detail-close").addEventListener("click", () => {
     document.getElementById("theme-detail").style.display = "none";
@@ -207,7 +346,7 @@
     const stylePrompt = prompt("Mô tả điều chỉnh muốn AI làm cho file này:");
     if (!stylePrompt) return;
 
-    const agentId = agentsCache[0].id;
+    const agentId = (agentsCache.find((a) => a.purpose === "design") || agentsCache[0]).id;
     btn.disabled = true;
     btn.textContent = "Đang sinh...";
 

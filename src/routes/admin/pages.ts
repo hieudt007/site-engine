@@ -27,6 +27,7 @@ const createPageSchema = z.object({
   body: z.string().min(1),
   excerpt: z.string().optional(),
   coverImage: z.string().optional(),
+  layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
 });
@@ -34,6 +35,12 @@ const createPageSchema = z.object({
 const updatePageSchema = createPageSchema.partial();
 const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
 const PAGE_SIZE = 20;
+
+// 'standard' -> sanitize nhu binh thuong. 'custom'/'landing' -> KHONG sanitize, cho phep
+// script/iframe - xem docblock Post.layoutMode trong schema.prisma cho ly do thiet ke day du.
+function resolveBody(body: string, layoutMode: string | undefined): string {
+  return layoutMode === "custom" || layoutMode === "landing" ? body : sanitizePostBody(body);
+}
 
 function auditLog(userId: number, action: string, entityId: string, metadata?: object) {
   return prisma.auditLog.create({
@@ -104,7 +111,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       data: {
         ...parsed.data,
         type: TYPE,
-        body: sanitizePostBody(parsed.data.body),
+        body: resolveBody(parsed.data.body, parsed.data.layoutMode),
         authorId: userId,
       },
     });
@@ -143,6 +150,10 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const userId = request.session.get("userId")!;
+      const effectiveLayoutMode = parsed.data.layoutMode ?? page.layoutMode;
+      const sanitizedData = parsed.data.body
+        ? { ...parsed.data, body: resolveBody(parsed.data.body, effectiveLayoutMode) }
+        : parsed.data;
 
       await saveRevision(
         "Page",
@@ -155,16 +166,15 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
           coverImage: page.coverImage,
           seo: page.seo,
           customFields: page.customFields,
+          layoutMode: page.layoutMode,
         },
+        sanitizedData,
         userId,
       );
 
       const updated = await prisma.post.update({
         where: { id: page.id },
-        data: {
-          ...parsed.data,
-          ...(parsed.data.body ? { body: sanitizePostBody(parsed.data.body) } : {}),
-        },
+        data: sanitizedData,
       });
       await auditLog(userId, "page.update", page.id);
 
@@ -215,6 +225,18 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const userId = request.session.get("userId")!;
+
+      const snapshot = revision.data as {
+        title: string;
+        slug: string;
+        body: string;
+        excerpt: string | null;
+        coverImage: string | null;
+        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        layoutMode?: string;
+      };
+
       await saveRevision(
         "Page",
         page.id,
@@ -226,19 +248,11 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
           coverImage: page.coverImage,
           seo: page.seo,
           customFields: page.customFields,
+          layoutMode: page.layoutMode,
         },
+        snapshot,
         userId,
       );
-
-      const snapshot = revision.data as {
-        title: string;
-        slug: string;
-        body: string;
-        excerpt: string | null;
-        coverImage: string | null;
-        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
-        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
-      };
 
       if (snapshot.slug !== page.slug) {
         const slugTaken = await prisma.post.findUnique({

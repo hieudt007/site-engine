@@ -9,6 +9,7 @@ import { registerSession } from "./plugins/session.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerOAuthRoutes } from "./routes/admin/oauth.js";
 import { registerPostRoutes } from "./routes/admin/posts.js";
+import { registerPostsAiRoutes } from "./routes/admin/postsAi.js";
 import { registerPostsUiRoutes } from "./routes/admin/postsUi.js";
 import { registerPageRoutes } from "./routes/admin/pages.js";
 import { registerPagesUiRoutes } from "./routes/admin/pagesUi.js";
@@ -39,10 +40,12 @@ import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
 import { registerThemeRoutes } from "./routes/admin/themes.js";
 import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
+import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
 import { registerHomeRoutes } from "./routes/public/home.js";
 import { registerThemeAssetsRoutes } from "./routes/public/themeAssets.js";
+import { renderNotFound } from "./services/notFoundPage.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
 import { registerPagesPublicRoutes } from "./routes/public/pages.js";
 import { registerCartRoutes } from "./routes/public/cart.js";
@@ -88,7 +91,12 @@ app.setNotFoundHandler(async (request, reply) => {
   if (redirect) {
     return reply.code(redirect.statusCode).redirect(redirect.toPath);
   }
-  return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
+  // /admin/* khong dung theme public - giu HTML don gian, tranh render nham giao dien site cho
+  // nguoi dang thao tac trong khu quan tri.
+  if (pathname.startsWith("/admin")) {
+    return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
+  }
+  return reply.code(404).type("text/html").send(await renderNotFound());
 });
 
 async function start(): Promise<void> {
@@ -106,6 +114,7 @@ async function start(): Promise<void> {
   await registerOAuthRoutes(app);
   await registerAdminRoutes(app);
   await registerPostRoutes(app);
+  await registerPostsAiRoutes(app);
   await registerPostsUiRoutes(app);
   await registerPageRoutes(app);
   await registerPagesUiRoutes(app);
@@ -136,6 +145,7 @@ async function start(): Promise<void> {
   await registerThemeRoutes(app);
   await registerThemesUiRoutes(app);
   await registerThemeCustomizeRoutes(app);
+  await registerThemeChatRoutes(app);
   await registerSearchRoutes(app);
   await registerPreviewRoutes(app);
   await registerHomeRoutes(app);

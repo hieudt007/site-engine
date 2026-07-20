@@ -23,12 +23,16 @@ export async function registerPreviewRoutes(app: FastifyInstance): Promise<void>
       }
 
       const seo = readSeo(post.seo);
-      const html = await renderPublic("blog-post", {
-        pageTitle: `[Xem thử] ${post.title}`,
-        metaDescription: seo.metaDescription ?? post.excerpt ?? undefined,
-        noindex: true,
-        post,
-      });
+      const pageData = { pageTitle: `[Xem thử] ${post.title}`, metaDescription: seo.metaDescription ?? post.excerpt ?? undefined, noindex: true };
+
+      let html: string;
+      if (post.layoutMode === "landing") {
+        html = await renderPublic("landing", { ...pageData, rawHtml: post.body });
+      } else if (post.layoutMode === "custom") {
+        html = await renderPublic("custom-content", { ...pageData, rawHtml: post.body });
+      } else {
+        html = await renderPublic("blog-post", { ...pageData, post });
+      }
       return reply.type("text/html").send(html);
     },
   );
@@ -43,12 +47,16 @@ export async function registerPreviewRoutes(app: FastifyInstance): Promise<void>
       }
 
       const seo = readSeo(page.seo);
-      const html = await renderPublic("page", {
-        pageTitle: `[Xem thử] ${page.title}`,
-        metaDescription: seo.metaDescription ?? page.excerpt ?? undefined,
-        noindex: true,
-        page,
-      });
+      const pageData = { pageTitle: `[Xem thử] ${page.title}`, metaDescription: seo.metaDescription ?? page.excerpt ?? undefined, noindex: true };
+
+      let html: string;
+      if (page.layoutMode === "landing") {
+        html = await renderPublic("landing", { ...pageData, rawHtml: page.body });
+      } else if (page.layoutMode === "custom") {
+        html = await renderPublic("custom-content", { ...pageData, rawHtml: page.body });
+      } else {
+        html = await renderPublic("page", { ...pageData, page });
+      }
       return reply.type("text/html").send(html);
     },
   );
@@ -74,15 +82,16 @@ export async function registerPreviewRoutes(app: FastifyInstance): Promise<void>
         ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
         : null;
 
-      const html = await renderPublic("product-detail", {
-        pageTitle: `[Xem thử] ${product.name}`,
-        metaDescription: readSeo(product.seo).metaDescription,
-        noindex: true,
-        product,
-        variantsJson,
-        reviews,
-        avgRating,
-      });
+      const pageData = { pageTitle: `[Xem thử] ${product.name}`, metaDescription: readSeo(product.seo).metaDescription, noindex: true };
+
+      let html: string;
+      if (product.layoutMode === "landing") {
+        html = await renderPublic("landing", { ...pageData, rawHtml: product.description ?? "" });
+      } else if (product.layoutMode === "custom") {
+        html = await renderPublic("custom-content", { ...pageData, rawHtml: product.description ?? "" });
+      } else {
+        html = await renderPublic("product-detail", { ...pageData, product, variantsJson, reviews, avgRating });
+      }
       return reply.type("text/html").send(html);
     },
   );

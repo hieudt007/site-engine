@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
+import { renderNotFound } from "../../services/notFoundPage.js";
 
 // Route public cho Page (trang tĩnh) — chỉ hiện trang status='published', cùng pattern với
 // routes/public/blog.ts. KHÔNG yêu cầu đăng nhập, khác /admin/pages (quản trị nội bộ).
@@ -18,16 +19,24 @@ export async function registerPagesPublicRoutes(app: FastifyInstance): Promise<v
       if (redirect) {
         return reply.code(redirect.statusCode).redirect(redirect.toPath);
       }
-      return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
+      return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy trang"));
     }
 
     const seo = readSeo(page.seo);
-    const html = await renderPublic("page", {
+    const pageData = {
       pageTitle: page.title,
       metaDescription: seo.metaDescription ?? page.excerpt ?? undefined,
       noindex: seo.noindex,
-      page,
-    });
+    };
+
+    let html: string;
+    if (page.layoutMode === "landing") {
+      html = await renderPublic("landing", { ...pageData, rawHtml: page.body });
+    } else if (page.layoutMode === "custom") {
+      html = await renderPublic("custom-content", { ...pageData, rawHtml: page.body });
+    } else {
+      html = await renderPublic("page", { ...pageData, page });
+    }
 
     return reply.type("text/html").send(html);
   });

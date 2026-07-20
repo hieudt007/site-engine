@@ -25,6 +25,7 @@ const updateContentSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
+  layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
 });
@@ -101,7 +102,9 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           imageUrls: product.imageUrls,
           seo: product.seo,
           customFields: product.customFields,
+          layoutMode: product.layoutMode,
         },
+        parsed.data,
         userId,
       );
 
@@ -142,6 +145,16 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       }
 
       const userId = request.session.get("userId") ?? null;
+
+      const snapshot = revision.data as {
+        name: string;
+        description: string | null;
+        imageUrls: string[];
+        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        layoutMode?: string;
+      };
+
       await saveRevision(
         "Product",
         product.id,
@@ -151,17 +164,11 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           imageUrls: product.imageUrls,
           seo: product.seo,
           customFields: product.customFields,
+          layoutMode: product.layoutMode,
         },
+        snapshot,
         userId,
       );
-
-      const snapshot = revision.data as {
-        name: string;
-        description: string | null;
-        imageUrls: string[];
-        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
-        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
-      };
 
       const updated = await prisma.productCache.update({ where: { id: product.id }, data: snapshot });
 

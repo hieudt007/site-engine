@@ -30,6 +30,7 @@ const createPostSchema = z.object({
   categoryIds: z.array(z.string()).optional(), // nhiều-nhiều, xem Category.type='post'
   topicId: z.string().nullable().optional(), // 1-1, xem model Topic
   password: z.string().nullable().optional(), // rỗng/null = bài mở tự do, xem routes/public/blog.ts
+  layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
 });
@@ -37,6 +38,14 @@ const createPostSchema = z.object({
 const updatePostSchema = createPostSchema.partial();
 const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
 const PAGE_SIZE = 20;
+
+// 'standard' -> sanitize nhu binh thuong (body chen vao khung theme chuan, phai an toan). 'custom'/
+// 'landing' -> KHONG sanitize, luu THO nguyen van - nguoi dung da xac nhan danh doi luc thiet ke
+// (cho phep script/iframe de nhung form/tracking/video, chi role edit/manager/admin moi soan
+// duoc, khong phai noi dung cong khai ai cung sua).
+function resolveBody(body: string, layoutMode: string | undefined): string {
+  return layoutMode === "custom" || layoutMode === "landing" ? body : sanitizePostBody(body);
+}
 
 function auditLog(userId: number, action: string, entityId: string, metadata?: object) {
   return prisma.auditLog.create({
@@ -118,7 +127,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       data: {
         ...rest,
         type: TYPE,
-        body: sanitizePostBody(rest.body),
+        body: resolveBody(rest.body, rest.layoutMode),
         authorId: userId,
         ...(categoryIds ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
       },
@@ -159,8 +168,11 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
 
       const { categoryIds, ...rest } = parsed.data;
       const userId = request.session.get("userId")!;
+      const effectiveLayoutMode = rest.layoutMode ?? post.layoutMode;
+      const sanitizedRest = rest.body ? { ...rest, body: resolveBody(rest.body, effectiveLayoutMode) } : rest;
 
-      // Snapshot NGUYEN VAN noi dung truoc khi ghi de - xem services/revisions.ts.
+      // So sanh gia tri hien tai vs payload MOI GUI (da sanitize body de khong sinh sai khac gia
+      // tao boi buoc lam sach HTML) - chi tao Revision khi that su co field doi (xem services/revisions.ts).
       await saveRevision(
         "Post",
         post.id,
@@ -173,15 +185,16 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           seo: post.seo,
           password: post.password,
           customFields: post.customFields,
+          layoutMode: post.layoutMode,
         },
+        sanitizedRest,
         userId,
       );
 
       const updated = await prisma.post.update({
         where: { id: post.id },
         data: {
-          ...rest,
-          ...(rest.body ? { body: sanitizePostBody(rest.body) } : {}),
+          ...sanitizedRest,
           ...(categoryIds ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
         },
       });
@@ -236,8 +249,22 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const userId = request.session.get("userId")!;
+
+      const snapshot = revision.data as {
+        title: string;
+        slug: string;
+        body: string;
+        excerpt: string | null;
+        coverImage: string | null;
+        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        password: string | null;
+        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        layoutMode?: string;
+      };
+
       // Snapshot trang thai HIEN TAI truoc khi ghi de bang ban cu - de "khoi phuc" cung xoa
-      // duoc, khong mat du lieu.
+      // duoc, khong mat du lieu. Dung chinh ban dang restore (snapshot) lam "incoming" de diff -
+      // neu khoi phuc ve dung trang thai hien tai (hiem, nhung co the) thi khong tao Revision thua.
       await saveRevision(
         "Post",
         post.id,
@@ -250,20 +277,11 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           seo: post.seo,
           password: post.password,
           customFields: post.customFields,
+          layoutMode: post.layoutMode,
         },
+        snapshot,
         userId,
       );
-
-      const snapshot = revision.data as {
-        title: string;
-        slug: string;
-        body: string;
-        excerpt: string | null;
-        coverImage: string | null;
-        seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
-        password: string | null;
-        customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
-      };
 
       if (snapshot.slug !== post.slug) {
         const slugTaken = await prisma.post.findUnique({

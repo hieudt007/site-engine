@@ -21,6 +21,13 @@ function listBuiltInThemes(): string[] {
 
 const activateSchema = z.object({ slug: z.string().min(1) });
 
+// screenshot.png la TUY CHON (khong bat buoc voi theme built-in lan CustomTheme AI sinh - AI
+// khong duoc yeu cau ve anh) - UI (/admin/settings/theme) chi hien <img> khi co, an han khi
+// khong co, tranh vo layout vi broken image icon.
+function hasScreenshot(slug: string): boolean {
+  return fs.existsSync(path.join(THEMES_ROOT, slug, "screenshot.png"));
+}
+
 export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/themes", { preHandler: requireRole("admin") }, async () => {
     const [config, customThemes] = await Promise.all([
@@ -34,12 +41,14 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
       name: slug,
       source: "built-in",
       active: slug === activeTheme,
+      hasScreenshot: hasScreenshot(slug),
     }));
     const custom = customThemes.map((t) => ({
       slug: t.slug,
       name: t.name,
       source: t.source,
       active: t.slug === activeTheme,
+      hasScreenshot: hasScreenshot(t.slug),
     }));
 
     return { themes: [...builtIn, ...custom] };

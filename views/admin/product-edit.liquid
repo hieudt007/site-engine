@@ -60,7 +60,15 @@
   <label for="name">Tên sản phẩm</label>
   <input type="text" id="name" name="name" value="{{ product.name | escape }}" required>
 
-  <label for="description">Mô tả</label>
+  <label for="layoutMode">Định dạng trang</label>
+  <select id="layoutMode" name="layoutMode">
+    <option value="standard" {% if product.layoutMode == "standard" %}selected{% endif %}>Tiêu chuẩn</option>
+    <option value="custom" {% if product.layoutMode == "custom" %}selected{% endif %}>Tuỳ biến (giữ header/footer, mô tả tự soạn HTML)</option>
+    <option value="landing" {% if product.layoutMode == "landing" %}selected{% endif %}>Landing page (không header/footer)</option>
+  </select>
+  <div class="field-hint">Tuỳ biến/Landing page: ô Mô tả trở thành HTML thô (render nguyên văn, không escape), cho phép cả &lt;script&gt;/&lt;iframe&gt; — chỉ dùng khi thật sự cần.</div>
+
+  <label for="description">Mô tả<span id="description-mode-hint" style="font-weight:400;color:#888;"></span></label>
   <textarea id="description" name="description" style="min-height:140px;">{{ product.description }}</textarea>
 
   <label for="imageUrls">Ảnh (mỗi dòng 1 URL, dòng đầu tiên là ảnh đại diện)</label>
@@ -125,6 +133,15 @@
     flash.textContent = message;
     flash.className = ok ? "success" : "error";
   }
+
+  const layoutModeSelect = document.getElementById("layoutMode");
+  const descriptionModeHint = document.getElementById("description-mode-hint");
+
+  function updateDescriptionHint() {
+    descriptionModeHint.textContent = layoutModeSelect.value === "standard" ? "" : " (HTML thô)";
+  }
+  layoutModeSelect.addEventListener("change", updateDescriptionHint);
+  updateDescriptionHint();
 
   const imageUrlsTextarea = document.getElementById("imageUrls");
   const imageUrlsPreview = document.getElementById("imageUrls-preview");
@@ -241,6 +258,7 @@
       name: form.name.value,
       description: form.description.value || undefined,
       imageUrls: form.imageUrls.value.split("\n").map((s) => s.trim()).filter(Boolean),
+      layoutMode: form.layoutMode.value,
       seo: {
         metaTitle: form.metaTitle.value || undefined,
         metaDescription: form.metaDescription.value || undefined,

@@ -22,6 +22,18 @@
 (function () {
   const CART_KEY = "site_engine_cart";
 
+  // Field NGOAI danh sach known tren form checkout tu dong duoc gop thanh customFields gui len
+  // server - vd them 1 <input name="secondaryPhone"> vao form nay se TU DONG duoc luu vao don
+  // hang (CartOrder.customFields), KHONG can sua doan JS nay hay backend gi them.
+  function collectExtraFields(form, knownNames) {
+    const result = {};
+    [...form.elements].forEach((el) => {
+      if (!el.name || knownNames.includes(el.name) || el.type === "submit" || el.type === "button") return;
+      if (el.value) result[el.name] = el.value;
+    });
+    return result;
+  }
+
   function readCart() {
     try {
       return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
@@ -113,6 +125,7 @@
         customerName: form.customerName.value,
         customerPhone: form.customerPhone.value,
         customerAddress: form.customerAddress.value || undefined,
+        customFields: collectExtraFields(form, ["customerName", "customerPhone", "customerAddress"]),
       }),
     });
 

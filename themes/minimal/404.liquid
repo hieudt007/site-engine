@@ -1,0 +1,9 @@
+{% layout "layout" %}
+{% block content %}
+<div class="text-center py-20">
+  <div class="font-serif text-7xl font-bold text-stone-200">404</div>
+  <h1 class="font-serif text-2xl font-bold mt-4 mb-2">{{ message | default: "Không tìm thấy trang bạn cần" }}</h1>
+  <p class="text-stone-500 mb-6">Đường dẫn có thể đã bị xoá, đổi chỗ khác, hoặc gõ sai.</p>
+  <a href="/" class="text-brand no-underline">← Về trang chủ</a>
+</div>
+{% endblock %}

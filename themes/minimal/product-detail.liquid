@@ -18,6 +18,7 @@
     <div id="variant-price" class="mb-4"></div>
     <div id="variant-stock" class="text-red-700 text-sm mb-4"></div>
     <button id="add-to-cart" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 text-[0.95rem] cursor-pointer mb-4">Thêm vào giỏ</button>
+    <button id="buy-now-btn" class="border border-brand text-brand hover:bg-brand hover:text-white px-6 py-2.5 text-[0.95rem] cursor-pointer mb-4 bg-transparent">Mua ngay</button>
     <span id="add-to-cart-msg" class="text-green-700 text-sm ml-2"></span>
     <script id="variants-data" type="application/json">{{ variantsJson }}</script>
   {% else %}
@@ -33,9 +34,22 @@
       <div class="text-red-700 text-sm mb-4">Hết hàng</div>
     {% else %}
       <button id="add-to-cart" data-id="{{ product.id }}" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 text-[0.95rem] cursor-pointer mb-4">Thêm vào giỏ</button>
+      <button id="buy-now-btn" class="border border-brand text-brand hover:bg-brand hover:text-white px-6 py-2.5 text-[0.95rem] cursor-pointer mb-4 bg-transparent">Mua ngay</button>
       <span id="add-to-cart-msg" class="text-green-700 text-sm ml-2"></span>
     {% endif %}
   {% endif %}
+
+  <form id="buy-now-form" class="hidden mt-2 mb-4 max-w-md mx-auto border border-stone-200 p-4 flex flex-col gap-2.5 text-left">
+    <div class="text-sm font-semibold">Mua ngay — điền thông tin nhận hàng</div>
+    <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2 border border-stone-300 rounded-md">
+    <input type="text" name="customerPhone" placeholder="Số điện thoại" required class="px-3 py-2 border border-stone-300 rounded-md">
+    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2 border border-stone-300 rounded-md">
+    <div class="flex gap-2">
+      <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-5 py-2 rounded-md cursor-pointer">Xác nhận đặt hàng</button>
+      <button type="button" id="buy-now-cancel" class="border border-stone-300 px-5 py-2 rounded-md cursor-pointer bg-white">Huỷ</button>
+    </div>
+    <div id="buy-now-error" class="text-red-700 text-sm"></div>
+  </form>
 
   {% if product.description %}
     <div class="font-serif leading-relaxed text-left">{{ product.description | escape | newline_to_br }}</div>
@@ -122,8 +136,28 @@
 (function () {
   const CART_KEY = "site_engine_cart";
 
+  // Field NGOAI danh sach known tren form Mua ngay tu dong duoc gop thanh customFields gui len
+  // server - vd them 1 <input name="secondaryPhone"> vao #buy-now-form se TU DONG duoc luu vao
+  // don hang (CartOrder.customFields), khong can sua doan JS nay.
+  function collectExtraFields(form, knownNames) {
+    const result = {};
+    [...form.elements].forEach((el) => {
+      if (!el.name || knownNames.includes(el.name) || el.type === "submit" || el.type === "button") return;
+      if (el.value) result[el.name] = el.value;
+    });
+    return result;
+  }
+
+  function readCart() {
+    try {
+      return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
   function addToCart(productId, variantId) {
-    const cart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    const cart = readCart();
     const existing = cart.find((c) => c.productId === productId && c.variantId === variantId);
     if (existing) {
       existing.quantity += 1;
@@ -133,6 +167,53 @@
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
     const msg = document.getElementById("add-to-cart-msg");
     if (msg) msg.textContent = "Đã thêm vào giỏ — xem giỏ hàng";
+  }
+
+  // "Mua ngay" - dat 1 don rieng cho DUNG san pham/bien the dang xem, KHONG dong tam voi gio
+  // hang dang co trong localStorage. Neu san pham nay TINH CO dang nam san trong gio (tu tung
+  // bam "Them vao gio" truoc do), sau khi dat hang thanh cong se tu XOA no khoi gio - tranh mua
+  // trung khi khach quay lai trang gio hang.
+  function initBuyNow(getVariantId) {
+    const btn = document.getElementById("buy-now-btn");
+    const form = document.getElementById("buy-now-form");
+    const cancelBtn = document.getElementById("buy-now-cancel");
+    const errorEl = document.getElementById("buy-now-error");
+    if (!btn || !form) return;
+
+    btn.addEventListener("click", () => {
+      form.classList.remove("hidden");
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    cancelBtn.addEventListener("click", () => form.classList.add("hidden"));
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      const variantId = getVariantId();
+
+      const res = await fetch("/cart/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ productId: "{{ product.id }}", variantId: variantId || undefined, quantity: 1 }],
+          customerName: form.customerName.value,
+          customerPhone: form.customerPhone.value,
+          customerAddress: form.customerAddress.value || undefined,
+          customFields: collectExtraFields(form, ["customerName", "customerPhone", "customerAddress"]),
+        }),
+      });
+
+      if (!res.ok) {
+        errorEl.textContent = "Đặt hàng thất bại, vui lòng thử lại.";
+        return;
+      }
+
+      const { orderId } = await res.json();
+      const cart = readCart().filter((c) => !(c.productId === "{{ product.id }}" && c.variantId === variantId));
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      window.location.href = "/order-confirmation/" + orderId;
+    });
   }
 
   const variantsEl = document.getElementById("variants-data");
@@ -202,11 +283,14 @@
       if (addBtn.disabled) return;
       addToCart(productId, addBtn.dataset.variantId);
     });
+
+    initBuyNow(() => addBtn.dataset.variantId || null);
   } else {
     const btn = document.getElementById("add-to-cart");
     if (btn) {
       btn.addEventListener("click", () => addToCart(btn.dataset.id, null));
     }
+    initBuyNow(() => null);
   }
 })();
 </script>

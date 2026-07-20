@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
+import { renderNotFound } from "../../services/notFoundPage.js";
 
 const PAGE_SIZE = 10;
 
@@ -57,7 +58,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
         include: { children: { select: { name: true, slug: true } } },
       });
       if (!category) {
-        return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy danh mục</h1>");
+        return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy danh mục"));
       }
 
       const page = Math.max(1, Number(request.query.page ?? 1) || 1);
@@ -105,7 +106,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       if (redirect) {
         return reply.code(redirect.statusCode).redirect(redirect.toPath);
       }
-      return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy bài viết</h1>");
+      return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy bài viết"));
     }
 
     const seo = readSeo(post.seo);
@@ -122,12 +123,23 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    const html = await renderPublic("blog-post", {
+    const pageData = {
       pageTitle: post.title,
       metaDescription: seo.metaDescription ?? post.excerpt ?? undefined,
       noindex: seo.noindex,
-      post,
-    });
+    };
+
+    // 'standard' -> khung theme chuan (blog-post.liquid). 'custom' -> van co header/footer nhung
+    // body render THO khong qua khung tieu de/category. 'landing' -> khong header/footer/layout gi
+    // ca - xem docblock Post.layoutMode (schema.prisma) cho ly do thiet ke day du.
+    let html: string;
+    if (post.layoutMode === "landing") {
+      html = await renderPublic("landing", { ...pageData, rawHtml: post.body });
+    } else if (post.layoutMode === "custom") {
+      html = await renderPublic("custom-content", { ...pageData, rawHtml: post.body });
+    } else {
+      html = await renderPublic("blog-post", { ...pageData, post });
+    }
 
     return reply.type("text/html").send(html);
   });

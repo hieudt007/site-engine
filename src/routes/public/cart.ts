@@ -3,8 +3,10 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
+import { renderNotFound } from "../../services/notFoundPage.js";
 import { sendOrderToLeadbase, LeadbaseOrderError, OrderItemPayload } from "../../services/leadbaseClient.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
+import { customFieldsSchema } from "../../services/customFields.js";
 
 // Giỏ hàng sống ở localStorage phía trình duyệt (system_design.md task_list — "không cần DB
 // riêng cho cart trước khi checkout"), server chỉ tham gia ở 2 điểm: hydrate giá/tên thật cho
@@ -22,6 +24,8 @@ const checkoutSchema = z.object({
   customerName: z.string().min(1),
   customerPhone: z.string().min(1),
   customerAddress: z.string().optional(),
+  // Field tu do khach dien qua form checkout (vd "SDT phu") - xem docblock CartOrder.customFields.
+  customFields: customFieldsSchema,
 });
 
 export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
@@ -103,6 +107,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
         customerAddress: parsed.data.customerAddress,
         items: orderItems as unknown as Prisma.InputJsonValue,
         total,
+        ...(parsed.data.customFields ? { customFields: parsed.data.customFields } : {}),
       },
     });
 
@@ -135,7 +140,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { id: string } }>("/order-confirmation/:id", async (request, reply) => {
     const order = await prisma.cartOrder.findUnique({ where: { id: request.params.id } });
     if (!order) {
-      return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy đơn hàng</h1>");
+      return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy đơn hàng"));
     }
 
     const html = await renderPublic("order-confirmation", { pageTitle: "Xác nhận đơn hàng", order });

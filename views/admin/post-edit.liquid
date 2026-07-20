@@ -2,8 +2,12 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
   <h1 style="margin:0;">{% if post %}Sửa bài viết{% else %}Bài viết mới{% endif %}</h1>
-  <a class="btn" href="/admin/posts">← Danh sách</a>
+  <div style="display:flex;gap:0.6rem;">
+    <button type="button" class="btn" id="ai-generate-btn">✨ Viết bằng AI</button>
+    <a class="btn" href="/admin/posts">← Danh sách</a>
+  </div>
 </div>
+<div id="ai-status" style="font-size:0.85rem;color:#777;margin-bottom:0.8rem;"></div>
 
 {% if post %}
   <div style="margin-bottom:1rem;">
@@ -50,11 +54,22 @@
     {% endfor %}
   </select>
 
+  <label for="layoutMode">Định dạng trang</label>
+  <select id="layoutMode" name="layoutMode">
+    <option value="standard" {% if post == null or post.layoutMode == "standard" %}selected{% endif %}>Tiêu chuẩn</option>
+    <option value="custom" {% if post.layoutMode == "custom" %}selected{% endif %}>Tuỳ biến (giữ header/footer, nội dung tự soạn HTML)</option>
+    <option value="landing" {% if post.layoutMode == "landing" %}selected{% endif %}>Landing page (không header/footer)</option>
+  </select>
+  <div class="field-hint">Tuỳ biến/Landing page: ô Nội dung chuyển sang nhập HTML thô, cho phép cả &lt;script&gt;/&lt;iframe&gt; (nhúng form, tracking, video) — chỉ dùng khi thật sự cần.</div>
+
   <label for="password">Mật khẩu xem bài (để trống = mở tự do)</label>
   <input type="text" id="password" name="password" value="{% if post %}{{ post.password | escape }}{% endif %}" placeholder="Để trống nếu không cần bảo vệ">
   <div class="field-hint">Khách phải nhập đúng mật khẩu này mới đọc được bài — không phải tài khoản đăng nhập, chỉ là lớp hạn chế xem đơn giản.</div>
 
-  <label for="body">Nội dung</label>
+  <label for="body" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>Nội dung</span>
+    <button type="button" class="btn" id="ai-rewrite-btn" style="font-weight:400;">✨ AI viết lại</button>
+  </label>
   <textarea id="body" name="body" required>{% if post %}{{ post.body }}{% endif %}</textarea>
 
   <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
@@ -135,12 +150,90 @@
     coverImagePreview.style.display = coverImageInput.value ? "" : "none";
   });
 
+  const layoutModeSelect = document.getElementById("layoutMode");
+
+  // 'standard' -> rich-text editor (toolbar + contenteditable, xem initRichEditor trong layout.liquid).
+  // 'custom'/'landing' -> textarea HTML tho binh thuong (khong qua execCommand cua rich editor,
+  // vi 2 mode nay can toan quyen HTML kieu <script>/<iframe> ma rich editor khong ho tro sinh ra).
+  // Doi qua lai duoc NGAY trong luc soan (khong can tai lai trang).
+  function applyEditorMode() {
+    const editorBody = document.querySelector(".rich-editor-body");
+    const toolbar = document.querySelector(".rich-editor-toolbar");
+
+    if (layoutModeSelect.value === "standard") {
+      if (!editorBody) initRichEditor("body");
+    } else if (editorBody) {
+      form.body.value = editorBody.innerHTML;
+      toolbar.remove();
+      editorBody.remove();
+      form.body.style.display = "";
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
-    initRichEditor("body");
+    applyEditorMode();
     if (locked) {
       const editorBody = document.querySelector(".rich-editor-body");
       if (editorBody) editorBody.contentEditable = "false";
     }
+  });
+
+  layoutModeSelect.addEventListener("change", applyEditorMode);
+
+  function setBodyContent(html) {
+    form.body.value = html;
+    const editorBody = document.querySelector(".rich-editor-body");
+    if (editorBody) editorBody.innerHTML = html;
+  }
+
+  const aiStatus = document.getElementById("ai-status");
+
+  document.getElementById("ai-generate-btn").addEventListener("click", async () => {
+    const topic = prompt("Chủ đề/ý tưởng bài viết muốn AI viết:");
+    if (!topic) return;
+
+    aiStatus.textContent = "AI đang viết, vui lòng đợi...";
+    const res = await fetch("/admin/api/posts/ai-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic }),
+    });
+    aiStatus.textContent = "";
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "AI viết thất bại", false);
+      return;
+    }
+
+    const { content } = await res.json();
+    if (content.title) form.title.value = content.title;
+    if (content.excerpt) form.excerpt.value = content.excerpt;
+    if (content.body) setBodyContent(content.body);
+    showFlash("AI đã viết xong — xem lại và sửa trước khi Lưu.", true);
+  });
+
+  document.getElementById("ai-rewrite-btn").addEventListener("click", async () => {
+    const instruction = prompt("Muốn AI sửa nội dung hiện tại như thế nào? (vd: rút gọn, giọng trang trọng hơn)");
+    if (!instruction) return;
+
+    aiStatus.textContent = "AI đang viết lại, vui lòng đợi...";
+    const res = await fetch("/admin/api/posts/ai-rewrite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: form.body.value, instruction }),
+    });
+    aiStatus.textContent = "";
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "AI viết lại thất bại", false);
+      return;
+    }
+
+    const { body: newBody } = await res.json();
+    setBodyContent(newBody);
+    showFlash("AI đã viết lại xong — xem lại và sửa trước khi Lưu.", true);
   });
 
   const customFieldsBtn = document.getElementById("custom-fields-btn");
@@ -259,6 +352,7 @@
       coverImage: form.coverImage.value || undefined,
       categoryIds: categoryIds,
       topicId: form.topicId.value || null,
+      layoutMode: form.layoutMode.value,
       password: form.password.value || null,
       seo: {
         metaTitle: form.metaTitle.value || undefined,

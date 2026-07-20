@@ -5,7 +5,7 @@
   <a class="btn btn-primary" href="/admin/agents/new">+ Agent mới</a>
 </div>
 <p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
-  Cấu hình nhà cung cấp AI + API key. Chưa nối vào tính năng nào — chuẩn bị sẵn để dùng sau.
+  Cấu hình nhà cung cấp AI + API key. Agent có "Mục đích" sẽ tự động dùng cho tính năng viết bài (post-edit) hoặc tuỳ chỉnh giao diện (Giao diện).
 </p>
 
 <table>
@@ -14,12 +14,13 @@
       <th>Tên</th>
       <th>Nhà cung cấp</th>
       <th>Model</th>
+      <th>Mục đích</th>
       <th>Trạng thái</th>
       <th></th>
     </tr>
   </thead>
   <tbody id="agents-body">
-    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
 
@@ -39,15 +40,21 @@
     return div.innerHTML;
   }
 
+  const PURPOSE_LABEL = { content: "Nội dung bài viết", design: "Tuỳ chỉnh giao diện" };
+
   function rowHtml(agent) {
     const statusBadge = agent.isActive
       ? '<span class="status-badge status-published">Đang bật</span>'
       : '<span class="status-badge status-draft">Đã tắt</span>';
+    const purposeBadge = agent.purpose
+      ? '<span class="status-badge">' + (PURPOSE_LABEL[agent.purpose] || agent.purpose) + '</span>'
+      : '<span style="color:#999;">—</span>';
     return (
       "<tr>" +
       '<td><a href="/admin/agents/' + agent.id + '">' + escapeHtml(agent.name) + "</a></td>" +
       "<td>" + escapeHtml(agent.provider) + "</td>" +
       "<td>" + escapeHtml(agent.model) + "</td>" +
+      "<td>" + purposeBadge + "</td>" +
       "<td>" + statusBadge + "</td>" +
       '<td style="text-align:right;"><button class="btn btn-danger" data-action="delete" data-id="' + agent.id + '">Xoá</button></td>' +
       "</tr>"
@@ -63,7 +70,7 @@
     const { agents } = await res.json();
     tbody.innerHTML = agents.length
       ? agents.map(rowHtml).join("")
-      : '<tr><td colspan="5" class="empty-state">Chưa có agent nào.</td></tr>';
+      : '<tr><td colspan="6" class="empty-state">Chưa có agent nào.</td></tr>';
   }
 
   tbody.addEventListener("click", async (event) => {

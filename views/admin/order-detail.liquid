@@ -17,6 +17,15 @@
   <p><strong>Ngày đặt:</strong> {{ order.createdAt | date: "%d/%m/%Y %H:%M" }}</p>
 </div>
 
+{% if order.customFields.size > 0 %}
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="font-size:1rem;margin-top:0;">Thông tin thêm (khách tự điền)</h2>
+  {% for pair in order.customFields %}
+    <p><strong>{{ pair[0] | escape }}:</strong> {{ pair[1] | escape }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="card">
   <h2 style="font-size:1rem;margin-top:0;">Sản phẩm</h2>
   <table>

@@ -120,12 +120,27 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     file: "product-detail.liquid",
     description: "Chi tiet 1 san pham — co the co bien the (mau/size).",
     requiredSubstrings: [...WRAPPER, "product.name", "product.price", "product.customFields", "variantsJson"],
-    requiredIds: ["add-to-cart", "variant-picker", "variant-price", "variant-stock", "review-form"],
+    requiredIds: [
+      "add-to-cart",
+      "variant-picker",
+      "variant-price",
+      "variant-stock",
+      "review-form",
+      "buy-now-btn",
+      "buy-now-form",
+      "buy-now-cancel",
+      "buy-now-error",
+    ],
     notes:
       "JS phia client (giu NGUYEN trong file, chi doi HTML/class xung quanh) doc: #add-to-cart (nut them gio, " +
       "co data-id khi khong bien the / data-variant-id khi co), #variant-picker (JS tu bom <select> vao day theo " +
       "product.hasVariants), #variant-price, #variant-stock, script#variants-data (JSON.parse tu {{ variantsJson }}), " +
       "#review-form + input[name=customerName]/select[name=rating]/textarea[name=comment], #review-msg. " +
+      "#buy-now-btn (mo form mua ngay rieng, khong dong tam voi gio hang), #buy-now-form (an mac dinh bang class " +
+      "'hidden', co input[name=customerName]/customerPhone/customerAddress, submit goi POST /cart/checkout roi tu " +
+      "xoa san pham nay khoi localStorage neu co), #buy-now-cancel (nut dong form), #buy-now-error (hien loi). " +
+      "DUOC PHEP them input dat ten tuy y vao #buy-now-form (giong #checkout-form ben cart.liquid) - JS tu dong " +
+      "gop thanh customFields gui kem don hang. " +
       'PHAI giu {% render "_custom-fields", fields: product.customFields %}.',
   },
   {
@@ -136,14 +151,42 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     notes:
       "JS (giu nguyen, chi doi HTML/class xung quanh) doc localStorage, bom noi dung vao #cart-items, " +
       "form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #cart-total, " +
-      "loi vao #checkout-error.",
+      "loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd " +
+      '<input name="secondaryPhone">) - JS tu dong gop moi input NGOAI 3 ten tren thanh customFields ' +
+      "gui kem don hang, KHONG can sua JS.",
   },
   {
     file: "order-confirmation.liquid",
     description: "Trang xac nhan sau khi dat hang thanh cong.",
-    requiredSubstrings: [...WRAPPER, "order.id", "order.items", "order.total"],
+    requiredSubstrings: [...WRAPPER, "order.id", "order.items", "order.total", "order.customFields"],
     requiredIds: [],
-    notes: "order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone.",
+    notes:
+      "order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. " +
+      'PHAI giu {% render "_custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).',
+  },
+  {
+    file: "custom-content.liquid",
+    description: "Che do 'Tuy bien' cua Post/Page/Product - van co header/footer nhung noi dung render THO, khong qua khung tieu de/danh muc chuan.",
+    requiredSubstrings: [...WRAPPER, "rawHtml"],
+    requiredIds: [],
+    notes: "Chi can render {{ rawHtml }} (HTML da duoc admin tu soan, KHONG duoc escape/sanitize them) vao trong block content, khong them chrome (tieu de/breadcrumb) nao ca.",
+  },
+  {
+    file: "landing.liquid",
+    description: "Che do 'Landing page' cua Post/Page/Product - KHONG header/footer/layout gi ca, trang doc lap hoan toan.",
+    requiredSubstrings: ["cdn.tailwindcss.com", "rawHtml"],
+    requiredIds: [],
+    notes:
+      "KHONG duoc {% render \"_header\" %}/{% render \"_footer\" %} - day la trang doc lap (vd landing quang cao), " +
+      "khong duoc co nav/footer cua site chinh. Van giu <head> voi Tailwind CDN + font de rawHtml (admin tu viet, " +
+      "co the dung class Tailwind) hien dung. Chi render {{ rawHtml }} thang vao <body>, KHONG escape/sanitize them.",
+  },
+  {
+    file: "404.liquid",
+    description: "Trang khong tim thay (404) - dung cho moi URL/slug/id khong ton tai tren toan site.",
+    requiredSubstrings: [...WRAPPER],
+    requiredIds: [],
+    notes: "Nhan bien message (co the rong/khong duoc truyen — PHAI co gia tri mac dinh du hop ly, vd \"Không tìm thấy trang bạn cần\"). Nen co link ve trang chu.",
   },
   {
     file: "_custom-fields.liquid",

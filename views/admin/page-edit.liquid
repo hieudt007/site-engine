@@ -29,6 +29,14 @@
   </div>
   <img id="coverImage-preview" src="{% if page %}{{ page.coverImage | escape }}{% endif %}" style="max-width:160px;max-height:100px;object-fit:cover;border-radius:6px;margin-top:0.5rem;{% unless page.coverImage %}display:none;{% endunless %}">
 
+  <label for="layoutMode">Định dạng trang</label>
+  <select id="layoutMode" name="layoutMode">
+    <option value="standard" {% if page == null or page.layoutMode == "standard" %}selected{% endif %}>Tiêu chuẩn</option>
+    <option value="custom" {% if page.layoutMode == "custom" %}selected{% endif %}>Tuỳ biến (giữ header/footer, nội dung tự soạn HTML)</option>
+    <option value="landing" {% if page.layoutMode == "landing" %}selected{% endif %}>Landing page (không header/footer)</option>
+  </select>
+  <div class="field-hint">Tuỳ biến/Landing page: ô Nội dung chuyển sang nhập HTML thô, cho phép cả &lt;script&gt;/&lt;iframe&gt; (nhúng form, tracking, video) — chỉ dùng khi thật sự cần.</div>
+
   <label for="body">Nội dung</label>
   <textarea id="body" name="body" required>{% if page %}{{ page.body }}{% endif %}</textarea>
 
@@ -116,13 +124,31 @@
     showFlash("Trang đã lên lịch/xuất bản — chỉ manager/admin được sửa.", false);
   }
 
+  const layoutModeSelect = document.getElementById("layoutMode");
+
+  function applyEditorMode() {
+    const editorBody = document.querySelector(".rich-editor-body");
+    const toolbar = document.querySelector(".rich-editor-toolbar");
+
+    if (layoutModeSelect.value === "standard") {
+      if (!editorBody) initRichEditor("body");
+    } else if (editorBody) {
+      form.body.value = editorBody.innerHTML;
+      toolbar.remove();
+      editorBody.remove();
+      form.body.style.display = "";
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
-    initRichEditor("body");
+    applyEditorMode();
     if (locked) {
       const editorBody = document.querySelector(".rich-editor-body");
       if (editorBody) editorBody.contentEditable = "false";
     }
   });
+
+  layoutModeSelect.addEventListener("change", applyEditorMode);
 
   const customFieldsBtn = document.getElementById("custom-fields-btn");
   if (customFieldsBtn) {
@@ -231,6 +257,7 @@
       body: form.body.value,
       excerpt: form.excerpt.value || undefined,
       coverImage: form.coverImage.value || undefined,
+      layoutMode: form.layoutMode.value,
       seo: {
         metaTitle: form.metaTitle.value || undefined,
         metaDescription: form.metaDescription.value || undefined,
