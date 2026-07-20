@@ -17,7 +17,7 @@
           <a href="/blog/{{ post.slug }}" style="text-decoration:none;color:#111;">{{ post.title | escape }}</a>
         </h2>
         <div style="color:#999;font-size:0.85rem;margin-bottom:0.5rem;">
-          {{ post.publishedAt | date: "%d/%m/%Y" }}{% if post.category %} · <a href="/blog/danh-muc/{{ post.category.slug }}" style="color:#999;">{{ post.category.name | escape }}</a>{% endif %}
+          {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}" style="color:#999;">{{ c.name | escape }}</a>{% endfor %}
         </div>
         {% if post.excerpt %}<p style="color:#444;">{{ post.excerpt | escape }}</p>{% endif %}
         <a href="/blog/{{ post.slug }}">Đọc tiếp →</a>

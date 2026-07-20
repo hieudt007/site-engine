@@ -25,11 +25,24 @@
   <label for="coverImage">Ảnh bìa (URL)</label>
   <input type="text" id="coverImage" name="coverImage" value="{% if post %}{{ post.coverImage | escape }}{% endif %}">
 
-  <label for="categoryId">Danh mục</label>
-  <select id="categoryId" name="categoryId">
-    <option value="">— Không có danh mục —</option>
+  <label>Danh mục (chọn được nhiều)</label>
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:0.6rem 1.2rem;padding:0.8rem 1rem;">
+    {% if categories.size == 0 %}
+      <span style="color:#999;font-size:0.85rem;">Chưa có danh mục nào.</span>
+    {% endif %}
     {% for c in categories %}
-      <option value="{{ c.id }}" {% if post.categoryId == c.id %}selected{% endif %}>{{ c.name | escape }}</option>
+      <label style="display:flex;align-items:center;gap:0.35rem;font-weight:400;margin:0;">
+        <input type="checkbox" name="categoryIds" value="{{ c.id }}" style="width:auto;" {% if selectedCategoryIds contains c.id %}checked{% endif %}>
+        {{ c.name | escape }}
+      </label>
+    {% endfor %}
+  </div>
+
+  <label for="topicId">Chủ đề</label>
+  <select id="topicId" name="topicId">
+    <option value="">— Không có chủ đề —</option>
+    {% for t in topics %}
+      <option value="{{ t.id }}" {% if post.topicId == t.id %}selected{% endif %}>{{ t.name | escape }}</option>
     {% endfor %}
   </select>
 
@@ -170,13 +183,15 @@
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const categoryIds = [...form.querySelectorAll('input[name="categoryIds"]:checked')].map((el) => el.value);
     const payload = {
       title: form.title.value,
       slug: form.slug.value,
       body: form.body.value,
       excerpt: form.excerpt.value || undefined,
       coverImage: form.coverImage.value || undefined,
-      categoryId: form.categoryId.value || null,
+      categoryIds: categoryIds,
+      topicId: form.topicId.value || null,
       seo: {
         metaTitle: form.metaTitle.value || undefined,
         metaDescription: form.metaDescription.value || undefined,

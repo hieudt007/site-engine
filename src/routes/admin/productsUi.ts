@@ -22,7 +22,7 @@ export async function registerProductsUiRoutes(app: FastifyInstance): Promise<vo
     async (request, reply) => {
       const product = await prisma.productCache.findUnique({
         where: { id: request.params.id },
-        include: { variants: true, category: true },
+        include: { variants: true, categories: true },
       });
       if (!product) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");

@@ -25,7 +25,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
           excerpt: true,
           coverImage: true,
           publishedAt: true,
-          category: { select: { name: true, slug: true } },
+          categories: { select: { name: true, slug: true } },
         },
       }),
       prisma.post.count({ where }),
@@ -48,6 +48,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const category = await prisma.category.findUnique({
         where: { type_slug: { type: "post", slug: request.params.slug } },
+        include: { children: { select: { name: true, slug: true } } },
       });
       if (!category) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy danh mục</h1>");
@@ -55,7 +56,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
       const page = Math.max(1, Number(request.query.page ?? 1) || 1);
       const skip = (page - 1) * PAGE_SIZE;
-      const where = { type: "post", status: "published", categoryId: category.id };
+      const where = { type: "post", status: "published", categories: { some: { id: category.id } } };
 
       const [posts, total] = await Promise.all([
         prisma.post.findMany({
@@ -88,7 +89,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { slug: string } }>("/blog/:slug", async (request, reply) => {
     const post = await prisma.post.findUnique({
       where: { type_slug: { type: "post", slug: request.params.slug } },
-      include: { category: { select: { name: true, slug: true } } },
+      include: { categories: { select: { name: true, slug: true } } },
     });
     if (!post || post.status !== "published") {
       // "/blog/:slug" la route DA DANG KY nen luon khop pattern - app.setNotFoundHandler()

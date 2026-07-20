@@ -19,11 +19,13 @@ const seoSchema = z
 const createCategorySchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -"),
+  parentId: z.string().nullable().optional(),
 });
 
 const updateCategorySchema = z.object({
   name: z.string().min(1).optional(),
   slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -").optional(),
+  parentId: z.string().nullable().optional(),
   excerpt: z.string().optional(),
   body: z.string().optional(),
   seo: seoSchema,
@@ -36,7 +38,11 @@ const updateCategorySchema = z.object({
 // (requireRole("edit")), không ở đây.
 export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/post-categories", { preHandler: requireRole("edit") }, async () => {
-    const categories = await prisma.category.findMany({ where: { type: TYPE }, orderBy: { name: "asc" } });
+    const categories = await prisma.category.findMany({
+      where: { type: TYPE },
+      orderBy: { name: "asc" },
+      include: { parent: { select: { name: true } } },
+    });
     return { categories };
   });
 
@@ -63,6 +69,13 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
     });
     if (existing) {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
+    }
+
+    if (parsed.data.parentId) {
+      const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
+      if (!parent || parent.type !== TYPE) {
+        return reply.code(422).send({ error: "Danh mục cha không hợp lệ" });
+      }
     }
 
     const category = await prisma.category.create({ data: { ...parsed.data, type: TYPE } });
@@ -92,6 +105,16 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
         }
       }
 
+      if (parsed.data.parentId) {
+        if (parsed.data.parentId === category.id) {
+          return reply.code(422).send({ error: "Danh mục không thể là cha của chính nó" });
+        }
+        const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
+        if (!parent || parent.type !== TYPE) {
+          return reply.code(422).send({ error: "Danh mục cha không hợp lệ" });
+        }
+      }
+
       const updated = await prisma.category.update({ where: { id: category.id }, data: parsed.data });
       return { category: updated };
     },
@@ -106,9 +129,9 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
         return reply.code(404).send({ error: "Không tìm thấy danh mục" });
       }
 
-      // Bài viết đang gán category này -> gỡ về null thay vì chặn xoá (FK đã set không cascade
-      // xoá Post, chỉ cần tự gỡ tay categoryId trước khi xoá category).
-      await prisma.post.updateMany({ where: { categoryId: category.id }, data: { categoryId: null } });
+      // Nhiều-nhiều (Post.categories) -> xoá Category tự gỡ khỏi mọi bài đang gắn qua bảng join
+      // (cascade), không cần tự dọn tay. Category con (parentId trỏ tới đây) tự về null (ON
+      // DELETE SET NULL, xem migration).
       await prisma.category.delete({ where: { id: category.id } });
 
       return { success: true };

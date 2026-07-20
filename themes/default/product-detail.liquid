@@ -6,7 +6,11 @@
   {% if product.imageUrls.size > 0 %}
     <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" style="width:100%;max-height:420px;object-fit:cover;border-radius:8px;">
   {% endif %}
-  {% if product.category %}<div style="color:#777;font-size:0.85rem;margin-bottom:0.3rem;"><a href="/products/danh-muc/{{ product.category.slug }}" style="color:#777;">{{ product.category.name | escape }}</a></div>{% endif %}
+  {% if product.categories.size > 0 %}
+    <div style="color:#777;font-size:0.85rem;margin-bottom:0.3rem;">
+      {% for c in product.categories %}<a href="/products/danh-muc/{{ c.slug }}" style="color:#777;">{{ c.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
+    </div>
+  {% endif %}
   <h1 style="margin-bottom:0.5rem;">{{ product.name | escape }}</h1>
 
   {% if product.hasVariants %}

@@ -39,7 +39,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
 
       const where = {
         ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
-        ...(categoryId ? { categoryId } : {}),
+        ...(categoryId ? { categories: { some: { id: categoryId } } } : {}),
         ...(status ? { status } : {}),
       };
 
@@ -49,7 +49,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           orderBy: { syncedAt: "desc" },
           skip,
           take: PAGE_SIZE,
-          include: { category: { select: { name: true } } },
+          include: { categories: { select: { name: true } } },
         }),
         prisma.productCache.count({ where }),
       ]);

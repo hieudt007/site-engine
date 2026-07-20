@@ -137,7 +137,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
             stock: parsed.data.stock ?? null,
             leadbaseStatus: parsed.data.status,
             hasVariants,
-            categoryId,
+            categories: { set: categoryId ? [{ id: categoryId }] : [] },
             syncedAt: new Date(),
           },
         });
@@ -158,7 +158,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
           imageUrls: [],
           status: "draft",
           hasVariants,
-          categoryId,
+          ...(categoryId ? { categories: { connect: [{ id: categoryId }] } } : {}),
         },
       });
       if (hasVariants) {
@@ -181,7 +181,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         stock: parsed.data.stock ?? null,
         leadbaseStatus: parsed.data.status,
         hasVariants,
-        categoryId,
+        categories: { set: categoryId ? [{ id: categoryId }] : [] },
         syncedAt: new Date(),
       },
     });

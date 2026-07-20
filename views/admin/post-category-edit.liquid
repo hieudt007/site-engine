@@ -12,6 +12,14 @@
   <label for="slug">Slug (đường dẫn — /blog/danh-muc/slug)</label>
   <input type="text" id="slug" name="slug" value="{{ category.slug | escape }}" required>
 
+  <label for="parentId">Danh mục cha</label>
+  <select id="parentId" name="parentId">
+    <option value="">— Không có (danh mục gốc) —</option>
+    {% for c in categories %}
+      <option value="{{ c.id }}" {% if category.parentId == c.id %}selected{% endif %}>{{ c.name | escape }}</option>
+    {% endfor %}
+  </select>
+
   <label for="excerpt">Tóm tắt</label>
   <input type="text" id="excerpt" name="excerpt" value="{{ category.excerpt | escape }}">
 
@@ -50,6 +58,7 @@
     const payload = {
       name: form.name.value,
       slug: form.slug.value,
+      parentId: form.parentId.value || null,
       excerpt: form.excerpt.value || undefined,
       body: form.body.value || undefined,
       seo: {

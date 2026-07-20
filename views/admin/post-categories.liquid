@@ -10,7 +10,7 @@
 
 <table>
   <thead>
-    <tr><th>Tên</th><th>Slug</th><th></th></tr>
+    <tr><th>Tên</th><th>Danh mục cha</th><th>Slug</th><th></th></tr>
   </thead>
   <tbody id="categories-body">
     <tr><td colspan="3" style="color:#999;">Đang tải...</td></tr>
@@ -38,12 +38,14 @@
     const { categories } = await res.json();
     tbody.innerHTML = categories.length
       ? categories.map((c) =>
-          '<tr><td><a href="/admin/post-categories/' + c.id + '">' + escapeHtml(c.name) + "</a></td><td>" + escapeHtml(c.slug) + "</td>" +
+          '<tr><td><a href="/admin/post-categories/' + c.id + '">' + escapeHtml(c.name) + "</a></td>" +
+          "<td>" + (c.parent ? escapeHtml(c.parent.name) : "-") + "</td>" +
+          "<td>" + escapeHtml(c.slug) + "</td>" +
           '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' +
           '<a class="btn" href="/admin/post-categories/' + c.id + '">Sửa nội dung</a>' +
           '<button class="btn btn-danger" data-id="' + c.id + '">Xoá</button></td></tr>'
         ).join("")
-      : '<tr><td colspan="3" style="color:#999;">Chưa có danh mục nào.</td></tr>';
+      : '<tr><td colspan="4" class="empty-state">Chưa có danh mục nào.</td></tr>';
   }
 
   document.getElementById("new-category-form").addEventListener("submit", async (event) => {

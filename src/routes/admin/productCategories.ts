@@ -17,6 +17,7 @@ const seoSchema = z
   .optional();
 
 const updateCategorySchema = z.object({
+  parentId: z.string().nullable().optional(),
   excerpt: z.string().optional(),
   body: z.string().optional(),
   seo: seoSchema,
@@ -27,7 +28,11 @@ const updateCategorySchema = z.object({
 // route tạo/xoá tay). CHỈ sửa được excerpt/body/seo — nội dung trang danh mục site tự quản.
 export async function registerProductCategoryRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/product-categories", { preHandler: requireRole("manager") }, async () => {
-    const categories = await prisma.category.findMany({ where: { type: TYPE }, orderBy: { name: "asc" } });
+    const categories = await prisma.category.findMany({
+      where: { type: TYPE },
+      orderBy: { name: "asc" },
+      include: { parent: { select: { name: true } } },
+    });
     return { categories };
   });
 
@@ -55,6 +60,16 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
       const category = await prisma.category.findUnique({ where: { id: request.params.id } });
       if (!category || category.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy danh mục" });
+      }
+
+      if (parsed.data.parentId) {
+        if (parsed.data.parentId === category.id) {
+          return reply.code(422).send({ error: "Danh mục không thể là cha của chính nó" });
+        }
+        const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
+        if (!parent || parent.type !== TYPE) {
+          return reply.code(422).send({ error: "Danh mục cha không hợp lệ" });
+        }
       }
 
       const updated = await prisma.category.update({ where: { id: category.id }, data: parsed.data });

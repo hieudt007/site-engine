@@ -69,7 +69,7 @@
   function rowHtml(post) {
     const statusBadge = '<span class="status-badge status-' + post.status + '">' + (STATUS_LABEL[post.status] || post.status) + '</span>';
     const author = post.author ? escapeHtml(post.author.name) : "-";
-    const category = post.category ? escapeHtml(post.category.name) : "-";
+    const category = (post.categories && post.categories.length) ? post.categories.map((c) => escapeHtml(c.name)).join(", ") : "-";
     const updated = new Date(post.updatedAt).toLocaleString("vi-VN");
     const submitBtn = post.status === "draft"
       ? '<button class="btn" data-action="submit" data-id="' + post.id + '">Nộp duyệt</button>'

@@ -11,6 +11,15 @@
 </div>
 
 <form id="category-form" class="card">
+  <label for="parentId">Danh mục cha</label>
+  <select id="parentId" name="parentId">
+    <option value="">— Không có (danh mục gốc) —</option>
+    {% for c in categories %}
+      <option value="{{ c.id }}" {% if category.parentId == c.id %}selected{% endif %}>{{ c.name | escape }}</option>
+    {% endfor %}
+  </select>
+  <div class="field-hint">LeadBase không gửi cây danh mục — chọn cha ở đây là tự quản riêng tại site.</div>
+
   <label for="excerpt">Tóm tắt</label>
   <input type="text" id="excerpt" name="excerpt" value="{{ category.excerpt | escape }}">
 
@@ -47,6 +56,7 @@
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
+      parentId: form.parentId.value || null,
       excerpt: form.excerpt.value || undefined,
       body: form.body.value || undefined,
       seo: {

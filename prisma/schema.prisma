@@ -79,11 +79,18 @@ model AuditLog {
 // toàn tại site-engine; 'product' đồng bộ name/slug từ LeadBase (routes/public/productsSync.ts
 // resolveCategoryId — KHÔNG sửa tay 2 field đó), nhưng excerpt/body/seo vẫn site tự quản y hệt
 // cách ProductCache.description không bị LeadBase ghi đè sau lần tạo đầu.
+//
+// 1 bài/sản phẩm gắn được NHIỀU category (nhiều-nhiều, xem Post.categories/ProductCache.categories
+// dưới) - khác Topic (1 bài chỉ 1 topic). Có cha/con (parentId) - áp dụng cho CẢ 2 type, kể cả
+// danh mục sản phẩm dù LeadBase không gửi cây phân cấp (site tự quản cha/con riêng ở đây).
 model Category {
-  id   String @id @default(cuid())
-  type String @default("post") // 'post' | 'product'
-  name String
-  slug String
+  id       String     @id @default(cuid())
+  type     String     @default("post") // 'post' | 'product'
+  name     String
+  slug     String
+  parentId String?
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
 
   // Chỉ có giá trị khi type='product' — LeadBase sở hữu, đồng bộ mỗi lần sync sản phẩm.
   leadbaseCategoryId String?   @unique
@@ -101,6 +108,18 @@ model Category {
   products ProductCache[]
 
   @@unique([type, slug])
+}
+
+// Chủ đề bài viết — KHÁC Category ở chỗ 1 bài chỉ thuộc ĐÚNG 1 topic (Post.topicId, quan hệ
+// 1-nhiều thường), không phân cấp cha/con, không có trang công khai riêng (chỉ dùng để lọc/gắn
+// nhãn) - chỉ áp dụng cho Post, không áp dụng cho ProductCache.
+model Topic {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  posts Post[]
 }
 
 // Bai viet blog VA trang tinh GOP CHUNG 1 bang, phan biet qua "type" ('post' | 'page') - trang
@@ -123,8 +142,12 @@ model Post {
   authorId Int? // ai TẠO — User.leadbaseUserId
   author   User? @relation(fields: [authorId], references: [leadbaseUserId])
 
-  categoryId String? // chỉ dùng khi type='post' — page không có danh mục
-  category   Category? @relation(fields: [categoryId], references: [id])
+  // Nhiều-nhiều — 1 bài gắn được nhiều category (chỉ dùng khi type='post', page không có danh
+  // mục/topic). Khác topicId dưới (1-1, mỗi bài đúng 1 topic).
+  categories Category[]
+
+  topicId String?
+  topic   Topic?  @relation(fields: [topicId], references: [id])
 
   // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? } - score la cho danh
   // truoc cho tinh nang cham diem SEO SAU NAY, hien CHUA co logic tinh, luon null.
@@ -197,9 +220,9 @@ model ProductCache {
   variants    ProductVariantCache[]
 
   // Danh mục — name/slug do LeadBase sở hữu (giống price/stock), excerpt/body/seo site tự quản.
-  // Xem model Category (gộp chung với danh mục bài viết, phân biệt type).
-  categoryId String?
-  category   Category? @relation(fields: [categoryId], references: [id])
+  // Nhiều-nhiều (xem Category) — sync (productsSync.ts) chỉ gán ĐÚNG 1 category LeadBase gửi mỗi
+  // lần, nhưng quan hệ nhiều-nhiều để sau này site tự gắn thêm category phụ nếu cần.
+  categories Category[]
 
   reviews ProductReview[]
 }

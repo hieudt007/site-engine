@@ -20,7 +20,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         orderBy: { syncedAt: "desc" },
         skip,
         take: PAGE_SIZE,
-        include: { category: { select: { name: true, slug: true } } },
+        include: { categories: { select: { name: true, slug: true } } },
       }),
       prisma.productCache.count({ where }),
     ]);
@@ -42,6 +42,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     async (request, reply) => {
       const category = await prisma.category.findUnique({
         where: { type_slug: { type: "product", slug: request.params.slug } },
+        include: { children: { select: { name: true, slug: true } } },
       });
       if (!category) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy danh mục</h1>");
@@ -49,7 +50,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
 
       const page = Math.max(1, Number(request.query.page ?? 1) || 1);
       const skip = (page - 1) * PAGE_SIZE;
-      const where = { status: "published", categoryId: category.id };
+      const where = { status: "published", categories: { some: { id: category.id } } };
 
       const [products, total] = await Promise.all([
         prisma.productCache.findMany({ where, orderBy: { syncedAt: "desc" }, skip, take: PAGE_SIZE }),
@@ -76,7 +77,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
   app.get<{ Params: { id: string } }>("/products/:id", async (request, reply) => {
     const product = await prisma.productCache.findUnique({
       where: { id: request.params.id },
-      include: { variants: true, category: { select: { name: true, slug: true } } },
+      include: { variants: true, categories: { select: { name: true, slug: true } } },
     });
     if (!product || product.status !== "published") {
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");

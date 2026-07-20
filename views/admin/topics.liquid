@@ -1,0 +1,88 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Chủ đề bài viết</h1>
+<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+  Mỗi bài viết chỉ thuộc đúng 1 chủ đề (khác danh mục — gắn được nhiều). Không có trang công khai riêng, chỉ dùng để lọc/gắn nhãn.
+</p>
+
+<form id="new-topic-form" class="card" style="display:flex;gap:0.6rem;align-items:flex-start;margin-bottom:1.2rem;">
+  <input type="text" id="new-name" placeholder="Tên chủ đề" required style="flex:1;">
+  <input type="text" id="new-slug" placeholder="slug-chu-de" required style="flex:1;">
+  <button type="submit" class="btn btn-primary">+ Thêm</button>
+</form>
+
+<table>
+  <thead>
+    <tr><th>Tên</th><th>Slug</th><th></th></tr>
+  </thead>
+  <tbody id="topics-body">
+    <tr><td colspan="3" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("topics-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/topics");
+    const { topics } = await res.json();
+    tbody.innerHTML = topics.length
+      ? topics.map((t) =>
+          "<tr><td>" + escapeHtml(t.name) + "</td><td>" + escapeHtml(t.slug) + "</td>" +
+          '<td style="text-align:right;"><button class="btn btn-danger" data-id="' + t.id + '">Xoá</button></td></tr>'
+        ).join("")
+      : '<tr><td colspan="3" class="empty-state">Chưa có chủ đề nào.</td></tr>';
+  }
+
+  document.getElementById("new-topic-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = document.getElementById("new-name").value;
+    const slug = document.getElementById("new-slug").value;
+
+    const res = await fetch("/admin/api/topics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, slug }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showError(typeof body.error === "string" ? body.error : "Tạo thất bại");
+      return;
+    }
+
+    document.getElementById("new-name").value = "";
+    document.getElementById("new-slug").value = "";
+    load();
+  });
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-id]");
+    if (!btn) return;
+    if (!confirm("Xoá chủ đề này? Bài viết đang gán sẽ về trạng thái không có chủ đề.")) return;
+
+    const res = await fetch("/admin/api/topics/" + btn.dataset.id, { method: "DELETE" });
+    if (!res.ok) {
+      showError("Xoá thất bại");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

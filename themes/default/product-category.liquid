@@ -6,6 +6,14 @@
 {% if category.excerpt %}<p style="color:#666;">{{ category.excerpt | escape }}</p>{% endif %}
 {% if category.body %}<div style="line-height:1.7;margin-bottom:1.5rem;">{{ category.body }}</div>{% endif %}
 
+{% if category.children.size > 0 %}
+  <div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+    {% for child in category.children %}
+      <a href="/products/danh-muc/{{ child.slug }}" style="font-size:0.85rem;padding:0.3rem 0.7rem;border:1px solid #eee;border-radius:999px;text-decoration:none;color:#444;">{{ child.name | escape }}</a>
+    {% endfor %}
+  </div>
+{% endif %}
+
 {% if products.size == 0 %}
   <p style="color:#777;margin-top:1.5rem;">Chưa có sản phẩm nào trong danh mục này.</p>
 {% else %}

@@ -69,7 +69,7 @@
     const publishBtn = p.status !== "published"
       ? '<button class="btn" data-action="publish" data-id="' + p.id + '">Xuất bản</button>'
       : "";
-    const category = p.category ? escapeHtml(p.category.name) : "-";
+    const category = (p.categories && p.categories.length) ? p.categories.map((c) => escapeHtml(c.name)).join(", ") : "-";
     const variantsBadge = p.hasVariants ? ' <span class="status-badge">Có biến thể</span>' : "";
     return (
       "<tr>" +

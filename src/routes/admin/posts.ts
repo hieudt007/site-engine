@@ -24,7 +24,8 @@ const createPostSchema = z.object({
   body: z.string().min(1),
   excerpt: z.string().optional(),
   coverImage: z.string().optional(),
-  categoryId: z.string().nullable().optional(),
+  categoryIds: z.array(z.string()).optional(), // nhiều-nhiều, xem Category.type='post'
+  topicId: z.string().nullable().optional(), // 1-1, xem model Topic
   seo: seoSchema,
 });
 
@@ -55,7 +56,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       const where = {
         type: TYPE,
         ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
-        ...(categoryId ? { categoryId } : {}),
+        ...(categoryId ? { categories: { some: { id: categoryId } } } : {}),
         ...(status ? { status } : {}),
       };
 
@@ -65,7 +66,11 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           orderBy: { createdAt: "desc" },
           skip,
           take: PAGE_SIZE,
-          include: { author: { select: { name: true } }, category: { select: { name: true } } },
+          include: {
+            author: { select: { name: true } },
+            categories: { select: { name: true } },
+            topic: { select: { name: true } },
+          },
         }),
         prisma.post.count({ where }),
       ]);
@@ -80,7 +85,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const post = await prisma.post.findUnique({
         where: { id: request.params.id },
-        include: { category: true },
+        include: { categories: true, topic: true },
       });
       if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
@@ -103,12 +108,14 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
     }
 
+    const { categoryIds, ...rest } = parsed.data;
     const post = await prisma.post.create({
       data: {
-        ...parsed.data,
+        ...rest,
         type: TYPE,
-        body: sanitizePostBody(parsed.data.body),
+        body: sanitizePostBody(rest.body),
         authorId: userId,
+        ...(categoryIds ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
       },
     });
     await auditLog(userId, "post.create", post.id);
@@ -145,12 +152,14 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
+      const { categoryIds, ...rest } = parsed.data;
       const userId = request.session.get("userId")!;
       const updated = await prisma.post.update({
         where: { id: post.id },
         data: {
-          ...parsed.data,
-          ...(parsed.data.body ? { body: sanitizePostBody(parsed.data.body) } : {}),
+          ...rest,
+          ...(rest.body ? { body: sanitizePostBody(rest.body) } : {}),
+          ...(categoryIds ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
         },
       });
       await auditLog(userId, "post.update", post.id);
