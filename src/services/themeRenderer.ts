@@ -30,6 +30,9 @@ export async function renderPublic(template: string, data: Record<string, unknow
     // fallback ve nav cung khi rong (xem themes/default/layout.liquid).
     headerMenu,
     footerMenu,
+    // De layout.liquid tu build URL /theme-assets/{slug}/assets/custom.css|js cua CHINH theme
+    // dang active - xem routes/public/themeAssets.ts.
+    themeSlug: slug,
     year: new Date().getFullYear(),
   });
 }

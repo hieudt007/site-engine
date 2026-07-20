@@ -1,22 +1,70 @@
 {% layout "layout" %}
 {% block content %}
-<h1 class="text-2xl font-bold mt-0 mb-1" style="margin:0 0 0.3rem;">Giao diện</h1>
+<h1 style="margin:0 0 0.3rem;">Giao diện</h1>
 <p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
   Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
 </p>
 
-<div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;">
+<div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
   <p style="color:#999;">Đang tải...</p>
+</div>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1rem;margin-top:0;">+ Tạo theme mới bằng AI</h2>
+  <p style="color:#777;font-size:0.82rem;">
+    AI sẽ viết lại từng file giao diện theo mô tả phong cách bạn nhập, dựa trên 1 theme có sẵn làm nền — file nào AI sinh lỗi sẽ tự giữ nguyên bản gốc (theme mới luôn dùng được, không bao giờ thiếu file).
+  </p>
+
+  <label for="base-theme">Theme nền</label>
+  <select id="base-theme"></select>
+
+  <label for="new-name">Tên theme mới</label>
+  <input type="text" id="new-name" placeholder="vd: Shop mỹ phẩm cao cấp">
+
+  <label for="new-slug">Slug (tên thư mục, chỉ chữ thường/số/gạch ngang)</label>
+  <input type="text" id="new-slug" placeholder="vd: my-pham-cao-cap">
+
+  <label for="agent-select">Agent AI</label>
+  <select id="agent-select"></select>
+  <div class="field-hint">Chưa có agent? Vào <a href="/admin/agents">Quản trị → AI Agent</a> tạo trước.</div>
+
+  <label for="style-prompt">Mô tả phong cách mong muốn</label>
+  <textarea id="style-prompt" placeholder="vd: Tông đen-vàng sang trọng, font serif, dành cho shop mỹ phẩm cao cấp" style="min-height:80px;"></textarea>
+
+  <div style="margin-top:1rem;">
+    <button type="button" class="btn btn-primary" id="generate-btn">Sinh theme mới</button>
+    <span id="generate-status" style="font-size:0.85rem;color:#777;margin-left:0.6rem;"></span>
+  </div>
+
+  <div id="generate-results" style="margin-top:1rem;"></div>
+</div>
+
+<div id="theme-detail" class="card" style="display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
+    <h2 id="detail-title" style="font-size:1rem;margin:0;"></h2>
+    <button type="button" class="btn" id="detail-close">Đóng</button>
+  </div>
+  <table>
+    <thead><tr><th>File</th><th>Mô tả</th><th></th></tr></thead>
+    <tbody id="detail-files-body"></tbody>
+  </table>
 </div>
 
 <script>
 (function () {
   const grid = document.getElementById("theme-grid");
   const flash = document.getElementById("flash");
+  let agentsCache = [];
 
   function showFlash(message, ok) {
     flash.textContent = message;
     flash.className = ok ? "success" : "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
   }
 
   const SOURCE_LABEL = { "built-in": "Có sẵn", "agent-generated": "AI tạo" };
@@ -25,42 +73,165 @@
     const badge = theme.active
       ? '<span class="status-badge status-published">Đang dùng</span>'
       : '<button class="btn" data-activate="' + theme.slug + '">Dùng theme này</button>';
+    const customizeBtn = theme.source === "agent-generated"
+      ? '<button class="btn" data-detail="' + theme.slug + '" style="margin-top:0.4rem;">Sửa từng file</button>'
+      : "";
     return (
       '<div class="card">' +
-      '<div style="font-weight:600;margin-bottom:0.3rem;">' + theme.name + '</div>' +
+      '<div style="font-weight:600;margin-bottom:0.3rem;">' + escapeHtml(theme.name) + '</div>' +
       '<div style="font-size:0.78rem;color:#999;margin-bottom:0.7rem;">' + (SOURCE_LABEL[theme.source] || theme.source) + '</div>' +
-      badge +
+      badge + customizeBtn +
       '</div>'
     );
   }
 
-  async function load() {
+  async function loadThemes() {
     const res = await fetch("/admin/api/themes");
     const { themes } = await res.json();
     grid.innerHTML = themes.length ? themes.map(cardHtml).join("") : '<p style="color:#999;">Chưa có theme nào.</p>';
+
+    const baseSelect = document.getElementById("base-theme");
+    baseSelect.innerHTML = themes.map((t) => '<option value="' + t.slug + '">' + escapeHtml(t.name) + '</option>').join("");
+    return themes;
+  }
+
+  async function loadAgents() {
+    const res = await fetch("/admin/api/agents");
+    if (!res.ok) return;
+    const { agents } = await res.json();
+    agentsCache = agents;
+    const select = document.getElementById("agent-select");
+    select.innerHTML = agents.length
+      ? agents.map((a) => '<option value="' + a.id + '">' + escapeHtml(a.name) + " (" + escapeHtml(a.provider) + ")</option>").join("")
+      : '<option value="">— Chưa có agent nào —</option>';
   }
 
   grid.addEventListener("click", async (event) => {
-    const btn = event.target.closest("button[data-activate]");
-    if (!btn) return;
-
-    const res = await fetch("/admin/api/themes/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: btn.dataset.activate }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      showFlash(typeof body.error === "string" ? body.error : "Đổi theme thất bại", false);
+    const activateBtn = event.target.closest("button[data-activate]");
+    if (activateBtn) {
+      const res = await fetch("/admin/api/themes/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: activateBtn.dataset.activate }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showFlash(typeof body.error === "string" ? body.error : "Đổi theme thất bại", false);
+        return;
+      }
+      showFlash("Đã đổi theme.", true);
+      loadThemes();
       return;
     }
 
-    showFlash("Đã đổi theme.", true);
-    load();
+    const detailBtn = event.target.closest("button[data-detail]");
+    if (detailBtn) openDetail(detailBtn.dataset.detail);
   });
 
-  load();
+  document.getElementById("generate-btn").addEventListener("click", async () => {
+    const baseSlug = document.getElementById("base-theme").value;
+    const newName = document.getElementById("new-name").value.trim();
+    const newSlug = document.getElementById("new-slug").value.trim();
+    const agentId = document.getElementById("agent-select").value;
+    const stylePrompt = document.getElementById("style-prompt").value.trim();
+    const status = document.getElementById("generate-status");
+    const resultsEl = document.getElementById("generate-results");
+
+    if (!newName || !newSlug || !agentId || !stylePrompt) {
+      showFlash("Điền đủ tên, slug, agent, và mô tả phong cách.", false);
+      return;
+    }
+
+    status.textContent = "Đang sinh theme (có thể mất vài phút, đừng đóng trang)...";
+    resultsEl.innerHTML = "";
+
+    const res = await fetch("/admin/api/themes/ai-customize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ baseSlug, newSlug, newName, agentId, stylePrompt }),
+    });
+
+    status.textContent = "";
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Sinh theme thất bại", false);
+      return;
+    }
+
+    const { results } = await res.json();
+    resultsEl.innerHTML =
+      '<table><thead><tr><th>File</th><th>Kết quả</th></tr></thead><tbody>' +
+      results.map((r) =>
+        "<tr><td>" + escapeHtml(r.file) + "</td><td>" +
+        (r.ok
+          ? '<span class="status-badge status-published">AI sinh OK (' + r.attempts + ' lần thử)</span>'
+          : '<span class="status-badge status-draft">Giữ bản gốc — AI thất bại: ' + escapeHtml(r.errors.join("; ")) + '</span>') +
+        "</td></tr>"
+      ).join("") +
+      "</tbody></table>";
+
+    showFlash("Đã tạo theme mới — vào danh sách phía trên để kích hoạt.", true);
+    loadThemes();
+  });
+
+  async function openDetail(slug) {
+    const res = await fetch("/admin/api/themes/" + slug + "/files");
+    if (!res.ok) {
+      showFlash("Không tải được danh sách file", false);
+      return;
+    }
+    const { files } = await res.json();
+
+    document.getElementById("detail-title").textContent = "Sửa từng file — " + slug;
+    document.getElementById("detail-files-body").innerHTML = files.map((f) =>
+      "<tr><td>" + escapeHtml(f.file) + "</td><td style=\"color:#777;font-size:0.82rem;\">" + escapeHtml(f.description) + "</td>" +
+      '<td style="text-align:right;"><button class="btn" data-regen="' + f.file + '" data-slug="' + slug + '">Sinh lại bằng AI</button></td></tr>'
+    ).join("");
+    document.getElementById("theme-detail").style.display = "block";
+    document.getElementById("theme-detail").scrollIntoView({ behavior: "smooth" });
+  }
+
+  document.getElementById("detail-close").addEventListener("click", () => {
+    document.getElementById("theme-detail").style.display = "none";
+  });
+
+  document.getElementById("detail-files-body").addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-regen]");
+    if (!btn) return;
+
+    if (!agentsCache.length) {
+      showFlash("Chưa có agent nào — vào Quản trị → AI Agent tạo trước.", false);
+      return;
+    }
+    const stylePrompt = prompt("Mô tả điều chỉnh muốn AI làm cho file này:");
+    if (!stylePrompt) return;
+
+    const agentId = agentsCache[0].id;
+    btn.disabled = true;
+    btn.textContent = "Đang sinh...";
+
+    const res = await fetch("/admin/api/themes/" + btn.dataset.slug + "/ai-regenerate-file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file: btn.dataset.regen, agentId, stylePrompt }),
+    });
+
+    btn.disabled = false;
+    btn.textContent = "Sinh lại bằng AI";
+
+    if (!res.ok) {
+      showFlash("Gọi AI thất bại", false);
+      return;
+    }
+    const result = await res.json();
+    showFlash(
+      result.ok ? "Đã sinh lại " + btn.dataset.regen + " (" + result.attempts + " lần thử)." : "AI thất bại, giữ nguyên file cũ: " + result.errors.join("; "),
+      result.ok,
+    );
+  });
+
+  Promise.all([loadThemes(), loadAgents()]);
 })();
 </script>
 {% endblock %}

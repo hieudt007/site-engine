@@ -22,38 +22,16 @@
       },
     };
   </script>
+  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
 </head>
 <body class="font-sans text-stone-800 bg-stone-50 flex flex-col min-h-screen">
-  <header class="border-b border-stone-200">
-    <div class="max-w-2xl mx-auto px-6 py-8 text-center">
-      <a href="/" class="inline-flex items-center gap-2 font-serif font-bold text-2xl text-stone-900 no-underline">
-        {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-8">{% endif %}
-        {{ site.siteName }}
-      </a>
-      {% if site.tagline %}<div class="text-sm text-stone-500 mt-1 italic">{{ site.tagline }}</div>{% endif %}
-      <nav class="flex items-center justify-center gap-6 text-sm mt-4 uppercase tracking-wide">
-        {% if headerMenu and headerMenu.items.size > 0 %}
-          {% for item in headerMenu.items %}<a href="{{ item.url }}" class="text-stone-600 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
-        {% else %}
-          <a href="/products" class="text-stone-600 hover:text-brand">Sản phẩm</a>
-          <a href="/blog" class="text-stone-600 hover:text-brand">Blog</a>
-          <a href="/cart" class="text-stone-600 hover:text-brand">Giỏ hàng</a>
-        {% endif %}
-      </nav>
-    </div>
-  </header>
+  {% render "_header", site: site, headerMenu: headerMenu %}
 
   <main class="flex-1 max-w-2xl w-full mx-auto px-6 py-12">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="text-center text-stone-400 text-sm py-10 border-t border-stone-200">
-    {% if footerMenu and footerMenu.items.size > 0 %}
-      <nav class="mb-2 flex items-center justify-center gap-4">
-        {% for item in footerMenu.items %}<a href="{{ item.url }}" class="text-stone-500 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
-      </nav>
-    {% endif %}
-    © {{ year }} {{ site.siteName }}
-  </footer>
+  {% render "_footer", site: site, footerMenu: footerMenu, year: year %}
+  <script src="/theme-assets/{{ themeSlug }}/assets/custom.js" defer></script>
 </body>
 </html>

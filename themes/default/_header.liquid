@@ -1,0 +1,20 @@
+<header class="bg-white border-b border-gray-200">
+  <div class="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <a href="/" class="inline-flex items-center gap-2 font-bold text-lg text-gray-900 no-underline">
+        {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-7">{% endif %}
+        {{ site.siteName }}
+      </a>
+      {% if site.tagline %}<div class="text-sm text-gray-500 mt-0.5">{{ site.tagline }}</div>{% endif %}
+    </div>
+    <nav class="flex items-center gap-5 text-sm">
+      {% if headerMenu and headerMenu.items.size > 0 %}
+        {% for item in headerMenu.items %}<a href="{{ item.url }}" class="text-gray-700 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
+      {% else %}
+        <a href="/products" class="text-gray-700 hover:text-brand">Sản phẩm</a>
+        <a href="/blog" class="text-gray-700 hover:text-brand">Blog</a>
+        <a href="/cart" class="text-gray-700 hover:text-brand">Giỏ hàng</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>

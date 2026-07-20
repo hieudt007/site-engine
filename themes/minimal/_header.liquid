@@ -1,0 +1,18 @@
+<header class="border-b border-stone-200">
+  <div class="max-w-2xl mx-auto px-6 py-8 text-center">
+    <a href="/" class="inline-flex items-center gap-2 font-serif font-bold text-2xl text-stone-900 no-underline">
+      {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-8">{% endif %}
+      {{ site.siteName }}
+    </a>
+    {% if site.tagline %}<div class="text-sm text-stone-500 mt-1 italic">{{ site.tagline }}</div>{% endif %}
+    <nav class="flex items-center justify-center gap-6 text-sm mt-4 uppercase tracking-wide">
+      {% if headerMenu and headerMenu.items.size > 0 %}
+        {% for item in headerMenu.items %}<a href="{{ item.url }}" class="text-stone-600 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
+      {% else %}
+        <a href="/products" class="text-stone-600 hover:text-brand">Sản phẩm</a>
+        <a href="/blog" class="text-stone-600 hover:text-brand">Blog</a>
+        <a href="/cart" class="text-stone-600 hover:text-brand">Giỏ hàng</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
