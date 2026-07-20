@@ -22,9 +22,15 @@
   </select>
 </div>
 
+<div id="bulk-bar" style="display:none;align-items:center;gap:0.6rem;margin-bottom:0.8rem;padding:0.6rem 0.9rem;background:#eff6ff;border-radius:var(--radius-sm);font-size:0.85rem;">
+  <span id="bulk-count"></span>
+  <button type="button" class="btn" id="bulk-publish">Xuất bản</button>
+</div>
+
 <table>
   <thead>
     <tr>
+      <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
       <th>Sản phẩm</th>
       <th>Danh mục</th>
       <th>Giá</th>
@@ -73,6 +79,7 @@
     const variantsBadge = p.hasVariants ? ' <span class="status-badge">Có biến thể</span>' : "";
     return (
       "<tr>" +
+      '<td><input type="checkbox" class="row-select" value="' + p.id + '"></td>' +
       '<td><a href="/admin/products/' + p.id + '">' + escapeHtml(p.name) + "</a>" + variantsBadge + "</td>" +
       "<td>" + category + "</td>" +
       "<td>" + p.price + "₫</td>" +
@@ -128,6 +135,37 @@
       showError("Xuất bản thất bại");
       return;
     }
+    load();
+  });
+
+  const selectAll = document.getElementById("select-all");
+  const bulkBar = document.getElementById("bulk-bar");
+  const bulkCount = document.getElementById("bulk-count");
+
+  function selectedIds() {
+    return [...tbody.querySelectorAll(".row-select:checked")].map((el) => el.value);
+  }
+
+  function refreshBulkBar() {
+    const ids = selectedIds();
+    bulkBar.style.display = ids.length ? "flex" : "none";
+    bulkCount.textContent = "Đã chọn " + ids.length + " sản phẩm";
+  }
+
+  tbody.addEventListener("change", (event) => {
+    if (event.target.classList.contains("row-select")) refreshBulkBar();
+  });
+
+  selectAll.addEventListener("change", () => {
+    tbody.querySelectorAll(".row-select").forEach((el) => (el.checked = selectAll.checked));
+    refreshBulkBar();
+  });
+
+  document.getElementById("bulk-publish").addEventListener("click", async () => {
+    const ids = selectedIds();
+    if (!ids.length) return;
+    await Promise.all(ids.map((id) => fetch("/admin/api/products/" + id + "/publish", { method: "POST" })));
+    selectAll.checked = false;
     load();
   });
 

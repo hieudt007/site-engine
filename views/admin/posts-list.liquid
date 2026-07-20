@@ -22,9 +22,18 @@
   </select>
 </div>
 
+{% if role == "manager" or role == "admin" %}
+<div id="bulk-bar" style="display:none;align-items:center;gap:0.6rem;margin-bottom:0.8rem;padding:0.6rem 0.9rem;background:#eff6ff;border-radius:var(--radius-sm);font-size:0.85rem;">
+  <span id="bulk-count"></span>
+  <button type="button" class="btn" id="bulk-publish">Xuất bản</button>
+  <button type="button" class="btn btn-danger" id="bulk-delete">Xoá</button>
+</div>
+{% endif %}
+
 <table>
   <thead>
     <tr>
+      {% if role == "manager" or role == "admin" %}<th style="width:2rem;"><input type="checkbox" id="select-all"></th>{% endif %}
       <th>Tiêu đề</th>
       <th>Danh mục</th>
       <th>Trạng thái</th>
@@ -34,7 +43,7 @@
     </tr>
   </thead>
   <tbody id="posts-body">
-    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="7" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
 <div class="pagination" id="pagination"></div>
@@ -80,8 +89,10 @@
     const deleteBtn = canManage
       ? '<button class="btn btn-danger" data-action="delete" data-id="' + post.id + '">Xoá</button>'
       : "";
+    const selectCell = canManage ? '<td><input type="checkbox" class="row-select" value="' + post.id + '"></td>' : "";
     return (
       "<tr>" +
+      selectCell +
       '<td><a href="/admin/posts/' + post.id + '">' + escapeHtml(post.title) + "</a></td>" +
       "<td>" + category + "</td>" +
       "<td>" + statusBadge + "</td>" +
@@ -90,6 +101,48 @@
       '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' + submitBtn + publishBtn + deleteBtn + "</td>" +
       "</tr>"
     );
+  }
+
+  function selectedIds() {
+    return [...tbody.querySelectorAll(".row-select:checked")].map((el) => el.value);
+  }
+
+  if (canManage) {
+    const selectAll = document.getElementById("select-all");
+    const bulkBar = document.getElementById("bulk-bar");
+    const bulkCount = document.getElementById("bulk-count");
+
+    function refreshBulkBar() {
+      const ids = selectedIds();
+      bulkBar.style.display = ids.length ? "flex" : "none";
+      bulkCount.textContent = "Đã chọn " + ids.length + " bài";
+    }
+
+    tbody.addEventListener("change", (event) => {
+      if (event.target.classList.contains("row-select")) refreshBulkBar();
+    });
+
+    selectAll.addEventListener("change", () => {
+      tbody.querySelectorAll(".row-select").forEach((el) => (el.checked = selectAll.checked));
+      refreshBulkBar();
+    });
+
+    document.getElementById("bulk-publish").addEventListener("click", async () => {
+      const ids = selectedIds();
+      if (!ids.length) return;
+      await Promise.all(ids.map((id) => fetch("/admin/api/posts/" + id + "/publish", { method: "POST" })));
+      selectAll.checked = false;
+      load();
+    });
+
+    document.getElementById("bulk-delete").addEventListener("click", async () => {
+      const ids = selectedIds();
+      if (!ids.length) return;
+      if (!confirm("Xoá " + ids.length + " bài viết đã chọn?")) return;
+      await Promise.all(ids.map((id) => fetch("/admin/api/posts/" + id, { method: "DELETE" })));
+      selectAll.checked = false;
+      load();
+    });
   }
 
   async function load() {

@@ -61,6 +61,48 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
     const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\nSitemap: ${baseUrl}/sitemap.xml\n`;
     return reply.type("text/plain").send(body);
   });
+
+  // RSS 20 bài mới nhất đã xuất bản (chuẩn RSS 2.0) — trước đây chỉ có sitemap.xml cho công cụ
+  // tìm kiếm, chưa có feed cho trình đọc RSS/tổng hợp tin.
+  app.get("/feed.xml", async (request, reply) => {
+    const baseUrl = `https://${request.hostname}`;
+    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const siteName = siteConfig?.siteName ?? "Website";
+
+    const posts = await prisma.post.findMany({
+      where: { type: "post", status: "published" },
+      orderBy: { publishedAt: "desc" },
+      take: 20,
+      select: { slug: true, title: true, excerpt: true, publishedAt: true, updatedAt: true },
+    });
+
+    const items = posts
+      .map((p) => {
+        const link = `${baseUrl}/blog/${p.slug}`;
+        return (
+          "  <item>\n" +
+          `    <title>${escapeXml(p.title)}</title>\n` +
+          `    <link>${escapeXml(link)}</link>\n` +
+          `    <guid>${escapeXml(link)}</guid>\n` +
+          (p.excerpt ? `    <description>${escapeXml(p.excerpt)}</description>\n` : "") +
+          `    <pubDate>${(p.publishedAt ?? p.updatedAt).toUTCString()}</pubDate>\n` +
+          "  </item>"
+        );
+      })
+      .join("\n");
+
+    const xml =
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<rss version="2.0">\n' +
+      "<channel>\n" +
+      `  <title>${escapeXml(siteName)}</title>\n` +
+      `  <link>${escapeXml(baseUrl)}/blog</link>\n` +
+      `  <description>Bài viết mới nhất từ ${escapeXml(siteName)}</description>\n` +
+      items +
+      "\n</channel>\n</rss>\n";
+
+    return reply.type("application/rss+xml").send(xml);
+  });
 }
 
 function escapeXml(value: string): string {

@@ -141,6 +141,29 @@ model Topic {
   posts Post[]
 }
 
+// Menu điều hướng public site — trước đây nav header hard-code cứng trong theme (3 link cố định).
+// "slug" là vị trí gắn trong theme (vd "header", "footer") — theme tự quyết định vị trí nào render,
+// KHÔNG bắt buộc tồn tại: nếu chưa tạo Menu cho 1 slug, theme tự dùng nav mặc định (xem
+// themes/default/layout.liquid) để không vỡ site cũ khi nâng cấp lên tính năng này.
+model Menu {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  items     MenuItem[]
+  updatedAt DateTime   @updatedAt
+}
+
+model MenuItem {
+  id        String @id @default(cuid())
+  menuId    String
+  menu      Menu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  label     String
+  url       String
+  sortOrder Int    @default(0)
+
+  @@index([menuId])
+}
+
 // Bai viet blog VA trang tinh GOP CHUNG 1 bang, phan biet qua "type" ('post' | 'page') - trang
 // tinh (Gioi thieu, Lien he...) dung cau truc giong het bai viet nen khong can bang rieng nua
 // (truoc day la model Page riêng). "type" khong doi duoc sau khi tao (khong co trong UPDATE

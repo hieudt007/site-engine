@@ -17,11 +17,19 @@ export async function renderPublic(template: string, data: Record<string, unknow
   const slug = await activeThemeSlug();
   const engine = new Liquid({ root: path.join(THEMES_ROOT, slug), extname: ".liquid" });
 
-  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const [siteConfig, headerMenu, footerMenu] = await Promise.all([
+    prisma.siteConfig.findUnique({ where: { id: "singleton" } }),
+    prisma.menu.findUnique({ where: { slug: "header" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
+    prisma.menu.findUnique({ where: { slug: "footer" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
+  ]);
 
   return engine.renderFile(template, {
     ...data,
     site: siteConfig ?? { siteName: "Website", tagline: null, logoUrl: null, faviconUrl: null },
+    // headerMenu/footerMenu co the null (chua tung luu, xem routes/admin/menus.ts) - theme tu
+    // fallback ve nav cung khi rong (xem themes/default/layout.liquid).
+    headerMenu,
+    footerMenu,
     year: new Date().getFullYear(),
   });
 }

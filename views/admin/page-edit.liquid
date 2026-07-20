@@ -22,12 +22,15 @@
   <label for="excerpt">Tóm tắt</label>
   <input type="text" id="excerpt" name="excerpt" value="{% if page %}{{ page.excerpt | escape }}{% endif %}">
 
-  <label for="coverImage">Ảnh bìa (URL)</label>
-  <input type="text" id="coverImage" name="coverImage" value="{% if page %}{{ page.coverImage | escape }}{% endif %}">
+  <label for="coverImage">Ảnh bìa</label>
+  <div style="display:flex;gap:0.6rem;align-items:center;">
+    <input type="text" id="coverImage" name="coverImage" value="{% if page %}{{ page.coverImage | escape }}{% endif %}" placeholder="URL ảnh hoặc bấm Chọn ảnh" style="flex:1;">
+    <button type="button" class="btn" id="coverImage-pick-btn">Chọn ảnh</button>
+  </div>
+  <img id="coverImage-preview" src="{% if page %}{{ page.coverImage | escape }}{% endif %}" style="max-width:160px;max-height:100px;object-fit:cover;border-radius:6px;margin-top:0.5rem;{% unless page.coverImage %}display:none;{% endunless %}">
 
-  <label for="body">Nội dung (HTML đã làm sạch)</label>
+  <label for="body">Nội dung</label>
   <textarea id="body" name="body" required>{% if page %}{{ page.body }}{% endif %}</textarea>
-  <div class="field-hint">Chưa có trình soạn thảo rich-text (đang TBD) — nhập HTML/markdown thô.</div>
 
   <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
@@ -59,6 +62,7 @@
     <span id="schedule-slot"></span>
     <span id="unpublish-slot"></span>
     <span id="delete-slot"></span>
+    {% if page %}<a class="btn" href="/admin/preview/page/{{ page.id }}" target="_blank" rel="noopener">Xem thử</a>{% endif %}
   </div>
 </form>
 
@@ -88,11 +92,36 @@
     flash.className = ok ? "success" : "error";
   }
 
+  const coverImageInput = document.getElementById("coverImage");
+  const coverImagePreview = document.getElementById("coverImage-preview");
+  document.getElementById("coverImage-pick-btn").addEventListener("click", () => {
+    openMediaPicker({
+      title: "Chọn ảnh bìa",
+      onSelect: (url) => {
+        coverImageInput.value = url;
+        coverImagePreview.src = url;
+        coverImagePreview.style.display = "";
+      },
+    });
+  });
+  coverImageInput.addEventListener("input", () => {
+    coverImagePreview.src = coverImageInput.value;
+    coverImagePreview.style.display = coverImageInput.value ? "" : "none";
+  });
+
   const locked = (status === "scheduled" || status === "published") && CURRENT_ROLE === "edit";
   if (pageId && locked) {
     [...form.elements].forEach((el) => (el.disabled = true));
     showFlash("Trang đã lên lịch/xuất bản — chỉ manager/admin được sửa.", false);
   }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initRichEditor("body");
+    if (locked) {
+      const editorBody = document.querySelector(".rich-editor-body");
+      if (editorBody) editorBody.contentEditable = "false";
+    }
+  });
 
   async function callAction(path, body) {
     const res = await fetch("/admin/api/pages/" + pageId + path, {

@@ -7,6 +7,7 @@
   {% if metaDescription %}<meta name="description" content="{{ metaDescription }}">{% endif %}
   {% if noindex %}<meta name="robots" content="noindex">{% endif %}
   {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
+  <link rel="alternate" type="application/rss+xml" title="{{ site.siteName }} RSS" href="/feed.xml">
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; background: #fafafa; }
@@ -28,14 +29,25 @@
       {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
     </div>
     <nav>
-      <a href="/products" style="margin-right:1rem;">Sản phẩm</a>
-      <a href="/blog" style="margin-right:1rem;">Blog</a>
-      <a href="/cart">Giỏ hàng</a>
+      {% if headerMenu and headerMenu.items.size > 0 %}
+        {% for item in headerMenu.items %}<a href="{{ item.url }}" style="margin-right:1rem;">{{ item.label | escape }}</a>{% endfor %}
+      {% else %}
+        <a href="/products" style="margin-right:1rem;">Sản phẩm</a>
+        <a href="/blog" style="margin-right:1rem;">Blog</a>
+        <a href="/cart">Giỏ hàng</a>
+      {% endif %}
     </nav>
   </header>
   <main>
     {% block content %}{% endblock %}
   </main>
-  <footer class="site-footer">© {{ year }} {{ site.siteName }}</footer>
+  <footer class="site-footer">
+    {% if footerMenu and footerMenu.items.size > 0 %}
+      <nav style="margin-bottom:0.6rem;">
+        {% for item in footerMenu.items %}<a href="{{ item.url }}" style="margin:0 0.6rem;color:#777;">{{ item.label | escape }}</a>{% endfor %}
+      </nav>
+    {% endif %}
+    © {{ year }} {{ site.siteName }}
+  </footer>
 </body>
 </html>

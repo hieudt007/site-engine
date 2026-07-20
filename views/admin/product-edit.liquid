@@ -66,6 +66,10 @@
   <label for="imageUrls">Ảnh (mỗi dòng 1 URL, dòng đầu tiên là ảnh đại diện)</label>
   <textarea id="imageUrls" name="imageUrls" style="min-height:100px;font-family:inherit;">{% for url in product.imageUrls %}{{ url }}
 {% endfor %}</textarea>
+  <div style="margin-top:0.5rem;">
+    <button type="button" class="btn" id="imageUrls-pick-btn">+ Thêm ảnh từ thư viện</button>
+  </div>
+  <div id="imageUrls-preview" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.6rem;"></div>
 
   <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
@@ -95,6 +99,7 @@
     <span id="publish-slot"></span>
     <span id="schedule-slot"></span>
     <span id="unpublish-slot"></span>
+    <a class="btn" href="/admin/preview/product/{{ product.id }}" target="_blank" rel="noopener">Xem thử</a>
   </div>
 </form>
 
@@ -119,6 +124,49 @@
     flash.textContent = message;
     flash.className = ok ? "success" : "error";
   }
+
+  const imageUrlsTextarea = document.getElementById("imageUrls");
+  const imageUrlsPreview = document.getElementById("imageUrls-preview");
+
+  function currentImageUrls() {
+    return imageUrlsTextarea.value.split("\n").map((s) => s.trim()).filter(Boolean);
+  }
+
+  function renderImageUrlsPreview() {
+    const urls = currentImageUrls();
+    imageUrlsPreview.innerHTML = urls
+      .map(
+        (url, i) =>
+          '<div class="image-preview-thumb"><img src="' + url + '">' +
+          '<button type="button" class="btn btn-danger" data-remove-index="' + i + '">×</button></div>',
+      )
+      .join("");
+  }
+
+  imageUrlsTextarea.addEventListener("input", renderImageUrlsPreview);
+
+  imageUrlsPreview.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-remove-index]");
+    if (!btn) return;
+    const urls = currentImageUrls();
+    urls.splice(Number(btn.dataset.removeIndex), 1);
+    imageUrlsTextarea.value = urls.join("\n");
+    renderImageUrlsPreview();
+  });
+
+  document.getElementById("imageUrls-pick-btn").addEventListener("click", () => {
+    openMediaPicker({
+      title: "Thêm ảnh sản phẩm",
+      onSelect: (url) => {
+        const urls = currentImageUrls();
+        urls.push(url);
+        imageUrlsTextarea.value = urls.join("\n");
+        renderImageUrlsPreview();
+      },
+    });
+  });
+
+  renderImageUrlsPreview();
 
   async function callAction(path, body) {
     const res = await fetch("/admin/api/products/" + productId + path, {

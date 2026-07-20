@@ -1,0 +1,116 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 0.3rem;">Menu điều hướng</h1>
+<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
+  Tuỳ chỉnh menu hiển thị trên site public. Chưa lưu lần nào thì site vẫn dùng menu mặc định (Sản phẩm/Blog/Giỏ hàng).
+</p>
+
+<div class="filter-tabs">
+  <a href="#" class="filter-tab active" data-slug="header">Menu đầu trang</a>
+  <a href="#" class="filter-tab" data-slug="footer">Menu chân trang</a>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Nhãn hiển thị</th>
+        <th>Đường dẫn</th>
+        <th style="width:5rem;">Thứ tự</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="items-body"></tbody>
+  </table>
+
+  <div style="margin-top:0.8rem;display:flex;gap:0.6rem;">
+    <button type="button" class="btn" id="add-item">+ Thêm mục</button>
+    <button type="button" class="btn btn-primary" id="save-menu">Lưu menu</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const tabs = document.querySelectorAll(".filter-tab");
+  const itemsBody = document.getElementById("items-body");
+  const flash = document.getElementById("flash");
+
+  let currentSlug = "header";
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(item) {
+    return (
+      '<tr>' +
+      '<td><input type="text" class="item-label" value="' + escapeHtml(item.label || "") + '"></td>' +
+      '<td><input type="text" class="item-url" value="' + escapeHtml(item.url || "") + '" placeholder="/blog"></td>' +
+      '<td><input type="number" class="item-sort" value="' + (item.sortOrder ?? 0) + '" style="width:4rem;"></td>' +
+      '<td><button type="button" class="btn btn-danger" data-remove>Xoá</button></td>' +
+      '</tr>'
+    );
+  }
+
+  async function loadMenu(slug) {
+    currentSlug = slug;
+    const res = await fetch("/admin/api/menus/" + slug);
+    const { menu } = await res.json();
+    itemsBody.innerHTML = menu.items.length
+      ? menu.items.map(rowHtml).join("")
+      : "";
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", (event) => {
+      event.preventDefault();
+      tabs.forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      loadMenu(tab.dataset.slug);
+    });
+  });
+
+  document.getElementById("add-item").addEventListener("click", () => {
+    itemsBody.insertAdjacentHTML("beforeend", rowHtml({ label: "", url: "", sortOrder: itemsBody.children.length }));
+  });
+
+  itemsBody.addEventListener("click", (event) => {
+    if (event.target.closest("[data-remove]")) {
+      event.target.closest("tr").remove();
+    }
+  });
+
+  document.getElementById("save-menu").addEventListener("click", async () => {
+    const items = [...itemsBody.querySelectorAll("tr")].map((row) => ({
+      label: row.querySelector(".item-label").value,
+      url: row.querySelector(".item-url").value,
+      sortOrder: Number(row.querySelector(".item-sort").value) || 0,
+    })).filter((item) => item.label && item.url);
+
+    const res = await fetch("/admin/api/menus/" + currentSlug, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: currentSlug, items }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Lưu thất bại", false);
+      return;
+    }
+
+    showFlash("Đã lưu menu.", true);
+    loadMenu(currentSlug);
+  });
+
+  loadMenu(currentSlug);
+})();
+</script>
+{% endblock %}
