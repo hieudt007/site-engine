@@ -24,22 +24,22 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredSubstrings: [
       "{% block content %}{% endblock %}",
       "cdn.tailwindcss.com",
-      '{% render "_header"',
-      '{% render "_footer"',
+      '{% render "header"',
+      '{% render "footer"',
       "/theme-assets/{{ themeSlug }}/assets/custom.css",
       "/theme-assets/{{ themeSlug }}/assets/custom.js",
     ],
     requiredIds: [],
     notes:
       'PHAI giu nguyen script Tailwind CDN (co the doi query plugin), PHAI giu {% block content %}{% endblock %} ' +
-      'de noi dung tung trang chen vao, PHAI goi {% render "_header", site: site, headerMenu: headerMenu %} va ' +
-      '{% render "_footer", site: site, footerMenu: footerMenu, year: year %}, PHAI giu the <link> toi ' +
+      'de noi dung tung trang chen vao, PHAI goi {% render "header", site: site, headerMenu: headerMenu %} va ' +
+      '{% render "footer", site: site, footerMenu: footerMenu, year: year %}, PHAI giu the <link> toi ' +
       "/theme-assets/{{ themeSlug }}/assets/custom.css va <script> toi .../custom.js (CSS/JS tuy bien rieng cua " +
       "theme, sinh/sua o buoc khac). Duoc tu do doi font (Google Fonts link), tailwind.config (mau sac, " +
       "fontFamily), bo cuc <body> ngoai cac phan bat buoc tren.",
   },
   {
-    file: "_header.liquid",
+    file: "header.liquid",
     description: "Thanh dieu huong dau trang.",
     requiredSubstrings: ["site.siteName", "headerMenu"],
     requiredIds: [],
@@ -48,11 +48,11 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
       "Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart.",
   },
   {
-    file: "_footer.liquid",
+    file: "footer.liquid",
     description: "Chan trang.",
     requiredSubstrings: ["site.siteName", "footerMenu"],
     requiredIds: [],
-    notes: "Nhan bien site va footerMenu (giong _header.liquid), hien nam ban quyen + ten site.",
+    notes: "Nhan bien site va footerMenu (giong header.liquid), hien nam ban quyen + ten site.",
   },
   {
     file: "home.liquid",
@@ -77,14 +77,14 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredIds: [],
     notes:
       "post.body la HTML DA SANITIZE, PHAI render RAW (khong escape). PHAI giu " +
-      '{% render "_custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat).',
+      '{% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat).',
   },
   {
     file: "blog-category.liquid",
     description: "Trang danh muc bai viet.",
     requiredSubstrings: [...WRAPPER, "category.name", "posts", "category.customFields"],
     requiredIds: [],
-    notes: 'category co name/excerpt/body/children[]/customFields. PHAI giu {% render "_custom-fields", fields: category.customFields %}.',
+    notes: 'category co name/excerpt/body/children[]/customFields. PHAI giu {% render "custom-fields", fields: category.customFields %}.',
   },
   {
     file: "blog-post-locked.liquid",
@@ -114,7 +114,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     description: "Trang danh muc san pham.",
     requiredSubstrings: [...WRAPPER, "category.name", "products", "category.customFields"],
     requiredIds: [],
-    notes: 'PHAI giu {% render "_custom-fields", fields: category.customFields %}.',
+    notes: 'PHAI giu {% render "custom-fields", fields: category.customFields %}.',
   },
   {
     file: "product-detail.liquid",
@@ -141,7 +141,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
       "xoa san pham nay khoi localStorage neu co), #buy-now-cancel (nut dong form), #buy-now-error (hien loi). " +
       "DUOC PHEP them input dat ten tuy y vao #buy-now-form (giong #checkout-form ben cart.liquid) - JS tu dong " +
       "gop thanh customFields gui kem don hang. " +
-      'PHAI giu {% render "_custom-fields", fields: product.customFields %}.',
+      'PHAI giu {% render "custom-fields", fields: product.customFields %}.',
   },
   {
     file: "cart.liquid",
@@ -162,7 +162,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredIds: [],
     notes:
       "order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. " +
-      'PHAI giu {% render "_custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).',
+      'PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).',
   },
   {
     file: "custom-content.liquid",
@@ -177,7 +177,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredSubstrings: ["cdn.tailwindcss.com", "rawHtml"],
     requiredIds: [],
     notes:
-      "KHONG duoc {% render \"_header\" %}/{% render \"_footer\" %} - day la trang doc lap (vd landing quang cao), " +
+      "KHONG duoc {% render \"header\" %}/{% render \"footer\" %} - day la trang doc lap (vd landing quang cao), " +
       "khong duoc co nav/footer cua site chinh. Van giu <head> voi Tailwind CDN + font de rawHtml (admin tu viet, " +
       "co the dung class Tailwind) hien dung. Chi render {{ rawHtml }} thang vao <body>, KHONG escape/sanitize them.",
   },
@@ -189,7 +189,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     notes: "Nhan bien message (co the rong/khong duoc truyen — PHAI co gia tri mac dinh du hop ly, vd \"Không tìm thấy trang bạn cần\"). Nen co link ve trang chu.",
   },
   {
-    file: "_custom-fields.liquid",
+    file: "custom-fields.liquid",
     description: "Partial hien bang key-value cho truong tuy bien admin tu dat.",
     requiredSubstrings: ["fields"],
     requiredIds: [],
@@ -201,29 +201,54 @@ export function getContract(file: string): ThemeFileContract | undefined {
   return THEME_FILE_CONTRACTS.find((c) => c.file === file);
 }
 
-// CSS/JS tuy bien — KHONG phai Liquid nen khong ap dung hop dong requiredSubstrings/Ids (CSS/JS
-// thuan khong co "bien Liquid" nao ma check), serve qua routes/public/themeAssets.ts, nhung vao
-// tu layout.liquid (xem contract layout.liquid o tren). File CHUA TUNG duoc AI dong den van hop
-// le (rong, comment placeholder — xem themes/default/assets/).
+// CSS/JS tuy bien — moi file .liquid trong THEME_FILE_CONTRACTS co 1 cap file NGUON rieng
+// (assets/sources/{ten}.css/.js), CHI chua style/script cua dung trang do — tranh 1 file chung
+// phinh to theo thoi gian (kinh nghiem thuc te: sua xong header da ra ~8000 ky tu, nhan 18 trang
+// se khong kiem soat noi). Cac file assets/custom.css/custom.js la BUILD OUTPUT — tu dong GOM +
+// MINIFY tu toan bo file nguon (services/themeAssetBundler.ts) moi khi 1 file nguon doi, KHONG
+// duoc AI/admin sua truc tiep (se bi ghi de o lan gom ke tiep).
 export interface ThemeAssetFile {
   file: string;
   contentType: "css" | "js";
+  forLiquidFile: string;
   notes: string;
 }
 
-export const THEME_ASSET_FILES: ThemeAssetFile[] = [
-  {
-    file: "assets/custom.css",
-    contentType: "css",
-    notes: "CSS thuan (khong phai Liquid) — bo sung cho Tailwind utility class, dung cho hieu ung/selector phuc tap ma class khong lam duoc.",
-  },
-  {
-    file: "assets/custom.js",
-    contentType: "js",
-    notes:
-      "JS thuan chay sau khi trang load (defer). KHONG duoc dinh nghia lai cac id da dung boi JS gan san trong " +
-      "product-detail.liquid/cart.liquid/blog-post-locked.liquid: add-to-cart, cart-items, checkout-form, " +
-      "checkout-error, cart-total, variant-picker, variant-price, variant-stock, review-form, unlock-form, " +
-      "password, unlock-error.",
-  },
-];
+function sourceBase(liquidFile: string): string {
+  return liquidFile.replace(/\.liquid$/, "");
+}
+
+export function pairedSourceFiles(liquidFile: string): { css: string; js: string } {
+  const base = sourceBase(liquidFile);
+  return { css: `assets/sources/${base}.css`, js: `assets/sources/${base}.js` };
+}
+
+export const THEME_ASSET_FILES: ThemeAssetFile[] = THEME_FILE_CONTRACTS.flatMap((c) => {
+  const { css, js } = pairedSourceFiles(c.file);
+  return [
+    { file: css, contentType: "css" as const, forLiquidFile: c.file, notes: `CSS riêng cho "${c.file}" (${c.description}) — chỉ ảnh hưởng trang này.` },
+    {
+      file: js,
+      contentType: "js" as const,
+      forLiquidFile: c.file,
+      notes:
+        `JS riêng cho "${c.file}" (${c.description}) — chỉ ảnh hưởng trang này. KHÔNG được định nghĩa lại các id ` +
+        "đã dùng bởi JS gắn sẵn trong product-detail.liquid/cart.liquid/blog-post-locked.liquid: add-to-cart, " +
+        "cart-items, checkout-form, checkout-error, cart-total, variant-picker, variant-price, variant-stock, " +
+        "review-form, unlock-form, password, unlock-error.",
+    },
+  ];
+});
+
+// File build (khong nam trong THEME_ASSET_FILES - khong duoc AI chon de sua truc tiep).
+export const THEME_BUNDLE_OUTPUTS = ["assets/custom.css", "assets/custom.js"];
+
+// Nhom 1 file .liquid + cap nguon css/js cua no lai voi nhau theo "ten trang" chung - dung de
+// server tu gom cac file AI chon vao DUNG 1 lan goi cho 1 nhom (routes/admin/themeChat.ts), tranh
+// AI phai xu ly nhieu trang khong lien quan trong cung 1 cau tra loi.
+export function pageGroupKey(file: string): string {
+  if (file.startsWith("assets/sources/")) {
+    return file.replace(/^assets\/sources\//, "").replace(/\.(css|js)$/, "");
+  }
+  return file.replace(/\.liquid$/, "");
+}

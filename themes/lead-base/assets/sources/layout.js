@@ -1,0 +1,1 @@
+// JS riêng cho layout.liquid — trống mặc định.

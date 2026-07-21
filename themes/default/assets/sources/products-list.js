@@ -1,0 +1,1 @@
+// JS riêng cho products-list.liquid — trống mặc định.

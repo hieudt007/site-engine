@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -74,4 +75,30 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
 
     return { config };
   });
+
+  // Chi xoa duoc CustomTheme (agent-generated) - theme built-in la nguon sach dong goi cung app,
+  // khong cho xoa qua UI. Chan xoa theme dang active de tranh site public mat theme dang dung
+  // (phai doi sang theme khac truoc). Xoa ca thu muc tren dia lan ThemeChatMessage lien quan.
+  app.delete<{ Params: { slug: string } }>(
+    "/admin/api/themes/:slug",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const { slug } = request.params;
+      const customTheme = await prisma.customTheme.findUnique({ where: { slug } });
+      if (!customTheme) {
+        return reply.code(404).send({ error: "Chỉ xoá được theme do AI tạo (không áp dụng theme có sẵn)" });
+      }
+
+      const config = await prisma.themeConfig.findUnique({ where: { id: "singleton" } });
+      if (config?.activeTheme === slug) {
+        return reply.code(422).send({ error: "Không thể xoá theme đang dùng — đổi sang theme khác trước." });
+      }
+
+      await fsp.rm(path.join(THEMES_ROOT, slug), { recursive: true, force: true });
+      await prisma.themeChatMessage.deleteMany({ where: { slug } });
+      await prisma.customTheme.delete({ where: { slug } });
+
+      return { success: true };
+    },
+  );
 }

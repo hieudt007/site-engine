@@ -4,7 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ pageTitle | default: "Quản trị" }}</title>
+  <script>
+    // Doc truoc khi ve UI de tranh nhap nhay sidebar mo/dong luc reload trang (moi trang la 1
+    // lan tai HTML moi hoan toan, khong phai SPA - phai luu trang thai qua localStorage).
+    if (localStorage.getItem("sidebarCollapsed") === "1") {
+      document.documentElement.classList.add("sidebar-collapsed-init");
+    }
+  </script>
   <style>
+    .sidebar-collapsed-init .sidebar { width: 0 !important; padding: 0 !important; overflow: hidden; }
+    .sidebar-collapsed-init #sidebar-toggle { left: 14px !important; }
     :root {
       --color-primary: #2563eb;
       --color-primary-dark: #1d4ed8;
@@ -29,7 +38,12 @@
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--color-text); background: var(--color-bg); display: flex; min-height: 100vh; }
 
-    .sidebar { width: 224px; flex-shrink: 0; background: var(--color-sidebar-bg); color: #fff; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar { width: 224px; flex-shrink: 0; background: var(--color-sidebar-bg); color: #fff; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: width 0.15s, padding 0.15s; }
+    body.sidebar-collapsed .sidebar { width: 0; padding: 0; overflow: hidden; white-space: nowrap; }
+    #sidebar-toggle { position: fixed; top: 14px; left: 14px; z-index: 600; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-card-bg); cursor: pointer; font-size: 0.95rem; line-height: 1; }
+    body.sidebar-collapsed #sidebar-toggle { left: 14px; }
+    body:not(.sidebar-collapsed) #sidebar-toggle { left: 238px; top: 14px; background: transparent; border-color: transparent; color: #9ca3af; }
+    body:not(.sidebar-collapsed) #sidebar-toggle:hover { color: #fff; }
     .sidebar-brand { padding: var(--space-5) var(--space-5) var(--space-4); font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; display: block; }
     .sidebar-group { margin-top: var(--space-3); }
     .sidebar-group-label { padding: 0 var(--space-5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: var(--space-2); }
@@ -38,7 +52,7 @@
     .sidebar-link.active { background: rgba(37,99,235,0.15); color: #fff; font-weight: 600; border-left-color: var(--color-primary); }
     .sidebar-footer { margin-top: auto; padding: var(--space-4) var(--space-5); border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: var(--color-sidebar-text); }
 
-    main { flex: 1; min-width: 0; padding: var(--space-6); max-width: 1100px; }
+    main { flex: 1; min-width: 0; padding: var(--space-6); }
 
     .role-badge { display: inline-block; background: var(--color-primary); color: #fff; font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; }
 
@@ -127,6 +141,7 @@
   </style>
 </head>
 <body>
+  <button type="button" id="sidebar-toggle" title="Ẩn/hiện menu">☰</button>
   <nav class="sidebar">
     <a class="sidebar-brand" href="/admin">Quản trị</a>
 
@@ -474,6 +489,18 @@
       }
       overlay.style.display = "flex";
     };
+  })();
+  </script>
+
+  <script>
+  (function () {
+    if (document.documentElement.classList.contains("sidebar-collapsed-init")) {
+      document.body.classList.add("sidebar-collapsed");
+    }
+    document.getElementById("sidebar-toggle").addEventListener("click", () => {
+      const collapsed = document.body.classList.toggle("sidebar-collapsed");
+      localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+    });
   })();
   </script>
 

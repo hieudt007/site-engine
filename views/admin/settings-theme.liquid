@@ -9,10 +9,10 @@
   <p style="color:#999;">Đang tải...</p>
 </div>
 
-<div class="card" style="margin-bottom:1.5rem;">
-  <h2 style="font-size:1rem;margin-top:0;">+ Tạo theme mới bằng AI</h2>
+<div class="card">
+  <h2 style="font-size:1rem;margin-top:0;">+ Tạo theme mới</h2>
   <p style="color:#777;font-size:0.82rem;">
-    AI sẽ viết lại từng file giao diện theo mô tả phong cách bạn nhập, dựa trên 1 theme có sẵn làm nền — file nào AI sinh lỗi sẽ tự giữ nguyên bản gốc (theme mới luôn dùng được, không bao giờ thiếu file).
+    Tạo 1 bản sao từ theme nền — dùng được ngay, chưa cần AI. Sau khi tạo sẽ chuyển thẳng vào trang sửa để chat với AI tuỳ chỉnh từng phần.
   </p>
 
   <label for="base-theme">Theme nền</label>
@@ -24,39 +24,9 @@
   <label for="new-slug">Slug (tên thư mục, chỉ chữ thường/số/gạch ngang)</label>
   <input type="text" id="new-slug" placeholder="vd: my-pham-cao-cap">
 
-  <label for="agent-select">Agent AI</label>
-  <select id="agent-select"></select>
-  <div class="field-hint">Chưa có agent? Vào <a href="/admin/agents">Quản trị → AI Agent</a> tạo trước.</div>
-
-  <label for="style-prompt">Mô tả phong cách mong muốn</label>
-  <textarea id="style-prompt" placeholder="vd: Tông đen-vàng sang trọng, font serif, dành cho shop mỹ phẩm cao cấp" style="min-height:80px;"></textarea>
-
   <div style="margin-top:1rem;">
-    <button type="button" class="btn btn-primary" id="generate-btn">Sinh theme mới</button>
-    <span id="generate-status" style="font-size:0.85rem;color:#777;margin-left:0.6rem;"></span>
-  </div>
-
-  <div id="generate-results" style="margin-top:1rem;"></div>
-</div>
-
-<div id="theme-detail" class="card" style="display:none;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
-    <h2 id="detail-title" style="font-size:1rem;margin:0;"></h2>
-    <button type="button" class="btn" id="detail-close">Đóng</button>
-  </div>
-  <table>
-    <thead><tr><th>File</th><th>Mô tả</th><th></th></tr></thead>
-    <tbody id="detail-files-body"></tbody>
-  </table>
-
-  <div style="margin-top:1.5rem;border-top:1px solid #eee;padding-top:1rem;">
-    <h3 style="font-size:0.95rem;margin:0 0 0.6rem;">Chat sửa giao diện bằng AI</h3>
-    <div id="chat-messages" style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:0.6rem;margin-bottom:0.6rem;font-size:0.85rem;"></div>
-    <div id="chat-progress" style="font-size:0.78rem;color:#888;min-height:1.2rem;margin-bottom:0.4rem;"></div>
-    <div style="display:flex;gap:0.5rem;">
-      <textarea id="chat-input" placeholder="Vd: đổi màu nút mua hàng sang cam, hoặc thêm banner khuyến mãi ở trang chủ..." style="flex:1;min-height:50px;"></textarea>
-      <button type="button" class="btn btn-primary" id="chat-send" style="align-self:flex-end;">Gửi</button>
-    </div>
+    <button type="button" class="btn btn-primary" id="create-btn">Tạo theme</button>
+    <span id="create-status" style="font-size:0.85rem;color:#777;margin-left:0.6rem;"></span>
   </div>
 </div>
 
@@ -64,7 +34,6 @@
 (function () {
   const grid = document.getElementById("theme-grid");
   const flash = document.getElementById("flash");
-  let agentsCache = [];
 
   function showFlash(message, ok) {
     flash.textContent = message;
@@ -83,8 +52,11 @@
     const badge = theme.active
       ? '<span class="status-badge status-published">Đang dùng</span>'
       : '<button class="btn" data-activate="' + theme.slug + '">Dùng theme này</button>';
-    const customizeBtn = theme.source === "agent-generated"
-      ? '<button class="btn" data-detail="' + theme.slug + '" style="margin-top:0.4rem;">Sửa từng file</button>'
+    const editBtn = theme.source === "agent-generated"
+      ? '<a class="btn" href="/admin/themes/' + theme.slug + '/edit" style="margin-top:0.4rem;">Sửa theme</a>'
+      : "";
+    const deleteBtn = theme.source === "agent-generated" && !theme.active
+      ? '<button class="btn btn-danger" data-delete="' + theme.slug + '" style="margin-top:0.4rem;margin-left:0.4rem;">Xoá</button>'
       : "";
     const screenshot = theme.hasScreenshot
       ? '<img src="/theme-assets/' + theme.slug + '/screenshot.png" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.6rem;">'
@@ -94,7 +66,7 @@
       screenshot +
       '<div style="font-weight:600;margin-bottom:0.3rem;">' + escapeHtml(theme.name) + '</div>' +
       '<div style="font-size:0.78rem;color:#999;margin-bottom:0.7rem;">' + (SOURCE_LABEL[theme.source] || theme.source) + '</div>' +
-      badge + customizeBtn +
+      badge + editBtn + deleteBtn +
       '</div>'
     );
   }
@@ -107,22 +79,6 @@
     const baseSelect = document.getElementById("base-theme");
     baseSelect.innerHTML = themes.map((t) => '<option value="' + t.slug + '">' + escapeHtml(t.name) + '</option>').join("");
     return themes;
-  }
-
-  async function loadAgents() {
-    const res = await fetch("/admin/api/agents");
-    if (!res.ok) return;
-    const { agents } = await res.json();
-    agentsCache = agents;
-    const select = document.getElementById("agent-select");
-    select.innerHTML = agents.length
-      ? agents.map((a) => '<option value="' + a.id + '">' + escapeHtml(a.name) + " (" + escapeHtml(a.provider) + ")</option>").join("")
-      : '<option value="">— Chưa có agent nào —</option>';
-
-    // Agent co purpose="design" tu dong duoc chon san - tenant khong phai tu tim dung agent moi
-    // lan vao trang nay (xem prisma/schema.prisma Agent.purpose + seedAgents.ts).
-    const designAgent = agents.find((a) => a.purpose === "design");
-    if (designAgent) select.value = designAgent.id;
   }
 
   grid.addEventListener("click", async (event) => {
@@ -143,234 +99,52 @@
       return;
     }
 
-    const detailBtn = event.target.closest("button[data-detail]");
-    if (detailBtn) openDetail(detailBtn.dataset.detail);
+    const deleteBtn = event.target.closest("button[data-delete]");
+    if (deleteBtn) {
+      if (!confirm("Xoá theme này? Không thể hoàn tác.")) return;
+      const res = await fetch("/admin/api/themes/" + deleteBtn.dataset.delete, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showFlash(typeof body.error === "string" ? body.error : "Xoá theme thất bại", false);
+        return;
+      }
+      showFlash("Đã xoá theme.", true);
+      loadThemes();
+    }
   });
 
-  document.getElementById("generate-btn").addEventListener("click", async () => {
+  document.getElementById("create-btn").addEventListener("click", async () => {
     const baseSlug = document.getElementById("base-theme").value;
     const newName = document.getElementById("new-name").value.trim();
     const newSlug = document.getElementById("new-slug").value.trim();
-    const agentId = document.getElementById("agent-select").value;
-    const stylePrompt = document.getElementById("style-prompt").value.trim();
-    const status = document.getElementById("generate-status");
-    const resultsEl = document.getElementById("generate-results");
+    const status = document.getElementById("create-status");
 
-    if (!newName || !newSlug || !agentId || !stylePrompt) {
-      showFlash("Điền đủ tên, slug, agent, và mô tả phong cách.", false);
+    if (!newName || !newSlug) {
+      showFlash("Điền đủ tên và slug.", false);
       return;
     }
 
-    status.textContent = "Đang sinh theme (có thể mất vài phút, đừng đóng trang)...";
-    resultsEl.innerHTML = "";
+    status.textContent = "Đang tạo...";
 
     const res = await fetch("/admin/api/themes/ai-customize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ baseSlug, newSlug, newName, agentId, stylePrompt }),
+      body: JSON.stringify({ baseSlug, newSlug, newName }),
     });
 
     status.textContent = "";
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      showFlash(typeof body.error === "string" ? body.error : "Sinh theme thất bại", false);
+      showFlash(typeof body.error === "string" ? body.error : "Tạo theme thất bại", false);
       return;
     }
 
-    const { results } = await res.json();
-    resultsEl.innerHTML =
-      '<table><thead><tr><th>File</th><th>Kết quả</th></tr></thead><tbody>' +
-      results.map((r) =>
-        "<tr><td>" + escapeHtml(r.file) + "</td><td>" +
-        (r.ok
-          ? '<span class="status-badge status-published">AI sinh OK (' + r.attempts + ' lần thử)</span>'
-          : '<span class="status-badge status-draft">Giữ bản gốc — AI thất bại: ' + escapeHtml(r.errors.join("; ")) + '</span>') +
-        "</td></tr>"
-      ).join("") +
-      "</tbody></table>";
-
-    showFlash("Đã tạo theme mới — vào danh sách phía trên để kích hoạt.", true);
-    loadThemes();
+    const { theme } = await res.json();
+    window.location.href = "/admin/themes/" + theme.slug + "/edit";
   });
 
-  let currentDetailSlug = null;
-
-  async function openDetail(slug) {
-    const res = await fetch("/admin/api/themes/" + slug + "/files");
-    if (!res.ok) {
-      showFlash("Không tải được danh sách file", false);
-      return;
-    }
-    const { files } = await res.json();
-
-    currentDetailSlug = slug;
-    document.getElementById("detail-title").textContent = "Sửa từng file — " + slug;
-    document.getElementById("detail-files-body").innerHTML = files.map((f) =>
-      "<tr><td>" + escapeHtml(f.file) + "</td><td style=\"color:#777;font-size:0.82rem;\">" + escapeHtml(f.description) + "</td>" +
-      '<td style="text-align:right;"><button class="btn" data-regen="' + f.file + '" data-slug="' + slug + '">Sinh lại bằng AI</button></td></tr>'
-    ).join("");
-    document.getElementById("theme-detail").style.display = "block";
-    document.getElementById("theme-detail").scrollIntoView({ behavior: "smooth" });
-
-    await loadChatHistory(slug);
-  }
-
-  function chatMessageHtml(role, content) {
-    const isUser = role === "user";
-    return (
-      '<div style="margin-bottom:0.5rem;text-align:' + (isUser ? "right" : "left") + ';">' +
-      '<div style="display:inline-block;max-width:85%;padding:0.4rem 0.6rem;border-radius:6px;background:' +
-      (isUser ? "#2563eb;color:#fff" : "#f3f4f6;color:#111") + ';white-space:pre-wrap;">' +
-      escapeHtml(content) + "</div></div>"
-    );
-  }
-
-  async function loadChatHistory(slug) {
-    const box = document.getElementById("chat-messages");
-    const res = await fetch("/admin/api/themes/" + slug + "/chat/history");
-    if (!res.ok) {
-      box.innerHTML = '<p style="color:#999;">Không tải được lịch sử chat</p>';
-      return;
-    }
-    const { messages } = await res.json();
-    box.innerHTML = messages.length
-      ? messages.map((m) => chatMessageHtml(m.role, m.content)).join("")
-      : '<p style="color:#999;">Chưa có tin nhắn nào — hỏi AI để bắt đầu chỉnh sửa theme này.</p>';
-    box.scrollTop = box.scrollHeight;
-  }
-
-  async function sendChatMessage() {
-    if (!currentDetailSlug) return;
-    const input = document.getElementById("chat-input");
-    const message = input.value.trim();
-    if (!message) return;
-    if (!agentsCache.length) {
-      showFlash("Chưa có agent nào — vào Quản trị → AI Agent tạo trước.", false);
-      return;
-    }
-    const agentId = (agentsCache.find((a) => a.purpose === "design") || agentsCache[0]).id;
-
-    const box = document.getElementById("chat-messages");
-    const progress = document.getElementById("chat-progress");
-    const sendBtn = document.getElementById("chat-send");
-
-    box.insertAdjacentHTML("beforeend", chatMessageHtml("user", message));
-    box.scrollTop = box.scrollHeight;
-    input.value = "";
-    input.disabled = true;
-    sendBtn.disabled = true;
-    progress.textContent = "Đang gửi...";
-
-    try {
-      const res = await fetch("/admin/api/themes/" + currentDetailSlug + "/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, agentId }),
-      });
-      if (!res.ok || !res.body) {
-        progress.textContent = "";
-        showFlash("Gửi chat thất bại", false);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop();
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line.startsWith("data:")) continue;
-          const event = JSON.parse(line.slice(5).trim());
-          handleChatEvent(event, progress, box);
-        }
-      }
-    } catch (err) {
-      progress.textContent = "";
-      showFlash("Lỗi kết nối khi chat với AI", false);
-    } finally {
-      input.disabled = false;
-      sendBtn.disabled = false;
-      input.focus();
-    }
-  }
-
-  function handleChatEvent(event, progress, box) {
-    if (event.step === "classify") {
-      progress.textContent = "⏳ " + event.label;
-    } else if (event.step === "intent_updated") {
-      progress.textContent = "⏳ " + event.label;
-    } else if (event.step === "files") {
-      progress.textContent = "⏳ " + event.label;
-    } else if (event.step === "editing") {
-      progress.textContent = "⏳ " + event.label;
-    } else if (event.step === "validating") {
-      progress.textContent = "⏳ " + (event.ok ? "Đã sửa xong " + event.file : "Lỗi ở " + event.file + " — giữ bản cũ");
-    } else if (event.step === "done") {
-      progress.textContent = "";
-      box.insertAdjacentHTML("beforeend", chatMessageHtml("assistant", event.reply));
-      box.scrollTop = box.scrollHeight;
-    } else if (event.step === "error") {
-      progress.textContent = "";
-      showFlash("AI lỗi: " + event.label, false);
-    }
-  }
-
-  document.getElementById("chat-send").addEventListener("click", sendChatMessage);
-  document.getElementById("chat-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendChatMessage();
-    }
-  });
-
-  document.getElementById("detail-close").addEventListener("click", () => {
-    document.getElementById("theme-detail").style.display = "none";
-  });
-
-  document.getElementById("detail-files-body").addEventListener("click", async (event) => {
-    const btn = event.target.closest("button[data-regen]");
-    if (!btn) return;
-
-    if (!agentsCache.length) {
-      showFlash("Chưa có agent nào — vào Quản trị → AI Agent tạo trước.", false);
-      return;
-    }
-    const stylePrompt = prompt("Mô tả điều chỉnh muốn AI làm cho file này:");
-    if (!stylePrompt) return;
-
-    const agentId = (agentsCache.find((a) => a.purpose === "design") || agentsCache[0]).id;
-    btn.disabled = true;
-    btn.textContent = "Đang sinh...";
-
-    const res = await fetch("/admin/api/themes/" + btn.dataset.slug + "/ai-regenerate-file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file: btn.dataset.regen, agentId, stylePrompt }),
-    });
-
-    btn.disabled = false;
-    btn.textContent = "Sinh lại bằng AI";
-
-    if (!res.ok) {
-      showFlash("Gọi AI thất bại", false);
-      return;
-    }
-    const result = await res.json();
-    showFlash(
-      result.ok ? "Đã sinh lại " + btn.dataset.regen + " (" + result.attempts + " lần thử)." : "AI thất bại, giữ nguyên file cũ: " + result.errors.join("; "),
-      result.ok,
-    );
-  });
-
-  Promise.all([loadThemes(), loadAgents()]);
+  loadThemes();
 })();
 </script>
 {% endblock %}

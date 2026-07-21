@@ -1,0 +1,12 @@
+{% layout "layout" %}
+{% block content %}
+<article>
+  {% if page.coverImage %}
+    <img src="{{ page.coverImage }}" alt="{{ page.title }}" class="w-full max-h-96 object-cover rounded-lg">
+  {% endif %}
+  <h1 class="text-3xl font-bold mb-6 mt-4">{{ page.title | escape }}</h1>
+  <div class="prose max-w-none leading-relaxed text-[1.05rem]">
+    {{ page.body }}
+  </div>
+</article>
+{% endblock %}

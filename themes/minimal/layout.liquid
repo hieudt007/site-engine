@@ -25,13 +25,13 @@
   <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
 </head>
 <body class="font-sans text-stone-800 bg-stone-50 flex flex-col min-h-screen">
-  {% render "_header", site: site, headerMenu: headerMenu %}
+  {% render "header", site: site, headerMenu: headerMenu %}
 
   <main class="flex-1 max-w-2xl w-full mx-auto px-6 py-12">
     {% block content %}{% endblock %}
   </main>
 
-  {% render "_footer", site: site, footerMenu: footerMenu, year: year %}
+  {% render "footer", site: site, footerMenu: footerMenu, year: year %}
   <script src="/theme-assets/{{ themeSlug }}/assets/custom.js" defer></script>
 </body>
 </html>

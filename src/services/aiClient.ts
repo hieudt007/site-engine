@@ -1,4 +1,24 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Agent } from "@prisma/client";
+
+// Ghi lai context gui/nhan voi AI de debug - GHI DE (khong noi tiep) - chi giu LAN GOI GAN NHAT,
+// tranh file phinh to vo han qua nhieu luot chat (1 luot co the goi AI nhieu lan: phan loai + tung
+// nhom + retry, nhung debug chi can xem duoc lan cuoi de kiem tra, khong can lich su day du). Ghi
+// vao debug-ai/ (KHONG phai uploads/ - uploads/ dang serve tinh cong khai qua /uploads/, ghi prompt
+// that vao do se lo noi dung theme + du lieu ra ngoai cho bat ky ai biet duong dan).
+const DEBUG_DIR = path.join(process.cwd(), "debug-ai");
+
+function writeDebugLog(kind: "input" | "output", agent: Agent, content: string): void {
+  try {
+    fs.mkdirSync(DEBUG_DIR, { recursive: true });
+    const stamp = new Date().toISOString();
+    const entry = `===== ${stamp} | agent=${agent.name} (${agent.provider}/${agent.model}) =====\n${content}\n`;
+    fs.writeFileSync(path.join(DEBUG_DIR, `ai_${kind}.log`), entry, "utf-8");
+  } catch {
+    // Debug log khong duoc lam hong luong goi AI that neu ghi file loi (vd disk full).
+  }
+}
 
 // Goi model tu 1 Agent (schema.prisma) da cau hinh san (provider/model/apiKey/baseUrl, nhap qua
 // /admin/agents). Hau het provider dung chung API chat-completions kieu OpenAI (bao gom 9router
@@ -23,7 +43,11 @@ function resolveBaseUrl(agent: Agent): string {
   return fallback;
 }
 
-async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: string): Promise<string> {
+async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string): Promise<string> {
+  writeDebugLog("input", agent, `--- SYSTEM ---\n${systemPrompt}\n--- USER ---\n${userPrompt}${imageUrl ? `\n--- IMAGE ---\n${imageUrl}` : ""}`);
+  const userContent = imageUrl
+    ? [{ type: "text", text: userPrompt }, { type: "image", source: { type: "url", url: imageUrl } }]
+    : userPrompt;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -35,7 +59,7 @@ async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: str
       model: agent.model,
       max_tokens: 8000,
       system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      messages: [{ role: "user", content: userContent }],
     }),
   });
 
@@ -47,10 +71,15 @@ async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: str
   if (!text) {
     throw new AiCallError("Anthropic API trả về rỗng");
   }
+  writeDebugLog("output", agent, text);
   return text;
 }
 
-async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userPrompt: string): Promise<string> {
+async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string): Promise<string> {
+  writeDebugLog("input", agent, `--- SYSTEM ---\n${systemPrompt}\n--- USER ---\n${userPrompt}${imageUrl ? `\n--- IMAGE ---\n${imageUrl}` : ""}`);
+  const userContent = imageUrl
+    ? [{ type: "text", text: userPrompt }, { type: "image_url", image_url: { url: imageUrl } }]
+    : userPrompt;
   const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
@@ -62,9 +91,13 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
       model: agent.model,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+        { role: "user", content: userContent },
       ],
       temperature: 0.7,
+      // Vai model qua 9router (vd Claude qua provider "cc") tra ve SSE streaming DU KHONG
+      // truyen "stream" - ep tuong minh false de luon nhan 1 JSON object thuong, tranh crash
+      // res.json() khi response thuc te la nhieu dong "data: {...}".
+      stream: false,
     }),
   });
 
@@ -76,15 +109,20 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
   if (!text) {
     throw new AiCallError("AI API trả về rỗng");
   }
+  writeDebugLog("output", agent, text);
   return text;
 }
 
-export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: string): Promise<string> {
+// imageUrl: URL TUYET DOI (khong phai /uploads/... tuong doi) - AI goi qua API se tu tai anh ve,
+// can truy cap duoc tu ben ngoai. Model khong ho tro vision se tuy provider (thuong bo qua block
+// anh hoac loi ro rang) - khong tu dong kiem tra truoc, de nguyen trach nhiem chon model vision-capable
+// cho nguoi cau hinh Agent.
+export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string): Promise<string> {
   if (!agent.isActive) {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
   if (agent.provider === "anthropic") {
-    return callAnthropic(agent, systemPrompt, userPrompt);
+    return callAnthropic(agent, systemPrompt, userPrompt, imageUrl);
   }
-  return callOpenAiCompatible(agent, systemPrompt, userPrompt);
+  return callOpenAiCompatible(agent, systemPrompt, userPrompt, imageUrl);
 }

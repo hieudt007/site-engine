@@ -1,0 +1,463 @@
+{% layout "layout" %}
+{% block content %}
+<style>
+  .tl-list { list-style: none; margin: 0; padding: 0; }
+  .tl-item { display: flex; gap: 0.5rem; }
+  .tl-dotcol { display: flex; flex-direction: column; align-items: center; }
+  .tl-dot { width: 14px; height: 14px; border-radius: 999px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: #fff; }
+  .tl-dot-pending { background: #fff; border: 2px solid #d1d5db; width: 10px; height: 10px; margin: 2px; }
+  .tl-dot-active { background: var(--color-primary); border: 2px solid var(--color-primary); animation: tl-spin 0.8s linear infinite; border-top-color: transparent; }
+  .tl-dot-done { background: #16a34a; }
+  .tl-dot-failed { background: var(--color-danger); }
+  .tl-line { width: 2px; flex: 1; min-height: 12px; background: #d1d5db; }
+  .tl-line-done { background: #16a34a; }
+  .tl-body { min-width: 0; flex: 1; padding-bottom: 0.5rem; }
+  .tl-label { font-size: 0.78rem; color: #9ca3af; }
+  .tl-label-active { color: var(--color-primary); font-weight: 600; }
+  .tl-label-done { color: #374151; }
+  .tl-label-failed { color: var(--color-danger); font-weight: 600; }
+  .tl-msg { font-size: 0.72rem; color: #9ca3af; }
+  .tl-note { font-size: 0.75rem; color: #888; margin-top: 0.2rem; }
+  @keyframes tl-spin { to { transform: rotate(360deg); } }
+</style>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
+  <h1 style="margin:0;">Sửa theme — {{ theme.name | escape }}</h1>
+  <div style="display:flex;gap:0.5rem;">
+    <button type="button" class="btn btn-danger" id="delete-theme-btn">Xoá theme</button>
+    <a class="btn" href="/admin/settings/theme">← Danh sách theme</a>
+  </div>
+</div>
+
+<div style="display:flex;gap:1rem;height:calc(100vh - 180px);min-height:500px;">
+  <div class="card" style="width:220px;flex-shrink:0;overflow-y:auto;padding:0.8rem;">
+    <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">File</div>
+    <div id="file-list"></div>
+  </div>
+
+  <div class="card" style="flex:1;min-width:0;display:flex;flex-direction:column;padding:0.8rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+      <div id="file-view-title" style="font-weight:600;font-size:0.85rem;">Chọn 1 file để xem</div>
+      <div style="display:flex;gap:0.3rem;align-items:center;">
+        <div id="preview-size-toolbar" style="display:none;gap:0.25rem;margin-right:0.4rem;">
+          <button type="button" class="btn" data-size="desktop" title="Desktop" style="padding:0.25rem 0.5rem;font-size:0.8rem;">🖥️</button>
+          <button type="button" class="btn" data-size="tablet" title="iPad" style="padding:0.25rem 0.5rem;font-size:0.8rem;">📱</button>
+          <button type="button" class="btn" data-size="mobile" title="Mobile" style="padding:0.25rem 0.5rem;font-size:0.8rem;">📲</button>
+        </div>
+        <button type="button" class="btn" id="tab-preview" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Xem trước</button>
+        <button type="button" class="btn" id="tab-code" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Code</button>
+      </div>
+    </div>
+    <pre id="file-view-content" style="flex:1;overflow:auto;background:#0f172a;color:#e2e8f0;padding:0.8rem;border-radius:6px;font-size:0.8rem;line-height:1.5;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>
+    <div id="preview-wrap" style="flex:1;overflow:auto;display:none;background:#e5e7eb;border-radius:6px;padding:0.8rem;">
+      <iframe id="preview-frame" style="border:1px solid #ccc;border-radius:6px;background:#fff;display:block;margin:0 auto;width:100%;height:100%;transition:width 0.2s;"></iframe>
+    </div>
+  </div>
+
+  <div class="card" style="width:340px;flex-shrink:0;display:flex;flex-direction:column;padding:0.8rem;">
+    <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;">Chat sửa giao diện bằng AI</div>
+    <div id="chat-messages" style="flex:1;overflow-y:auto;border:1px solid #eee;border-radius:6px;padding:0.6rem;margin-bottom:0.6rem;font-size:0.85rem;"></div>
+    <div id="chat-progress" style="font-size:0.78rem;color:#888;max-height:110px;overflow-y:auto;margin-bottom:0.4rem;display:flex;flex-direction:column;gap:0.15rem;"></div>
+    <div id="chat-image-preview" style="display:none;align-items:center;gap:0.4rem;margin-bottom:0.4rem;">
+      <img id="chat-image-preview-thumb" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #eee;">
+      <span style="font-size:0.72rem;color:#666;flex:1;">Sẽ gửi kèm ảnh này cho AI</span>
+      <button type="button" id="chat-image-remove" class="btn" style="padding:0.15rem 0.5rem;font-size:0.72rem;">✕</button>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <textarea id="chat-input" placeholder="Vd: đổi màu nút mua hàng sang cam..." style="flex:1;min-height:50px;"></textarea>
+      <div style="display:flex;flex-direction:column;gap:0.3rem;align-self:flex-end;">
+        <input type="file" id="chat-image-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;">
+        <button type="button" class="btn" id="chat-image-btn" title="Đính kèm ảnh tham khảo">🖼️</button>
+        <button type="button" class="btn btn-primary" id="chat-send">Gửi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const slug = {{ theme.slug | json }};
+  const files = {{ files | json }};
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  // --- File tree (trai) + xem noi dung (giua) ---
+  const fileList = document.getElementById("file-list");
+  const fileViewTitle = document.getElementById("file-view-title");
+  const fileViewContent = document.getElementById("file-view-content");
+  let activeFile = null;
+
+  function renderFileList() {
+    fileList.innerHTML = files.map((f) =>
+      '<a href="#" data-file="' + f.file + '" title="' + escapeHtml(f.description) + '" style="display:block;padding:0.35rem 0.4rem;border-radius:4px;font-size:0.8rem;text-decoration:none;color:' +
+      (f.file === activeFile ? "#2563eb;background:#eff6ff;font-weight:600" : "#333") + ';">' + escapeHtml(f.file) + "</a>"
+    ).join("");
+  }
+
+  async function openFile(file) {
+    activeFile = file;
+    renderFileList();
+    fileViewTitle.textContent = file;
+    fileViewContent.textContent = "Đang tải...";
+    const res = await fetch("/admin/api/themes/" + slug + "/file?file=" + encodeURIComponent(file));
+    if (!res.ok) {
+      fileViewContent.textContent = "Không tải được file.";
+      return;
+    }
+    const { content } = await res.json();
+    fileViewContent.textContent = content;
+  }
+
+  // File nao la 1 trang doc lap thi map sang key preview rieng (routes/admin/themePreview.ts) -
+  // file KHONG co trong map (layout/header/footer/custom-fields/assets/blog-post-locked/
+  // custom-content/landing...) la "manh ghep" dung chung nhieu trang, khong co preview rieng ->
+  // chi reload lai preview dang xem, khong doi sang trang nao khac.
+  const FILE_TO_PREVIEW_KEY = {
+    "home.liquid": "home",
+    "blog-list.liquid": "blog-list",
+    "blog-post.liquid": "blog-post",
+    "blog-category.liquid": "blog-category",
+    "page.liquid": "page",
+    "products-list.liquid": "products-list",
+    "product-category.liquid": "product-category",
+    "product-detail.liquid": "product-detail",
+    "cart.liquid": "cart",
+    "order-confirmation.liquid": "order-confirmation",
+    "404.liquid": "404",
+  };
+
+  fileList.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-file]");
+    if (!link) return;
+    event.preventDefault();
+    const file = link.dataset.file;
+    openFile(file);
+    const previewKey = FILE_TO_PREVIEW_KEY[file];
+    if (previewKey) currentPreviewKey = previewKey;
+    // Giu nguyen tab dang mo (Code/Xem truoc) - chi doi NOI DUNG ben trong theo file vua bam,
+    // khong tu y chuyen tab.
+    if (activeTab === "preview") reloadPreview();
+  });
+
+  renderFileList();
+
+  // --- Tab Code / Xem truoc (iframe render bang dung theme nay, xem routes/admin/themePreview.ts) ---
+  const codeEl = document.getElementById("file-view-content");
+  const previewFrame = document.getElementById("preview-frame");
+  const tabCodeBtn = document.getElementById("tab-code");
+  const tabPreviewBtn = document.getElementById("tab-preview");
+  let activeTab = "code";
+  let currentPreviewKey = "home";
+
+  function reloadPreview() {
+    previewFrame.src = "/admin/themes/" + slug + "/preview?page=" + currentPreviewKey + "&t=" + Date.now();
+  }
+
+  const previewWrap = document.getElementById("preview-wrap");
+  const previewSizeToolbar = document.getElementById("preview-size-toolbar");
+  const PREVIEW_SIZES = { desktop: "100%", tablet: "768px", mobile: "375px" };
+
+  function setPreviewSize(size) {
+    previewFrame.style.width = PREVIEW_SIZES[size] || PREVIEW_SIZES.desktop;
+    previewSizeToolbar.querySelectorAll("button[data-size]").forEach((btn) => {
+      btn.className = btn.dataset.size === size ? "btn btn-primary" : "btn";
+      btn.style.padding = "0.25rem 0.5rem";
+      btn.style.fontSize = "0.8rem";
+    });
+  }
+
+  previewSizeToolbar.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-size]");
+    if (btn) setPreviewSize(btn.dataset.size);
+  });
+
+  function setTab(tab) {
+    activeTab = tab;
+    codeEl.style.display = tab === "code" ? "block" : "none";
+    previewWrap.style.display = tab === "preview" ? "block" : "none";
+    previewSizeToolbar.style.display = tab === "preview" ? "flex" : "none";
+    tabCodeBtn.className = tab === "code" ? "btn btn-primary" : "btn";
+    tabPreviewBtn.className = tab === "preview" ? "btn btn-primary" : "btn";
+    tabCodeBtn.style.padding = tabPreviewBtn.style.padding = "0.3rem 0.7rem";
+    tabCodeBtn.style.fontSize = tabPreviewBtn.style.fontSize = "0.78rem";
+    if (tab === "preview" && !previewFrame.src) reloadPreview();
+  }
+
+  setPreviewSize("desktop");
+  tabCodeBtn.addEventListener("click", () => setTab("code"));
+  tabPreviewBtn.addEventListener("click", () => setTab("preview"));
+  setTab("preview");
+
+  document.getElementById("delete-theme-btn").addEventListener("click", async () => {
+    if (!confirm("Xoá theme này? Không thể hoàn tác.")) return;
+    const res = await fetch("/admin/api/themes/" + slug, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Xoá theme thất bại", false);
+      return;
+    }
+    window.location.href = "/admin/settings/theme";
+  });
+
+  // --- Chat (phai) ---
+  function chatMessageHtml(role, content, imageUrl) {
+    const isUser = role === "user";
+    const imageHtml = imageUrl
+      ? '<img src="' + escapeHtml(imageUrl) + '" style="display:block;max-width:160px;border-radius:6px;margin-bottom:0.3rem;">'
+      : "";
+    return (
+      '<div style="margin-bottom:0.5rem;text-align:' + (isUser ? "right" : "left") + ';">' +
+      '<div style="display:inline-block;max-width:90%;padding:0.4rem 0.6rem;border-radius:6px;background:' +
+      (isUser ? "#2563eb;color:#fff" : "#f3f4f6;color:#111") + ';white-space:pre-wrap;">' +
+      imageHtml + escapeHtml(content) + "</div></div>"
+    );
+  }
+
+  // --- Dinh kem anh tham khao cho AI (upload truoc qua thu vien Media dung chung, giong
+  // media-list.liquid) - luu URL TUYET DOI (window.location.origin + Media.url tuong doi) vi
+  // server goi AI qua API can URL truy cap duoc tu ben ngoai, khong phai duong dan noi bo.
+  const chatImageInput = document.getElementById("chat-image-input");
+  const chatImageBtn = document.getElementById("chat-image-btn");
+  const chatImagePreview = document.getElementById("chat-image-preview");
+  const chatImagePreviewThumb = document.getElementById("chat-image-preview-thumb");
+  const chatImageRemove = document.getElementById("chat-image-remove");
+  let pendingImageUrl = null;
+
+  function clearPendingImage() {
+    pendingImageUrl = null;
+    chatImageInput.value = "";
+    chatImagePreview.style.display = "none";
+  }
+
+  chatImageBtn.addEventListener("click", () => chatImageInput.click());
+  chatImageRemove.addEventListener("click", clearPendingImage);
+
+  chatImageInput.addEventListener("change", async () => {
+    const file = chatImageInput.files[0];
+    if (!file) return;
+    chatImageBtn.disabled = true;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/admin/api/media", { method: "POST", body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        showFlash(typeof body.error === "string" ? body.error : "Tải ảnh lên thất bại", false);
+        chatImageInput.value = "";
+        return;
+      }
+      const { media } = await res.json();
+      pendingImageUrl = window.location.origin + media.url;
+      chatImagePreviewThumb.src = media.url;
+      chatImagePreview.style.display = "flex";
+    } finally {
+      chatImageBtn.disabled = false;
+    }
+  });
+
+  async function loadChatHistory() {
+    const box = document.getElementById("chat-messages");
+    const res = await fetch("/admin/api/themes/" + slug + "/chat/history");
+    if (!res.ok) {
+      box.innerHTML = '<p style="color:#999;">Không tải được lịch sử chat</p>';
+      return;
+    }
+    const { messages } = await res.json();
+    box.innerHTML = messages.length
+      ? messages.map((m) => chatMessageHtml(m.role, m.content, m.imageUrl)).join("")
+      : '<p style="color:#999;">Chưa có tin nhắn nào — hỏi AI để bắt đầu chỉnh sửa theme này.</p>';
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // Duoi 3 buoc (nhom file): chi 1 dong trang thai GHI DE lien tuc (khong xep chong) - it buoc
+  // thi xem lai lich su tung dong khong can thiet, ghi de gon hon. Tu 3 buoc tro len: hien timeline
+  // tung buoc (dang/xong/loi) giong kieu timeline tao landing page ben leadbase.
+  function renderProgressLine(progress, text) {
+    progress.innerHTML = "";
+    const line = document.createElement("div");
+    line.textContent = text;
+    progress.appendChild(line);
+  }
+
+  const TL_ICON = { pending: "", active: "", done: "✓", failed: "✕" };
+  let timelineMode = false;
+  let timelineSteps = [];
+  let activeStepIndex = -1;
+
+  function renderTimeline(progress, tasks) {
+    progress.innerHTML = '<ol class="tl-list"></ol><div class="tl-note"></div>';
+    const list = progress.querySelector(".tl-list");
+    timelineSteps = tasks.map((group, i) => {
+      const li = document.createElement("li");
+      li.className = "tl-item";
+      li.innerHTML =
+        '<div class="tl-dotcol"><span class="tl-dot tl-dot-pending"></span>' +
+        (i < tasks.length - 1 ? '<span class="tl-line"></span>' : "") +
+        '</div><div class="tl-body"><div class="tl-label">' + escapeHtml(group) + '</div><div class="tl-msg"></div></div>';
+      list.appendChild(li);
+      return {
+        dotEl: li.querySelector(".tl-dot"),
+        lineEl: li.querySelector(".tl-line"),
+        labelEl: li.querySelector(".tl-label"),
+        msgEl: li.querySelector(".tl-msg"),
+      };
+    });
+  }
+
+  function setStepState(index, state) {
+    const step = timelineSteps[index];
+    if (!step) return;
+    step.dotEl.className = "tl-dot tl-dot-" + state;
+    step.dotEl.textContent = TL_ICON[state];
+    step.labelEl.className = "tl-label tl-label-" + state;
+    if (state === "done" && step.lineEl) step.lineEl.className = "tl-line tl-line-done";
+  }
+
+  function setStepMessage(index, text) {
+    const step = timelineSteps[index];
+    if (step) step.msgEl.textContent = text;
+  }
+
+  // Bong bong "reply" (lan goi phan loai) chi la tin TAM THOI - server KHONG luu vao DB (xem
+  // routes/admin/themeChat.ts), nen phai tu XOA khoi khung chat ngay khi tin tom tat cuoi (done)
+  // ve toi, tranh luc dang chat thay 2 tin nhung reload lai chi con 1 tin (lech nhau, gay hieu lam).
+  let tempReplyEl = null;
+
+  function handleChatEvent(event, progress, box) {
+    if (event.step === "reply") {
+      if (tempReplyEl) tempReplyEl.remove();
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = chatMessageHtml("assistant", event.reply);
+      tempReplyEl = wrapper.firstElementChild;
+      box.appendChild(tempReplyEl);
+      box.scrollTop = box.scrollHeight;
+    } else if (event.step === "plan") {
+      // Tu 3 buoc (nhom file) tro len moi dang timeline - it hon thi 1 dong ghi de la du, khong
+      // can bay ra ca danh sach cho vai buoc.
+      timelineMode = event.tasks.length >= 3;
+      if (timelineMode) renderTimeline(progress, event.tasks);
+      else progress.innerHTML = "";
+    } else if (event.step === "group_start") {
+      activeStepIndex = event.index;
+      if (timelineMode) setStepState(event.index, "active");
+      else renderProgressLine(progress, "⏳ " + event.label);
+    } else if (event.step === "group_done") {
+      if (timelineMode) setStepState(event.index, event.ok ? "done" : "failed");
+    } else if (event.step === "done") {
+      if (!timelineMode) progress.innerHTML = ""; // xoa dong "Dang gui.../Dang phan tich..." con dong lai
+      if (tempReplyEl) {
+        tempReplyEl.remove();
+        tempReplyEl = null;
+      }
+      box.insertAdjacentHTML("beforeend", chatMessageHtml("assistant", event.reply));
+      box.scrollTop = box.scrollHeight;
+      // File vua sua co the la file dang mo - tai lai cho khop noi dung moi.
+      if (activeFile && event.files && event.files.some((f) => f.file === activeFile && f.ok && !f.skipped)) {
+        openFile(activeFile);
+      }
+      // Co file thuc su doi thi luon chuyen sang tab Xem truoc + tai lai ngay, khong doi nguoi
+      // dung tu bam - AI vua sua xong la thay ket qua luon.
+      if (event.files && event.files.some((f) => f.ok && !f.skipped)) {
+        setTab("preview");
+        reloadPreview();
+      }
+    } else if (event.step === "validating") {
+      const text = event.ok ? "Đã sửa " + event.file : "Lỗi " + event.file;
+      if (timelineMode) setStepMessage(activeStepIndex, text);
+      else renderProgressLine(progress, (event.ok ? "✅ " : "❌ ") + text + (event.ok ? "" : " — giữ bản cũ"));
+    } else if (event.step === "error") {
+      showFlash("AI lỗi: " + event.label, false);
+    } else if (event.step === "intent_updated" || event.step === "files") {
+      // Khong can hien - thong tin thua, tin tom tat cuoi da du.
+    } else if (event.label) {
+      // Truoc khi biet ke hoach (vd "classify") thi chua co timeline - ghi de 1 dong binh thuong.
+      // Sau khi timeline da dung (vd "bundling", chay sau khi het nhom) thi ghi vao dong note rieng
+      // ben duoi, KHONG duoc xoa timeline dang hien ket qua tung buoc.
+      const note = timelineMode ? progress.querySelector(".tl-note") : null;
+      if (note) note.textContent = "⏳ " + event.label;
+      else renderProgressLine(progress, "⏳ " + event.label);
+    }
+  }
+
+  async function sendChatMessage() {
+    const input = document.getElementById("chat-input");
+    const message = input.value.trim();
+    if (!message) return;
+
+    const box = document.getElementById("chat-messages");
+    const progress = document.getElementById("chat-progress");
+    const sendBtn = document.getElementById("chat-send");
+
+    const imageUrl = pendingImageUrl;
+    box.insertAdjacentHTML("beforeend", chatMessageHtml("user", message, imageUrl));
+    box.scrollTop = box.scrollHeight;
+    input.value = "";
+    input.disabled = true;
+    sendBtn.disabled = true;
+    progress.innerHTML = "";
+    timelineMode = false;
+    timelineSteps = [];
+    activeStepIndex = -1;
+    clearPendingImage();
+
+    try {
+      const res = await fetch("/admin/api/themes/" + slug + "/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(imageUrl ? { message, imageUrl } : { message }),
+      });
+      if (!res.ok || !res.body) {
+        progress.textContent = "";
+        showFlash("Gửi chat thất bại", false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+          const event = JSON.parse(line.slice(5).trim());
+          handleChatEvent(event, progress, box);
+        }
+      }
+    } catch (err) {
+      progress.textContent = "";
+      showFlash("Lỗi kết nối khi chat với AI", false);
+    } finally {
+      input.disabled = false;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  document.getElementById("chat-send").addEventListener("click", sendChatMessage);
+  document.getElementById("chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+
+  loadChatHistory();
+})();
+</script>
+{% endblock %}

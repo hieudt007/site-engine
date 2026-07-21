@@ -427,6 +427,10 @@ model ThemeChatMessage {
   slug      String
   role      String
   content   String
+  // Anh admin dinh kem khi gui yeu cau (vd anh mau giao dien muon lam theo) - URL tuyet doi
+  // (khong phai duong dan tuong doi /uploads/...) vi AI goi qua API se tu tai anh, can URL
+  // truy cap duoc tu ben ngoai. Chi 'user' message moi co the co gia tri nay.
+  imageUrl  String?
   createdAt DateTime @default(now())
 
   @@index([slug, createdAt])

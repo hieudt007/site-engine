@@ -13,8 +13,11 @@ async function activeThemeSlug(): Promise<string> {
   return config?.activeTheme ?? "default";
 }
 
-export async function renderPublic(template: string, data: Record<string, unknown>): Promise<string> {
-  const slug = await activeThemeSlug();
+// themeSlugOverride: dung cho preview 1 theme CHUA active (trang editor theme, xem
+// routes/admin/themePreview.ts) - khong doi ThemeConfig, chi doi ROOT cua Liquid engine cho 1
+// lan render nay thoi.
+export async function renderPublic(template: string, data: Record<string, unknown>, themeSlugOverride?: string): Promise<string> {
+  const slug = themeSlugOverride ?? (await activeThemeSlug());
   const engine = new Liquid({ root: path.join(THEMES_ROOT, slug), extname: ".liquid" });
 
   const [siteConfig, headerMenu, footerMenu] = await Promise.all([

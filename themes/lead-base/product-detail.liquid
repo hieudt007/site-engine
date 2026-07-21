@@ -1,0 +1,302 @@
+{% layout "layout" %}
+{% block content %}
+<a href="/products" class="text-gray-500 text-sm no-underline">← Tất cả sản phẩm</a>
+
+<article class="mt-4">
+  {% if product.imageUrls.size > 0 %}
+    <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" class="w-full max-h-[420px] object-cover rounded-lg">
+  {% endif %}
+  {% if product.categories.size > 0 %}
+    <div class="text-gray-500 text-sm mt-3">
+      {% for c in product.categories %}<a href="/products/danh-muc/{{ c.slug }}" class="text-gray-500 hover:text-brand">{{ c.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
+    </div>
+  {% endif %}
+  <h1 class="text-2xl font-bold mt-1 mb-3">{{ product.name | escape }}</h1>
+
+  {% if product.hasVariants %}
+    <div id="variant-picker" class="mb-4"></div>
+    <div id="variant-price" class="mb-4"></div>
+    <div id="variant-stock" class="text-red-600 text-sm mb-4"></div>
+    <button id="add-to-cart" class="bg-orange-500 hover:bg-orange-600 text-white border-none px-6 py-2.5 rounded-md text-[0.95rem] cursor-pointer mb-4">Thêm vào giỏ</button>
+    <button id="buy-now-btn" class="bg-white hover:bg-green-700 text-green-700 hover:text-white border-2 border-green-700 px-6 py-2.5 rounded-md text-[0.95rem] cursor-pointer mb-4 font-semibold transition-colors">Mua ngay</button>
+    <span id="add-to-cart-msg" class="text-green-600 text-sm ml-2"></span>
+    <script id="variants-data" type="application/json">{{ variantsJson }}</script>
+  {% else %}
+    <div class="mb-4">
+      {% if product.salePrice %}
+        <span class="text-red-600 font-bold text-2xl">{{ product.salePrice }}₫</span>
+        <span class="text-gray-400 line-through ml-2">{{ product.price }}₫</span>
+      {% else %}
+        <span class="font-bold text-2xl">{{ product.price }}₫</span>
+      {% endif %}
+    </div>
+    {% if product.stock != nil and product.stock <= 0 %}
+      <div class="text-red-600 text-sm mb-4">Hết hàng</div>
+    {% else %}
+      <button id="add-to-cart" data-id="{{ product.id }}" class="bg-orange-500 hover:bg-orange-600 text-white border-none px-6 py-2.5 rounded-md text-[0.95rem] cursor-pointer mb-4">Thêm vào giỏ</button>
+      <button id="buy-now-btn" class="bg-white hover:bg-green-700 text-green-700 hover:text-white border-2 border-green-700 px-6 py-2.5 rounded-md text-[0.95rem] cursor-pointer mb-4 font-semibold transition-colors">Mua ngay</button>
+      <span id="add-to-cart-msg" class="text-green-600 text-sm ml-2"></span>
+    {% endif %}
+  {% endif %}
+
+  <form id="buy-now-form" class="hidden mt-2 mb-4 max-w-md border border-gray-200 rounded-lg p-4 flex flex-col gap-2.5">
+    <div class="text-sm font-semibold">Mua ngay — điền thông tin nhận hàng</div>
+    <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2 border border-gray-300 rounded-md">
+    <input type="text" name="customerPhone" placeholder="Số điện thoại" required class="px-3 py-2 border border-gray-300 rounded-md">
+    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2 border border-gray-300 rounded-md">
+    <div class="flex gap-2">
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white border-none px-5 py-2 rounded-md cursor-pointer">Xác nhận đặt hàng</button>
+      <button type="button" id="buy-now-cancel" class="border border-gray-300 px-5 py-2 rounded-md cursor-pointer bg-white">Huỷ</button>
+    </div>
+    <div id="buy-now-error" class="text-red-600 text-sm"></div>
+  </form>
+
+  {% if product.description %}
+    <div class="leading-relaxed">{{ product.description | escape | newline_to_br }}</div>
+  {% endif %}
+
+  {% render "custom-fields", fields: product.customFields %}
+
+  {% if product.imageUrls.size > 1 %}
+    <div class="flex gap-2 mt-6 flex-wrap">
+      {% for url in product.imageUrls offset: 1 %}
+        <img src="{{ url }}" alt="{{ product.name | escape }}" class="w-[90px] h-[90px] object-cover rounded-md">
+      {% endfor %}
+    </div>
+  {% endif %}
+</article>
+
+<section class="mt-10 border-t border-gray-200 pt-6">
+  <h2 class="text-lg font-semibold">
+    Đánh giá{% if avgRating %} — {{ avgRating }}★ ({{ reviews.size }} đánh giá){% endif %}
+  </h2>
+
+  {% if reviews.size == 0 %}
+    <p class="text-gray-500 text-sm">Chưa có đánh giá nào.</p>
+  {% else %}
+    <div class="flex flex-col gap-3 mb-6 mt-4">
+      {% for r in reviews %}
+        <div class="border-b border-gray-100 pb-3">
+          <div class="font-semibold">{{ r.customerName | escape }} <span class="text-amber-500 font-normal">{% for i in (1..r.rating) %}★{% endfor %}</span></div>
+          {% if r.comment %}<div class="text-gray-600 text-sm mt-1">{{ r.comment | escape }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <details class="mt-4">
+    <summary class="cursor-pointer text-brand text-sm">Viết đánh giá</summary>
+    <form id="review-form" class="mt-3 flex flex-col gap-2.5 max-w-md">
+      <input type="text" name="customerName" placeholder="Tên của bạn" required class="px-3 py-2 border border-gray-300 rounded-md">
+      <select name="rating" class="px-3 py-2 border border-gray-300 rounded-md">
+        <option value="5">5 sao</option>
+        <option value="4">4 sao</option>
+        <option value="3">3 sao</option>
+        <option value="2">2 sao</option>
+        <option value="1">1 sao</option>
+      </select>
+      <textarea name="comment" placeholder="Nhận xét (không bắt buộc)" class="px-3 py-2 border border-gray-300 rounded-md min-h-[80px]"></textarea>
+      <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-5 py-2 rounded-md cursor-pointer">Gửi đánh giá</button>
+      <div id="review-msg" class="text-sm"></div>
+    </form>
+  </details>
+</section>
+
+<script>
+(function () {
+  const reviewForm = document.getElementById("review-form");
+  if (reviewForm) {
+    reviewForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const msg = document.getElementById("review-msg");
+      const res = await fetch("/products/{{ product.id }}/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: form.customerName.value,
+          rating: Number(form.rating.value),
+          comment: form.comment.value || undefined,
+        }),
+      });
+      if (!res.ok) {
+        msg.className = "text-sm text-red-600";
+        msg.textContent = "Gửi thất bại, vui lòng thử lại.";
+        return;
+      }
+      msg.className = "text-sm text-green-600";
+      msg.textContent = "Cảm ơn bạn! Đánh giá đang chờ duyệt.";
+      form.reset();
+    });
+  }
+})();
+</script>
+
+<script>
+(function () {
+  const CART_KEY = "site_engine_cart";
+
+  function collectExtraFields(form, knownNames) {
+    const result = {};
+    [...form.elements].forEach((el) => {
+      if (!el.name || knownNames.includes(el.name) || el.type === "submit" || el.type === "button") return;
+      if (el.value) result[el.name] = el.value;
+    });
+    return result;
+  }
+
+  function readCart() {
+    try {
+      return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function addToCart(productId, variantId) {
+    const cart = readCart();
+    const existing = cart.find((c) => c.productId === productId && c.variantId === variantId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.push({ productId, quantity: 1, variantId: variantId || undefined });
+    }
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    const msg = document.getElementById("add-to-cart-msg");
+    if (msg) msg.textContent = "Đã thêm vào giỏ — xem giỏ hàng";
+  }
+
+  function initBuyNow(getVariantId) {
+    const btn = document.getElementById("buy-now-btn");
+    const form = document.getElementById("buy-now-form");
+    const cancelBtn = document.getElementById("buy-now-cancel");
+    const errorEl = document.getElementById("buy-now-error");
+    if (!btn || !form) return;
+
+    btn.addEventListener("click", () => {
+      form.classList.remove("hidden");
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    cancelBtn.addEventListener("click", () => form.classList.add("hidden"));
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorEl.textContent = "";
+      const variantId = getVariantId();
+
+      const res = await fetch("/cart/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ productId: "{{ product.id }}", variantId: variantId || undefined, quantity: 1 }],
+          customerName: form.customerName.value,
+          customerPhone: form.customerPhone.value,
+          customerAddress: form.customerAddress.value || undefined,
+          customFields: collectExtraFields(form, ["customerName", "customerPhone", "customerAddress"]),
+        }),
+      });
+
+      if (!res.ok) {
+        errorEl.textContent = "Đặt hàng thất bại, vui lòng thử lại.";
+        return;
+      }
+
+      const { orderId } = await res.json();
+      const cart = readCart().filter((c) => !(c.productId === "{{ product.id }}" && c.variantId === variantId));
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      window.location.href = "/order-confirmation/" + orderId;
+    });
+  }
+
+  function flashPrice(priceEl) {
+    priceEl.classList.remove("price-updated");
+    // force reflow để animation chạy lại
+    void priceEl.offsetWidth;
+    priceEl.classList.add("price-updated");
+  }
+
+  const variantsEl = document.getElementById("variants-data");
+
+  if (variantsEl) {
+    const productId = "{{ product.id }}";
+    const variants = JSON.parse(variantsEl.textContent);
+    const attrNames = [...new Set(variants.flatMap((v) => Object.keys(v.attributes || {})))];
+    const picker = document.getElementById("variant-picker");
+    const priceEl = document.getElementById("variant-price");
+    const stockEl = document.getElementById("variant-stock");
+    const addBtn = document.getElementById("add-to-cart");
+    const selected = {};
+
+    function findMatchingVariant() {
+      return variants.find((v) => attrNames.every((name) => (v.attributes || {})[name] === selected[name]));
+    }
+
+    function render() {
+      const v = findMatchingVariant();
+      if (!v) {
+        priceEl.textContent = "";
+        stockEl.textContent = "";
+        addBtn.disabled = true;
+        addBtn.style.opacity = "0.5";
+        return;
+      }
+      const newHtml = v.salePrice
+        ? '<span class="text-red-600 font-bold text-2xl">' + v.salePrice + '₫</span> <span class="text-gray-400 line-through ml-2">' + v.price + '₫</span>'
+        : '<span class="font-bold text-2xl">' + v.price + '₫</span>';
+      if (priceEl.innerHTML !== newHtml) {
+        priceEl.innerHTML = newHtml;
+        flashPrice(priceEl);
+      }
+      const outOfStock = v.stock !== null && v.stock !== undefined && v.stock <= 0;
+      stockEl.textContent = outOfStock ? "Hết hàng" : "";
+      addBtn.disabled = outOfStock;
+      addBtn.style.opacity = outOfStock ? "0.5" : "1";
+      addBtn.dataset.variantId = v.id;
+    }
+
+    attrNames.forEach((name) => {
+      const values = [...new Set(variants.map((v) => (v.attributes || {})[name]).filter(Boolean))];
+      selected[name] = values[0];
+
+      const wrap = document.createElement("div");
+      wrap.className = "mb-2.5";
+      const label = document.createElement("label");
+      label.textContent = name + ": ";
+      label.className = "text-sm mr-2";
+      wrap.appendChild(label);
+
+      const select = document.createElement("select");
+      select.className = "px-2 py-1.5 border border-gray-300 rounded-md";
+      values.forEach((val) => {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = val;
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", () => {
+        selected[name] = select.value;
+        render();
+      });
+      wrap.appendChild(select);
+      picker.appendChild(wrap);
+    });
+
+    render();
+
+    addBtn.addEventListener("click", () => {
+      if (addBtn.disabled) return;
+      addToCart(productId, addBtn.dataset.variantId);
+    });
+
+    initBuyNow(() => addBtn.dataset.variantId || null);
+  } else {
+    const btn = document.getElementById("add-to-cart");
+    if (btn) {
+      btn.addEventListener("click", () => addToCart(btn.dataset.id, null));
+    }
+    initBuyNow(() => null);
+  }
+})();
+</script>
+{% endblock %}

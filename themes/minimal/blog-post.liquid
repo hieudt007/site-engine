@@ -13,6 +13,6 @@
   <div class="prose prose-stone font-serif max-w-none text-left leading-relaxed text-[1.05rem]">
     {{ post.body }}
   </div>
-  {% render "_custom-fields", fields: post.customFields %}
+  {% render "custom-fields", fields: post.customFields %}
 </article>
 {% endblock %}

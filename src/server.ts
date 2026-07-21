@@ -41,6 +41,8 @@ import { registerThemeRoutes } from "./routes/admin/themes.js";
 import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
 import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
+import { registerThemeEditorUiRoutes } from "./routes/admin/themeEditorUi.js";
+import { registerThemePreviewRoutes } from "./routes/admin/themePreview.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
 import { registerHomeRoutes } from "./routes/public/home.js";
@@ -111,6 +113,26 @@ async function start(): Promise<void> {
   });
 
   await registerSession(app);
+
+  // Dev-only backdoor de test /admin ma khong can dang nhap that qua LeadBase OAuth - CHI bat
+  // khi khong phai production. Set session qua chinh @fastify/session (Set-Cookie header that,
+  // ky dung dinh dang), tranh phai tu tay ky/dan cookie qua DevTools console.
+  if (!config.isProduction) {
+    app.get("/dev/login-as-admin", async (request, reply) => {
+      const user = await prisma.user.upsert({
+        where: { leadbaseUserId: 999999 },
+        create: { leadbaseUserId: 999999, name: "Local Admin", email: "local-admin@test.local", role: "admin", lastLoginAt: new Date() },
+        update: { lastLoginAt: new Date() },
+      });
+      request.session.set("userId", user.leadbaseUserId);
+      request.session.set("email", user.email);
+      request.session.set("name", user.name);
+      request.session.set("role", user.role);
+      await request.session.save();
+      return reply.redirect("/admin");
+    });
+  }
+
   await registerOAuthRoutes(app);
   await registerAdminRoutes(app);
   await registerPostRoutes(app);
@@ -146,6 +168,8 @@ async function start(): Promise<void> {
   await registerThemesUiRoutes(app);
   await registerThemeCustomizeRoutes(app);
   await registerThemeChatRoutes(app);
+  await registerThemeEditorUiRoutes(app);
+  await registerThemePreviewRoutes(app);
   await registerSearchRoutes(app);
   await registerPreviewRoutes(app);
   await registerHomeRoutes(app);

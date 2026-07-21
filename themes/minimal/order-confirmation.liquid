@@ -23,7 +23,7 @@
     Giao tới: {{ order.customerAddress | default: "-" | escape }}<br>
     SĐT: {{ order.customerPhone | escape }}
   </div>
-  {% render "_custom-fields", fields: order.customFields %}
+  {% render "custom-fields", fields: order.customFields %}
 </div>
 
 <div class="text-center mt-8">
