@@ -1,0 +1,86 @@
+{% layout "layout" %}
+{% block content %}
+  <!-- Hero Section -->
+  <div class="bg-wood-100 py-16 text-center border-b border-wood-200">
+    <div class="max-w-4xl mx-auto px-4">
+      <h1 class="text-4xl md:text-5xl font-playfair text-wood-800 mb-4">{{ category.name }}</h1>
+      {% if category.excerpt %}
+        <p class="text-lg text-wood-600 mb-6">{{ category.excerpt }}</p>
+      {% endif %}
+      
+      <div class="mt-4">
+        {% render "custom-fields", fields: category.customFields %}
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Subcategories -->
+    {% if category.children.size > 0 %}
+      <div class="mb-12 flex flex-wrap justify-center gap-3">
+        {% for child in category.children %}
+          <a href="/blog/{{ child.slug }}" class="px-5 py-2 text-sm border border-wood-300 text-wood-700 hover:bg-wood-800 hover:text-wood-50 rounded-full transition-colors duration-300">
+            {{ child.name }}
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Posts Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {% for post in posts %}
+        <article class="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col fade-in-up">
+          {% if post.thumbnail %}
+            <a href="/post/{{ post.slug }}" class="block aspect-[16/10] overflow-hidden">
+              <img src="{{ post.thumbnail }}" alt="{{ post.title }}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+            </a>
+          {% else %}
+            <a href="/post/{{ post.slug }}" class="block aspect-[16/10] bg-wood-100 flex items-center justify-center">
+              <span class="text-wood-400 font-playfair text-lg">No Image</span>
+            </a>
+          {% endif %}
+          
+          <div class="p-6 flex-1 flex flex-col">
+            <p class="text-sm text-wood-500 mb-2">{{ post.publishedAt | date: "%d/%m/%Y" }}</p>
+            <h2 class="text-xl font-playfair text-wood-800 mb-3 line-clamp-2 hover:text-wood-600 transition-colors">
+              <a href="/post/{{ post.slug }}">{{ post.title }}</a>
+            </h2>
+            <p class="text-wood-600 mb-4 line-clamp-3 text-sm flex-1">{{ post.excerpt }}</p>
+            
+            <div class="mt-auto pt-4 border-t border-wood-100">
+              <a href="/post/{{ post.slug }}" class="text-wood-800 text-sm font-medium hover:text-wood-600 inline-flex items-center transition-colors">
+                Đọc tiếp
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+              </a>
+            </div>
+          </div>
+        </article>
+      {% else %}
+        <div class="col-span-full text-center py-16 bg-wood-50 rounded-lg">
+          <p class="text-wood-500 text-lg">Chưa có bài viết nào trong danh mục này.</p>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination.totalPages > 1 %}
+      <div class="mt-16 flex justify-center items-center space-x-2">
+        {% if pagination.hasPrev %}
+          <a href="?page={{ pagination.currentPage | minus: 1 }}" class="w-10 h-10 flex items-center justify-center rounded-full border border-wood-300 text-wood-700 hover:bg-wood-800 hover:text-wood-50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+          </a>
+        {% endif %}
+        
+        <span class="text-wood-700 font-medium px-4">
+          Trang {{ pagination.currentPage }} / {{ pagination.totalPages }}
+        </span>
+
+        {% if pagination.hasNext %}
+          <a href="?page={{ pagination.currentPage | plus: 1 }}" class="w-10 h-10 flex items-center justify-center rounded-full border border-wood-300 text-wood-700 hover:bg-wood-800 hover:text-wood-50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+          </a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

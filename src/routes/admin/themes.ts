@@ -22,6 +22,12 @@ function listBuiltInThemes(): string[] {
 
 const activateSchema = z.object({ slug: z.string().min(1) });
 
+// "default" la theme khung tho (chi co Cay thu muc Liquid + layout 1200px, khong style) - dung LAM
+// NEN de clone khi tao theme moi hoan toan (xem themeCustomize.ts), khong dung de hien thi truc
+// tiep tren site (se rat xau vi khong co CSS). An khoi luoi chon + chan active qua UI/API, nhung
+// van con tren dia de lam nguon clone.
+const HIDDEN_FROM_GRID_SLUGS = new Set(["default"]);
+
 // screenshot.png la TUY CHON (khong bat buoc voi theme built-in lan CustomTheme AI sinh - AI
 // khong duoc yeu cau ve anh) - UI (/admin/settings/theme) chi hien <img> khi co, an han khi
 // khong co, tranh vo layout vi broken image icon.
@@ -43,6 +49,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
       source: "built-in",
       active: slug === activeTheme,
       hasScreenshot: hasScreenshot(slug),
+      hiddenFromGrid: HIDDEN_FROM_GRID_SLUGS.has(slug),
     }));
     const custom = customThemes.map((t) => ({
       slug: t.slug,
@@ -62,6 +69,9 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { slug } = parsed.data;
+    if (HIDDEN_FROM_GRID_SLUGS.has(slug)) {
+      return reply.code(422).send({ error: "Theme này chỉ dùng làm nền để tạo theme mới, không thể dùng trực tiếp cho site." });
+    }
     const exists = fs.existsSync(path.join(THEMES_ROOT, slug)) || (await prisma.customTheme.findUnique({ where: { slug } }));
     if (!exists) {
       return reply.code(404).send({ error: "Không tìm thấy theme" });

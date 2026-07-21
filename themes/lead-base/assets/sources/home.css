@@ -1,1 +1,2 @@
 /* CSS riêng cho home.liquid — trống mặc định. */
+main > section:nth-child(3) > div:nth-child(1) { color: #111827; font-size: 16px; }

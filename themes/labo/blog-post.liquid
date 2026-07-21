@@ -1,0 +1,48 @@
+{% layout "layout" %}
+{% block content %}
+<main class="max-w-4xl mx-auto px-4 py-12 md:py-16">
+  <a href="/blog" class="inline-flex items-center text-sm font-medium text-slate-500 hover:text-blue-700 mb-8 transition-colors group">
+    <svg class="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+    Trở về danh mục Blog
+  </a>
+
+  <article class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <header class="px-6 py-10 md:px-12 md:py-14 text-center border-b border-slate-100">
+      {% if post.categories.size > 0 %}
+        <div class="flex flex-wrap justify-center gap-2 mb-6">
+          {% for c in post.categories %}
+            <a href="/blog/danh-muc/{{ c.slug }}" class="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold uppercase tracking-wider rounded-full hover:bg-blue-50 hover:text-blue-700 transition-colors">
+              {{ c.name | escape }}
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <h1 class="text-3xl md:text-4xl lg:text-5xl font-extrabold text-slate-900 mb-6 leading-tight tracking-tight">
+        {{ post.title | escape }}
+      </h1>
+
+      <div class="flex items-center justify-center text-slate-500 text-sm font-medium space-x-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <time datetime="{{ post.publishedAt | date: "%Y-%m-%d" }}">{{ post.publishedAt | date: "%d/%m/%Y" }}</time>
+      </div>
+    </header>
+
+    {% if post.coverImage %}
+      <div class="w-full aspect-[16/9] md:aspect-[2/1] overflow-hidden bg-slate-100">
+        <img src="{{ post.coverImage }}" alt="{{ post.title | escape }}" class="w-full h-full object-cover">
+      </div>
+    {% endif %}
+
+    <div class="px-6 py-10 md:px-12 md:py-12">
+      <div class="blog-content">
+        {{ post.body }}
+      </div>
+      
+      <div class="mt-12 pt-8 border-t border-slate-100">
+        {% render "custom-fields", fields: post.customFields %}
+      </div>
+    </div>
+  </article>
+</main>
+{% endblock %}

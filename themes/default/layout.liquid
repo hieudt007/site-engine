@@ -8,26 +8,13 @@
   {% if noindex %}<meta name="robots" content="noindex">{% endif %}
   {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
   <link rel="alternate" type="application/rss+xml" title="{{ site.siteName }} RSS" href="/feed.xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com?plugins=typography,forms"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ["Inter", "sans-serif"] },
-          colors: { brand: { DEFAULT: "#2563eb", dark: "#1d4ed8" } },
-        },
-      },
-    };
-  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
 </head>
-<body class="font-sans text-gray-900 bg-gray-50 flex flex-col min-h-screen">
+<body>
   {% render "header", site: site, headerMenu: headerMenu %}
 
-  <main class="flex-1 max-w-3xl w-full mx-auto px-6 py-10">
+  <main style="max-width:1200px;margin:0 auto;">
     {% block content %}{% endblock %}
   </main>
 

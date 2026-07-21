@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if pageTitle %}{{ pageTitle }} — {% endif %}{{ site.siteName }}</title>
+  {% if metaDescription %}<meta name="description" content="{{ metaDescription }}">{% endif %}
+  {% if noindex %}<meta name="robots" content="noindex">{% endif %}
+  {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="font-sans antialiased text-slate-800 bg-white min-h-screen landing-raw-content" style="font-family: 'Inter', sans-serif;">
+{{ rawHtml }}
+</body>
+</html>

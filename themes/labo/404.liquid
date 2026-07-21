@@ -1,0 +1,30 @@
+{% layout "layout" %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-slate-50">
+    <div class="max-w-lg w-full bg-white p-10 rounded-2xl shadow-sm border border-slate-100 text-center">
+        <div>
+            <div class="mx-auto h-24 w-24 bg-blue-50 text-blue-900 rounded-full flex items-center justify-center mb-6 animate-float-404">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
+                </svg>
+            </div>
+            <h1 class="text-6xl font-extrabold text-blue-900 mb-2 tracking-tight">404</h1>
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">
+                {{ message | default: "Không tìm thấy trang bạn cần" }}
+            </h2>
+            <p class="text-slate-500 mb-8 leading-relaxed">
+                Đường dẫn có thể đã bị xoá, đổi chỗ khác, hoặc gõ sai. Vui lòng kiểm tra lại URL hoặc quay về trang chủ để tiếp tục khám phá.
+            </p>
+        </div>
+        <div class="flex justify-center">
+            <a href="/" class="inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-900 transition-colors duration-200">
+                <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Về trang chủ
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

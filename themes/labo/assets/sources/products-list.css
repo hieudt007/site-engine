@@ -1,0 +1,8 @@
+/* CSS riêng cho products-list.liquid */
+/* Tailwind đã xử lý phần lớn giao diện. Thêm fallback line-clamp nếu cần */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+}

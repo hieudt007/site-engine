@@ -1,7 +1,10 @@
 import { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { deleteUploadedFile, InvalidUploadError, saveUploadedFile } from "../../services/mediaStorage.js";
+
+const updateMediaSchema = z.object({ alt: z.string().max(300).optional() });
 
 // Upload anh dung cho bai viet/san pham (coverImage/imageUrls dan URL tay) - "edit" can upload
 // duoc de viet bai (giong quyen tao/sua bai nhap), nhung XOA vinh vien nang len "manager".
@@ -54,6 +57,23 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       throw err;
     }
   });
+
+  app.patch<{ Params: { id: string } }>(
+    "/admin/api/media/:id",
+    { preHandler: requireRole("edit") },
+    async (request, reply) => {
+      const parsed = updateMediaSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(422).send({ error: parsed.error.flatten() });
+      }
+      const media = await prisma.media.findUnique({ where: { id: request.params.id } });
+      if (!media) {
+        return reply.code(404).send({ error: "Không tìm thấy file" });
+      }
+      const updated = await prisma.media.update({ where: { id: media.id }, data: { alt: parsed.data.alt ?? null } });
+      return { media: updated };
+    },
+  );
 
   app.delete<{ Params: { id: string } }>(
     "/admin/api/media/:id",

@@ -1,0 +1,156 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Cửa hàng</h1>
+
+<div id="stores-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
+
+<div class="card">
+  <strong id="form-title">Thêm cửa hàng mới</strong>
+  <input type="hidden" id="store-id">
+  <label for="store-name">Tên cửa hàng</label>
+  <input type="text" id="store-name">
+  <label for="store-address">Địa chỉ</label>
+  <input type="text" id="store-address">
+  <label for="store-province">Tỉnh/Thành</label>
+  <select id="store-province">
+    <option value="">-- Chọn tỉnh/thành --</option>
+  </select>
+  <label for="store-phone">Số điện thoại</label>
+  <input type="text" id="store-phone">
+  <label style="display:flex;align-items:center;gap:0.4rem;">
+    <input type="checkbox" id="store-enabled" checked style="width:auto;"> Hiển thị cho khách chọn
+  </label>
+  <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+    <button type="button" id="save-btn" class="btn btn-primary">Lưu</button>
+    <button type="button" id="cancel-btn" class="btn" style="display:none;">Huỷ sửa</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const flash = document.getElementById("flash");
+  const list = document.getElementById("stores-list");
+  const idEl = document.getElementById("store-id");
+  const nameEl = document.getElementById("store-name");
+  const addressEl = document.getElementById("store-address");
+  const provinceEl = document.getElementById("store-province");
+  const phoneEl = document.getElementById("store-phone");
+  const enabledEl = document.getElementById("store-enabled");
+  const formTitle = document.getElementById("form-title");
+  const cancelBtn = document.getElementById("cancel-btn");
+  let stores = [];
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function resetForm() {
+    idEl.value = "";
+    nameEl.value = "";
+    addressEl.value = "";
+    provinceEl.value = "";
+    phoneEl.value = "";
+    enabledEl.checked = true;
+    formTitle.textContent = "Thêm cửa hàng mới";
+    cancelBtn.style.display = "none";
+  }
+
+  function renderStores() {
+    if (stores.length === 0) {
+      list.innerHTML = '<div class="empty-state">Chưa có cửa hàng nào.</div>';
+      return;
+    }
+    list.innerHTML = stores
+      .map(
+        (s) =>
+          '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
+          "<div><strong>" + s.name + "</strong>" + (s.enabled ? "" : ' <span class="status-badge status-draft">Đã ẩn</span>') +
+          '<div class="field-hint">' + s.address + (s.province ? ", " + s.province : "") + (s.phone ? " — " + s.phone : "") + "</div></div>" +
+          '<div style="display:flex;gap:0.5rem;">' +
+          '<button type="button" class="btn edit-btn" data-id="' + s.id + '">Sửa</button>' +
+          '<button type="button" class="btn btn-danger delete-btn" data-id="' + s.id + '">Xoá</button>' +
+          "</div></div>",
+      )
+      .join("");
+
+    list.querySelectorAll(".edit-btn").forEach((btn) => {
+      btn.addEventListener("click", () => fillForm(stores.find((s) => s.id === btn.dataset.id)));
+    });
+    list.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Xoá cửa hàng này?")) return;
+        const res = await fetch("/admin/api/stores/" + btn.dataset.id, { method: "DELETE" });
+        if (!res.ok) {
+          showFlash("Xoá thất bại", false);
+          return;
+        }
+        await load();
+        showFlash("Đã xoá.", true);
+      });
+    });
+  }
+
+  function fillForm(store) {
+    idEl.value = store.id;
+    nameEl.value = store.name;
+    addressEl.value = store.address;
+    provinceEl.value = store.province || "";
+    phoneEl.value = store.phone || "";
+    enabledEl.checked = store.enabled;
+    formTitle.textContent = "Sửa cửa hàng";
+    cancelBtn.style.display = "inline-block";
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  async function loadProvinces() {
+    const res = await fetch("/api/provinces");
+    const { provinces } = await res.json();
+    provinces.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p;
+      provinceEl.appendChild(opt);
+    });
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/stores");
+    stores = (await res.json()).stores;
+    renderStores();
+  }
+
+  document.getElementById("save-btn").addEventListener("click", async () => {
+    if (!nameEl.value || !addressEl.value) {
+      showFlash("Vui lòng nhập tên và địa chỉ", false);
+      return;
+    }
+    const payload = {
+      name: nameEl.value,
+      address: addressEl.value,
+      province: provinceEl.value || undefined,
+      phone: phoneEl.value || undefined,
+      enabled: enabledEl.checked,
+    };
+    const id = idEl.value;
+    const res = await fetch(id ? "/admin/api/stores/" + id : "/admin/api/stores", {
+      method: id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      showFlash("Lưu thất bại", false);
+      return;
+    }
+    resetForm();
+    await load();
+    showFlash("Đã lưu.", true);
+  });
+
+  cancelBtn.addEventListener("click", resetForm);
+
+  loadProvinces();
+  load();
+})();
+</script>
+{% endblock %}

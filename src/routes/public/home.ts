@@ -10,6 +10,9 @@ const LATEST_PRODUCTS = 6;
 // đã publish, cùng luật với /blog và /products.
 export async function registerHomeRoutes(app: FastifyInstance): Promise<void> {
   app.get("/", async (request, reply) => {
+    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const isBlog = siteConfig?.siteType === "blog";
+
     const [posts, products] = await Promise.all([
       prisma.post.findMany({
         where: { type: "post", status: "published" },
@@ -17,12 +20,17 @@ export async function registerHomeRoutes(app: FastifyInstance): Promise<void> {
         take: LATEST_POSTS,
         select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
       }),
-      prisma.productCache.findMany({
-        where: { status: "published" },
-        orderBy: { syncedAt: "desc" },
-        take: LATEST_PRODUCTS,
-        select: { id: true, name: true, imageUrls: true, price: true, salePrice: true },
-      }),
+      // siteType='blog' - KHONG query san pham, tranh trang chu van hien "san pham noi bat" du
+      // toan bo route /products/cart da bi chan (server.ts onRequest hook) - link co bam vao
+      // cung se 404, nhung tot hon la khong hien ra tu dau.
+      isBlog
+        ? Promise.resolve([])
+        : prisma.productCache.findMany({
+            where: { status: "published" },
+            orderBy: { syncedAt: "desc" },
+            take: LATEST_PRODUCTS,
+            select: { id: true, name: true, imageUrls: true, price: true, salePrice: true },
+          }),
     ]);
 
     const html = await renderPublic("home", { posts, products });

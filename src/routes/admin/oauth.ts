@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { buildAuthorizeUrl, exchangeCodeForUserInfo, generatePkce } from "../../services/leadbaseOAuth.js";
+import { deleteOtherUserSessions } from "../../services/sessionStore.js";
 
 const PENDING_COOKIE = "oauth_pending";
 const PENDING_TTL_SECONDS = 5 * 60; // đủ thời gian tenant duyệt consent screen bên LeadBase
@@ -76,6 +77,11 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
         request.session.set("email", user.email);
         request.session.set("name", user.name);
         request.session.set("role", user.role);
+
+        // 1 tai khoan chi dang nhap 1 thiet bi (giong lead-base) - phai save() TRUOC de co
+        // sessionId that, roi moi xoa cac session KHAC cung userId (khong tu xoa chinh minh).
+        await request.session.save();
+        await deleteOtherUserSessions(user.leadbaseUserId, request.session.sessionId);
       } catch (err) {
         request.log.error(err);
         return reply.code(502).send({ error: "Không xác thực được với LeadBase" });

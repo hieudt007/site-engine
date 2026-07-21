@@ -1,16 +1,15 @@
 {% layout "layout" %}
 {% block content %}
-<a href="/blog" class="text-gray-500 text-sm no-underline">← Tất cả bài viết</a>
+<a href="/blog">← Tất cả bài viết</a>
 
-<div class="max-w-sm mx-auto my-8 text-center">
-  <h1 class="text-xl font-semibold">Bài viết được bảo vệ</h1>
-  <p class="text-gray-600 text-sm">Nhập mật khẩu để xem "{{ pageTitle | escape }}".</p>
+<div>
+  <h1>Bài viết được bảo vệ</h1>
+  <p>Nhập mật khẩu để xem "{{ pageTitle | escape }}".</p>
 
-  <form id="unlock-form" class="mt-4 flex flex-col gap-2.5">
-    <input type="password" id="password" name="password" placeholder="Mật khẩu" required
-      class="px-3 py-2.5 border border-gray-300 rounded-md text-[0.95rem]">
-    <button type="submit" class="px-3 py-2.5 rounded-md border-none bg-brand hover:bg-brand-dark text-white text-[0.95rem] cursor-pointer">Xem bài viết</button>
-    <div id="unlock-error" class="text-red-600 text-sm hidden"></div>
+  <form id="unlock-form">
+    <input type="password" id="password" name="password" placeholder="Mật khẩu" required>
+    <button type="submit">Xem bài viết</button>
+    <div id="unlock-error" class="hidden"></div>
   </form>
 </div>
 

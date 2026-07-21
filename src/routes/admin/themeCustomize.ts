@@ -61,6 +61,16 @@ export async function registerThemeCustomizeRoutes(app: FastifyInstance): Promis
       const theme = await prisma.customTheme.create({
         data: { slug: newSlug, name: newName, source: "agent-generated" },
       });
+      // Cau hoi mo dau khac nhau tuy nguon clone: tu "default" (khung tho, chua co gi) can hoi CA
+      // giao dien lan tinh nang de AI biet bat dau tu dau; clone tu theme khac (da co san noi
+      // dung/style) chi can hoi MUON SUA GI - khong hoi lai tu dau nhung thu da co san.
+      const welcomeMessage =
+        baseSlug === "default"
+          ? "Theme này đang trống, mình cần biết thêm để bắt đầu thiết kế:\n" +
+            "1) Bạn muốn giao diện trông như thế nào (ngành hàng, màu sắc, phong cách)?\n" +
+            "2) Có tính năng đặc biệt nào cần chú ý không?"
+          : "Bạn muốn mình sửa phần giao diện nào, trang nào, hay tính năng gì?";
+      await prisma.themeChatMessage.create({ data: { slug: newSlug, role: "assistant", content: welcomeMessage } });
       return reply.code(201).send({ theme });
     } catch (err) {
       await fs.rm(newDir, { recursive: true, force: true }).catch(() => {});

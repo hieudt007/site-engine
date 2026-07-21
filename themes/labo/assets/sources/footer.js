@@ -1,0 +1,1 @@
+// JS riêng cho footer.liquid — không có logic phức tạp cần xử lý

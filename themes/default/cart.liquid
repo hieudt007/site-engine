@@ -1,19 +1,46 @@
 {% layout "layout" %}
 {% block content %}
-<h1 class="text-2xl font-bold mt-0 mb-6">Giỏ hàng</h1>
+<h1>Giỏ hàng</h1>
 
 <div id="cart-items"></div>
 
-<form id="checkout-form" class="hidden mt-8 border-t border-gray-200 pt-6">
-  <h2 class="text-lg font-semibold">Thông tin nhận hàng</h2>
-  <div class="flex flex-col gap-3 max-w-md">
-    <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2.5 border border-gray-300 rounded-md">
-    <input type="text" name="customerPhone" placeholder="Số điện thoại" required class="px-3 py-2.5 border border-gray-300 rounded-md">
-    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2.5 border border-gray-300 rounded-md">
+<form id="checkout-form" class="hidden">
+  <h2>Thông tin nhận hàng</h2>
+  <div>
+    <input type="text" name="customerName" placeholder="Họ tên" required>
+    <input type="text" name="customerPhone" placeholder="Số điện thoại" required>
   </div>
-  <div id="cart-total" class="my-4 font-bold text-lg"></div>
-  <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 rounded-md text-[0.95rem] cursor-pointer">Đặt hàng</button>
-  <div id="checkout-error" class="text-red-600 mt-2 text-sm"></div>
+
+  <div id="fulfillment-methods">
+    <h3>Hình thức nhận hàng</h3>
+    <div id="fulfillment-methods-list">Đang tải...</div>
+  </div>
+
+  <div id="delivery-fields">
+    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng">
+    <select name="customerProvince">
+      <option value="">-- Chọn tỉnh/thành --</option>
+    </select>
+  </div>
+
+  <div id="pickup-fields" class="hidden">
+    <select name="storeId">
+      <option value="">-- Chọn cửa hàng --</option>
+    </select>
+  </div>
+
+  <div id="payment-methods">
+    <h3>Phương thức thanh toán</h3>
+    <div id="payment-methods-list">Đang tải...</div>
+  </div>
+
+  <div>
+    <input type="text" name="couponCode" placeholder="Mã giảm giá (nếu có)">
+  </div>
+
+  <div id="cart-total"></div>
+  <button type="submit">Đặt hàng</button>
+  <div id="checkout-error"></div>
 </form>
 
 <script>
@@ -50,13 +77,102 @@
     return div.innerHTML;
   }
 
+  const PAYMENT_METHOD_LABELS = {
+    cod: "Thanh toán khi nhận hàng (COD)",
+    bank_transfer: "Chuyển khoản ngân hàng",
+    vnpay: "Thanh toán online qua VNPay",
+  };
+
+  async function loadProvinces() {
+    const select = document.querySelector('select[name="customerProvince"]');
+    const res = await fetch("/api/provinces");
+    const { provinces } = await res.json();
+    provinces.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p;
+      opt.textContent = p;
+      select.appendChild(opt);
+    });
+  }
+
+  const FULFILLMENT_METHOD_LABELS = {
+    delivery: "Giao tận nơi",
+    pickup: "Nhận tại cửa hàng",
+  };
+
+  function toggleFulfillmentFields(method) {
+    document.getElementById("delivery-fields").classList.toggle("hidden", method !== "delivery");
+    document.getElementById("pickup-fields").classList.toggle("hidden", method !== "pickup");
+    const form = document.getElementById("checkout-form");
+    form.customerProvince.required = method === "delivery";
+    form.storeId.required = method === "pickup";
+  }
+
+  async function loadFulfillmentMethods() {
+    const list = document.getElementById("fulfillment-methods-list");
+    const res = await fetch("/api/cart/fulfillment-methods");
+    const { methods, stores } = await res.json();
+
+    const storeSelect = document.querySelector('select[name="storeId"]');
+    stores.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name + (s.province ? " (" + s.province + ")" : "");
+      storeSelect.appendChild(opt);
+    });
+
+    if (methods.length === 0) {
+      list.innerHTML = "<p>Chưa có hình thức nhận hàng nào được bật.</p>";
+      return;
+    }
+    list.innerHTML = methods
+      .map(
+        (m, i) =>
+          '<label style="display:block;"><input type="radio" name="fulfillmentMethod" value="' +
+          m +
+          '"' +
+          (i === 0 ? " checked" : "") +
+          "> " +
+          (FULFILLMENT_METHOD_LABELS[m] || m) +
+          "</label>",
+      )
+      .join("");
+
+    list.querySelectorAll('input[name="fulfillmentMethod"]').forEach((radio) => {
+      radio.addEventListener("change", () => toggleFulfillmentFields(radio.value));
+    });
+    toggleFulfillmentFields(methods[0]);
+  }
+
+  async function loadPaymentMethods() {
+    const list = document.getElementById("payment-methods-list");
+    const res = await fetch("/api/cart/payment-methods");
+    const { methods } = await res.json();
+    if (methods.length === 0) {
+      list.innerHTML = "<p>Chưa có phương thức thanh toán nào được bật.</p>";
+      return;
+    }
+    list.innerHTML = methods
+      .map(
+        (m, i) =>
+          '<label style="display:block;"><input type="radio" name="paymentMethod" value="' +
+          m.method +
+          '"' +
+          (i === 0 ? " checked" : "") +
+          "> " +
+          (PAYMENT_METHOD_LABELS[m.method] || m.method) +
+          "</label>",
+      )
+      .join("");
+  }
+
   async function render() {
     const cart = readCart();
     const container = document.getElementById("cart-items");
     const form = document.getElementById("checkout-form");
 
     if (cart.length === 0) {
-      container.innerHTML = '<p class="text-gray-500">Giỏ hàng trống. <a href="/products" class="text-brand">Xem sản phẩm</a></p>';
+      container.innerHTML = '<p>Giỏ hàng trống. <a href="/products">Xem sản phẩm</a></p>';
       form.classList.add("hidden");
       return;
     }
@@ -78,7 +194,7 @@
         unitPrice = v.salePrice ? Number(v.salePrice) : Number(v.price);
         const attrs = v.attributes || {};
         const attrText = Object.entries(attrs).map(([k, val]) => k + ": " + val).join(", ");
-        label = escapeHtml(p.name) + (attrText ? ' <span class="text-gray-400">(' + escapeHtml(attrText) + ')</span>' : "");
+        label = escapeHtml(p.name) + (attrText ? " (" + escapeHtml(attrText) + ")" : "");
       } else {
         unitPrice = p.salePrice ? Number(p.salePrice) : Number(p.price);
         label = escapeHtml(p.name);
@@ -86,12 +202,12 @@
 
       total += unitPrice * item.quantity;
       return (
-        '<div class="flex justify-between items-center py-3 border-b border-gray-200">' +
-        '<div><div>' + label + '</div><div class="text-gray-400 text-sm">' + unitPrice + '₫ × ' + item.quantity + '</div></div>' +
-        '<div class="flex items-center gap-2">' +
-        '<div class="font-semibold">' + (unitPrice * item.quantity) + '₫</div>' +
-        '<button data-index="' + index + '" class="cart-remove border border-gray-300 bg-white rounded-md px-2.5 py-1 cursor-pointer">Xoá</button>' +
-        '</div></div>'
+        "<div>" +
+        "<div><div>" + label + "</div><div>" + unitPrice + "₫ × " + item.quantity + "</div></div>" +
+        "<div>" +
+        "<div>" + (unitPrice * item.quantity) + "₫</div>" +
+        '<button data-index="' + index + '" class="cart-remove">Xoá</button>' +
+        "</div></div>"
       );
     });
 
@@ -114,6 +230,18 @@
     const errorEl = document.getElementById("checkout-error");
     errorEl.textContent = "";
 
+    const paymentMethod = form.paymentMethod ? form.paymentMethod.value : undefined;
+    if (!paymentMethod) {
+      errorEl.textContent = "Vui lòng chọn phương thức thanh toán.";
+      return;
+    }
+
+    const fulfillmentMethod = form.fulfillmentMethod ? form.fulfillmentMethod.value : undefined;
+    if (!fulfillmentMethod) {
+      errorEl.textContent = "Vui lòng chọn hình thức nhận hàng.";
+      return;
+    }
+
     const cart = readCart();
     const res = await fetch("/cart/checkout", {
       method: "POST",
@@ -123,20 +251,34 @@
         customerName: form.customerName.value,
         customerPhone: form.customerPhone.value,
         customerAddress: form.customerAddress.value || undefined,
-        customFields: collectExtraFields(form, ["customerName", "customerPhone", "customerAddress"]),
+        customerProvince: fulfillmentMethod === "delivery" ? form.customerProvince.value : undefined,
+        fulfillmentMethod,
+        storeId: fulfillmentMethod === "pickup" ? form.storeId.value : undefined,
+        paymentMethod,
+        couponCode: form.couponCode.value || undefined,
+        customFields: collectExtraFields(form, [
+          "customerName", "customerPhone", "customerAddress", "customerProvince",
+          "fulfillmentMethod", "storeId", "paymentMethod", "couponCode",
+        ]),
       }),
     });
 
     if (!res.ok) {
-      errorEl.textContent = "Đặt hàng thất bại, vui lòng thử lại.";
+      const body = await res.json().catch(() => ({}));
+      errorEl.textContent = typeof body.error === "string" ? body.error : "Đặt hàng thất bại, vui lòng thử lại.";
       return;
     }
 
-    const { orderId } = await res.json();
+    const { orderId, redirectUrl } = await res.json();
     writeCart([]);
-    window.location.href = "/order-confirmation/" + orderId;
+    // vnpay: redirectUrl tro sang trang thanh toan VNPay, KHONG phai order-confirmation ngay -
+    // khach chi thay xac nhan sau khi thanh toan xong va bi redirect ve /payment/vnpay/return.
+    window.location.href = redirectUrl || "/order-confirmation/" + orderId;
   });
 
+  loadProvinces();
+  loadFulfillmentMethods();
+  loadPaymentMethods();
   render();
 })();
 </script>

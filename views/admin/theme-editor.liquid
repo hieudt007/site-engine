@@ -42,9 +42,10 @@
           <button type="button" class="btn" data-size="desktop" title="Desktop" style="padding:0.25rem 0.5rem;font-size:0.8rem;">🖥️</button>
           <button type="button" class="btn" data-size="tablet" title="iPad" style="padding:0.25rem 0.5rem;font-size:0.8rem;">📱</button>
           <button type="button" class="btn" data-size="mobile" title="Mobile" style="padding:0.25rem 0.5rem;font-size:0.8rem;">📲</button>
+          <button type="button" class="btn" id="inline-edit-toggle" title="Sửa trực tiếp trên xem trước" style="padding:0.25rem 0.5rem;font-size:0.8rem;">🖊️</button>
         </div>
         <button type="button" class="btn" id="tab-preview" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Xem trước</button>
-        <button type="button" class="btn" id="tab-code" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Code</button>
+        <button type="button" class="btn" id="tab-code" style="display:none;padding:0.3rem 0.7rem;font-size:0.78rem;">Code</button>
       </div>
     </div>
     <pre id="file-view-content" style="flex:1;overflow:auto;background:#0f172a;color:#e2e8f0;padding:0.8rem;border-radius:6px;font-size:0.8rem;line-height:1.5;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>
@@ -106,6 +107,7 @@
   async function openFile(file) {
     activeFile = file;
     renderFileList();
+    document.getElementById("tab-code").style.display = "inline-block";
     fileViewTitle.textContent = file;
     fileViewContent.textContent = "Đang tải...";
     const res = await fetch("/admin/api/themes/" + slug + "/file?file=" + encodeURIComponent(file));
@@ -197,6 +199,379 @@
   tabPreviewBtn.addEventListener("click", () => setTab("preview"));
   setTab("preview");
 
+  // --- Sua truc tiep tren khung xem truoc (click-to-edit) - CHI cho text/anh CO DINH (tim thay
+  // CHINH XAC 1 lan trong file .liquid), mau/font-size/kich thuoc anh (luon ghi thang vao CSS
+  // rieng cua trang) va URL link - KHONG qua AI. Truy cap thang previewFrame.contentDocument vi
+  // preview cung-origin (route /admin/themes/:slug/preview, khong phai iframe ngoai domain).
+  // Mac dinh TAT - bat qua nut 🖊️ - vi bat luon se chan het click link (khong the bam link de
+  // chuyen trang xem thu binh thuong nua).
+  let inlineEditOn = false;
+  let inlinePopupEl = null;
+
+  function currentLiquidFile() {
+    return currentPreviewKey + ".liquid";
+  }
+
+  // header.liquid/footer.liquid duoc render RIENG (qua render trong layout.liquid) va bao QUANH
+  // moi trang, KHONG phai 1 phan cua file trang hien tai - phan tu nam trong <header>/<footer> cua
+  // trang render ra phai tim/sua dung file do, khong phai file trang (vd home.liquid) dang xem.
+  function resolveTargetFile(el) {
+    if (el.closest("header")) return "header.liquid";
+    if (el.closest("footer")) return "footer.liquid";
+    return currentLiquidFile();
+  }
+
+  function rgbToHex(rgb) {
+    const m = rgb.match(/\d+/g);
+    if (!m) return "#000000";
+    return "#" + m.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, "0")).join("");
+  }
+
+  // Sinh selector on dinh theo vi tri (nth-child tu body) - kieu "Copy selector" cua devtools, du
+  // dung de ghi 1 rule CSS nham dung phan tu vua click (uu tien id neu co, gon va chac chan hon).
+  function cssPathFor(el) {
+    if (el.id) return "#" + el.id;
+    const parts = [];
+    let node = el;
+    while (node && node.nodeType === 1 && node.tagName.toLowerCase() !== "body") {
+      let selector = node.tagName.toLowerCase();
+      const parent = node.parentElement;
+      if (parent) {
+        const siblings = [...parent.children].filter((c) => c.tagName === node.tagName);
+        if (siblings.length > 1) selector += ":nth-child(" + ([...parent.children].indexOf(node) + 1) + ")";
+      }
+      parts.unshift(selector);
+      node = parent;
+    }
+    return parts.join(" > ");
+  }
+
+  async function inlineReplaceText(file, oldText, newText) {
+    const res = await fetch("/admin/api/themes/" + slug + "/inline-edit/replace-text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file, oldText, newText }),
+    });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => ({}));
+    return { ok: false, error: typeof body.error === "string" ? body.error : "Lỗi không xác định" };
+  }
+
+  // Nguon that de biet noi dung TINH hay DONG: hoi thang server (tim trong file that) - heuristic
+  // cau truc DOM da bo (sai ca 2 chieu, xem determineDynamic). Dung cho ca text lan src anh.
+  async function checkIsStatic(file, text) {
+    try {
+      const res = await fetch("/admin/api/themes/" + slug + "/inline-edit/check-static", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file, text }),
+      });
+      if (!res.ok) return false;
+      const body = await res.json();
+      return Boolean(body.static);
+    } catch {
+      return false;
+    }
+  }
+
+  function removeInlinePopup() {
+    if (inlinePopupEl) {
+      inlinePopupEl.remove();
+      inlinePopupEl = null;
+    }
+  }
+
+  // Quyet dinh cuoi cung 1 phan tu la tinh/dong: LUON hoi thang check-static (nguon dang tin cay
+  // duy nhat, doi chieu voi noi dung file that). Heuristic cau truc DOM (dua vao tag/class lap
+  // lai) sai ca 2 chieu - bao dong nham khi nhieu section/the khac nhau tinh co dung chung 1 class
+  // Tailwind (khong phai do vong lap Liquid sinh ra), va bao tinh nham khi vong lap chi co dung 1
+  // phan tu (khong con "lap lai" de nhan ra) - nen KHONG dung heuristic de quyet dinh cuoi nua.
+  async function determineDynamic(el, isImg, file) {
+    const probe = isImg ? el.getAttribute("src") : el.textContent.trim();
+    if (!probe) return false;
+    const isStatic = await checkIsStatic(file, probe);
+    return !isStatic;
+  }
+
+  async function showInlinePopup(el) {
+    removeInlinePopup();
+    const isImg = el.tagName === "IMG";
+    const targetFile = resolveTargetFile(el);
+    const dynamic = await determineDynamic(el, isImg, targetFile);
+    if (inlinePopupEl !== null) return; // popup khac da mo trong luc cho (double click nhanh)
+
+    const rect = el.getBoundingClientRect();
+    const frameRect = previewFrame.getBoundingClientRect();
+    const popup = document.createElement("div");
+    popup.style.cssText =
+      "position:fixed;z-index:500;background:#fff;border:1px solid #ddd;border-radius:8px;" +
+      "box-shadow:0 4px 16px rgba(0,0,0,0.15);padding:0.6rem;display:flex;flex-direction:column;gap:0.4rem;" +
+      "font-size:0.78rem;min-width:200px;";
+    popup.style.top = frameRect.top + rect.bottom + 6 + "px";
+    popup.style.left = Math.min(frameRect.left + rect.left, window.innerWidth - 240) + "px";
+
+    const bgImage = getComputedStyle(el).backgroundImage;
+    const hasBgImage = !isImg && bgImage && bgImage !== "none";
+    const linkEl = el.tagName === "A" ? el : el.closest("a");
+
+    let html = "";
+    if (dynamic) {
+      const what = isImg ? "sửa ảnh" : "sửa text";
+      html += '<div style="color:#b45309;background:#fffbeb;padding:0.3rem 0.4rem;border-radius:4px;">⚠️ Không thể ' + what + '.</div>';
+    }
+    if (isImg) {
+      if (!dynamic) {
+        html += '<button type="button" class="btn" data-action="change-image" style="font-size:0.75rem;">🖼️ Đổi ảnh</button>';
+      }
+      html += '<label>Rộng (px) <input type="number" data-action="width" value="' + (el.naturalWidth ? el.width : "") + '" style="width:70px;"></label>';
+      html += '<label>Cao (px) <input type="number" data-action="height" value="' + (el.naturalWidth ? el.height : "") + '" style="width:70px;"></label>';
+    } else {
+      if (hasBgImage) {
+        html += '<button type="button" class="btn" data-action="change-bg-image" style="font-size:0.75rem;">🖼️ Đổi ảnh nền</button>';
+      }
+      html += '<label>Màu chữ <input type="color" data-action="color" value="' + rgbToHex(getComputedStyle(el).color) + '"></label>';
+      html += '<label>Cỡ chữ (px) <input type="number" data-action="font-size" value="' + parseInt(getComputedStyle(el).fontSize, 10) + '" style="width:60px;"></label>';
+    }
+    if (linkEl && !dynamic) {
+      html += '<label>Link <input type="text" data-action="href" value="' + escapeHtml(linkEl.getAttribute("href") || "") + '" style="width:170px;"></label>';
+    }
+    html +=
+      '<div style="display:flex;gap:0.3rem;"><button type="button" class="btn btn-primary" data-action="apply" style="font-size:0.75rem;flex:1;">Áp dụng</button>' +
+      '<button type="button" class="btn" data-action="close" style="font-size:0.75rem;">✕</button></div>';
+    if (!isImg) html += '<div style="font-size:0.68rem;color:#999;">Nhấp đúp để sửa chữ trực tiếp</div>';
+    html += '<div data-action="status" style="font-size:0.7rem;"></div>';
+    popup.innerHTML = html;
+    document.body.appendChild(popup);
+    inlinePopupEl = popup;
+
+    const statusEl = popup.querySelector('[data-action="status"]');
+    function setStatus(text, ok) {
+      statusEl.textContent = text;
+      statusEl.style.color = ok ? "#16a34a" : "#dc2626";
+    }
+
+    popup.querySelector('[data-action="close"]').addEventListener("click", removeInlinePopup);
+
+    const changeImgBtn = popup.querySelector('[data-action="change-image"]');
+    if (changeImgBtn) {
+      changeImgBtn.addEventListener("click", () => {
+        window.openMediaPicker({
+          title: "Chọn ảnh thay thế",
+          onSelect: async (url, media) => {
+            setStatus("Đang lưu...", true);
+            const oldSrc = el.getAttribute("src");
+            const result = await inlineReplaceText(targetFile, oldSrc, url);
+            if (!result.ok) {
+              setStatus(result.error, false);
+              return;
+            }
+            // Doi alt/title la viec THEM, khong lam hong ket qua chinh (doi src) neu that bai - vd
+            // alt/title cu khong tim thay chinh xac 1 lan trong file (thuong vi rong/dong, hoac
+            // the <img> von khong co san thuoc tinh do de thay).
+            const oldAlt = el.getAttribute("alt") || "";
+            if (media && media.alt && media.alt !== oldAlt) {
+              await inlineReplaceText(targetFile, 'alt="' + oldAlt + '"', 'alt="' + media.alt + '"');
+            }
+            const oldTitle = el.getAttribute("title") || "";
+            if (media && media.alt && media.alt !== oldTitle) {
+              await inlineReplaceText(targetFile, 'title="' + oldTitle + '"', 'title="' + media.alt + '"');
+            }
+            setStatus("Đã đổi ảnh", true);
+            reloadPreview();
+          },
+        });
+      });
+    }
+
+    const changeBgImgBtn = popup.querySelector('[data-action="change-bg-image"]');
+    if (changeBgImgBtn) {
+      changeBgImgBtn.addEventListener("click", () => {
+        window.openMediaPicker({
+          title: "Chọn ảnh nền",
+          onSelect: async (url) => {
+            setStatus("Đang lưu...", true);
+            const styleRes = await fetch("/admin/api/themes/" + slug + "/inline-edit/style", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                file: targetFile,
+                selector: cssPathFor(el),
+                declarations: { "background-image": 'url("' + window.location.origin + url + '")' },
+              }),
+            });
+            if (styleRes.ok) {
+              setStatus("Đã đổi ảnh nền", true);
+              reloadPreview();
+            } else {
+              const b = await styleRes.json().catch(() => ({}));
+              setStatus(typeof b.error === "string" ? b.error : "Lỗi lưu ảnh nền", false);
+            }
+          },
+        });
+      });
+    }
+
+    popup.querySelector('[data-action="apply"]').addEventListener("click", async () => {
+      setStatus("Đang lưu...", true);
+      const declarations = {};
+      const widthInput = popup.querySelector('[data-action="width"]');
+      const heightInput = popup.querySelector('[data-action="height"]');
+      const colorInput = popup.querySelector('[data-action="color"]');
+      const fontSizeInput = popup.querySelector('[data-action="font-size"]');
+      const hrefInput = popup.querySelector('[data-action="href"]');
+      if (widthInput && widthInput.value) declarations.width = widthInput.value + "px";
+      if (heightInput && heightInput.value) declarations.height = heightInput.value + "px";
+      if (colorInput) declarations.color = colorInput.value;
+      if (fontSizeInput && fontSizeInput.value) declarations["font-size"] = fontSizeInput.value + "px";
+
+      let ok = true;
+      let errMsg = "";
+      if (Object.keys(declarations).length) {
+        const res = await fetch("/admin/api/themes/" + slug + "/inline-edit/style", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file: targetFile, selector: cssPathFor(el), declarations }),
+        });
+        if (!res.ok) {
+          ok = false;
+          const b = await res.json().catch(() => ({}));
+          errMsg = typeof b.error === "string" ? b.error : "Lỗi lưu CSS";
+        }
+      }
+
+      if (ok && hrefInput && linkEl) {
+        const oldHref = linkEl.getAttribute("href") || "";
+        const newHref = hrefInput.value;
+        if (newHref !== oldHref) {
+          const result = await inlineReplaceText(targetFile, 'href="' + oldHref + '"', 'href="' + newHref + '"');
+          if (!result.ok) {
+            ok = false;
+            errMsg = result.error;
+          }
+        }
+      }
+
+      if (ok) {
+        setStatus("Đã lưu", true);
+        reloadPreview();
+      } else {
+        setStatus(errMsg, false);
+      }
+    });
+  }
+
+  async function startInlineTextEdit(el) {
+    if (el.tagName === "IMG") return;
+    const targetFile = resolveTargetFile(el);
+    if (await determineDynamic(el, false, targetFile)) {
+      alert("Không thể sửa text ở đây — dữ liệu thật (dùng chat).");
+      return;
+    }
+    removeInlinePopup();
+    const original = el.textContent;
+    el.contentEditable = "true";
+    el.style.outline = "2px solid #16a34a";
+    el.focus();
+    const onBlur = async () => {
+      el.contentEditable = "false";
+      el.style.outline = "";
+      el.removeEventListener("blur", onBlur);
+      const updated = el.textContent;
+      if (updated.trim() === original.trim()) return;
+      const result = await inlineReplaceText(targetFile, original.trim(), updated.trim());
+      if (!result.ok) {
+        alert(result.error);
+        el.textContent = original;
+      } else {
+        reloadPreview();
+      }
+    };
+    el.addEventListener("blur", onBlur);
+  }
+
+  // Link trong preview tro toi URL PUBLIC that (/products, /blog...) - neu click di thang, iframe
+  // se navigate ra route cong khai that, route do render bang theme DANG ACTIVE cho site (khong
+  // phai theme dang sua), thoat khoi override cua trang preview nay ngay. Doi sang dung loai trang
+  // qua lai preview (van giu slug theme dang sua) thay vi cho navigate that.
+  function mapHrefToPreviewKey(href) {
+    let pathname;
+    try {
+      pathname = new URL(href, window.location.origin).pathname;
+    } catch {
+      return null;
+    }
+    if (pathname === "/") return "home";
+    if (pathname === "/blog") return "blog-list";
+    if (pathname.startsWith("/blog/danh-muc/")) return "blog-category";
+    if (pathname.startsWith("/blog/")) return "blog-post";
+    if (pathname === "/products") return "products-list";
+    if (pathname.startsWith("/products/danh-muc/")) return "product-category";
+    if (pathname.startsWith("/products/")) return "product-detail";
+    if (pathname === "/cart") return "cart";
+    if (pathname.startsWith("/order-confirmation/")) return "order-confirmation";
+    return "home"; // khong ro loai trang - ve trang chu (giong fallback cua themePreview.ts)
+  }
+
+  function attachInlineEditListeners(doc) {
+    let hoverEl = null;
+    doc.addEventListener("mouseover", (e) => {
+      if (!inlineEditOn) return;
+      if (hoverEl) hoverEl.style.outline = "";
+      hoverEl = e.target;
+      if (hoverEl && hoverEl.nodeType === 1) hoverEl.style.outline = "2px dashed #2563eb";
+    });
+    doc.addEventListener("mouseout", (e) => {
+      if (!inlineEditOn) return;
+      if (e.target && e.target.style) e.target.style.outline = "";
+    });
+    doc.addEventListener(
+      "click",
+      (e) => {
+        if (!inlineEditOn) {
+          const link = e.target.closest && e.target.closest("a[href]");
+          if (!link) return;
+          const href = link.getAttribute("href");
+          if (!href || href.startsWith("#") || /^[a-z]+:/i.test(href)) return; // #anchor, mailto:, tel:... - de trinh duyet tu xu ly
+          e.preventDefault();
+          const key = mapHrefToPreviewKey(href);
+          if (key) {
+            currentPreviewKey = key;
+            reloadPreview();
+          }
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        showInlinePopup(e.target);
+      },
+      true,
+    );
+    doc.addEventListener(
+      "dblclick",
+      (e) => {
+        if (!inlineEditOn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        startInlineTextEdit(e.target);
+      },
+      true,
+    );
+  }
+
+  previewFrame.addEventListener("load", () => {
+    const doc = previewFrame.contentDocument;
+    if (doc) attachInlineEditListeners(doc);
+  });
+
+  const inlineEditToggle = document.getElementById("inline-edit-toggle");
+  inlineEditToggle.addEventListener("click", () => {
+    inlineEditOn = !inlineEditOn;
+    inlineEditToggle.className = inlineEditOn ? "btn btn-primary" : "btn";
+    inlineEditToggle.style.padding = "0.25rem 0.5rem";
+    inlineEditToggle.style.fontSize = "0.8rem";
+    removeInlinePopup();
+  });
+
   document.getElementById("delete-theme-btn").addEventListener("click", async () => {
     if (!confirm("Xoá theme này? Không thể hoàn tác.")) return;
     const res = await fetch("/admin/api/themes/" + slug, { method: "DELETE" });
@@ -264,6 +639,19 @@
     }
   });
 
+  // Nut "Xac nhan" (kieu Plan Mode) - chi hien khi tin nhan MOI NHAT la de xuat thiet ke lai toan
+  // site dang cho xac nhan (redesignBrief != null). Bam vao goi thang /chat/confirm-redesign,
+  // KHONG qua lai AI phan loai - dam bao chay dung ke hoach da de xuat, khong bi AI doan sai.
+  function renderConfirmButton(box) {
+    const wrap = document.createElement("div");
+    wrap.style.marginBottom = "0.5rem";
+    wrap.innerHTML =
+      '<button type="button" class="btn btn-primary" id="confirm-redesign-btn">✅ Xác nhận thiết kế lại toàn bộ</button>';
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+    document.getElementById("confirm-redesign-btn").addEventListener("click", handleConfirmRedesign);
+  }
+
   async function loadChatHistory() {
     const box = document.getElementById("chat-messages");
     const res = await fetch("/admin/api/themes/" + slug + "/chat/history");
@@ -276,6 +664,9 @@
       ? messages.map((m) => chatMessageHtml(m.role, m.content, m.imageUrl)).join("")
       : '<p style="color:#999;">Chưa có tin nhắn nào — hỏi AI để bắt đầu chỉnh sửa theme này.</p>';
     box.scrollTop = box.scrollHeight;
+
+    const last = messages[messages.length - 1];
+    if (last && last.role === "assistant" && last.redesignBrief) renderConfirmButton(box);
   }
 
   // Duoi 3 buoc (nhom file): chi 1 dong trang thai GHI DE lien tuc (khong xep chong) - it buoc
@@ -353,13 +744,14 @@
     } else if (event.step === "group_done") {
       if (timelineMode) setStepState(event.index, event.ok ? "done" : "failed");
     } else if (event.step === "done") {
-      if (!timelineMode) progress.innerHTML = ""; // xoa dong "Dang gui.../Dang phan tich..." con dong lai
+      progress.innerHTML = ""; // xong roi - xoa het timeline/dong trang thai, tin tom tat cuoi da du
       if (tempReplyEl) {
         tempReplyEl.remove();
         tempReplyEl = null;
       }
       box.insertAdjacentHTML("beforeend", chatMessageHtml("assistant", event.reply));
       box.scrollTop = box.scrollHeight;
+      if (event.needsRedesignConfirm) renderConfirmButton(box);
       // File vua sua co the la file dang mo - tai lai cho khop noi dung moi.
       if (activeFile && event.files && event.files.some((f) => f.file === activeFile && f.ok && !f.skipped)) {
         openFile(activeFile);
@@ -388,36 +780,27 @@
     }
   }
 
-  async function sendChatMessage() {
-    const input = document.getElementById("chat-input");
-    const message = input.value.trim();
-    if (!message) return;
-
+  // Dung chung cho ca gui chat thuong (POST /chat) lan bam nut xac nhan (POST /chat/confirm-redesign)
+  // - doc SSE, phat tung event qua handleChatEvent. Khong dong cham input/nut gui (goi rieng o tung
+  // noi goi, vi luc bam nut xac nhan input van dang bo trong, khong can khoa).
+  async function streamChatRequest(url, body) {
     const box = document.getElementById("chat-messages");
     const progress = document.getElementById("chat-progress");
-    const sendBtn = document.getElementById("chat-send");
-
-    const imageUrl = pendingImageUrl;
-    box.insertAdjacentHTML("beforeend", chatMessageHtml("user", message, imageUrl));
-    box.scrollTop = box.scrollHeight;
-    input.value = "";
-    input.disabled = true;
-    sendBtn.disabled = true;
     progress.innerHTML = "";
     timelineMode = false;
     timelineSteps = [];
     activeStepIndex = -1;
-    clearPendingImage();
 
     try {
-      const res = await fetch("/admin/api/themes/" + slug + "/chat", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(imageUrl ? { message, imageUrl } : { message }),
+        body: JSON.stringify(body),
       });
       if (!res.ok || !res.body) {
         progress.textContent = "";
-        showFlash("Gửi chat thất bại", false);
+        const errBody = await res.json().catch(() => ({}));
+        showFlash(typeof errBody.error === "string" ? errBody.error : "Gửi chat thất bại", false);
         return;
       }
 
@@ -441,11 +824,51 @@
       }
     } catch (err) {
       progress.textContent = "";
-      showFlash("Lỗi kết nối khi chat với AI", false);
+      console.error("Lỗi kết nối khi chat với AI:", err);
+      showFlash("Lỗi kết nối khi chat với AI: " + (err && err.message ? err.message : String(err)), false);
+    }
+  }
+
+  async function sendChatMessage() {
+    const input = document.getElementById("chat-input");
+    const message = input.value.trim();
+    if (!message) return;
+
+    const box = document.getElementById("chat-messages");
+    const sendBtn = document.getElementById("chat-send");
+
+    const imageUrl = pendingImageUrl;
+    box.insertAdjacentHTML("beforeend", chatMessageHtml("user", message, imageUrl));
+    box.scrollTop = box.scrollHeight;
+    input.value = "";
+    input.disabled = true;
+    sendBtn.disabled = true;
+    clearPendingImage();
+
+    try {
+      await streamChatRequest("/admin/api/themes/" + slug + "/chat", imageUrl ? { message, imageUrl } : { message });
     } finally {
       input.disabled = false;
       sendBtn.disabled = false;
       input.focus();
+    }
+  }
+
+  async function handleConfirmRedesign() {
+    const btn = document.getElementById("confirm-redesign-btn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Đang tiến hành...";
+    }
+    const input = document.getElementById("chat-input");
+    const sendBtn = document.getElementById("chat-send");
+    input.disabled = true;
+    sendBtn.disabled = true;
+    try {
+      await streamChatRequest("/admin/api/themes/" + slug + "/chat/confirm-redesign", {});
+    } finally {
+      input.disabled = false;
+      sendBtn.disabled = false;
     }
   }
 

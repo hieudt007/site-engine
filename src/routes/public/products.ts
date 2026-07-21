@@ -3,6 +3,15 @@ import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
+import { buildProductSchema, buildBreadcrumbSchema } from "../../services/schema.js";
+
+// URL tuyet doi cho JSON-LD (Product.url, BreadcrumbList.item...) - Schema.org yeu cau URL day du,
+// khong chap nhan duong dan tuong doi.
+async function siteBaseUrl(): Promise<string> {
+  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const domain = siteConfig?.domain ?? "localhost";
+  return domain.startsWith("http") ? domain : `https://${domain}`;
+}
 
 const PAGE_SIZE = 12;
 
@@ -59,6 +68,12 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       ]);
 
       const seo = readSeo(category.seo);
+      const base = await siteBaseUrl();
+      const breadcrumbItems = [
+        { name: "Trang chủ", url: new URL("/", base).toString() },
+        { name: "Sản phẩm", url: new URL("/products", base).toString() },
+        { name: category.name, url: new URL(`/products/danh-muc/${category.slug}`, base).toString() },
+      ];
       const html = await renderPublic("product-category", {
         pageTitle: seo.metaTitle ?? category.name,
         metaDescription: seo.metaDescription ?? category.excerpt ?? undefined,
@@ -69,6 +84,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         hasNext: skip + products.length < total,
         prevPage: page - 1,
         nextPage: page + 1,
+        schemas: [buildBreadcrumbSchema(breadcrumbItems)],
       });
 
       return reply.type("text/html").send(html);
@@ -92,9 +108,10 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       where: { productCacheId: product.id, status: "approved" },
       orderBy: { createdAt: "desc" },
     });
-    const avgRating = reviews.length
-      ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
-      : null;
+    // avgRating/reviewCount doc thang tu ProductCache (denormalize san - xem
+    // services/productRatingAggregate.ts) thay vi tu tinh lai moi request - reviews[] van can fetch
+    // rieng vi trang nay con hien TUNG binh luan, khong chi con so trung binh.
+    const avgRating = product.avgRating;
 
     const pageData = { pageTitle: product.name, metaDescription: readSeo(product.seo).metaDescription };
 
@@ -104,7 +121,16 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     } else if (product.layoutMode === "custom") {
       html = await renderPublic("custom-content", { ...pageData, rawHtml: product.description ?? "" });
     } else {
-      html = await renderPublic("product-detail", { ...pageData, product, variantsJson, reviews, avgRating });
+      const base = await siteBaseUrl();
+      const productUrl = new URL(`/products/${product.id}`, base).toString();
+      const breadcrumbItems = [
+        { name: "Trang chủ", url: new URL("/", base).toString() },
+        { name: "Sản phẩm", url: new URL("/products", base).toString() },
+        ...(product.categories[0] ? [{ name: product.categories[0].name, url: new URL(`/products/danh-muc/${product.categories[0].slug}`, base).toString() }] : []),
+        { name: product.name, url: productUrl },
+      ];
+      const schemas = [buildProductSchema(product, productUrl, reviews), buildBreadcrumbSchema(breadcrumbItems)];
+      html = await renderPublic("product-detail", { ...pageData, product, variantsJson, reviews, avgRating, schemas });
     }
 
     return reply.type("text/html").send(html);

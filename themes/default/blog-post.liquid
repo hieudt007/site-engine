@@ -1,16 +1,16 @@
 {% layout "layout" %}
 {% block content %}
-<a href="/blog" class="text-gray-500 text-sm no-underline">← Tất cả bài viết</a>
+<a href="/blog">← Tất cả bài viết</a>
 
-<article class="mt-4">
+<article>
   {% if post.coverImage %}
-    <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full max-h-96 object-cover rounded-lg">
+    <img src="{{ post.coverImage }}" alt="{{ post.title }}">
   {% endif %}
-  <h1 class="text-3xl font-bold mt-4 mb-1">{{ post.title | escape }}</h1>
-  <div class="text-gray-400 text-sm mb-6">
-    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}" class="text-gray-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
+  <h1>{{ post.title | escape }}</h1>
+  <div>
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}">{{ c.name | escape }}</a>{% endfor %}
   </div>
-  <div class="prose max-w-none leading-relaxed text-[1.05rem]">
+  <div>
     {{ post.body }}
   </div>
   {% render "custom-fields", fields: post.customFields %}

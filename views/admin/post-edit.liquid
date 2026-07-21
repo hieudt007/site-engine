@@ -138,9 +138,11 @@
   document.getElementById("coverImage-pick-btn").addEventListener("click", () => {
     openMediaPicker({
       title: "Chọn ảnh bìa",
-      onSelect: (url) => {
+      onSelect: (url, media) => {
         coverImageInput.value = url;
         coverImagePreview.src = url;
+        coverImagePreview.alt = (media && media.alt) || "";
+        coverImagePreview.title = (media && media.alt) || "";
         coverImagePreview.style.display = "";
       },
     });

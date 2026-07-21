@@ -1,0 +1,41 @@
+/* Animation cho icon thành công */
+@keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.success-icon-wrapper {
+    animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Định dạng cho custom-fields do hệ thống sinh ra */
+.order-custom-fields-wrapper > div > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.order-custom-fields-wrapper > div > div:last-child {
+    margin-bottom: 0;
+}
+
+.order-custom-fields-wrapper strong {
+    font-weight: 500;
+    color: #0f172a; /* text-slate-900 */
+    min-width: 60px;
+}
+
+.order-custom-fields-wrapper span {
+    color: #334155; /* text-slate-700 */
+}
+
+/* Responsive adjustment for custom fields if rendered as inline */
+@media (min-width: 640px) {
+    .order-custom-fields-wrapper > div > div {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}

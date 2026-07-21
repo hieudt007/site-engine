@@ -13,13 +13,16 @@ export interface ChatHistoryItem {
   content: string;
 }
 
-export type ClassifyMode = "chat" | "edit";
+export type ClassifyMode = "chat" | "edit" | "redesign";
 
 export interface ClassifyResult {
   mode: ClassifyMode;
   files: string[];
   reply: string;
   intentUpdate: string | null;
+  // Chi co gia tri khi mode la "redesign" - brief day du (phong cach + tinh nang giu/them/bot) AI
+  // tong hop tu ca cuoc hoi thoai, dung thay cho "message" khi goi editThemeFiles cho ca 18 trang.
+  redesignBrief: string | null;
 }
 
 export interface EditFileResult {
@@ -63,12 +66,15 @@ function buildClassifySystemPrompt(): string {
     "Bạn là trợ lý AI chỉnh sửa theme website (Liquid + Tailwind), chat với admin. Đây là LẦN PHÂN LOẠI — chưa sửa file.",
     "",
     "Trả lời ĐÚNG định dạng, không giải thích, không code fence:",
-    "MODE: chat hoặc edit",
-    "FILES: <file cần sửa, cách nhau bởi dấu phẩy, để trống nếu chat. Mỗi trang có 3 file độc lập: " +
+    "MODE: chat, edit, hoặc redesign",
+    "FILES: <file cần sửa, cách nhau bởi dấu phẩy, để trống nếu chat/redesign. Mỗi trang có 3 file độc lập: " +
       "{tên}.liquid, assets/sources/{tên}.css, assets/sources/{tên}.js — chỉ chọn ĐÚNG file cần, không chọn cả 3.>",
     "REPLY: <1-3 câu, văn phong xem bên dưới>",
     "INTENT_UPDATE: <CHỈ khi admin nêu quy ước TOÀN SITE, ít đổi (màu chủ đạo, font, phong cách chung) thì ghi lại TOÀN BỘ quy " +
       "ước đã biết tới giờ; để trống nếu không có gì mới. KHÔNG ghi hành vi riêng của 1 tính năng/trang (thuộc về code).>",
+    "REDESIGN_BRIEF: <điền khi ĐANG Ở BƯỚC ĐỀ XUẤT thiết kế lại toàn site (MODE vẫn là chat) HOẶC khi MODE là redesign — " +
+      "brief đầy đủ, tổng hợp từ toàn bộ hội thoại: phong cách/giao diện muốn + tính năng giữ nguyên/thêm/bớt. Để trống ở " +
+      "mọi trường hợp khác.>",
     "",
     "QUY TẮC:",
     "- edit CHỈ khi đã rõ sửa GÌ và Ở FILE NÀO. Còn mơ hồ về VỊ TRÍ/CẤU TRÚC thì trả chat và hỏi lại — không đoán.",
@@ -81,6 +87,16 @@ function buildClassifySystemPrompt(): string {
       "<style>/<script> vào .liquid.",
     "- File KHÔNG có trong FILES sẽ bị bỏ qua hoàn toàn ở lần sửa sau, dù bạn viết gì cho nó — định sửa CSS/JS PHẢI liệt kê " +
       "thẳng file .css/.js, không chỉ chọn .liquid.",
+    "",
+    "QUY TẮC RIÊNG cho THIẾT KẾ LẠI TOÀN SITE (theme còn trống hoàn toàn — 'Đã áp dụng' là '(chưa có)' — hoặc admin yêu cầu " +
+      "'thiết kế lại/làm mới toàn bộ giao diện'): việc này SỬA CẢ 18 TRANG, rủi ro cao, đi qua 3 bước bắt buộc:",
+    "  1) Hỏi đủ 2 điều nếu chưa rõ: phong cách/giao diện muốn ra sao, và giữ nguyên tính năng hiện có hay muốn thêm/bớt gì " +
+      "(MODE: chat, để trống REDESIGN_BRIEF).",
+    "  2) Khi đã đủ, KHÔNG làm ngay — tóm tắt lại kế hoạch trong REPLY và hỏi xác nhận, đồng thời điền REDESIGN_BRIEF (MODE " +
+      "vẫn là chat).",
+    "  3) CHỈ trả MODE: redesign (kèm REDESIGN_BRIEF) ở đúng lượt NGAY SAU KHI admin xác nhận đồng ý với bản tóm tắt bạn " +
+      "vừa đưa ở lượt trước — nếu không chắc admin đang xác nhận đúng đề xuất đó thì vẫn hỏi lại (MODE: chat), TUYỆT ĐỐI " +
+      "không tự suy diễn.",
     "",
     "VĂN PHONG cho REPLY (người đọc là chủ shop, không phải lập trình viên):",
     "- Không thuật ngữ kỹ thuật (tên file/class/id/thẻ HTML). Mô tả theo cái NHÌN THẤY (vị trí, màu, cảm giác " +
@@ -105,12 +121,14 @@ function buildClassifyUserPrompt(themeMd: string, history: ChatHistoryItem[], me
 }
 
 function parseClassify(raw: string): ClassifyResult {
-  const modeMatch = raw.match(/MODE:[ \t]*(chat|edit)/i);
+  const modeMatch = raw.match(/MODE:[ \t]*(chat|edit|redesign)/i);
   const filesMatch = raw.match(/FILES:[ \t]*(.*)/);
-  const replyMatch = raw.match(/REPLY:\s*([\s\S]*?)(?:\nINTENT_UPDATE:|$)/);
-  const intentMatch = raw.match(/INTENT_UPDATE:\s*([\s\S]*)$/);
+  const replyMatch = raw.match(/REPLY:\s*([\s\S]*?)(?:\nINTENT_UPDATE:|\nREDESIGN_BRIEF:|$)/);
+  const intentMatch = raw.match(/INTENT_UPDATE:\s*([\s\S]*?)(?:\nREDESIGN_BRIEF:|$)/);
+  const redesignMatch = raw.match(/REDESIGN_BRIEF:\s*([\s\S]*)$/);
 
-  const mode: ClassifyMode = modeMatch?.[1]?.toLowerCase() === "edit" ? "edit" : "chat";
+  const modeRaw = modeMatch?.[1]?.toLowerCase();
+  const mode: ClassifyMode = modeRaw === "edit" || modeRaw === "redesign" ? modeRaw : "chat";
   const files = (filesMatch?.[1] ?? "")
     .split(",")
     .map((f) => f.trim())
@@ -118,8 +136,10 @@ function parseClassify(raw: string): ClassifyResult {
   const reply = replyMatch ? replyMatch[1].trim() : raw.trim();
   const intentRaw = intentMatch ? intentMatch[1].trim() : "";
   const intentUpdate = intentRaw.length ? intentRaw : null;
+  const redesignRaw = redesignMatch ? redesignMatch[1].trim() : "";
+  const redesignBrief = redesignRaw.length ? redesignRaw : null;
 
-  return { mode, files, reply, intentUpdate };
+  return { mode, files, reply, intentUpdate, redesignBrief };
 }
 
 export async function classifyChatMessage(

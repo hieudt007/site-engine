@@ -74,10 +74,15 @@
   async function loadThemes() {
     const res = await fetch("/admin/api/themes");
     const { themes } = await res.json();
-    grid.innerHTML = themes.length ? themes.map(cardHtml).join("") : '<p style="color:#999;">Chưa có theme nào.</p>';
+    // "default" bi an khoi luoi (chi de active/hien thi) nhung VAN can trong dropdown "Theme nen"
+    // ben duoi - do la theme khung tho danh rieng de lam nen tao theme moi hoan toan.
+    const visible = themes.filter((t) => !t.hiddenFromGrid);
+    grid.innerHTML = visible.length ? visible.map(cardHtml).join("") : '<p style="color:#999;">Chưa có theme nào.</p>';
 
     const baseSelect = document.getElementById("base-theme");
-    baseSelect.innerHTML = themes.map((t) => '<option value="' + t.slug + '">' + escapeHtml(t.name) + '</option>').join("");
+    baseSelect.innerHTML = themes
+      .map((t) => '<option value="' + t.slug + '">' + escapeHtml(t.hiddenFromGrid ? "Trống — theme mới hoàn toàn" : t.name) + '</option>')
+      .join("");
     return themes;
   }
 

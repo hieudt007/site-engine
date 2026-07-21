@@ -1,7 +1,7 @@
-<footer class="text-center text-gray-400 text-sm py-8 border-t border-gray-200">
+<footer>
   {% if footerMenu and footerMenu.items.size > 0 %}
-    <nav class="mb-2 flex items-center justify-center gap-4">
-      {% for item in footerMenu.items %}<a href="{{ item.url }}" class="text-gray-500 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
+    <nav>
+      {% for item in footerMenu.items %}<a href="{{ item.url }}">{{ item.label | escape }}</a>{% endfor %}
     </nav>
   {% endif %}
   © {{ year }} {{ site.siteName }}

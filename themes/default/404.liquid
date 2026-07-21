@@ -1,9 +1,9 @@
 {% layout "layout" %}
 {% block content %}
-<div class="text-center py-16">
-  <div class="text-6xl font-bold text-gray-200">404</div>
-  <h1 class="text-2xl font-bold mt-4 mb-2">{{ message | default: "Không tìm thấy trang bạn cần" }}</h1>
-  <p class="text-gray-500 mb-6">Đường dẫn có thể đã bị xoá, đổi chỗ khác, hoặc gõ sai.</p>
-  <a href="/" class="text-brand no-underline">← Về trang chủ</a>
+<div>
+  <div>404</div>
+  <h1>{{ message | default: "Không tìm thấy trang bạn cần" }}</h1>
+  <p>Đường dẫn có thể đã bị xoá, đổi chỗ khác, hoặc gõ sai.</p>
+  <a href="/">← Về trang chủ</a>
 </div>
 {% endblock %}

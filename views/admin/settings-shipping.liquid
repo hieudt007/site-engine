@@ -1,0 +1,214 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Vận chuyển & nhận hàng</h1>
+
+<div class="card" style="margin-bottom:1.5rem;">
+  <strong>Hình thức nhận hàng</strong>
+  <div id="fulfillment-toggles" style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.5rem;"></div>
+  <p class="field-hint">Tắt "Nhận tại cửa hàng" nếu chưa có cửa hàng nào, hoặc tắt "Giao tận nơi" nếu chỉ bán tại chỗ. Quản lý danh sách cửa hàng ở mục "Cửa hàng".</p>
+</div>
+
+<h2 style="margin:0 0 0.8rem;font-size:1.1rem;">Phí vận chuyển (giao tận nơi)</h2>
+<div id="rules-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
+
+<div class="card">
+  <strong id="form-title">Thêm rule mới</strong>
+  <input type="hidden" id="rule-id">
+  <label for="rule-name">Tên rule</label>
+  <input type="text" id="rule-name" placeholder="VD: Nội thành HN & TP HCM">
+
+  <label>Áp dụng cho tỉnh/thành (bỏ trống = rule mặc định, áp dụng cho tỉnh không khớp rule nào khác)</label>
+  <div id="province-checkboxes" style="max-height:180px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0.6rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.2rem;"></div>
+
+  <label for="rule-fee">Phí ship (₫)</label>
+  <input type="number" id="rule-fee" min="0" value="0">
+
+  <label for="rule-threshold">Miễn phí ship nếu đơn hàng từ (₫) — để trống nếu không bao giờ miễn</label>
+  <input type="number" id="rule-threshold" min="0">
+
+  <label style="display:flex;align-items:center;gap:0.4rem;">
+    <input type="checkbox" id="rule-enabled" checked style="width:auto;"> Bật rule này
+  </label>
+
+  <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+    <button type="button" id="save-btn" class="btn btn-primary">Lưu</button>
+    <button type="button" id="cancel-btn" class="btn" style="display:none;">Huỷ sửa</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const flash = document.getElementById("flash");
+  const rulesList = document.getElementById("rules-list");
+  const provinceBox = document.getElementById("province-checkboxes");
+  const ruleIdEl = document.getElementById("rule-id");
+  const nameEl = document.getElementById("rule-name");
+  const feeEl = document.getElementById("rule-fee");
+  const thresholdEl = document.getElementById("rule-threshold");
+  const enabledEl = document.getElementById("rule-enabled");
+  const formTitle = document.getElementById("form-title");
+  const cancelBtn = document.getElementById("cancel-btn");
+  let provinces = [];
+  let rules = [];
+
+  const FULFILLMENT_LABELS = { delivery: "Giao tận nơi", pickup: "Nhận tại cửa hàng" };
+
+  async function loadFulfillmentMethods() {
+    const box = document.getElementById("fulfillment-toggles");
+    const res = await fetch("/admin/api/fulfillment-methods");
+    const { methods } = await res.json();
+    box.innerHTML = methods
+      .map(
+        (m) =>
+          '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;margin:0;"><input type="checkbox" class="fulfillment-toggle" data-method="' +
+          m.method +
+          '"' +
+          (m.enabled ? " checked" : "") +
+          "> " +
+          (FULFILLMENT_LABELS[m.method] || m.method) +
+          "</label>",
+      )
+      .join("");
+
+    box.querySelectorAll(".fulfillment-toggle").forEach((cb) => {
+      cb.addEventListener("change", async () => {
+        const res = await fetch("/admin/api/fulfillment-methods/" + cb.dataset.method, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: cb.checked }),
+        });
+        showFlash(res.ok ? "Đã lưu." : "Lưu thất bại", res.ok);
+      });
+    });
+  }
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function resetForm() {
+    ruleIdEl.value = "";
+    nameEl.value = "";
+    feeEl.value = "0";
+    thresholdEl.value = "";
+    enabledEl.checked = true;
+    provinceBox.querySelectorAll("input").forEach((cb) => (cb.checked = false));
+    formTitle.textContent = "Thêm rule mới";
+    cancelBtn.style.display = "none";
+  }
+
+  function renderProvinceCheckboxes() {
+    provinceBox.innerHTML = provinces
+      .map((p) => '<label style="font-weight:400;margin:0;display:flex;align-items:center;gap:0.3rem;"><input type="checkbox" value="' + p + '" style="width:auto;"> ' + p + "</label>")
+      .join("");
+  }
+
+  function renderRules() {
+    if (rules.length === 0) {
+      rulesList.innerHTML = '<div class="empty-state">Chưa có rule nào — mặc định không thu phí ship.</div>';
+      return;
+    }
+    rulesList.innerHTML = rules
+      .map((r) => {
+        const scope = r.provinces.length === 0 ? "Mặc định (mọi tỉnh khác)" : r.provinces.join(", ");
+        const free = r.freeShipThreshold != null ? "Miễn phí từ " + r.freeShipThreshold + "₫" : "Không miễn phí";
+        return (
+          '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
+          "<div>" +
+          "<strong>" + r.name + "</strong>" + (r.enabled ? "" : ' <span class="status-badge status-draft">Đã tắt</span>') +
+          '<div class="field-hint">' + scope + " — phí " + r.baseFee + "₫ — " + free + "</div>" +
+          "</div>" +
+          '<div style="display:flex;gap:0.5rem;">' +
+          '<button type="button" class="btn edit-btn" data-id="' + r.id + '">Sửa</button>' +
+          '<button type="button" class="btn btn-danger delete-btn" data-id="' + r.id + '">Xoá</button>' +
+          "</div></div>"
+        );
+      })
+      .join("");
+
+    rulesList.querySelectorAll(".edit-btn").forEach((btn) => {
+      btn.addEventListener("click", () => fillForm(rules.find((r) => r.id === btn.dataset.id)));
+    });
+    rulesList.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Xoá rule này?")) return;
+        const res = await fetch("/admin/api/shipping-rules/" + btn.dataset.id, { method: "DELETE" });
+        if (!res.ok) {
+          showFlash("Xoá thất bại", false);
+          return;
+        }
+        await load();
+        showFlash("Đã xoá.", true);
+      });
+    });
+  }
+
+  function fillForm(rule) {
+    ruleIdEl.value = rule.id;
+    nameEl.value = rule.name;
+    feeEl.value = rule.baseFee;
+    thresholdEl.value = rule.freeShipThreshold ?? "";
+    enabledEl.checked = rule.enabled;
+    provinceBox.querySelectorAll("input").forEach((cb) => {
+      cb.checked = rule.provinces.includes(cb.value);
+    });
+    formTitle.textContent = "Sửa rule";
+    cancelBtn.style.display = "inline-block";
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  async function load() {
+    const [provRes, ruleRes] = await Promise.all([
+      fetch("/api/provinces"),
+      fetch("/admin/api/shipping-rules"),
+    ]);
+    if (provinces.length === 0) {
+      provinces = (await provRes.json()).provinces;
+      renderProvinceCheckboxes();
+    } else {
+      await provRes.json().catch(() => {});
+    }
+    rules = (await ruleRes.json()).rules;
+    renderRules();
+  }
+
+  document.getElementById("save-btn").addEventListener("click", async () => {
+    const selectedProvinces = [...provinceBox.querySelectorAll("input:checked")].map((cb) => cb.value);
+    const payload = {
+      name: nameEl.value,
+      provinces: selectedProvinces,
+      baseFee: Number(feeEl.value) || 0,
+      freeShipThreshold: thresholdEl.value === "" ? null : Number(thresholdEl.value),
+      enabled: enabledEl.checked,
+    };
+
+    if (!payload.name) {
+      showFlash("Vui lòng nhập tên rule", false);
+      return;
+    }
+
+    const id = ruleIdEl.value;
+    const res = await fetch(id ? "/admin/api/shipping-rules/" + id : "/admin/api/shipping-rules", {
+      method: id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      showFlash("Lưu thất bại", false);
+      return;
+    }
+
+    resetForm();
+    await load();
+    showFlash("Đã lưu.", true);
+  });
+
+  cancelBtn.addEventListener("click", resetForm);
+
+  loadFulfillmentMethods();
+  load();
+})();
+</script>
+{% endblock %}

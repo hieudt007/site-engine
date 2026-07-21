@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../db.js";
 import { sendOrderToLeadbase, LeadbaseOrderError, OrderItemPayload } from "./leadbaseClient.js";
+import { buildFulfillmentNote } from "./fulfillment.js";
 
 const MAX_ORDER_AGE_HOURS = 24; // quá tuổi này coi như bỏ, cần tenant tự xử lý thủ công
 
@@ -31,8 +32,12 @@ export async function retryFailedOrders(): Promise<void> {
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         customerAddress: order.customerAddress ?? undefined,
+        customerProvince: order.customerProvince ?? undefined,
         items: order.items as unknown as OrderItemPayload[],
         total: Number(order.total),
+        shippingFee: order.shippingFee,
+        discountAmount: order.discountAmount,
+        fulfillmentNote: await buildFulfillmentNote(order),
       });
       await prisma.cartOrder.update({
         where: { id: order.id },

@@ -6,6 +6,7 @@ import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
 import { registerSession } from "./plugins/session.js";
+import { deleteOtherUserSessions } from "./services/sessionStore.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
 import { registerOAuthRoutes } from "./routes/admin/oauth.js";
 import { registerPostRoutes } from "./routes/admin/posts.js";
@@ -31,6 +32,11 @@ import { registerReviewAdminRoutes } from "./routes/admin/reviews.js";
 import { registerReviewsUiRoutes } from "./routes/admin/reviewsUi.js";
 import { registerSettingsRoutes } from "./routes/admin/settings.js";
 import { registerSettingsUiRoutes } from "./routes/admin/settingsUi.js";
+import { registerPaymentMethodRoutes } from "./routes/admin/paymentMethods.js";
+import { registerShippingRuleRoutes } from "./routes/admin/shippingRules.js";
+import { registerStoreRoutes } from "./routes/admin/stores.js";
+import { registerFulfillmentMethodRoutes } from "./routes/admin/fulfillmentMethods.js";
+import { registerCouponRoutes } from "./routes/admin/coupons.js";
 import { registerUserRoutes } from "./routes/admin/users.js";
 import { registerUsersUiRoutes } from "./routes/admin/usersUi.js";
 import { registerAgentRoutes } from "./routes/admin/agents.js";
@@ -43,6 +49,7 @@ import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
 import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
 import { registerThemeEditorUiRoutes } from "./routes/admin/themeEditorUi.js";
 import { registerThemePreviewRoutes } from "./routes/admin/themePreview.js";
+import { registerThemeInlineEditRoutes } from "./routes/admin/themeInlineEdit.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
 import { registerHomeRoutes } from "./routes/public/home.js";
@@ -51,6 +58,8 @@ import { renderNotFound } from "./services/notFoundPage.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
 import { registerPagesPublicRoutes } from "./routes/public/pages.js";
 import { registerCartRoutes } from "./routes/public/cart.js";
+import { registerVnpayRoutes } from "./routes/public/vnpay.js";
+import { registerProvincesRoutes } from "./routes/public/provinces.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
 import { registerReviewRoutes } from "./routes/public/reviews.js";
@@ -81,6 +90,58 @@ app.addContentTypeParser("application/json", { parseAs: "string" }, (request, bo
 
 app.get("/health", async () => {
   return { status: "ok" };
+});
+
+// Chan HAN TOAN chuc nang thuong mai (ca public lan admin) khi SiteConfig.siteType='blog' - vd
+// admin lo chon nham "Blog" nhung link/API cu van con duoc share/index, hoac muon dam bao 1 site
+// blog thuan khong the bi loi dung de ban hang. Prefix-match TRUOC roi moi query DB, de request
+// blog binh thuong (post/trang chu) khong ton them 1 query moi lan.
+const ECOMMERCE_PATH_PREFIXES = [
+  "/products",
+  "/cart",
+  "/order-confirmation",
+  "/payment/vnpay",
+  "/api/cart",
+  "/api/products",
+  "/api/provinces",
+  "/admin/products",
+  "/admin/product-categories",
+  "/admin/orders",
+  "/admin/reviews",
+  "/admin/settings/payment",
+  "/admin/settings/shipping",
+  "/admin/stores",
+  "/admin/coupons",
+  "/admin/api/products",
+  "/admin/api/product-categories",
+  "/admin/api/orders",
+  "/admin/api/reviews",
+  "/admin/api/payment-methods",
+  "/admin/api/shipping-rules",
+  "/admin/api/fulfillment-methods",
+  "/admin/api/stores",
+  "/admin/api/coupons",
+];
+
+function isEcommercePath(pathname: string): boolean {
+  return ECOMMERCE_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
+}
+
+app.addHook("onRequest", async (request, reply) => {
+  const pathname = request.url.split("?")[0];
+  if (!isEcommercePath(pathname)) {
+    return;
+  }
+
+  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  if (siteConfig?.siteType !== "blog") {
+    return;
+  }
+
+  if (pathname.startsWith("/admin")) {
+    return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy trang</h1>");
+  }
+  return reply.code(404).type("text/html").send(await renderNotFound());
 });
 
 // Chi bat duoc path KHONG khop bat ky route pattern nao (vd go sai URL hoan toan). "/blog/:slug"
@@ -129,6 +190,7 @@ async function start(): Promise<void> {
       request.session.set("name", user.name);
       request.session.set("role", user.role);
       await request.session.save();
+      await deleteOtherUserSessions(user.leadbaseUserId, request.session.sessionId);
       return reply.redirect("/admin");
     });
   }
@@ -158,6 +220,11 @@ async function start(): Promise<void> {
   await registerReviewsUiRoutes(app);
   await registerSettingsRoutes(app);
   await registerSettingsUiRoutes(app);
+  await registerPaymentMethodRoutes(app);
+  await registerShippingRuleRoutes(app);
+  await registerStoreRoutes(app);
+  await registerFulfillmentMethodRoutes(app);
+  await registerCouponRoutes(app);
   await registerUserRoutes(app);
   await registerUsersUiRoutes(app);
   await registerAgentRoutes(app);
@@ -170,6 +237,7 @@ async function start(): Promise<void> {
   await registerThemeChatRoutes(app);
   await registerThemeEditorUiRoutes(app);
   await registerThemePreviewRoutes(app);
+  await registerThemeInlineEditRoutes(app);
   await registerSearchRoutes(app);
   await registerPreviewRoutes(app);
   await registerHomeRoutes(app);
@@ -180,6 +248,8 @@ async function start(): Promise<void> {
   await registerProductsSyncRoutes(app);
   await registerReviewRoutes(app);
   await registerCartRoutes(app);
+  await registerVnpayRoutes(app);
+  await registerProvincesRoutes(app);
   await registerSeoRoutes(app);
 
   startOrderRetryCron();

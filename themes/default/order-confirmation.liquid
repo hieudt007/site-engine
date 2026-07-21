@@ -1,32 +1,75 @@
 {% layout "layout" %}
 {% block content %}
-<div class="text-center py-8">
-  <div class="text-4xl">✅</div>
-  <h1 class="text-2xl font-bold mt-2">Đặt hàng thành công</h1>
-  <p class="text-gray-600">Cảm ơn <strong>{{ order.customerName | escape }}</strong>, chúng tôi đã nhận được đơn hàng và sẽ liên hệ sớm.</p>
-  <p class="text-gray-400 text-sm">Mã đơn: {{ order.id }}</p>
+<div>
+  <div>✅</div>
+  <h1>Đặt hàng thành công</h1>
+  <p>Cảm ơn <strong>{{ order.customerName | escape }}</strong>, chúng tôi đã nhận được đơn hàng và sẽ liên hệ sớm.</p>
+  <p>Mã đơn: {{ order.id }}</p>
+
+  {% if order.paymentMethod == "cod" %}
+    <p>Thanh toán: khi nhận hàng (COD).</p>
+  {% elsif order.paymentMethod == "bank_transfer" %}
+    <p>Thanh toán: chuyển khoản ngân hàng.</p>
+    {% if bankInfo %}
+      <div>
+        <div>Ngân hàng: {{ bankInfo.bankName | escape }}</div>
+        <div>Số tài khoản: {{ bankInfo.accountNumber | escape }}</div>
+        <div>Chủ tài khoản: {{ bankInfo.accountHolder | escape }}</div>
+        {% if bankInfo.branch %}<div>Chi nhánh: {{ bankInfo.branch | escape }}</div>{% endif %}
+        {% if bankInfo.qrImage %}<img src="{{ bankInfo.qrImage }}" alt="QR chuyển khoản" style="max-width:200px;">{% endif %}
+      </div>
+    {% endif %}
+  {% elsif order.paymentMethod == "vnpay" %}
+    {% if order.paymentStatus == "paid" %}
+      <p>Thanh toán: đã thanh toán qua VNPay.</p>
+    {% else %}
+      <p>Thanh toán: chưa xác nhận thanh toán VNPay, vui lòng đợi ít phút hoặc liên hệ hỗ trợ nếu đã trả tiền.</p>
+    {% endif %}
+  {% endif %}
 </div>
 
-<div class="max-w-md mx-auto border border-gray-200 rounded-lg p-5">
-  <h2 class="text-base font-semibold mt-0">Chi tiết đơn hàng</h2>
+<div>
+  <h2>Chi tiết đơn hàng</h2>
   {% for item in order.items %}
-    <div class="flex justify-between py-2 border-b border-gray-100">
+    <div>
       <span>{{ item.name | escape }} × {{ item.quantity }}</span>
       <span>{{ item.price }}₫</span>
     </div>
   {% endfor %}
-  <div class="flex justify-between font-bold mt-3">
-    <span>Tổng cộng</span>
+  <div>
+    <span>Tiền hàng</span>
     <span>{{ order.total }}₫</span>
   </div>
-  <div class="mt-3 text-sm text-gray-500">
-    Giao tới: {{ order.customerAddress | default: "-" | escape }}<br>
-    SĐT: {{ order.customerPhone | escape }}
+  {% if order.discountAmount > 0 %}
+    <div>
+      <span>Giảm giá{% if order.couponCode %} ({{ order.couponCode | escape }}){% endif %}</span>
+      <span>-{{ order.discountAmount }}₫</span>
+    </div>
+  {% endif %}
+  <div>
+    <span>Phí vận chuyển</span>
+    <span>{{ order.shippingFee }}₫</span>
   </div>
+  <div>
+    <strong>Tổng thanh toán</strong>
+    <strong>{{ order.total | minus: order.discountAmount | plus: order.shippingFee }}₫</strong>
+  </div>
+
+  {% if order.fulfillmentMethod == "pickup" %}
+    {% if pickupStore %}
+      <div>Nhận tại cửa hàng: {{ pickupStore.name | escape }} - {{ pickupStore.address | escape }}</div>
+    {% endif %}
+    <div>SĐT: {{ order.customerPhone | escape }}</div>
+  {% else %}
+    <div>
+      Giao tới: {{ order.customerAddress | default: "-" | escape }}, {{ order.customerProvince | escape }}<br>
+      SĐT: {{ order.customerPhone | escape }}
+    </div>
+  {% endif %}
   {% render "custom-fields", fields: order.customFields %}
 </div>
 
-<div class="text-center mt-6">
-  <a href="/products" class="text-brand">← Tiếp tục mua sắm</a>
+<div>
+  <a href="/products">← Tiếp tục mua sắm</a>
 </div>
 {% endblock %}

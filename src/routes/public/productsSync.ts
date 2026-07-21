@@ -8,7 +8,9 @@ import { verifySiteEngineRequest } from "../../security.js";
 // duy nhất của toàn hệ thống, ký HMAC bằng Website.secret (= config.siteEngineSecret của CHÍNH
 // instance này). "create" tạo ProductCache MỚI (status mặc định 'draft', name/description/
 // imageUrls chỉ là giá trị khởi tạo — sync sau không ghi đè). "update" CHỈ đụng price/salePrice/
-// stock/leadbaseStatus/syncedAt, không đụng nội dung do website tự quản.
+// stock/leadbaseStatus/soldCount/syncedAt, không đụng nội dung do website tự quản (excerpt/
+// description/imageUrls). soldCount optional (backward-compat nếu LeadBase chưa gửi) - undefined
+// thì GIỮ NGUYÊN giá trị cũ, không reset về 0.
 //
 // "variants" (optional, cả 2 action) — sản phẩm có biến thể (LeadBase Product.has_variants).
 // Khi có mặt: set hasVariants=true + upsert từng ProductVariantCache theo leadbaseVariantId (idempotent
@@ -24,12 +26,13 @@ const variantSchema = z.object({
   status: z.string().min(1),
 });
 
-// Danh mục — LeadBase sở hữu name/slug (mirror phẳng, bỏ qua parent_id), site-engine chỉ upsert
-// theo leadbaseCategoryId rồi gán categoryId lên ProductCache. Dùng CHUNG bảng Category với danh
-// mục bài viết (type='product' ở đây) — nếu LeadBase gửi 1 category CHƯA từng có trong Category
-// thì upsert TỰ TẠO MỚI ngay (create branch dưới), khớp đúng leadbaseCategoryId lần sau. excerpt/
-// body/seo (nội dung trang danh mục, sửa ở routes/admin/productCategories.ts) KHÔNG nằm trong
-// "update" nên không bao giờ bị đồng bộ đè mất.
+// Danh mục/Thương hiệu — LeadBase sở hữu name/slug (mirror phẳng, bỏ qua parent_id), site-engine
+// chỉ upsert theo leadbaseCategoryId rồi gán categoryId/brandId lên ProductCache. Dùng CHUNG bảng
+// Category (type='product' cho danh mục, type='brand' cho thương hiệu — 2 "khoang" tách biệt,
+// leadbaseCategoryId chỉ unique THEO TỪNG type nên category id=5 và brand id=5 không đụng nhau) —
+// nếu LeadBase gửi 1 category/brand CHƯA từng có thì upsert TỰ TẠO MỚI ngay, khớp đúng
+// leadbaseCategoryId lần sau. excerpt/body/seo (nội dung trang danh mục, sửa ở
+// routes/admin/productCategories.ts) KHÔNG nằm trong "update" nên không bao giờ bị đồng bộ đè mất.
 const categorySchema = z.object({
   leadbaseCategoryId: z.string().min(1),
   name: z.string().min(1),
@@ -45,8 +48,11 @@ const syncSchema = z.discriminatedUnion("action", [
     salePrice: z.number().nullable().optional(),
     stock: z.number().nullable().optional(),
     status: z.string().min(1),
+    soldCount: z.number().int().nonnegative().optional(),
+    sku: z.string().nullable().optional(),
     variants: z.array(variantSchema).optional(),
     category: categorySchema.optional(),
+    brand: categorySchema.optional(),
   }),
   z.object({
     action: z.literal("update"),
@@ -55,25 +61,31 @@ const syncSchema = z.discriminatedUnion("action", [
     salePrice: z.number().nullable().optional(),
     stock: z.number().nullable().optional(),
     status: z.string().min(1),
+    soldCount: z.number().int().nonnegative().optional(),
+    sku: z.string().nullable().optional(),
     variants: z.array(variantSchema).optional(),
     category: categorySchema.optional(),
+    brand: categorySchema.optional(),
   }),
 ]);
 
-async function resolveCategoryId(category: z.infer<typeof categorySchema> | undefined): Promise<string | null> {
-  if (!category) {
+async function resolveTypedCategoryId(
+  type: "product" | "brand",
+  entry: z.infer<typeof categorySchema> | undefined,
+): Promise<string | null> {
+  if (!entry) {
     return null;
   }
   const upserted = await prisma.category.upsert({
-    where: { leadbaseCategoryId: category.leadbaseCategoryId },
+    where: { type_leadbaseCategoryId: { type, leadbaseCategoryId: entry.leadbaseCategoryId } },
     create: {
-      type: "product",
-      leadbaseCategoryId: category.leadbaseCategoryId,
-      name: category.name,
-      slug: category.slug,
+      type,
+      leadbaseCategoryId: entry.leadbaseCategoryId,
+      name: entry.name,
+      slug: entry.slug,
       syncedAt: new Date(),
     },
-    update: { name: category.name, slug: category.slug, syncedAt: new Date() },
+    update: { name: entry.name, slug: entry.slug, syncedAt: new Date() },
   });
   return upserted.id;
 }
@@ -123,7 +135,8 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
 
     const { leadbaseProductId } = parsed.data;
     const hasVariants = !!parsed.data.variants && parsed.data.variants.length > 0;
-    const categoryId = await resolveCategoryId(parsed.data.category);
+    const categoryId = await resolveTypedCategoryId("product", parsed.data.category);
+    const brandId = await resolveTypedCategoryId("brand", parsed.data.brand);
 
     if (parsed.data.action === "create") {
       const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId } });
@@ -136,8 +149,11 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
             salePrice: parsed.data.salePrice ?? null,
             stock: parsed.data.stock ?? null,
             leadbaseStatus: parsed.data.status,
+            ...(parsed.data.soldCount !== undefined ? { soldCount: parsed.data.soldCount } : {}),
+            ...(parsed.data.sku !== undefined ? { sku: parsed.data.sku } : {}),
             hasVariants,
             categories: { set: categoryId ? [{ id: categoryId }] : [] },
+            brandId,
             syncedAt: new Date(),
           },
         });
@@ -155,10 +171,13 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
           salePrice: parsed.data.salePrice ?? null,
           stock: parsed.data.stock ?? null,
           leadbaseStatus: parsed.data.status,
+          ...(parsed.data.soldCount !== undefined ? { soldCount: parsed.data.soldCount } : {}),
+          ...(parsed.data.sku !== undefined ? { sku: parsed.data.sku } : {}),
           imageUrls: [],
           status: "draft",
           hasVariants,
           ...(categoryId ? { categories: { connect: [{ id: categoryId }] } } : {}),
+          brandId,
         },
       });
       if (hasVariants) {
@@ -180,8 +199,11 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         salePrice: parsed.data.salePrice ?? null,
         stock: parsed.data.stock ?? null,
         leadbaseStatus: parsed.data.status,
+        ...(parsed.data.soldCount !== undefined ? { soldCount: parsed.data.soldCount } : {}),
+        ...(parsed.data.sku !== undefined ? { sku: parsed.data.sku } : {}),
         hasVariants,
         categories: { set: categoryId ? [{ id: categoryId }] : [] },
+        brandId,
         syncedAt: new Date(),
       },
     });

@@ -14,8 +14,12 @@ export interface SendOrderInput {
   customerName: string;
   customerPhone: string;
   customerAddress?: string;
+  customerProvince?: string;
   items: OrderItemPayload[];
   total: number;
+  shippingFee?: number;
+  discountAmount?: number;
+  fulfillmentNote?: string;
 }
 
 export class LeadbaseOrderError extends Error {}
@@ -34,9 +38,13 @@ export async function sendOrderToLeadbase(
       name: input.customerName,
       phone: input.customerPhone,
       address: input.customerAddress ?? null,
+      province: input.customerProvince ?? null,
     },
     items: input.items,
     total: input.total,
+    shippingFee: input.shippingFee ?? 0,
+    discount: input.discountAmount ?? 0,
+    note: input.fulfillmentNote,
   });
   const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = signSiteEngineRequest(config.siteEngineSecret, timestamp, body);

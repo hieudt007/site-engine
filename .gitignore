@@ -3,3 +3,4 @@ dist/
 .env
 *.log
 site-engine.zip
+uploads/

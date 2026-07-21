@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { customFieldsSchema } from "../../services/customFields.js";
+import { recomputeProductRatingAggregate } from "../../services/productRatingAggregate.js";
 
 const PAGE_SIZE = 20;
 
@@ -64,6 +65,7 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         where: { id: review.id },
         data: { status: "approved" },
       });
+      await recomputeProductRatingAggregate(review.productCacheId);
       return { review: updated };
     },
   );
@@ -80,6 +82,7 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         where: { id: review.id },
         data: { status: "rejected" },
       });
+      await recomputeProductRatingAggregate(review.productCacheId);
       return { review: updated };
     },
   );

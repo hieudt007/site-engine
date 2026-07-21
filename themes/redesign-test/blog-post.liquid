@@ -1,0 +1,19 @@
+{% layout "layout" %}
+{% block content %}
+<main class="bg-cream-50 min-h-screen py-16 md:py-24">
+  <article class="container mx-auto px-4 max-w-3xl fade-in-up">
+    <header class="mb-12 md:mb-16 text-center">
+      <h1 class="font-playfair text-3xl md:text-5xl lg:text-5xl text-wood-900 mb-6 leading-tight">{{ post.title }}</h1>
+      <div class="w-16 h-1 bg-wood-800 mx-auto opacity-40"></div>
+    </header>
+
+    <div class="prose-wood">
+      {{ post.body }}
+    </div>
+
+    <div class="mt-16 border-t border-wood-200 pt-8">
+      {% render "custom-fields", fields: post.customFields %}
+    </div>
+  </article>
+</main>
+{% endblock %}

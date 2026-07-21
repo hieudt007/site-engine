@@ -27,6 +27,23 @@ model SiteConfig {
   businessLicense String? // "Số ĐKKD" — TBD bắt buộc hay không
   defaultOgImage  String?
 
+  // 'blog' | 'ecommerce' - chan HAN toan bo route thuong mai (public: /products,/cart,
+  // /payment/vnpay,/api/cart/*,/api/products/sync; admin: /admin/products,/admin/orders,
+  // /admin/settings/payment,/admin/settings/shipping,/admin/stores,/admin/coupons,...) khi
+  // 'blog' - xem server.ts onRequest hook. Mac dinh 'ecommerce' de KHONG lam gay cac site dang
+  // chay that da co san (migration them cot voi default nay, khong can backfill).
+  siteType String @default("ecommerce")
+
+  // Tracking pixel - chen thang vao HTML sau khi render (themeRenderer.ts injectAnalytics),
+  // GIONG CACH schema.org dang lam (theme-agnostic, khong theme/AI nao can biet field nay ton
+  // tai). gaId/fbPixelId chi can dan ID, tu build dung snippet script chuan. customHeadScript la
+  // HTML/JS THO admin tu dan (vd TikTok Pixel, Hotjar...) - CHEN NGUYEN VAN khong escape, chap
+  // nhan rui ro vi day la field CHI admin (da co toan quyen DB) moi sua duoc, khong phai input
+  // khach hang.
+  gaId              String?
+  fbPixelId         String?
+  customHeadScript  String?
+
   updatedAt DateTime @updatedAt
 }
 
@@ -55,6 +72,12 @@ model Session {
   id        String   @id
   data      String // JSON: { userId, email, permissions }
   expiresAt DateTime
+  // Trich tu chinh "data" luc ghi (services/sessionStore.ts) - cho phep tra "cac session KHAC
+  // cua user nay" de xoa khi dang nhap lai (1 tai khoan chi dang nhap 1 thiet bi, giong
+  // UserSessionService::keepOnlyCurrentSession() ben lead-base). Null cho session chua dang nhap.
+  userId Int?
+
+  @@index([userId])
 }
 
 // Lịch sử thao tác — trả lời "ai đã làm gì, lúc nào" cho các hành động nhạy cảm (xuất bản,
@@ -108,18 +131,23 @@ model Revision {
 // danh mục sản phẩm dù LeadBase không gửi cây phân cấp (site tự quản cha/con riêng ở đây).
 model Category {
   id       String     @id @default(cuid())
-  type     String     @default("post") // 'post' | 'product'
+  // 'post' | 'product' | 'brand' - 'brand' CHI ap dung cho ProductCache (xem ProductCache.brand
+  // duoi, relation rieng "ProductBrand" - khac "products" ben duoi la danh muc thuong).
+  type     String     @default("post")
   name     String
   slug     String
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children Category[] @relation("CategoryHierarchy")
 
-  // Chỉ có giá trị khi type='product' — LeadBase sở hữu, đồng bộ mỗi lần sync sản phẩm.
-  leadbaseCategoryId String?   @unique
+  // Chi co gia tri khi type='product'/'brand' - LeadBase so huu, dong bo moi lan sync san pham.
+  // Unique THEO TUNG type (khong phai toan bang) - vi id danh muc va id thuong hieu ben LeadBase
+  // la 2 khong gian id KHAC NHAU (co the trung so, vd category id=5 va brand id=5 la 2 thu khac
+  // nhau), gop chung 1 cot unique se gay upsert nham hang.
+  leadbaseCategoryId String?
   syncedAt           DateTime?
 
-  // Nội dung trang danh mục — site tự quản, áp dụng cho CẢ 2 type.
+  // Nội dung trang danh mục — site tự quản, áp dụng cho CẢ 3 type.
   excerpt String?
   body    String?
   seo     Json? // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
@@ -131,10 +159,12 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  posts    Post[]
-  products ProductCache[]
+  posts        Post[]
+  products     ProductCache[]
+  brandProducts ProductCache[] @relation("ProductBrand")
 
   @@unique([type, slug])
+  @@unique([type, leadbaseCategoryId])
 }
 
 // Chủ đề bài viết — KHÁC Category ở chỗ 1 bài chỉ thuộc ĐÚNG 1 topic (Post.topicId, quan hệ
@@ -269,9 +299,17 @@ model ProductCache {
   salePrice      Decimal?
   stock          Int?
   leadbaseStatus String // giá trị đồng bộ nguyên văn từ LeadBase — enum cụ thể TBD
+  // Luot ban - LeadBase tu cong don tu OrderItem luc don hoan tat, day sang moi lan doi (giong
+  // price/stock, khong phai site tu tinh). Mac dinh 0 (san pham moi tao, chua co don nao).
+  soldCount      Int    @default(0)
+  // Ma san pham - LeadBase so huu (Product.sku), chi de HIEN THI/tra cuu, khong dung lam khoa gi.
+  sku            String?
 
   // --- Do CHÍNH website tự quản, LeadBase chỉ set giá trị khởi tạo lúc tạo mới, không ghi đè sau đó ---
   name        String
+  // Mo ta ngan hien o trang danh sach - cung y nghia voi Post.excerpt (xem docblock o do).
+  // LeadBase KHONG gui truong nay (site tu viet/sua qua /admin/products), khac description ben duoi.
+  excerpt     String?
   // Khi layoutMode='standard': plain text, render escape+newline_to_br (KHONG phai HTML). Khi
   // 'custom'/'landing': HTML THO, render RAW khong escape/sanitize - xem Post.layoutMode o tren
   // cho day du ly do thiet ke.
@@ -296,6 +334,13 @@ model ProductCache {
 
   syncedAt DateTime @default(now()) // lần cuối nhận được cú đẩy từ LeadBase
 
+  // Denormalize tu ProductReview (status='approved') - tranh phai JOIN/aggregate lai moi lan hien
+  // trang danh sach/danh muc (N+1 neu tinh rieng tung san pham). Site TU tinh lai (KHONG phai
+  // LeadBase gui) moi khi 1 review duoc duyet/tu choi (routes/admin/reviews.ts recomputeProductRatingAggregate) -
+  // KHONG tinh luc tao review (luon tao o "pending", chua anh huong so nay).
+  reviewCount Int   @default(0)
+  avgRating   Float?
+
   // Sản phẩm có biến thể (màu/size...) — LeadBase Product.has_variants. Khi true, price/salePrice/
   // stock ở TRÊN vẫn giữ (= giá thấp nhất/tổng tồn, LeadBase tự tính) để chỗ nào chưa biết variant
   // vẫn hiển thị được số hợp lý — nhưng nguồn thật cho khách CHỌN mua là bảng variants dưới đây.
@@ -306,6 +351,13 @@ model ProductCache {
   // Nhiều-nhiều (xem Category) — sync (productsSync.ts) chỉ gán ĐÚNG 1 category LeadBase gửi mỗi
   // lần, nhưng quan hệ nhiều-nhiều để sau này site tự gắn thêm category phụ nếu cần.
   categories Category[]
+
+  // Thuong hieu - 1-nhieu (1 san pham dung 1 thuong hieu, khac categories la nhieu-nhieu) - dung
+  // CHUNG bang Category voi type='brand' (thay vi tao model rieng) de tai su dung san CRUD/trang
+  // danh muc + logic sync category da co. relation dat ten "ProductBrand" de phan biet voi
+  // "categories" (Prisma bat buoc dat ten khi 1 model co >1 quan he toi cung 1 model dich).
+  brandId String?
+  brand   Category? @relation("ProductBrand", fields: [brandId], references: [id])
 
   reviews ProductReview[]
 }
@@ -361,6 +413,37 @@ model CartOrder {
   leadbaseOrderCode String?
   sendError         String?
 
+  // Thanh toan (system_design.md §payment) - 'cod'|'bank_transfer'|'vnpay', khop key trong bang
+  // PaymentMethod.method. cod/bank_transfer khong dung gateway nao - paymentStatus giu nguyen
+  // 'unpaid' mai mai, xac nhan da nhan tien la viec THU CONG ben LeadBase (giong cach Order that
+  // van duoc quan ly o do), site-engine chi hien thi thong tin. vnpay: paymentStatus chi chuyen
+  // 'paid' qua IPN (routes/public/vnpay.ts) - KHONG qua vnp_ReturnUrl (browser return khong dang
+  // tin cay de chot da thanh toan that, xem services/vnpay.ts).
+  paymentMethod String  @default("cod")
+  paymentStatus String  @default("unpaid") // 'unpaid' | 'paid' | 'failed'
+  vnpayTxnRef   String? @unique
+  paidAt        DateTime?
+
+  // Phi van chuyen (khop ShippingRule ben duoi). customerProvince BAT BUOC nhap luc checkout (khac
+  // customerAddress tu do) de co the khop rule theo tinh - LeadBase da co san cot Customer.province
+  // tuong tu nen truyen thang qua, khong can chuan hoa lai o site-engine. "total" giu nguyen =
+  // tien HANG (khong doi, van gui LeadBase dung nhu truoc), shippingFee tach rieng.
+  customerProvince String?
+  shippingFee      Int     @default(0)
+
+  // Hinh thuc nhan hang - 'delivery' (giao tan noi, dung shippingFee/customerProvince nhu tren)
+  // hoac 'pickup' (nhan tai cua hang, khong tinh phi ship, customerProvince khong bat buoc).
+  // storeId chi co gia tri khi fulfillmentMethod='pickup'.
+  fulfillmentMethod String  @default("delivery")
+  storeId           String?
+  store             Store?  @relation(fields: [storeId], references: [id])
+
+  // Coupon (neu khach co ap ma luc checkout) - luu lai ma + so tien da giam de doi chieu sau nay,
+  // KHONG luu quan he @relation toi Coupon (ma co the bi admin xoa sau, khong nen chan xoa vi don
+  // cu con tham chieu - luu ma dang string doc lap).
+  couponCode     String?
+  discountAmount Int     @default(0)
+
   // Truong tuy bien do KHACH tu dien luc checkout - vd them 1 input "SDT phu" vao form o
   // cart.liquid/product-detail.liquid (khong can migration moi lan them field). Khac
   // customFields cua Post/Category/... (do ADMIN tu dat) - o day nguon la CHINH KHACH nhap qua
@@ -370,6 +453,76 @@ model CartOrder {
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+}
+
+// Danh sach phuong thuc thanh toan CO THE bat/tat + cau hinh ngay tren admin UI (Settings ->
+// Thanh toan), KHONG can sua .env/SSH vao VPS - moi tenant tu dan API key/thong tin ngan hang cua
+// ho. "config" la Json rieng theo tung method (vd bank_transfer: {bankName,accountNumber,...},
+// vnpay: {tmnCode,hashSecret,sandbox}) - them method moi (MoMo, ZaloPay...) sau nay chi la 1 row
+// moi voi config rieng, KHONG can migration. "hashSecret" cua vnpay luu PLAINTEXT trong config -
+// giong cach Tenant.gatewaySecret ben chatbot-lite dang luu, khong ma hoa rieng.
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  method    String   @unique // 'cod' | 'bank_transfer' | 'vnpay'
+  enabled   Boolean  @default(false)
+  config    Json?
+  updatedAt DateTime @updatedAt
+}
+
+// Bang phi ship - admin tu tao rule qua UI (Settings -> Van chuyen), khong hard-code. "provinces"
+// RONG = rule mac dinh/fallback (ap dung cho tinh khong khop rule cu the nao khac) - vd tao 1 rule
+// "HN & TP HCM" voi provinces=["Ha Noi","TP. Ho Chi Minh"] + 1 rule mac dinh provinces=[] cho phan
+// con lai. Khong dung field "priority" rieng - rule co provinces cu the LUON duoc uu tien hon rule
+// fallback (services/shipping.ts tu xu ly thu tu nay, khong can them cot).
+model ShippingRule {
+  id                String   @id @default(cuid())
+  name              String
+  provinces         String[] // [] = rule mac dinh/fallback
+  baseFee           Int
+  freeShipThreshold Int? // null = khong bao gio free ship theo tong don
+  enabled           Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
+
+// Bat/tat 2 hinh thuc nhan hang o muc TOAN HE THONG (giong PaymentMethod) - vd tenant chi ban tai
+// cua hang thi tat 'delivery', hoac chua co cua hang nao thi tat 'pickup'.
+model FulfillmentMethod {
+  id        String   @id @default(cuid())
+  method    String   @unique // 'delivery' | 'pickup'
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+}
+
+// Danh sach cua hang cho khach chon nhan tai cho (fulfillmentMethod='pickup') - admin tu khai bao
+// qua /admin/stores, KHONG gioi han so luong nhu PaymentMethod (day la thuc the that, co the
+// them/xoa tuy y).
+model Store {
+  id        String      @id @default(cuid())
+  name      String
+  address   String
+  province  String?
+  phone     String?
+  enabled   Boolean     @default(true)
+  updatedAt DateTime    @updatedAt
+  orders    CartOrder[]
+}
+
+// Ma giam gia - admin tu tao qua /admin/coupons. "usedCount" tang moi khi 1 don CHECKOUT thanh
+// cong ap dung ma nay (tang luc TAO don, khong doi thanh toan xong - giong cach shippingFee/total
+// da tinh luc tao don, chap nhan don vnpay bi bo do van tinh 1 luot dung, tranh phai lam co che
+// "tra lai luot" phuc tap cho 1 tinh huong hiem).
+model Coupon {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  discountType  String // 'percent' | 'fixed'
+  discountValue Int // percent: 1-100, fixed: so tien VND
+  minOrderTotal Int       @default(0)
+  maxUses       Int? // null = khong gioi han
+  usedCount     Int       @default(0)
+  expiresAt     DateTime?
+  enabled       Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 // Tài khoản KHÁCH MUA HÀNG (đăng nhập phone+OTP) — khác hoàn toàn Session ở trên.
@@ -431,6 +584,12 @@ model ThemeChatMessage {
   // (khong phai duong dan tuong doi /uploads/...) vi AI goi qua API se tu tai anh, can URL
   // truy cap duoc tu ben ngoai. Chi 'user' message moi co the co gia tri nay.
   imageUrl  String?
+  // Chi co gia tri tren 1 tin nhan 'assistant' dang la DE XUAT thiet ke lai TOAN BO 18 trang, cho
+  // AI tong hop day du (phong cach + tinh nang giu/them/bot), CHO admin xac nhan - null nghia la
+  // khong phai de xuat cho xac nhan. Nut "Xac nhan" tren UI (giong Plan Mode) chi hien khi day la
+  // tin nhan MOI NHAT va co gia tri nay - bam vao se goi thang pipeline sua 18 file, KHONG qua lai
+  // AI phan loai (xem routes/admin/themeChat.ts, endpoint /chat/confirm-redesign).
+  redesignBrief String?
   createdAt DateTime @default(now())
 
   @@index([slug, createdAt])
@@ -445,6 +604,11 @@ model Media {
   url              String // /uploads/{uuid}.{ext} — dùng thẳng trong coverImage/imageUrls/body
   mimeType         String
   size             Int // bytes
+  // Thuoc tinh alt cho <img> - admin tu nhap sau khi upload (routes/admin/media.ts PATCH), tu dong
+  // do vao the <img> o nhung noi chon anh qua Media picker dung chung (views/admin/layout.liquid
+  // openMediaPicker) - xem tung noi goi de biet co dung hay khong (vd danh sach URL rời rac nhu
+  // Product.imageUrls thi khong gan duoc, chi noi thao tac truc tiep 1 the <img> moi dung).
+  alt              String?
   uploadedByUserId Int?
   uploadedBy       User? @relation(fields: [uploadedByUserId], references: [leadbaseUserId])
   createdAt        DateTime @default(now())

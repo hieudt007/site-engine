@@ -9,9 +9,9 @@
       {% if headerMenu and headerMenu.items.size > 0 %}
         {% for item in headerMenu.items %}<a href="{{ item.url }}" class="text-stone-600 hover:text-brand">{{ item.label | escape }}</a>{% endfor %}
       {% else %}
-        <a href="/products" class="text-stone-600 hover:text-brand">Sản phẩm</a>
+        {% if site.siteType != "blog" %}<a href="/products" class="text-stone-600 hover:text-brand">Sản phẩm</a>{% endif %}
         <a href="/blog" class="text-stone-600 hover:text-brand">Blog</a>
-        <a href="/cart" class="text-stone-600 hover:text-brand">Giỏ hàng</a>
+        {% if site.siteType != "blog" %}<a href="/cart" class="text-stone-600 hover:text-brand">Giỏ hàng</a>{% endif %}
       {% endif %}
     </nav>
   </div>

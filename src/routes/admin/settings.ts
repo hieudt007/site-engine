@@ -24,6 +24,10 @@ const updateSettingsSchema = z.object({
     .optional(),
   businessLicense: z.string().optional(),
   defaultOgImage: z.string().optional(),
+  siteType: z.enum(["blog", "ecommerce"]).optional(),
+  gaId: z.string().optional(),
+  fbPixelId: z.string().optional(),
+  customHeadScript: z.string().optional(),
 });
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {

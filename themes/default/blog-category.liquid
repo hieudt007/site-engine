@@ -1,44 +1,44 @@
 {% layout "layout" %}
 {% block content %}
-<a href="/blog" class="text-gray-500 text-sm no-underline">← Tất cả bài viết</a>
+<a href="/blog">← Tất cả bài viết</a>
 
-<h1 class="text-2xl font-bold mt-2 mb-1">{{ category.name | escape }}</h1>
-{% if category.excerpt %}<p class="text-gray-600">{{ category.excerpt | escape }}</p>{% endif %}
-{% if category.body %}<div class="leading-relaxed mb-6">{{ category.body }}</div>{% endif %}
+<h1>{{ category.name | escape }}</h1>
+{% if category.excerpt %}<p>{{ category.excerpt | escape }}</p>{% endif %}
+{% if category.body %}<div>{{ category.body }}</div>{% endif %}
 {% render "custom-fields", fields: category.customFields %}
 
 {% if category.children.size > 0 %}
-  <div class="flex flex-wrap gap-2 mb-6">
+  <div>
     {% for child in category.children %}
-      <a href="/blog/danh-muc/{{ child.slug }}" class="text-sm px-3 py-1 border border-gray-200 rounded-full no-underline text-gray-700 hover:border-brand hover:text-brand">{{ child.name | escape }}</a>
+      <a href="/blog/danh-muc/{{ child.slug }}">{{ child.name | escape }}</a>
     {% endfor %}
   </div>
 {% endif %}
 
 {% if posts.size == 0 %}
-  <p class="text-gray-500">Chưa có bài viết nào trong danh mục này.</p>
+  <p>Chưa có bài viết nào trong danh mục này.</p>
 {% else %}
-  <div class="flex flex-col gap-8 mt-6">
+  <div>
     {% for post in posts %}
-      <article class="border-b border-gray-200 pb-8">
+      <article>
         {% if post.coverImage %}
           <a href="/blog/{{ post.slug }}">
-            <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full max-h-72 object-cover rounded-lg mb-3">
+            <img src="{{ post.coverImage }}" alt="{{ post.title }}">
           </a>
         {% endif %}
-        <h2 class="text-xl font-semibold mb-1">
-          <a href="/blog/{{ post.slug }}" class="text-gray-900 no-underline hover:text-brand">{{ post.title | escape }}</a>
+        <h2>
+          <a href="/blog/{{ post.slug }}">{{ post.title | escape }}</a>
         </h2>
-        <div class="text-gray-400 text-sm mb-2">{{ post.publishedAt | date: "%d/%m/%Y" }}</div>
-        {% if post.excerpt %}<p class="text-gray-600">{{ post.excerpt | escape }}</p>{% endif %}
-        <a href="/blog/{{ post.slug }}" class="text-brand text-sm font-medium">Đọc tiếp →</a>
+        <div>{{ post.publishedAt | date: "%d/%m/%Y" }}</div>
+        {% if post.excerpt %}<p>{{ post.excerpt | escape }}</p>{% endif %}
+        <a href="/blog/{{ post.slug }}">Đọc tiếp →</a>
       </article>
     {% endfor %}
   </div>
 
-  <div class="flex justify-between mt-8 text-sm">
-    {% if hasPrev %}<a href="/blog/danh-muc/{{ category.slug }}?page={{ prevPage }}" class="text-brand">← Trang trước</a>{% else %}<span></span>{% endif %}
-    {% if hasNext %}<a href="/blog/danh-muc/{{ category.slug }}?page={{ nextPage }}" class="text-brand">Trang sau →</a>{% endif %}
+  <div>
+    {% if hasPrev %}<a href="/blog/danh-muc/{{ category.slug }}?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="/blog/danh-muc/{{ category.slug }}?page={{ nextPage }}">Trang sau →</a>{% endif %}
   </div>
 {% endif %}
 {% endblock %}

@@ -23,6 +23,7 @@ const seoSchema = z
 
 const updateContentSchema = z.object({
   name: z.string().min(1).optional(),
+  excerpt: z.string().optional(),
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
   layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
@@ -148,6 +149,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
 
       const snapshot = revision.data as {
         name: string;
+        excerpt?: string | null;
         description: string | null;
         imageUrls: string[];
         seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
@@ -160,6 +162,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         product.id,
         {
           name: product.name,
+          excerpt: product.excerpt,
           description: product.description,
           imageUrls: product.imageUrls,
           seo: product.seo,

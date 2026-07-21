@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { Agent } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { THEME_FILE_CONTRACTS, THEME_ASSET_FILES, THEME_BUNDLE_OUTPUTS, pageGroupKey } from "../../services/themeContract.js";
@@ -46,6 +47,126 @@ async function withHeartbeat<T>(reply: import("fastify").FastifyReply, task: Pro
   } finally {
     clearInterval(timer);
   }
+}
+
+// Vong lap sua file THAT SU (nhom theo trang, chay TUAN TU, retry-validate, cap nhat THEME.md,
+// stream tien trinh) - dung chung cho CA 2 duong vao: (1) chat thuong khi classify tra MODE=edit
+// (validFiles = AI tu chon) hoac MODE=redesign (validFiles = TOAN BO 54 file, message = brief da
+// tong hop), (2) nut "Xac nhan" bam thang tu de xuat redesign (routes /chat/confirm-redesign),
+// KHONG qua lai AI phan loai - validFiles/message da co san tu tin nhan de xuat truoc do.
+async function runFileEditPipeline(
+  reply: import("fastify").FastifyReply,
+  agent: Agent,
+  slug: string,
+  themeMdInitial: string,
+  validFiles: string[],
+  message: string,
+  classifiedReply: string,
+  imageUrl: string | undefined,
+): Promise<void> {
+  const groups = new Map<string, string[]>();
+  for (const file of validFiles) {
+    const key = pageGroupKey(file);
+    const list = groups.get(key) ?? [];
+    list.push(file);
+    groups.set(key, list);
+  }
+  const groupEntries = [...groups.entries()];
+  sseWrite(reply, { step: "files", label: `Sẽ sửa: ${validFiles.join(", ")}`, files: validFiles, groups: groupEntries.length });
+  // Danh sach buoc (theo dung thu tu se chay TUAN TU) de frontend biet truoc TOAN BO ke hoach -
+  // frontend tu quyet dinh hien timeline (>=3 buoc) hay 1 dong trang thai ghi de (<3 buoc).
+  sseWrite(reply, { step: "plan", tasks: groupEntries.map(([groupKey]) => groupKey) });
+
+  const allResults: EditFileResult[] = [];
+  const changeNotes: string[] = [];
+  let assetsChanged = false;
+  let currentThemeMd = themeMdInitial;
+  let aiSummary: string | null = null;
+
+  for (let i = 0; i < groupEntries.length; i++) {
+    const [groupKey, groupFiles] = groupEntries[i];
+    const isLastGroup = i === groupEntries.length - 1;
+    sseWrite(reply, { step: "group_start", group: groupKey, index: i, total: groupEntries.length, label: `AI đang sửa "${groupKey}"...` });
+
+    try {
+      const fileContents: Record<string, string> = {};
+      for (const file of groupFiles) {
+        const filePath = path.join(THEMES_ROOT, slug, file);
+        const content = await fs.readFile(filePath, "utf-8").catch(() => "");
+        fileContents[file] = content; // rong neu file nguon CSS/JS chua tung duoc tao - van hop le
+      }
+
+      const groupResult = await withHeartbeat(
+        reply,
+        editThemeFiles(agent, buildEditThemeMemory(currentThemeMd), message, classifiedReply, fileContents, isLastGroup, changeNotes, imageUrl),
+      );
+
+      for (const result of groupResult.files) {
+        allResults.push(result);
+        if (result.skipped) continue;
+        if (result.ok && result.content !== undefined) {
+          const filePath = path.join(THEMES_ROOT, slug, result.file);
+          await fs.mkdir(path.dirname(filePath), { recursive: true }); // assets/sources/ co the chua ton tai
+          await fs.writeFile(filePath, result.content, "utf-8");
+          if (result.file.startsWith("assets/sources/")) assetsChanged = true;
+        }
+        sseWrite(reply, { step: "validating", file: result.file, ok: result.ok, errors: result.errors });
+      }
+
+      if (groupResult.changeNote) changeNotes.push(groupResult.changeNote);
+      if (isLastGroup && groupResult.summary) aiSummary = groupResult.summary;
+
+      if (groupResult.memoryUpdate) {
+        await updateAppliedSection(slug, groupResult.memoryUpdate);
+        currentThemeMd = await readThemeMd(slug);
+      }
+
+      const groupFailed = groupResult.files.some((r) => !r.ok);
+      sseWrite(reply, { step: "group_done", group: groupKey, index: i, ok: !groupFailed });
+    } catch (groupErr) {
+      // 1 nhom loi (vd API mang) KHONG duoc lam mat tien trinh cac nhom da xong truoc do - ghi
+      // nhan loi cho dung nhom nay, cac nhom con lai (neu co) van tiep tuc chay binh thuong.
+      for (const file of groupFiles) {
+        allResults.push({ file, ok: false, errors: [(groupErr as Error).message] });
+      }
+      sseWrite(reply, { step: "validating", file: groupKey, ok: false, errors: [(groupErr as Error).message] });
+      sseWrite(reply, { step: "group_done", group: groupKey, index: i, ok: false });
+    }
+  }
+
+  if (assetsChanged) {
+    sseWrite(reply, { step: "bundling", label: "Đang gộp lại CSS/JS..." });
+    await rebuildThemeAssets(slug);
+  }
+
+  const okFiles = allResults.filter((r) => r.ok && !r.skipped).map((r) => r.file);
+  const failedFiles = allResults.filter((r) => !r.ok);
+
+  // AI tu tong hop (SUMMARY cua nhom cuoi) la uu tien - chi dung khi THUC SU co (nhom cuoi
+  // khong loi va AI khong quen viet). Neu khong, ve ban tom tat co hoc lam luoi an toan, luon
+  // co ket qua du xay ra gi.
+  let summary = aiSummary;
+  if (!summary) {
+    const summaryParts = [];
+    if (okFiles.length) summaryParts.push(`Đã sửa xong: ${okFiles.join(", ")}.`);
+    if (failedFiles.length) {
+      summaryParts.push(
+        `Không sửa được: ${failedFiles.map((f) => `${f.file} (${f.errors.join("; ")})`).join("; ")} — giữ nguyên bản cũ.`,
+      );
+    }
+    if (!okFiles.length && !failedFiles.length) {
+      summaryParts.push("Kiểm tra kỹ nhưng thấy các file liên quan chưa cần đổi gì.");
+    }
+    summary = summaryParts.join(" ");
+  } else if (failedFiles.length) {
+    // Van giu bao loi ky thuat rieng ngay ca khi da co SUMMARY tu AI (SUMMARY co the khong
+    // biet het cac nhom khac bi loi do than no cung la 1 nhom co the bi loi).
+    summary += ` (Không sửa được: ${failedFiles.map((f) => f.file).join(", ")} — giữ nguyên bản cũ.)`;
+  }
+
+  await prisma.themeChatMessage.create({ data: { slug, role: "assistant", content: summary } });
+  sseWrite(reply, { step: "done", mode: "edit", reply: summary, files: allResults });
+  reply.raw.end();
 }
 
 // Chat editor AI cho theme da tao (chi CustomTheme agent-generated, giong dieu kien cua "Sua tung
@@ -137,13 +258,24 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       }
 
       if (classified.mode === "chat") {
-        await prisma.themeChatMessage.create({ data: { slug, role: "assistant", content: classified.reply } });
-        sseWrite(reply, { step: "done", mode: "chat", reply: classified.reply });
+        // redesignBrief co gia tri o day nghia la AI dang O BUOC DE XUAT thiet ke lai toan site,
+        // cho xac nhan (chua lam gi ca) - luu kem brief de nut "Xac nhan" (hoac lan chat sau, neu
+        // admin go "dong y" bang tay) co du du lieu de chay thang khong can hoi lai.
+        await prisma.themeChatMessage.create({
+          data: { slug, role: "assistant", content: classified.reply, redesignBrief: classified.redesignBrief },
+        });
+        sseWrite(reply, {
+          step: "done",
+          mode: "chat",
+          reply: classified.reply,
+          needsRedesignConfirm: Boolean(classified.redesignBrief),
+        });
         reply.raw.end();
         return;
       }
 
-      const validFiles = classified.files.filter((f) => SELECTABLE_FILES.has(f));
+      const isRedesign = classified.mode === "redesign";
+      const validFiles = isRedesign ? [...SELECTABLE_FILES] : classified.files.filter((f) => SELECTABLE_FILES.has(f));
       if (!validFiles.length) {
         const fallback = "Xin lỗi, tôi chưa xác định được cần sửa file nào — bạn nói rõ hơn giúp tôi nhé.";
         await prisma.themeChatMessage.create({ data: { slug, role: "assistant", content: fallback } });
@@ -151,6 +283,10 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         reply.raw.end();
         return;
       }
+      // MODE=redesign dung brief AI vua tong hop (day du hon tin nhan "dong y" ngan gon cua admin)
+      // lam noi dung chinh gui cho tung nhom sua file - fallback ve message goc neu vi ly do gi do
+      // AI quen dien REDESIGN_BRIEF.
+      const effectiveMessage = isRedesign ? (classified.redesignBrief ?? message) : message;
 
       // Reply cua lan goi 1 (classify) chi hien TAM THOI tren frontend (bao "da hieu yeu cau, dang
       // lam") - KHONG luu vao lich su chat, vi tin tom tat that su (SUMMARY cua nhom cuoi, hoac ban
@@ -162,112 +298,53 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       // nhom, cap nhat ngay THEME.md ("Da ap dung") roi doc lai truoc khi sang nhom tiep theo, de
       // nhom sau biet nhom truoc vua doi gi (tranh MEMORY_UPDATE cua nhom sau ghi de mat thong tin
       // nhom truoc).
-      const groups = new Map<string, string[]>();
-      for (const file of validFiles) {
-        const key = pageGroupKey(file);
-        const list = groups.get(key) ?? [];
-        list.push(file);
-        groups.set(key, list);
-      }
-      const groupEntries = [...groups.entries()];
-      sseWrite(reply, { step: "files", label: `Sẽ sửa: ${validFiles.join(", ")}`, files: validFiles, groups: groupEntries.length });
-      // Danh sach buoc (theo dung thu tu se chay TUAN TU) de frontend biet truoc TOAN BO ke hoach -
-      // frontend tu quyet dinh hien timeline (>=3 buoc) hay 1 dong trang thai ghi de (<3 buoc).
-      sseWrite(reply, { step: "plan", tasks: groupEntries.map(([groupKey]) => groupKey) });
-
-      const allResults: EditFileResult[] = [];
-      const changeNotes: string[] = [];
-      let assetsChanged = false;
-      let currentThemeMd = themeMd;
-      let aiSummary: string | null = null;
-
-      for (let i = 0; i < groupEntries.length; i++) {
-        const [groupKey, groupFiles] = groupEntries[i];
-        const isLastGroup = i === groupEntries.length - 1;
-        sseWrite(reply, { step: "group_start", group: groupKey, index: i, total: groupEntries.length, label: `AI đang sửa "${groupKey}"...` });
-
-        try {
-          const fileContents: Record<string, string> = {};
-          for (const file of groupFiles) {
-            const filePath = path.join(THEMES_ROOT, slug, file);
-            const content = await fs.readFile(filePath, "utf-8").catch(() => "");
-            fileContents[file] = content; // rong neu file nguon CSS/JS chua tung duoc tao - van hop le
-          }
-
-          const groupResult = await withHeartbeat(
-            reply,
-            editThemeFiles(agent, buildEditThemeMemory(currentThemeMd), message, classified.reply, fileContents, isLastGroup, changeNotes, imageUrl),
-          );
-
-          for (const result of groupResult.files) {
-            allResults.push(result);
-            if (result.skipped) continue;
-            if (result.ok && result.content !== undefined) {
-              const filePath = path.join(THEMES_ROOT, slug, result.file);
-              await fs.mkdir(path.dirname(filePath), { recursive: true }); // assets/sources/ co the chua ton tai
-              await fs.writeFile(filePath, result.content, "utf-8");
-              if (result.file.startsWith("assets/sources/")) assetsChanged = true;
-            }
-            sseWrite(reply, { step: "validating", file: result.file, ok: result.ok, errors: result.errors });
-          }
-
-          if (groupResult.changeNote) changeNotes.push(groupResult.changeNote);
-          if (isLastGroup && groupResult.summary) aiSummary = groupResult.summary;
-
-          if (groupResult.memoryUpdate) {
-            await updateAppliedSection(slug, groupResult.memoryUpdate);
-            currentThemeMd = await readThemeMd(slug);
-          }
-
-          const groupFailed = groupResult.files.some((r) => !r.ok);
-          sseWrite(reply, { step: "group_done", group: groupKey, index: i, ok: !groupFailed });
-        } catch (groupErr) {
-          // 1 nhom loi (vd API mang) KHONG duoc lam mat tien trinh cac nhom da xong truoc do - ghi
-          // nhan loi cho dung nhom nay, cac nhom con lai (neu co) van tiep tuc chay binh thuong.
-          for (const file of groupFiles) {
-            allResults.push({ file, ok: false, errors: [(groupErr as Error).message] });
-          }
-          sseWrite(reply, { step: "validating", file: groupKey, ok: false, errors: [(groupErr as Error).message] });
-          sseWrite(reply, { step: "group_done", group: groupKey, index: i, ok: false });
-        }
-      }
-
-      if (assetsChanged) {
-        sseWrite(reply, { step: "bundling", label: "Đang gộp lại CSS/JS..." });
-        await rebuildThemeAssets(slug);
-      }
-
-      const okFiles = allResults.filter((r) => r.ok && !r.skipped).map((r) => r.file);
-      const failedFiles = allResults.filter((r) => !r.ok);
-
-      // AI tu tong hop (SUMMARY cua nhom cuoi) la uu tien - chi dung khi THUC SU co (nhom cuoi
-      // khong loi va AI khong quen viet). Neu khong, ve ban tom tat co hoc lam luoi an toan, luon
-      // co ket qua du xay ra gi.
-      let summary = aiSummary;
-      if (!summary) {
-        const summaryParts = [];
-        if (okFiles.length) summaryParts.push(`Đã sửa xong: ${okFiles.join(", ")}.`);
-        if (failedFiles.length) {
-          summaryParts.push(
-            `Không sửa được: ${failedFiles.map((f) => `${f.file} (${f.errors.join("; ")})`).join("; ")} — giữ nguyên bản cũ.`,
-          );
-        }
-        if (!okFiles.length && !failedFiles.length) {
-          summaryParts.push("Kiểm tra kỹ nhưng thấy các file liên quan chưa cần đổi gì.");
-        }
-        summary = summaryParts.join(" ");
-      } else if (failedFiles.length) {
-        // Van giu bao loi ky thuat rieng ngay ca khi da co SUMMARY tu AI (SUMMARY co the khong
-        // biet het cac nhom khac bi loi do than no cung la 1 nhom co the bi loi).
-        summary += ` (Không sửa được: ${failedFiles.map((f) => f.file).join(", ")} — giữ nguyên bản cũ.)`;
-      }
-
-      await prisma.themeChatMessage.create({ data: { slug, role: "assistant", content: summary } });
-      sseWrite(reply, { step: "done", mode: "edit", reply: summary, files: allResults });
-      reply.raw.end();
+      await runFileEditPipeline(reply, agent, slug, themeMd, validFiles, effectiveMessage, classified.reply, imageUrl);
     } catch (err) {
       sseWrite(reply, { step: "error", label: (err as Error).message });
       reply.raw.end();
     }
   });
+
+  // Nut "Xac nhan" (giong Plan Mode) tren UI bam thang vao day - KHONG qua lai AI phan loai, chay
+  // thang pipeline sua ca 18 trang bang dung REDESIGN_BRIEF da luu tren tin nhan de xuat GAN NHAT.
+  // Duong doi chung voi duong "go 'dong y' bang tay" (van qua classify binh thuong o route tren) -
+  // ca 2 cung goi runFileEditPipeline, chi khac cach lay validFiles/message.
+  app.post<{ Params: { slug: string } }>(
+    "/admin/api/themes/:slug/chat/confirm-redesign",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const { slug } = request.params;
+
+      const customTheme = await prisma.customTheme.findUnique({ where: { slug } });
+      if (!customTheme) {
+        return reply.code(404).send({ error: "Chỉ chat sửa được theme do AI tạo" });
+      }
+      const agent = await prisma.agent.findFirst({ where: { purpose: "design", isActive: true } });
+      if (!agent) {
+        return reply.code(422).send({ error: "Chưa có Agent nào bật với mục đích 'Tuỳ chỉnh giao diện' — vào Quản trị → AI Agent kiểm tra lại." });
+      }
+
+      const lastMessage = await prisma.themeChatMessage.findFirst({ where: { slug }, orderBy: { createdAt: "desc" } });
+      if (!lastMessage || lastMessage.role !== "assistant" || !lastMessage.redesignBrief) {
+        return reply.code(422).send({ error: "Không có đề xuất thiết kế lại nào đang chờ xác nhận." });
+      }
+
+      reply.hijack();
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+
+      try {
+        const confirmMessage = "✅ Đã bấm xác nhận — tiến hành thiết kế lại toàn bộ theo kế hoạch trên.";
+        await prisma.themeChatMessage.create({ data: { slug, role: "user", content: confirmMessage } });
+        const themeMd = await ensureThemeMd(slug);
+        await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], lastMessage.redesignBrief, confirmMessage, undefined);
+      } catch (err) {
+        sseWrite(reply, { step: "error", label: (err as Error).message });
+        reply.raw.end();
+      }
+    },
+  );
 }

@@ -1,0 +1,176 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Mã giảm giá</h1>
+
+<div id="coupons-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
+
+<div class="card">
+  <strong id="form-title">Thêm mã mới</strong>
+  <input type="hidden" id="coupon-id">
+  <label for="coupon-code">Mã (không phân biệt hoa/thường)</label>
+  <input type="text" id="coupon-code" placeholder="VD: SALE50" style="text-transform:uppercase;">
+
+  <label for="coupon-type">Loại giảm giá</label>
+  <select id="coupon-type">
+    <option value="percent">Theo % đơn hàng</option>
+    <option value="fixed">Số tiền cố định (₫)</option>
+  </select>
+
+  <label for="coupon-value" id="coupon-value-label">Giá trị giảm</label>
+  <input type="number" id="coupon-value" min="1">
+
+  <label for="coupon-min">Đơn tối thiểu (₫)</label>
+  <input type="number" id="coupon-min" min="0" value="0">
+
+  <label for="coupon-max-uses">Giới hạn lượt dùng (để trống = không giới hạn)</label>
+  <input type="number" id="coupon-max-uses" min="1">
+
+  <label for="coupon-expires">Hết hạn (để trống = không hết hạn)</label>
+  <input type="date" id="coupon-expires">
+
+  <label style="display:flex;align-items:center;gap:0.4rem;">
+    <input type="checkbox" id="coupon-enabled" checked style="width:auto;"> Bật mã này
+  </label>
+
+  <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+    <button type="button" id="save-btn" class="btn btn-primary">Lưu</button>
+    <button type="button" id="cancel-btn" class="btn" style="display:none;">Huỷ sửa</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const flash = document.getElementById("flash");
+  const list = document.getElementById("coupons-list");
+  const idEl = document.getElementById("coupon-id");
+  const codeEl = document.getElementById("coupon-code");
+  const typeEl = document.getElementById("coupon-type");
+  const valueEl = document.getElementById("coupon-value");
+  const valueLabel = document.getElementById("coupon-value-label");
+  const minEl = document.getElementById("coupon-min");
+  const maxUsesEl = document.getElementById("coupon-max-uses");
+  const expiresEl = document.getElementById("coupon-expires");
+  const enabledEl = document.getElementById("coupon-enabled");
+  const formTitle = document.getElementById("form-title");
+  const cancelBtn = document.getElementById("cancel-btn");
+  let coupons = [];
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function updateValueLabel() {
+    valueLabel.textContent = typeEl.value === "percent" ? "Giá trị giảm (%)" : "Giá trị giảm (₫)";
+  }
+  typeEl.addEventListener("change", updateValueLabel);
+  updateValueLabel();
+
+  function resetForm() {
+    idEl.value = "";
+    codeEl.value = "";
+    typeEl.value = "percent";
+    valueEl.value = "";
+    minEl.value = "0";
+    maxUsesEl.value = "";
+    expiresEl.value = "";
+    enabledEl.checked = true;
+    updateValueLabel();
+    formTitle.textContent = "Thêm mã mới";
+    cancelBtn.style.display = "none";
+  }
+
+  function renderCoupons() {
+    if (coupons.length === 0) {
+      list.innerHTML = '<div class="empty-state">Chưa có mã giảm giá nào.</div>';
+      return;
+    }
+    list.innerHTML = coupons
+      .map((c) => {
+        const valueText = c.discountType === "percent" ? c.discountValue + "%" : c.discountValue + "₫";
+        const usage = c.maxUses ? c.usedCount + "/" + c.maxUses + " lượt" : c.usedCount + " lượt (không giới hạn)";
+        return (
+          '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
+          "<div><strong>" + c.code + "</strong>" + (c.enabled ? "" : ' <span class="status-badge status-draft">Đã tắt</span>') +
+          '<div class="field-hint">Giảm ' + valueText + " — đơn tối thiểu " + c.minOrderTotal + "₫ — " + usage + "</div></div>" +
+          '<div style="display:flex;gap:0.5rem;">' +
+          '<button type="button" class="btn edit-btn" data-id="' + c.id + '">Sửa</button>' +
+          '<button type="button" class="btn btn-danger delete-btn" data-id="' + c.id + '">Xoá</button>' +
+          "</div></div>"
+        );
+      })
+      .join("");
+
+    list.querySelectorAll(".edit-btn").forEach((btn) => {
+      btn.addEventListener("click", () => fillForm(coupons.find((c) => c.id === btn.dataset.id)));
+    });
+    list.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Xoá mã giảm giá này?")) return;
+        const res = await fetch("/admin/api/coupons/" + btn.dataset.id, { method: "DELETE" });
+        if (!res.ok) {
+          showFlash("Xoá thất bại", false);
+          return;
+        }
+        await load();
+        showFlash("Đã xoá.", true);
+      });
+    });
+  }
+
+  function fillForm(coupon) {
+    idEl.value = coupon.id;
+    codeEl.value = coupon.code;
+    typeEl.value = coupon.discountType;
+    valueEl.value = coupon.discountValue;
+    minEl.value = coupon.minOrderTotal;
+    maxUsesEl.value = coupon.maxUses ?? "";
+    expiresEl.value = coupon.expiresAt ? coupon.expiresAt.slice(0, 10) : "";
+    enabledEl.checked = coupon.enabled;
+    updateValueLabel();
+    formTitle.textContent = "Sửa mã";
+    cancelBtn.style.display = "inline-block";
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/coupons");
+    coupons = (await res.json()).coupons;
+    renderCoupons();
+  }
+
+  document.getElementById("save-btn").addEventListener("click", async () => {
+    if (!codeEl.value || !valueEl.value) {
+      showFlash("Vui lòng nhập mã và giá trị giảm", false);
+      return;
+    }
+    const payload = {
+      code: codeEl.value,
+      discountType: typeEl.value,
+      discountValue: Number(valueEl.value),
+      minOrderTotal: Number(minEl.value) || 0,
+      maxUses: maxUsesEl.value === "" ? null : Number(maxUsesEl.value),
+      expiresAt: expiresEl.value ? new Date(expiresEl.value + "T23:59:59").toISOString() : null,
+      enabled: enabledEl.checked,
+    };
+    const id = idEl.value;
+    const res = await fetch(id ? "/admin/api/coupons/" + id : "/admin/api/coupons", {
+      method: id ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      showFlash("Lưu thất bại (mã có thể đã tồn tại)", false);
+      return;
+    }
+    resetForm();
+    await load();
+    showFlash("Đã lưu.", true);
+  });
+
+  cancelBtn.addEventListener("click", resetForm);
+
+  load();
+})();
+</script>
+{% endblock %}

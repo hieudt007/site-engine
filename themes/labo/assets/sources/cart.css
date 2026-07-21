@@ -1,0 +1,9 @@
+/* CSS riêng cho cart.liquid */
+
+/* Xóa nền vàng mặc định của trình duyệt khi autofill form */
+#checkout-form input:-webkit-autofill,
+#checkout-form input:-webkit-autofill:hover, 
+#checkout-form input:-webkit-autofill:focus, 
+#checkout-form input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+}

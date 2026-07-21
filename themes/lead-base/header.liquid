@@ -32,22 +32,24 @@
           </a>
         {% endfor %}
       {% else %}
-        <a href="/products" class="nav-item nav-link-underline relative px-3 py-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 no-underline">Sản phẩm</a>
+        {% if site.siteType != "blog" %}<a href="/products" class="nav-item nav-link-underline relative px-3 py-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 no-underline">Sản phẩm</a>{% endif %}
         <a href="/blog"     class="nav-item nav-link-underline relative px-3 py-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 no-underline">Blog</a>
-        <a href="/cart"     class="nav-item nav-link-underline relative px-3 py-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 no-underline">Giỏ hàng</a>
+        {% if site.siteType != "blog" %}<a href="/cart"     class="nav-item nav-link-underline relative px-3 py-2 rounded-md text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 no-underline">Giỏ hàng</a>{% endif %}
       {% endif %}
     </nav>
 
     <!-- Right side: Cart icon + Hamburger (cả 2 luôn hiện) -->
     <div class="flex items-center gap-1 header-cta-anim">
 
-      <!-- Cart icon với badge số lượng (luôn hiện trên cả desktop lẫn mobile) -->
-      <button type="button" id="header-cart-btn" class="cart-icon-btn" aria-label="Giỏ hàng">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z"/>
-        </svg>
-        <span id="header-cart-badge" class="cart-badge" aria-label="Số sản phẩm trong giỏ"></span>
-      </button>
+      {% if site.siteType != "blog" %}
+        <!-- Cart icon với badge số lượng (luôn hiện trên cả desktop lẫn mobile) -->
+        <button type="button" id="header-cart-btn" class="cart-icon-btn" aria-label="Giỏ hàng">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z"/>
+          </svg>
+          <span id="header-cart-badge" class="cart-badge" aria-label="Số sản phẩm trong giỏ"></span>
+        </button>
+      {% endif %}
 
       <!-- Hamburger button (mobile only) -->
       <button type="button" id="mobile-menu-btn" class="hamburger-btn items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150" aria-label="Mở menu">
@@ -98,73 +100,81 @@
         </a>
       {% endfor %}
     {% else %}
-      <a href="/products" class="drawer-nav-link">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-        </svg>
-        Sản phẩm
-      </a>
+      {% if site.siteType != "blog" %}
+        <a href="/products" class="drawer-nav-link">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+          Sản phẩm
+        </a>
+      {% endif %}
       <a href="/blog" class="drawer-nav-link">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
         </svg>
         Blog
       </a>
-      <a href="/cart" class="drawer-nav-link">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+      {% if site.siteType != "blog" %}
+        <a href="/cart" class="drawer-nav-link">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+          </svg>
+          Giỏ hàng
+        </a>
+      {% endif %}
+    {% endif %}
+
+    {% if site.siteType != "blog" %}
+      <!-- CTA Giỏ hàng nổi bật -->
+      <a href="/cart" class="drawer-nav-link cta">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z"/>
         </svg>
         Giỏ hàng
       </a>
     {% endif %}
-
-    <!-- CTA Giỏ hàng nổi bật -->
-    <a href="/cart" class="drawer-nav-link cta">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z"/>
-      </svg>
-      Giỏ hàng
-    </a>
   </nav>
 </div>
 
-<!-- Cart Drawer Overlay -->
-<div id="cart-drawer-overlay" class="cart-drawer-overlay" aria-hidden="true"></div>
+{% if site.siteType != "blog" %}
+  <!-- Cart Drawer Overlay -->
+  <div id="cart-drawer-overlay" class="cart-drawer-overlay" aria-hidden="true"></div>
 
-<!-- Cart Drawer Panel -->
-<div id="cart-drawer" class="cart-drawer" role="dialog" aria-modal="true" aria-label="Giỏ hàng của bạn">
-  
-  <!-- Header -->
-  <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100" style="min-height:64px;">
-    <h2 class="text-lg font-semibold text-gray-900">Giỏ hàng</h2>
-    <button type="button" id="cart-drawer-close" class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150" aria-label="Đóng giỏ hàng">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-      </svg>
-    </button>
-  </div>
+  <!-- Cart Drawer Panel -->
+  <div id="cart-drawer" class="cart-drawer" role="dialog" aria-modal="true" aria-label="Giỏ hàng của bạn">
 
-  <!-- Body -->
-  <div class="flex-1 overflow-y-auto p-5" id="cart-drawer-body">
-    <div id="cart-drawer-items" class="flex flex-col gap-4">
-      <!-- JS render items -->
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100" style="min-height:64px;">
+      <h2 class="text-lg font-semibold text-gray-900">Giỏ hàng</h2>
+      <button type="button" id="cart-drawer-close" class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors duration-150" aria-label="Đóng giỏ hàng">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
     </div>
-    <div id="cart-drawer-empty" class="hidden flex-col items-center justify-center h-full text-gray-400 gap-3">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z"/>
-      </svg>
-      <p class="text-sm">Giỏ hàng của bạn đang trống</p>
-    </div>
-  </div>
 
-  <!-- Footer -->
-  <div class="border-t border-gray-100 p-5 bg-gray-50">
-    <div class="flex items-center justify-between mb-4">
-      <span class="text-gray-600 font-medium">Tổng tạm tính:</span>
-      <span id="cart-drawer-total" class="text-lg font-bold text-blue-600">0đ</span>
+    <!-- Body -->
+    <div class="flex-1 overflow-y-auto p-5" id="cart-drawer-body">
+      <div id="cart-drawer-items" class="flex flex-col gap-4">
+        <!-- JS render items -->
+      </div>
+      <div id="cart-drawer-empty" class="hidden flex-col items-center justify-center h-full text-gray-400 gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5M10 21a1 1 0 100-2 1 1 0 000 2zm7 0a1 1 0 100-2 1 1 0 000 2z"/>
+        </svg>
+        <p class="text-sm">Giỏ hàng của bạn đang trống</p>
+      </div>
     </div>
-    <a href="/cart" class="flex items-center justify-center w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm shadow-orange-500/30 no-underline">
-      Thanh toán ngay
-    </a>
+
+    <!-- Footer -->
+    <div class="border-t border-gray-100 p-5 bg-gray-50">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-gray-600 font-medium">Tổng tạm tính:</span>
+        <span id="cart-drawer-total" class="text-lg font-bold text-blue-600">0đ</span>
+      </div>
+      <a href="/cart" class="flex items-center justify-center w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm shadow-orange-500/30 no-underline">
+        Thanh toán ngay
+      </a>
+    </div>
   </div>
-</div>
+{% endif %}

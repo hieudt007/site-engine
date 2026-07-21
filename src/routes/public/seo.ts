@@ -7,18 +7,25 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
   app.get("/sitemap.xml", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
 
+    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const isBlog = siteConfig?.siteType === "blog";
+
     const [posts, products, pages, postCategories, productCategories] = await Promise.all([
       prisma.post.findMany({ where: { type: "post", status: "published" }, select: { slug: true, updatedAt: true } }),
-      prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, syncedAt: true } }),
+      // siteType='blog' - khong liet ke URL san pham vao sitemap, tranh Google index roi dan
+      // ve trang da bi chan 404 (xem onRequest hook trong server.ts).
+      isBlog
+        ? Promise.resolve([])
+        : prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, syncedAt: true } }),
       prisma.post.findMany({ where: { type: "page", status: "published" }, select: { slug: true, updatedAt: true } }),
       prisma.category.findMany({ where: { type: "post" }, select: { slug: true, updatedAt: true } }),
-      prisma.category.findMany({ where: { type: "product" }, select: { slug: true, updatedAt: true } }),
+      isBlog ? Promise.resolve([]) : prisma.category.findMany({ where: { type: "product" }, select: { slug: true, updatedAt: true } }),
     ]);
 
     const staticUrls = [
       { loc: baseUrl, lastmod: null },
       { loc: `${baseUrl}/blog`, lastmod: null },
-      { loc: `${baseUrl}/products`, lastmod: null },
+      ...(isBlog ? [] : [{ loc: `${baseUrl}/products`, lastmod: null }]),
     ];
     const postUrls = posts.map((p) => ({
       loc: `${baseUrl}/blog/${p.slug}`,

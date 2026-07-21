@@ -1,0 +1,54 @@
+{% layout "layout" %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20 fade-in">
+  <div class="text-center mb-12">
+    <h1 class="font-playfair text-3xl md:text-4xl text-stone-900 mb-4">Our Collection</h1>
+    <p class="text-stone-600 max-w-2xl mx-auto">Discover our curated selection of premium wooden furniture, crafted to bring warmth and elegance to your home.</p>
+  </div>
+
+  {% if products.size > 0 %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+    {% for product in products %}
+      <div class="group block">
+        <a href="/products/{{ product.id }}" class="block relative overflow-hidden bg-stone-100 aspect-w-4 mb-4 rounded-sm">
+          {% if product.imageUrls[0] %}
+            <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105">
+          {% else %}
+            <div class="w-full h-full bg-stone-200 flex items-center justify-center text-stone-400">No Image</div>
+          {% endif %}
+          {% if product.salePrice and product.salePrice < product.price %}
+            <span class="absolute top-3 left-3 bg-red-900 text-white text-xs px-2 py-1 uppercase tracking-wider">Sale</span>
+          {% endif %}
+        </a>
+        <div class="text-center">
+          <h3 class="font-playfair text-lg text-stone-900 mb-1">
+            <a href="/products/{{ product.id }}" class="hover:text-stone-600 transition-colors">{{ product.name }}</a>
+          </h3>
+          <div class="text-stone-600 font-inter">
+            {% if product.salePrice and product.salePrice < product.price %}
+              <span class="line-through text-stone-400 mr-2">${{ product.price }}</span>
+              <span class="text-red-900">${{ product.salePrice }}</span>
+            {% else %}
+              <span>${{ product.price }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-12 text-stone-500">
+    No products found in this collection.
+  </div>
+  {% endif %}
+
+  <div class="mt-16 flex items-center justify-center space-x-4">
+    {% if hasPrev %}
+      <a href="?page=prev" class="px-6 py-2 border border-stone-300 text-stone-700 hover:bg-stone-900 hover:text-stone-50 hover:border-stone-900 transition-colors uppercase tracking-wider text-sm">Previous</a>
+    {% endif %}
+    {% if hasNext %}
+      <a href="?page=next" class="px-6 py-2 border border-stone-300 text-stone-700 hover:bg-stone-900 hover:text-stone-50 hover:border-stone-900 transition-colors uppercase tracking-wider text-sm">Next</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

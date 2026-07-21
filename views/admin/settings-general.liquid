@@ -3,6 +3,13 @@
 <h1 style="margin:0 0 1.2rem;">Cài đặt chung</h1>
 
 <form id="settings-form" class="card">
+  <label for="siteType">Loại website</label>
+  <select id="siteType" name="siteType">
+    <option value="ecommerce">Bán hàng (ecommerce)</option>
+    <option value="blog">Blog / tin tức</option>
+  </select>
+  <p class="field-hint">Chọn "Blog" sẽ chặn hẳn toàn bộ chức năng bán hàng (sản phẩm, giỏ hàng, thanh toán, đơn hàng...) — cả trên trang admin lẫn trang public, kể cả khi gõ đúng URL.</p>
+
   <label for="siteName">Tên website</label>
   <input type="text" id="siteName" name="siteName" required>
 
@@ -42,6 +49,16 @@
   <label for="defaultOgImage">Ảnh chia sẻ mặc định (Open Graph, URL)</label>
   <input type="text" id="defaultOgImage" name="defaultOgImage">
 
+  <label for="gaId">Google Analytics Measurement ID</label>
+  <input type="text" id="gaId" name="gaId" placeholder="VD: G-XXXXXXXXXX">
+
+  <label for="fbPixelId">Facebook Pixel ID</label>
+  <input type="text" id="fbPixelId" name="fbPixelId" placeholder="VD: 1234567890123456">
+
+  <label for="customHeadScript">Script tuỳ chỉnh khác (TikTok Pixel, Hotjar...)</label>
+  <textarea id="customHeadScript" name="customHeadScript" placeholder="Dán nguyên đoạn <script>...</script>" style="min-height:140px;"></textarea>
+  <p class="field-hint">Chèn nguyên văn vào mọi trang public (trước &lt;/head&gt;) — chỉ dán mã từ nguồn bạn tin tưởng.</p>
+
   <div style="margin-top:1.5rem;">
     <button type="submit" class="btn btn-primary">Lưu</button>
   </div>
@@ -64,7 +81,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage"].forEach((key) => {
+    ["siteType", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript"].forEach((key) => {
       form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -76,6 +93,7 @@
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
+      siteType: form.siteType.value,
       siteName: form.siteName.value,
       tagline: form.tagline.value || undefined,
       logoUrl: form.logoUrl.value || undefined,
@@ -85,6 +103,9 @@
       contactAddress: form.contactAddress.value || undefined,
       businessLicense: form.businessLicense.value || undefined,
       defaultOgImage: form.defaultOgImage.value || undefined,
+      gaId: form.gaId.value || undefined,
+      fbPixelId: form.fbPixelId.value || undefined,
+      customHeadScript: form.customHeadScript.value || undefined,
       socialLinks: {
         facebook: form.facebook.value || undefined,
         zalo: form.zalo.value || undefined,

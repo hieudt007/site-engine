@@ -1,0 +1,140 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 1.2rem;">Phương thức thanh toán</h1>
+
+<div id="payment-methods" style="display:flex;flex-direction:column;gap:1rem;"></div>
+
+<template id="tpl-cod">
+  <div class="card" data-method="cod">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <strong>Thanh toán khi nhận hàng (COD)</strong>
+      <label style="display:flex;align-items:center;gap:0.4rem;font-weight:400;margin:0;">
+        <input type="checkbox" class="method-enabled"> Bật
+      </label>
+    </div>
+    <p class="field-hint">Không cần cấu hình gì thêm — xác nhận đã thu tiền là việc thủ công.</p>
+  </div>
+</template>
+
+<template id="tpl-bank_transfer">
+  <div class="card" data-method="bank_transfer">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <strong>Chuyển khoản ngân hàng</strong>
+      <label style="display:flex;align-items:center;gap:0.4rem;font-weight:400;margin:0;">
+        <input type="checkbox" class="method-enabled"> Bật
+      </label>
+    </div>
+    <div class="method-config">
+      <label>Tên ngân hàng</label>
+      <input type="text" data-field="bankName" placeholder="VD: Vietcombank">
+      <label>Số tài khoản</label>
+      <input type="text" data-field="accountNumber">
+      <label>Chủ tài khoản</label>
+      <input type="text" data-field="accountHolder">
+      <label>Chi nhánh</label>
+      <input type="text" data-field="branch">
+      <label>Ảnh mã QR (URL)</label>
+      <input type="text" data-field="qrImage">
+    </div>
+  </div>
+</template>
+
+<template id="tpl-vnpay">
+  <div class="card" data-method="vnpay">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <strong>VNPay</strong>
+      <label style="display:flex;align-items:center;gap:0.4rem;font-weight:400;margin:0;">
+        <input type="checkbox" class="method-enabled"> Bật
+      </label>
+    </div>
+    <div class="method-config">
+      <label>Mã TMN (Terminal Code)</label>
+      <input type="text" data-field="tmnCode">
+      <label>Hash Secret</label>
+      <input type="text" data-field="hashSecret">
+      <label style="display:flex;align-items:center;gap:0.4rem;">
+        <input type="checkbox" data-field="sandbox" style="width:auto;"> Dùng môi trường sandbox (test)
+      </label>
+      <p class="field-hint">Lấy Mã TMN/Hash Secret trong trang quản trị merchant của VNPay. Bỏ tick sandbox khi chuyển sang tài khoản thật.</p>
+    </div>
+  </div>
+</template>
+
+<div style="margin-top:1.2rem;">
+  <button type="button" id="save-btn" class="btn btn-primary">Lưu tất cả</button>
+</div>
+
+<script>
+(function () {
+  const container = document.getElementById("payment-methods");
+  const flash = document.getElementById("flash");
+  const METHODS = ["cod", "bank_transfer", "vnpay"];
+  let current = {};
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function renderCard(method, data) {
+    const tpl = document.getElementById("tpl-" + method);
+    const node = tpl.content.cloneNode(true);
+    const card = node.querySelector(".card");
+    card.querySelector(".method-enabled").checked = !!data.enabled;
+    const config = data.config || {};
+    card.querySelectorAll("[data-field]").forEach((el) => {
+      const field = el.dataset.field;
+      if (el.type === "checkbox") {
+        el.checked = field === "sandbox" ? config.sandbox !== false : !!config[field];
+      } else {
+        el.value = config[field] || "";
+      }
+    });
+    container.appendChild(card);
+  }
+
+  function collectCard(method) {
+    const card = container.querySelector('[data-method="' + method + '"]');
+    const enabled = card.querySelector(".method-enabled").checked;
+    const config = {};
+    card.querySelectorAll("[data-field]").forEach((el) => {
+      config[el.dataset.field] = el.type === "checkbox" ? el.checked : (el.value || undefined);
+    });
+    return { enabled, config };
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/payment-methods");
+    if (!res.ok) {
+      showFlash("Không tải được danh sách phương thức thanh toán", false);
+      return;
+    }
+    const { methods } = await res.json();
+    current = Object.fromEntries(methods.map((m) => [m.method, m]));
+    container.innerHTML = "";
+    METHODS.forEach((method) => renderCard(method, current[method] || {}));
+  }
+
+  document.getElementById("save-btn").addEventListener("click", async () => {
+    try {
+      for (const method of METHODS) {
+        const payload = collectCard(method);
+        const res = await fetch("/admin/api/payment-methods/" + method, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          throw new Error(method);
+        }
+      }
+      showFlash("Đã lưu.", true);
+    } catch (err) {
+      showFlash("Lưu thất bại (" + err.message + ")", false);
+    }
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

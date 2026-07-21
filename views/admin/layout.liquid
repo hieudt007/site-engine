@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ pageTitle | default: "Quản trị" }}</title>
+  {% if faviconUrl %}<link rel="icon" href="{{ faviconUrl }}">{% endif %}
   <script>
     // Doc truoc khi ve UI de tranh nhap nhay sidebar mo/dong luc reload trang (moi trang la 1
     // lan tai HTML moi hoan toan, khong phai SPA - phai luu trang thai qua localStorage).
@@ -44,7 +45,8 @@
     body.sidebar-collapsed #sidebar-toggle { left: 14px; }
     body:not(.sidebar-collapsed) #sidebar-toggle { left: 238px; top: 14px; background: transparent; border-color: transparent; color: #9ca3af; }
     body:not(.sidebar-collapsed) #sidebar-toggle:hover { color: #fff; }
-    .sidebar-brand { padding: var(--space-5) var(--space-5) var(--space-4); font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; display: block; }
+    .sidebar-brand { padding: var(--space-5) var(--space-5) var(--space-4); font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; display: flex; align-items: center; gap: var(--space-2); }
+    .sidebar-brand img { width: 28px; height: 28px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
     .sidebar-group { margin-top: var(--space-3); }
     .sidebar-group-label { padding: 0 var(--space-5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: var(--space-2); }
     .sidebar-link { display: block; padding: var(--space-2) var(--space-5); color: var(--color-sidebar-text); text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent; }
@@ -143,7 +145,7 @@
 <body>
   <button type="button" id="sidebar-toggle" title="Ẩn/hiện menu">☰</button>
   <nav class="sidebar">
-    <a class="sidebar-brand" href="/admin">Quản trị</a>
+    <a class="sidebar-brand" href="/admin">{% if sidebarLogoUrl %}<img src="{{ sidebarLogoUrl }}" alt="">{% endif %}<span>{{ sidebarSiteName | default: "Quản trị" }}</span></a>
 
     <div id="admin-search-box">
       <input type="search" id="admin-search-input" placeholder="Tìm bài viết, sản phẩm, media..." style="width:100%;padding:0.4rem 0.6rem;border-radius:var(--radius-sm);border:1px solid #374151;background:#1f2937;color:#fff;font-size:0.82rem;">
@@ -159,14 +161,20 @@
       <a class="sidebar-link{% if currentPath contains "/admin/media" %} active{% endif %}" href="/admin/media">Media</a>
     </div>
 
-    {% if role == "manager" or role == "admin" %}
-      <div class="sidebar-group">
-        <div class="sidebar-group-label">Thương mại</div>
-        <a class="sidebar-link{% if currentPath contains "/admin/products" %} active{% endif %}" href="/admin/products">Sản phẩm</a>
-        <a class="sidebar-link{% if currentPath contains "/admin/product-categories" %} active{% endif %}" href="/admin/product-categories">Danh mục sản phẩm</a>
-        <a class="sidebar-link{% if currentPath contains "/admin/orders" %} active{% endif %}" href="/admin/orders">Đơn hàng</a>
-        <a class="sidebar-link{% if currentPath contains "/admin/reviews" %} active{% endif %}" href="/admin/reviews">Đánh giá</a>
-      </div>
+    {% if siteType != "blog" %}
+      {% if role == "manager" or role == "admin" %}
+        <div class="sidebar-group">
+          <div class="sidebar-group-label">Thương mại</div>
+          <a class="sidebar-link{% if currentPath contains "/admin/products" %} active{% endif %}" href="/admin/products">Sản phẩm</a>
+          <a class="sidebar-link{% if currentPath contains "/admin/product-categories" %} active{% endif %}" href="/admin/product-categories">Danh mục sản phẩm</a>
+          <a class="sidebar-link{% if currentPath contains "/admin/orders" %} active{% endif %}" href="/admin/orders">Đơn hàng</a>
+          <a class="sidebar-link{% if currentPath contains "/admin/reviews" %} active{% endif %}" href="/admin/reviews">Đánh giá</a>
+          {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/payment" %} active{% endif %}" href="/admin/settings/payment">Thanh toán</a>{% endif %}
+          <a class="sidebar-link{% if currentPath contains "/admin/settings/shipping" %} active{% endif %}" href="/admin/settings/shipping">Vận chuyển</a>
+          <a class="sidebar-link{% if currentPath contains "/admin/stores" %} active{% endif %}" href="/admin/stores">Cửa hàng</a>
+          <a class="sidebar-link{% if currentPath contains "/admin/coupons" %} active{% endif %}" href="/admin/coupons">Mã giảm giá</a>
+        </div>
+      {% endif %}
     {% endif %}
 
     {% if role == "manager" or role == "admin" %}
@@ -250,8 +258,8 @@
       const { media, hasNext, hasPrev } = await res.json();
       grid.innerHTML = media.length
         ? media.map((m) =>
-            '<div class="media-picker-item" data-url="' + m.url + '">' +
-            '<img src="' + m.url + '" alt="' + escapeHtml(m.filename) + '">' +
+            '<div class="media-picker-item" data-url="' + m.url + '" data-alt="' + escapeHtml(m.alt || "") + '">' +
+            '<img src="' + m.url + '" alt="' + escapeHtml(m.alt || m.filename) + '">' +
             "</div>"
           ).join("")
         : '<p style="color:#999;grid-column:1/-1;">Chưa có file nào — tải ảnh lên ở trên.</p>';
@@ -269,8 +277,8 @@
       status.textContent = "";
     }
 
-    function select(url) {
-      if (onSelectCallback) onSelectCallback(url);
+    function select(media) {
+      if (onSelectCallback) onSelectCallback(media.url, media);
       close();
     }
 
@@ -290,7 +298,7 @@
     grid.addEventListener("click", (event) => {
       const item = event.target.closest("[data-url]");
       if (!item) return;
-      select(item.dataset.url);
+      select({ url: item.dataset.url, alt: item.dataset.alt || "" });
     });
 
     fileInput.addEventListener("change", async () => {
@@ -311,7 +319,7 @@
         }
 
         const { media } = await res.json();
-        if (onSelectCallback) onSelectCallback(media.url);
+        if (onSelectCallback) onSelectCallback(media.url, media);
       }
 
       status.textContent = failed.length ? "Lỗi " + failed.length + "/" + files.length + " file: " + failed.join("; ") : "";
@@ -319,7 +327,8 @@
       if (!failed.length) close();
     });
 
-    // API dung chung cho post-edit/page-edit/product-edit: openMediaPicker({ title, onSelect(url) })
+    // API dung chung cho post-edit/page-edit/product-edit: openMediaPicker({ title, onSelect(url, media) })
+    // - media la row Media day du (co alt) khi chon anh co san, hoac vua tao khi upload moi.
     window.openMediaPicker = function (options) {
       options = options || {};
       onSelectCallback = options.onSelect || null;
@@ -391,9 +400,18 @@
     addButton("Ảnh", "Chèn ảnh vào nội dung", () => {
       openMediaPicker({
         title: "Chèn ảnh vào nội dung",
-        onSelect: (url) => {
+        onSelect: (url, media) => {
           body.focus();
           document.execCommand("insertImage", false, url);
+          // execCommand khong co cach truyen alt truc tiep - tim lai ĐÚNG the <img> vua chen (theo
+          // src) roi gan alt thu cong ngay sau do.
+          if (media && media.alt) {
+            const inserted = [...body.querySelectorAll('img[src="' + url + '"]')].pop();
+            if (inserted) {
+              inserted.alt = media.alt;
+              inserted.title = media.alt;
+            }
+          }
           sync();
         },
       });
@@ -498,6 +516,10 @@
       document.body.classList.add("sidebar-collapsed");
     }
     document.getElementById("sidebar-toggle").addEventListener("click", () => {
+      // "sidebar-collapsed-init" (chan FOUC luc vua tai trang, dung !important) phai go het ngay
+      // lan bam dau tien - neu khong, rule !important cua no de len ket qua toggle ben duoi, khien
+      // sidebar khong bao gio mo lai duoc khi trang tai san o trang thai dang dong.
+      document.documentElement.classList.remove("sidebar-collapsed-init");
       const collapsed = document.body.classList.toggle("sidebar-collapsed");
       localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
     });

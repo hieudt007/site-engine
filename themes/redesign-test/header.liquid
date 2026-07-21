@@ -1,0 +1,53 @@
+<header class="sticky top-0 z-50 bg-cream border-b border-wood/10 transition-all duration-300" id="main-header">
+  <div class="container mx-auto px-4 md:px-8">
+    <div class="flex items-center justify-between h-20 md:h-24">
+      <!-- Logo -->
+      <a href="/" class="flex flex-col shrink-0 group">
+        <div class="flex items-center gap-3">
+          {% if site.logoUrl %}
+            <img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-10 md:h-12 w-auto object-contain">
+          {% endif %}
+          <span class="font-serif text-2xl md:text-3xl font-bold text-wood tracking-wide uppercase group-hover:opacity-80 transition-opacity">{{ site.siteName }}</span>
+        </div>
+        {% if site.tagline %}
+          <div class="text-[10px] md:text-xs uppercase tracking-widest text-wood/70 mt-1">{{ site.tagline }}</div>
+        {% endif %}
+      </a>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden md:flex items-center space-x-8">
+        {% if headerMenu and headerMenu.items.size > 0 %}
+          {% for item in headerMenu.items %}
+            <a href="{{ item.url }}" class="nav-link text-sm font-sans font-medium text-wood/80 hover:text-wood uppercase tracking-wider transition-colors duration-200">{{ item.label | escape }}</a>
+          {% endfor %}
+        {% else %}
+          {% if site.siteType != "blog" %}<a href="/products" class="nav-link text-sm font-sans font-medium text-wood/80 hover:text-wood uppercase tracking-wider transition-colors duration-200">Sản phẩm</a>{% endif %}
+          <a href="/blog" class="nav-link text-sm font-sans font-medium text-wood/80 hover:text-wood uppercase tracking-wider transition-colors duration-200">Blog</a>
+          {% if site.siteType != "blog" %}<a href="/cart" class="nav-link text-sm font-sans font-medium text-wood/80 hover:text-wood uppercase tracking-wider transition-colors duration-200">Giỏ hàng</a>{% endif %}
+        {% endif %}
+      </nav>
+
+      <!-- Mobile Menu Button -->
+      <button class="md:hidden flex items-center text-wood p-2 focus:outline-none" id="mobile-menu-btn" aria-label="Toggle menu">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path id="mobile-menu-icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Nav -->
+  <div class="md:hidden hidden bg-cream border-t border-wood/10 absolute w-full left-0 top-full shadow-lg" id="mobile-menu">
+    <nav class="flex flex-col py-4 px-6 space-y-4">
+      {% if headerMenu and headerMenu.items.size > 0 %}
+        {% for item in headerMenu.items %}
+          <a href="{{ item.url }}" class="text-base font-sans font-medium text-wood hover:text-wood/70 uppercase tracking-wider transition-colors duration-200 block border-b border-wood/10 pb-3">{{ item.label | escape }}</a>
+        {% endfor %}
+      {% else %}
+        {% if site.siteType != "blog" %}<a href="/products" class="text-base font-sans font-medium text-wood hover:text-wood/70 uppercase tracking-wider transition-colors duration-200 block border-b border-wood/10 pb-3">Sản phẩm</a>{% endif %}
+        <a href="/blog" class="text-base font-sans font-medium text-wood hover:text-wood/70 uppercase tracking-wider transition-colors duration-200 block border-b border-wood/10 pb-3">Blog</a>
+        {% if site.siteType != "blog" %}<a href="/cart" class="text-base font-sans font-medium text-wood hover:text-wood/70 uppercase tracking-wider transition-colors duration-200 block border-b border-wood/10 pb-3">Giỏ hàng</a>{% endif %}
+      {% endif %}
+    </nav>
+  </div>
+</header>

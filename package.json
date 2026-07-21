@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/server.ts",
+    "dev": "tsx watch --exclude themes --exclude uploads --exclude debug-ai --env-file=.env src/server.ts",
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "prisma:migrate": "prisma migrate dev",
@@ -43,6 +43,6 @@
     "vitest": "^3.0.4"
   },
   "prisma": {
-    "seed": "node dist/seedAgents.js"
+    "seed": "node dist/seedAgents.js && node dist/seedSiteConfig.js"
   }
 }

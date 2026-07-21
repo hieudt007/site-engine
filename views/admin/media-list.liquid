@@ -41,8 +41,10 @@
       : "";
     return (
       '<div style="border:1px solid #eee;border-radius:8px;padding:0.6rem;background:#fff;">' +
-      '<img src="' + m.url + '" alt="' + escapeHtml(m.filename) + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;">' +
+      '<img src="' + m.url + '" alt="' + escapeHtml(m.alt || m.filename) + '" style="width:100%;height:120px;object-fit:cover;border-radius:6px;">' +
       '<div style="font-size:0.75rem;color:#777;margin-top:0.4rem;word-break:break-all;">' + escapeHtml(m.filename) + '</div>' +
+      '<input type="text" data-alt="' + m.id + '" value="' + escapeHtml(m.alt || "") + '" placeholder="Mô tả ảnh (alt)" ' +
+        'style="width:100%;margin-top:0.4rem;font-size:0.75rem;padding:0.25rem 0.4rem;">' +
       '<button class="btn" data-copy="' + m.url + '" style="width:100%;margin-top:0.4rem;font-size:0.75rem;">Copy URL</button>' +
       deleteBtn +
       '</div>'
@@ -121,6 +123,20 @@
       load();
     }
   });
+
+  grid.addEventListener(
+    "blur",
+    async (event) => {
+      const input = event.target.closest && event.target.closest("input[data-alt]");
+      if (!input) return;
+      await fetch("/admin/api/media/" + input.dataset.alt, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alt: input.value }),
+      });
+    },
+    true,
+  );
 
   load();
 })();

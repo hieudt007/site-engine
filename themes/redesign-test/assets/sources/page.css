@@ -1,0 +1,92 @@
+.page-body h1, .page-body h2, .page-body h3, .page-body h4, .page-body h5, .page-body h6 {
+  font-family: 'Playfair Display', serif;
+  color: #5C4033;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.page-body h1 { font-size: 2.25rem; }
+.page-body h2 { font-size: 1.875rem; }
+.page-body h3 { font-size: 1.5rem; }
+
+.page-body p {
+  margin-bottom: 1.5rem;
+  line-height: 1.8;
+}
+
+.page-body a {
+  color: #8B5A2B;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  transition: color 0.3s ease;
+}
+
+.page-body a:hover {
+  color: #5C4033;
+}
+
+.page-body ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-body ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-body li {
+  margin-bottom: 0.5rem;
+}
+
+.page-body blockquote {
+  border-left: 4px solid #8B5A2B;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #5C4033;
+  margin: 2rem 0;
+  background-color: #f5eedc;
+  padding: 1.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.page-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 2rem auto;
+  display: block;
+}
+
+.page-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+.page-body th, .page-body td {
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.page-body th {
+  background-color: #f3f4f6;
+  color: #5C4033;
+  font-weight: 600;
+}
+
+/* Reveal Animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s ease-out;
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}

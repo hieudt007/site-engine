@@ -3,6 +3,20 @@ import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
+import { buildArticleSchema, buildBreadcrumbSchema } from "../../services/schema.js";
+
+// URL tuyet doi + thong tin site cho JSON-LD (BlogPosting.publisher...) - xem cung ly do trong
+// routes/public/products.ts.
+async function siteInfo(): Promise<{ siteName: string; logoUrl: string | null; domain: string; baseUrl: string }> {
+  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const domain = siteConfig?.domain ?? "localhost";
+  return {
+    siteName: siteConfig?.siteName ?? "Website",
+    logoUrl: siteConfig?.logoUrl ?? null,
+    domain,
+    baseUrl: domain.startsWith("http") ? domain : `https://${domain}`,
+  };
+}
 
 const PAGE_SIZE = 10;
 
@@ -77,6 +91,12 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       ]);
 
       const seo = readSeo(category.seo);
+      const site = await siteInfo();
+      const breadcrumbItems = [
+        { name: "Trang chủ", url: new URL("/", site.baseUrl).toString() },
+        { name: "Blog", url: new URL("/blog", site.baseUrl).toString() },
+        { name: category.name, url: new URL(`/blog/danh-muc/${category.slug}`, site.baseUrl).toString() },
+      ];
       const html = await renderPublic("blog-category", {
         pageTitle: seo.metaTitle ?? category.name,
         metaDescription: seo.metaDescription ?? category.excerpt ?? undefined,
@@ -87,6 +107,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
         hasNext: skip + posts.length < total,
         prevPage: page - 1,
         nextPage: page + 1,
+        schemas: [buildBreadcrumbSchema(breadcrumbItems)],
       });
 
       return reply.type("text/html").send(html);
@@ -138,7 +159,16 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
     } else if (post.layoutMode === "custom") {
       html = await renderPublic("custom-content", { ...pageData, rawHtml: post.body });
     } else {
-      html = await renderPublic("blog-post", { ...pageData, post });
+      const site = await siteInfo();
+      const postUrl = new URL(`/blog/${post.slug}`, site.baseUrl).toString();
+      const breadcrumbItems = [
+        { name: "Trang chủ", url: new URL("/", site.baseUrl).toString() },
+        { name: "Blog", url: new URL("/blog", site.baseUrl).toString() },
+        ...(post.categories[0] ? [{ name: post.categories[0].name, url: new URL(`/blog/danh-muc/${post.categories[0].slug}`, site.baseUrl).toString() }] : []),
+        { name: post.title, url: postUrl },
+      ];
+      const schemas = [buildArticleSchema(post, site, postUrl), buildBreadcrumbSchema(breadcrumbItems)];
+      html = await renderPublic("blog-post", { ...pageData, post, schemas });
     }
 
     return reply.type("text/html").send(html);

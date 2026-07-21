@@ -1,0 +1,76 @@
+{% layout "layout" %}
+{% block content %}
+<div class="bg-[#FDFBF7] min-h-screen py-12 md:py-20 font-sans text-[#4A3728]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 class="text-4xl md:text-5xl font-serif text-center mb-12">Giỏ Hàng Của Bạn</h1>
+
+        <div class="flex flex-col lg:flex-row gap-12">
+            <!-- Cột trái: Danh sách sản phẩm -->
+            <div class="lg:w-3/5">
+                <div class="border-b border-[#4A3728]/20 pb-4 mb-6 hidden md:grid grid-cols-12 gap-4 text-sm uppercase tracking-widest font-medium">
+                    <div class="col-span-6">Sản phẩm</div>
+                    <div class="col-span-3 text-center">Số lượng</div>
+                    <div class="col-span-3 text-right">Tổng</div>
+                </div>
+                
+                <div id="empty-cart-message" class="text-center py-12 hidden">
+                    <p class="text-lg italic text-[#4A3728]/60 mb-6">Chưa có sản phẩm nào trong giỏ hàng.</p>
+                    <a href="/" class="inline-block border border-[#4A3728] text-[#4A3728] px-6 py-2 rounded hover:bg-[#4A3728] hover:text-[#FDFBF7] transition-colors">Tiếp tục mua sắm</a>
+                </div>
+
+                <div id="cart-items" class="space-y-6">
+                    <!-- JS System sẽ bơm HTML vào đây -->
+                </div>
+            </div>
+
+            <!-- Cột phải: Form đặt hàng -->
+            <div class="lg:w-2/5">
+                <div class="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-[#4A3728]/10 sticky top-24">
+                    <h2 class="text-2xl font-serif mb-6 border-b border-[#4A3728]/10 pb-4">Thông Tin Đặt Hàng</h2>
+                    
+                    <form id="checkout-form" class="space-y-5">
+                        <div>
+                            <label for="customerName" class="block text-sm font-medium mb-1">Họ và tên *</label>
+                            <input type="text" id="customerName" name="customerName" required 
+                                class="w-full bg-[#FDFBF7] border border-[#4A3728]/20 rounded-md py-2.5 px-3 focus:outline-none focus:border-[#4A3728] focus:ring-1 focus:ring-[#4A3728] transition-shadow">
+                        </div>
+                        
+                        <div>
+                            <label for="customerPhone" class="block text-sm font-medium mb-1">Số điện thoại *</label>
+                            <input type="tel" id="customerPhone" name="customerPhone" required 
+                                class="w-full bg-[#FDFBF7] border border-[#4A3728]/20 rounded-md py-2.5 px-3 focus:outline-none focus:border-[#4A3728] focus:ring-1 focus:ring-[#4A3728] transition-shadow">
+                        </div>
+                        
+                        <div>
+                            <label for="customerAddress" class="block text-sm font-medium mb-1">Địa chỉ giao hàng *</label>
+                            <textarea id="customerAddress" name="customerAddress" rows="3" required 
+                                class="w-full bg-[#FDFBF7] border border-[#4A3728]/20 rounded-md py-2.5 px-3 focus:outline-none focus:border-[#4A3728] focus:ring-1 focus:ring-[#4A3728] transition-shadow resize-none"></textarea>
+                        </div>
+
+                        <div>
+                            <label for="orderNote" class="block text-sm font-medium mb-1">Ghi chú (Tùy chọn)</label>
+                            <textarea id="orderNote" name="orderNote" rows="2" 
+                                class="w-full bg-[#FDFBF7] border border-[#4A3728]/20 rounded-md py-2.5 px-3 focus:outline-none focus:border-[#4A3728] focus:ring-1 focus:ring-[#4A3728] transition-shadow resize-none" 
+                                placeholder="Yêu cầu giao hàng, giờ nhận..."></textarea>
+                        </div>
+
+                        <div id="checkout-error" class="hidden bg-red-50 text-red-600 border border-red-200 p-3 rounded-md text-sm"></div>
+
+                        <div class="pt-6 mt-6 border-t border-[#4A3728]/10">
+                            <div class="flex justify-between items-end mb-6">
+                                <span class="text-lg font-medium">Tổng thanh toán:</span>
+                                <span class="text-3xl font-serif text-[#4A3728]" id="cart-total">0₫</span>
+                            </div>
+                            
+                            <button type="submit" 
+                                class="w-full bg-[#4A3728] text-[#FDFBF7] py-4 rounded-md hover:bg-[#3E2723] transition-colors font-medium text-lg tracking-wide shadow-md hover:shadow-lg">
+                                Xác Nhận Đặt Hàng
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
