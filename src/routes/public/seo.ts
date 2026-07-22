@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
+import { pagePath, postCategoryPath, postPath, productCategoryPath, productPath, topicPath } from "../../services/urlPaths.js";
 
 // system_design.md §10.3 — sitemap gồm trang chủ, /blog + từng bài đã publish, /products + từng
 // sản phẩm đã publish. JSON-LD/fallback SEO chain (§10.2/§10.4) chưa làm, vẫn TBD.
@@ -9,16 +10,18 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
 
     const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
     const isBlog = siteConfig?.siteType === "blog";
+    const urlConfig = siteConfig as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 
-    const [posts, products, pages, postCategories, productCategories] = await Promise.all([
+    const [posts, products, pages, postCategories, topics, productCategories] = await Promise.all([
       prisma.post.findMany({ where: { type: "post", status: "published" }, select: { slug: true, updatedAt: true } }),
       // siteType='blog' - khong liet ke URL san pham vao sitemap, tranh Google index roi dan
       // ve trang da bi chan 404 (xem onRequest hook trong server.ts).
       isBlog
         ? Promise.resolve([])
-        : prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, syncedAt: true } }),
+        : prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, slug: true, syncedAt: true } as any }),
       prisma.post.findMany({ where: { type: "page", status: "published" }, select: { slug: true, updatedAt: true } }),
       prisma.category.findMany({ where: { type: "post" }, select: { slug: true, updatedAt: true } }),
+      prisma.topic.findMany({ select: { slug: true, createdAt: true } }),
       isBlog ? Promise.resolve([]) : prisma.category.findMany({ where: { type: "product" }, select: { slug: true, updatedAt: true } }),
     ]);
 
@@ -28,27 +31,32 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
       ...(isBlog ? [] : [{ loc: `${baseUrl}/products`, lastmod: null }]),
     ];
     const postUrls = posts.map((p) => ({
-      loc: `${baseUrl}/blog/${p.slug}`,
+      loc: `${baseUrl}${postPath(urlConfig ?? {}, p.slug)}`,
       lastmod: p.updatedAt.toISOString(),
     }));
-    const productUrls = products.map((p) => ({
-      loc: `${baseUrl}/products/${p.id}`,
+    const productRows = products as Array<{ id: string; slug?: string | null; syncedAt: Date }>;
+    const productUrls = productRows.map((p) => ({
+      loc: `${baseUrl}${productPath(urlConfig ?? {}, ((p as any).slug as string | null | undefined) ?? p.id)}`,
       lastmod: p.syncedAt.toISOString(),
     }));
     const pageUrls = pages.map((p) => ({
-      loc: `${baseUrl}/trang/${p.slug}`,
+      loc: `${baseUrl}${pagePath(urlConfig ?? {}, p.slug)}`,
       lastmod: p.updatedAt.toISOString(),
     }));
     const postCategoryUrls = postCategories.map((c) => ({
-      loc: `${baseUrl}/blog/danh-muc/${c.slug}`,
+      loc: `${baseUrl}${postCategoryPath(urlConfig ?? {}, c.slug)}`,
       lastmod: c.updatedAt.toISOString(),
     }));
+    const topicUrls = topics.map((t) => ({
+      loc: `${baseUrl}${topicPath(urlConfig ?? {}, t.slug)}`,
+      lastmod: t.createdAt.toISOString(),
+    }));
     const productCategoryUrls = productCategories.map((c) => ({
-      loc: `${baseUrl}/products/danh-muc/${c.slug}`,
+      loc: `${baseUrl}${productCategoryPath(urlConfig ?? {}, c.slug)}`,
       lastmod: c.updatedAt.toISOString(),
     }));
 
-    const urls = [...staticUrls, ...postUrls, ...productUrls, ...pageUrls, ...postCategoryUrls, ...productCategoryUrls];
+    const urls = [...staticUrls, ...postUrls, ...productUrls, ...pageUrls, ...postCategoryUrls, ...topicUrls, ...productCategoryUrls];
     const xml =
       '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
@@ -75,6 +83,7 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
     const baseUrl = `https://${request.hostname}`;
     const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
     const siteName = siteConfig?.siteName ?? "Website";
+    const urlConfig = siteConfig as { postSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 
     const posts = await prisma.post.findMany({
       where: { type: "post", status: "published" },
@@ -85,7 +94,7 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
 
     const items = posts
       .map((p) => {
-        const link = `${baseUrl}/blog/${p.slug}`;
+        const link = `${baseUrl}${postPath(urlConfig ?? {}, p.slug)}`;
         return (
           "  <item>\n" +
           `    <title>${escapeXml(p.title)}</title>\n` +

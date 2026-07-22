@@ -1,51 +1,154 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin:0 0 0.3rem;">Giao diện</h1>
-<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
-  Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
-</p>
+<style>
+  .settings-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  .tabs-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .tab-btn {
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    text-align: left;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.2s;
+    font-size: 0.95rem;
+  }
+  .tab-btn:hover { background: #f5f5f5; }
+  .tab-btn.active {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+  }
+  .tabs-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
 
-<div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
-  <p style="color:#999;">Đang tải...</p>
-</div>
+<h1 style="margin:0 0 1.5rem;">Giao diện & Điều hướng</h1>
 
-<div class="card">
-  <h2 style="font-size:1rem;margin-top:0;">+ Tạo theme mới</h2>
-  <p style="color:#777;font-size:0.82rem;">
-    Tạo 1 bản sao từ theme nền — dùng được ngay, chưa cần AI. Sau khi tạo sẽ chuyển thẳng vào trang sửa để chat với AI tuỳ chỉnh từng phần.
-  </p>
+<div class="settings-layout">
+  <div class="tabs-sidebar">
+    <button type="button" class="tab-btn active" data-target="tab-themes">Quản lý theme</button>
+    <button type="button" class="tab-btn" data-target="tab-menus">Menu điều hướng</button>
+  </div>
 
-  <label for="base-theme">Theme nền</label>
-  <select id="base-theme"></select>
+  <div class="tabs-content">
+    <!-- TAB THEMES -->
+    <div id="tab-themes" class="tab-pane active">
+      <p style="color:#777;font-size:0.85rem;margin-top:0;margin-bottom:1.2rem;">
+        Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
+      </p>
 
-  <label for="new-name">Tên theme mới</label>
-  <input type="text" id="new-name" placeholder="vd: Shop mỹ phẩm cao cấp">
+      <div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
+        <p style="color:#999;">Đang tải...</p>
+      </div>
 
-  <label for="new-slug">Slug (tên thư mục, chỉ chữ thường/số/gạch ngang)</label>
-  <input type="text" id="new-slug" placeholder="vd: my-pham-cao-cap">
+      <div class="card">
+        <h2 style="font-size:1rem;margin-top:0;">+ Tạo theme mới</h2>
+        <p style="color:#777;font-size:0.82rem;">
+          Tạo 1 bản sao từ theme nền — dùng được ngay, chưa cần AI. Sau khi tạo sẽ chuyển thẳng vào trang sửa để chat với AI tuỳ chỉnh từng phần.
+        </p>
 
-  <div style="margin-top:1rem;">
-    <button type="button" class="btn btn-primary" id="create-btn">Tạo theme</button>
-    <span id="create-status" style="font-size:0.85rem;color:#777;margin-left:0.6rem;"></span>
+        <label for="base-theme">Theme nền</label>
+        <select id="base-theme"></select>
+
+        <label for="new-name">Tên theme mới</label>
+        <input type="text" id="new-name" placeholder="vd: Shop mỹ phẩm cao cấp">
+
+        <label for="new-slug">Slug (tên thư mục, chỉ chữ thường/số/gạch ngang)</label>
+        <input type="text" id="new-slug" placeholder="vd: my-pham-cao-cap">
+
+        <div style="margin-top:1rem;">
+          <button type="button" class="btn btn-primary" id="create-btn">Tạo theme</button>
+          <span id="create-status" style="font-size:0.85rem;color:#777;margin-left:0.6rem;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB MENUS -->
+    <div id="tab-menus" class="tab-pane">
+      <p style="color:#777;font-size:0.85rem;margin-top:0;margin-bottom:1.2rem;">
+        Tuỳ chỉnh menu hiển thị trên site public. Chưa lưu lần nào thì site vẫn dùng menu mặc định (Sản phẩm/Blog/Giỏ hàng).
+      </p>
+
+      <div class="filter-tabs" style="margin-bottom:1rem;">
+        <a href="#" class="filter-tab active" data-slug="header">Menu đầu trang</a>
+        <a href="#" class="filter-tab" data-slug="footer">Menu chân trang</a>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Nhãn hiển thị</th>
+              <th>Đường dẫn</th>
+              <th style="width:5rem;">Thứ tự</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="items-body"></tbody>
+        </table>
+
+        <div style="margin-top:0.8rem;display:flex;gap:0.6rem;">
+          <button type="button" class="btn" id="add-item">+ Thêm mục</button>
+          <button type="button" class="btn btn-primary" id="save-menu">Lưu menu</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 (function () {
-  const grid = document.getElementById("theme-grid");
-  const flash = document.getElementById("flash");
+  // TABS LOGIC
+  const tabs = document.querySelectorAll('.tab-btn');
+  const panes = document.querySelectorAll('.tab-pane');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.target).classList.add('active');
+    });
+  });
 
+  const flash = document.getElementById("flash");
   function showFlash(message, ok) {
     flash.textContent = message;
     flash.className = ok ? "success" : "error";
+    flash.style.display = "block";
+    setTimeout(() => { flash.style.display = "none"; }, 3000);
   }
-
   function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str ?? "";
     return div.innerHTML;
   }
 
+  // --- THEMES LOGIC ---
+  const grid = document.getElementById("theme-grid");
   const SOURCE_LABEL = { "built-in": "Có sẵn", "agent-generated": "AI tạo" };
 
   function cardHtml(theme) {
@@ -62,20 +165,16 @@
       ? '<img src="/theme-assets/' + theme.slug + '/screenshot.png" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.6rem;">'
       : "";
     return (
-      '<div class="card">' +
-      screenshot +
+      '<div class="card">' + screenshot +
       '<div style="font-weight:600;margin-bottom:0.3rem;">' + escapeHtml(theme.name) + '</div>' +
       '<div style="font-size:0.78rem;color:#999;margin-bottom:0.7rem;">' + (SOURCE_LABEL[theme.source] || theme.source) + '</div>' +
-      badge + editBtn + deleteBtn +
-      '</div>'
+      badge + editBtn + deleteBtn + '</div>'
     );
   }
 
   async function loadThemes() {
     const res = await fetch("/admin/api/themes");
     const { themes } = await res.json();
-    // "default" bi an khoi luoi (chi de active/hien thi) nhung VAN can trong dropdown "Theme nen"
-    // ben duoi - do la theme khung tho danh rieng de lam nen tao theme moi hoan toan.
     const visible = themes.filter((t) => !t.hiddenFromGrid);
     grid.innerHTML = visible.length ? visible.map(cardHtml).join("") : '<p style="color:#999;">Chưa có theme nào.</p>';
 
@@ -90,8 +189,7 @@
     const activateBtn = event.target.closest("button[data-activate]");
     if (activateBtn) {
       const res = await fetch("/admin/api/themes/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug: activateBtn.dataset.activate }),
       });
       if (!res.ok) {
@@ -123,20 +221,13 @@
     const newName = document.getElementById("new-name").value.trim();
     const newSlug = document.getElementById("new-slug").value.trim();
     const status = document.getElementById("create-status");
-
-    if (!newName || !newSlug) {
-      showFlash("Điền đủ tên và slug.", false);
-      return;
-    }
+    if (!newName || !newSlug) { showFlash("Điền đủ tên và slug.", false); return; }
 
     status.textContent = "Đang tạo...";
-
     const res = await fetch("/admin/api/themes/ai-customize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ baseSlug, newSlug, newName }),
     });
-
     status.textContent = "";
 
     if (!res.ok) {
@@ -144,12 +235,75 @@
       showFlash(typeof body.error === "string" ? body.error : "Tạo theme thất bại", false);
       return;
     }
-
     const { theme } = await res.json();
     window.location.href = "/admin/themes/" + theme.slug + "/edit";
   });
 
+  // --- MENUS LOGIC ---
+  const menuTabs = document.querySelectorAll(".filter-tab");
+  const itemsBody = document.getElementById("items-body");
+  let currentMenuSlug = "header";
+
+  function menuRowHtml(item) {
+    return (
+      '<tr>' +
+      '<td><input type="text" class="item-label" value="' + escapeHtml(item.label || "") + '"></td>' +
+      '<td><input type="text" class="item-url" value="' + escapeHtml(item.url || "") + '" placeholder="/blog"></td>' +
+      '<td><input type="number" class="item-sort" value="' + (item.sortOrder ?? 0) + '" style="width:4rem;"></td>' +
+      '<td><button type="button" class="btn btn-danger" data-remove>Xoá</button></td>' +
+      '</tr>'
+    );
+  }
+
+  async function loadMenu(slug) {
+    currentMenuSlug = slug;
+    const res = await fetch("/admin/api/menus/" + slug);
+    const { menu } = await res.json();
+    itemsBody.innerHTML = menu.items.length ? menu.items.map(menuRowHtml).join("") : "";
+  }
+
+  menuTabs.forEach((tab) => {
+    tab.addEventListener("click", (event) => {
+      event.preventDefault();
+      menuTabs.forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      loadMenu(tab.dataset.slug);
+    });
+  });
+
+  document.getElementById("add-item").addEventListener("click", () => {
+    itemsBody.insertAdjacentHTML("beforeend", menuRowHtml({ label: "", url: "", sortOrder: itemsBody.children.length }));
+  });
+
+  itemsBody.addEventListener("click", (event) => {
+    if (event.target.closest("[data-remove]")) {
+      event.target.closest("tr").remove();
+    }
+  });
+
+  document.getElementById("save-menu").addEventListener("click", async () => {
+    const items = [...itemsBody.querySelectorAll("tr")].map((row) => ({
+      label: row.querySelector(".item-label").value,
+      url: row.querySelector(".item-url").value,
+      sortOrder: Number(row.querySelector(".item-sort").value) || 0,
+    })).filter((item) => item.label && item.url);
+
+    const res = await fetch("/admin/api/menus/" + currentMenuSlug, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: currentMenuSlug, items }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showFlash(typeof body.error === "string" ? body.error : "Lưu thất bại", false);
+      return;
+    }
+    showFlash("Đã lưu menu.", true);
+    loadMenu(currentMenuSlug);
+  });
+
   loadThemes();
+  loadMenu("header");
 })();
 </script>
 {% endblock %}

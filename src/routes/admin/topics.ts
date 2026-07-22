@@ -14,7 +14,12 @@ const topicSchema = z.object({
 
 export async function registerTopicRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/topics", { preHandler: requireRole("edit") }, async () => {
-    const topics = await prisma.topic.findMany({ orderBy: { name: "asc" } });
+    const topics = await prisma.topic.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: { select: { posts: true } }
+      }
+    });
     return { topics };
   });
 

@@ -1,7 +1,9 @@
 import path from "node:path";
 import { Liquid } from "liquidjs";
 import { prisma } from "../db.js";
+import { buildPublicPluginContext } from "./pluginRuntime.js";
 import { buildOrganizationSchema } from "./schema.js";
+import { pagePrefix, prefixPath, postPrefix, productPrefix } from "./urlPaths.js";
 
 // Render trang PUBLIC bằng theme đang active (system_design.md §10, tech_doc.md §3). Theme
 // built-in nằm ở themes/{slug}/ (sibling của dist/, KHÔNG bị tsc build vào dist — copy nguyên
@@ -34,8 +36,12 @@ function injectSchemas(html: string, schemas: Record<string, unknown>[]): string
 // khong theme/AI nao can biet field nay ton tai). Khong escape customHeadScript vi ban chat no
 // LA HTML/JS admin chu dinh chen (vd TikTok Pixel/Hotjar) - tin tuong o cung muc voi viec admin
 // da co toan quyen chinh sua theme/DB.
-function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string | null; customHeadScript?: string | null }): string {
+function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string | null; customHeadScript?: string | null; gscVerificationId?: string | null }): string {
   const parts: string[] = [];
+
+  if (site.gscVerificationId) {
+    parts.push(`<meta name="google-site-verification" content="${site.gscVerificationId}" />`);
+  }
 
   if (site.gaId) {
     parts.push(
@@ -71,10 +77,11 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const slug = themeSlugOverride ?? (await activeThemeSlug());
   const engine = new Liquid({ root: path.join(THEMES_ROOT, slug), extname: ".liquid" });
 
-  const [siteConfig, headerMenu, footerMenu] = await Promise.all([
+  const [siteConfig, headerMenu, footerMenu, pluginContext] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: "singleton" } }),
     prisma.menu.findUnique({ where: { slug: "header" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
     prisma.menu.findUnique({ where: { slug: "footer" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
+    buildPublicPluginContext(),
   ]);
 
   const { schemas, ...restData } = data;
@@ -87,7 +94,16 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     gaId: null,
     fbPixelId: null,
     customHeadScript: null,
+    gscVerificationId: null,
+    postSlugPrefix: "blog",
+    pageSlugPrefix: "p",
+    productSlugPrefix: "product",
   };
+
+  const urlConfig = site as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null };
+  const postUrlPrefix = prefixPath(postPrefix(urlConfig));
+  const pageUrlPrefix = prefixPath(pagePrefix(urlConfig));
+  const productUrlPrefix = prefixPath(productPrefix(urlConfig));
 
   const html = await engine.renderFile(template, {
     ...restData,
@@ -96,6 +112,15 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     // fallback ve nav cung khi rong (xem themes/default/layout.liquid).
     headerMenu,
     footerMenu,
+    pluginData: pluginContext.data,
+    pluginAreas: pluginContext.areas,
+    postUrlPrefix,
+    pageUrlPrefix,
+    productUrlPrefix,
+    postCategoryPathPrefix: `${postUrlPrefix}/danh-muc`,
+    topicPathPrefix: `${postUrlPrefix}/chu-de`,
+    productCategoryPathPrefix: `${productUrlPrefix}/danh-muc`,
+    brandPathPrefix: `${productUrlPrefix}/thuong-hieu`,
     // De layout.liquid tu build URL /theme-assets/{slug}/assets/custom.css|js cua CHINH theme
     // dang active - xem routes/public/themeAssets.ts.
     themeSlug: slug,

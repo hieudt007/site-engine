@@ -7,23 +7,10 @@
 {% else %}
   <div>
     {% for product in products %}
-      <a href="/products/{{ product.id }}">
-        {% if product.imageUrls.size > 0 %}
-          <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}">
-        {% endif %}
-        <div>{{ product.name | escape }}</div>
-        {% if product.salePrice %}
-          <div>{{ product.salePrice }}₫ {{ product.price }}₫</div>
-        {% else %}
-          <div>{{ product.price }}₫</div>
-        {% endif %}
-      </a>
+      {% render "components/product/card", product: product, variant: "list", productUrlPrefix: productUrlPrefix %}
     {% endfor %}
   </div>
 
-  <div>
-    {% if hasPrev %}<a href="/products?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
-    {% if hasNext %}<a href="/products?page={{ nextPage }}">Trang sau →</a>{% endif %}
-  </div>
+  {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
 {% endif %}
 {% endblock %}

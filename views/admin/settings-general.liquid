@@ -1,77 +1,198 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin:0 0 1.2rem;">Cài đặt chung</h1>
+<style>
+  .settings-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  .tabs-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .tab-btn {
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    text-align: left;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.2s;
+    font-size: 0.95rem;
+  }
+  .tab-btn:hover {
+    background: #f5f5f5;
+  }
+  .tab-btn.active {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+  }
+  .tabs-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  .tab-pane {
+    display: none;
+  }
+  .tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
 
-<form id="settings-form" class="card">
-  <label for="siteType">Loại website</label>
-  <select id="siteType" name="siteType">
-    <option value="ecommerce">Bán hàng (ecommerce)</option>
-    <option value="blog">Blog / tin tức</option>
-  </select>
-  <p class="field-hint">Chọn "Blog" sẽ chặn hẳn toàn bộ chức năng bán hàng (sản phẩm, giỏ hàng, thanh toán, đơn hàng...) — cả trên trang admin lẫn trang public, kể cả khi gõ đúng URL.</p>
+<h1 style="margin:0 0 1.5rem;">Cài đặt chung</h1>
 
-  <label for="siteName">Tên website</label>
-  <input type="text" id="siteName" name="siteName" required>
-
-  <label for="tagline">Slogan / tagline</label>
-  <input type="text" id="tagline" name="tagline">
-
-  <label for="logoUrl">Logo (URL)</label>
-  <input type="text" id="logoUrl" name="logoUrl">
-
-  <label for="faviconUrl">Favicon (URL)</label>
-  <input type="text" id="faviconUrl" name="faviconUrl">
-
-  <label for="contactEmail">Email liên hệ</label>
-  <input type="text" id="contactEmail" name="contactEmail">
-
-  <label for="contactPhone">Số điện thoại</label>
-  <input type="text" id="contactPhone" name="contactPhone">
-
-  <label for="contactAddress">Địa chỉ</label>
-  <input type="text" id="contactAddress" name="contactAddress">
-
-  <label for="facebook">Facebook</label>
-  <input type="text" id="facebook" name="facebook">
-
-  <label for="zalo">Zalo</label>
-  <input type="text" id="zalo" name="zalo">
-
-  <label for="tiktok">TikTok</label>
-  <input type="text" id="tiktok" name="tiktok">
-
-  <label for="youtube">YouTube</label>
-  <input type="text" id="youtube" name="youtube">
-
-  <label for="businessLicense">Số ĐKKD</label>
-  <input type="text" id="businessLicense" name="businessLicense">
-
-  <label for="defaultOgImage">Ảnh chia sẻ mặc định (Open Graph, URL)</label>
-  <input type="text" id="defaultOgImage" name="defaultOgImage">
-
-  <label for="gaId">Google Analytics Measurement ID</label>
-  <input type="text" id="gaId" name="gaId" placeholder="VD: G-XXXXXXXXXX">
-
-  <label for="fbPixelId">Facebook Pixel ID</label>
-  <input type="text" id="fbPixelId" name="fbPixelId" placeholder="VD: 1234567890123456">
-
-  <label for="customHeadScript">Script tuỳ chỉnh khác (TikTok Pixel, Hotjar...)</label>
-  <textarea id="customHeadScript" name="customHeadScript" placeholder="Dán nguyên đoạn <script>...</script>" style="min-height:140px;"></textarea>
-  <p class="field-hint">Chèn nguyên văn vào mọi trang public (trước &lt;/head&gt;) — chỉ dán mã từ nguồn bạn tin tưởng.</p>
-
-  <div style="margin-top:1.5rem;">
-    <button type="submit" class="btn btn-primary">Lưu</button>
+<div class="settings-layout">
+  <div class="tabs-sidebar" id="settings-tabs">
+    <button type="button" class="tab-btn active" data-target="tab-seo">SEO Local</button>
+    <button type="button" class="tab-btn" data-target="tab-paths">Đường dẫn</button>
+    <button type="button" class="tab-btn" data-target="tab-tracking">Tracking</button>
   </div>
-</form>
+
+  <form id="settings-form" class="card tabs-content">
+    <div id="tab-seo" class="tab-pane active">
+      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">SEO Local & Thông tin cơ bản</h2>
+      <label for="siteType">Loại website</label>
+      <select id="siteType" name="siteType">
+        <option value="ecommerce">Bán hàng (ecommerce)</option>
+        <option value="blog">Blog / tin tức</option>
+      </select>
+      <p class="field-hint">Chọn "Blog" sẽ chặn hẳn toàn bộ chức năng bán hàng (sản phẩm, giỏ hàng, thanh toán, đơn hàng...) — cả trên trang admin lẫn trang public, kể cả khi gõ đúng URL.</p>
+
+      <label for="siteName">Tên website</label>
+      <input type="text" id="siteName" name="siteName" required>
+
+      <label for="tagline">Slogan / tagline</label>
+      <input type="text" id="tagline" name="tagline">
+
+      <label for="logoUrl">Logo (URL)</label>
+      <input type="text" id="logoUrl" name="logoUrl">
+
+      <label for="faviconUrl">Favicon (URL)</label>
+      <input type="text" id="faviconUrl" name="faviconUrl">
+
+      <label for="defaultOgImage">Ảnh chia sẻ mặc định (Open Graph, URL)</label>
+      <input type="text" id="defaultOgImage" name="defaultOgImage">
+
+      <h3 style="margin-top:2rem;font-size:1.05rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;color:#333;">Liên hệ & Mạng xã hội</h3>
+      <label for="contactEmail">Email liên hệ</label>
+      <input type="text" id="contactEmail" name="contactEmail">
+
+      <label for="contactPhone">Số điện thoại</label>
+      <input type="text" id="contactPhone" name="contactPhone">
+
+      <label for="contactAddress">Địa chỉ</label>
+      <input type="text" id="contactAddress" name="contactAddress">
+
+      <label for="businessLicense">Số ĐKKD</label>
+      <input type="text" id="businessLicense" name="businessLicense">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+        <div>
+          <label for="facebook">Facebook</label>
+          <input type="text" id="facebook" name="facebook">
+        </div>
+        <div>
+          <label for="zalo">Zalo</label>
+          <input type="text" id="zalo" name="zalo">
+        </div>
+        <div>
+          <label for="tiktok">TikTok</label>
+          <input type="text" id="tiktok" name="tiktok">
+        </div>
+        <div>
+          <label for="youtube">YouTube</label>
+          <input type="text" id="youtube" name="youtube">
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-paths" class="tab-pane">
+      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Cấu hình đường dẫn (Slug Prefixes)</h2>
+      
+      <label for="postSlugPrefix">Prefix bài viết</label>
+      <input type="text" id="postSlugPrefix" name="postSlugPrefix" placeholder="blog">
+      <p class="field-hint">Mặc định bài viết có dạng /blog/slug. Để trống để dùng /slug. Chỉ bài viết hoặc sản phẩm được để trống, không được để trống cả hai.</p>
+
+      <label for="productSlugPrefix">Prefix sản phẩm</label>
+      <input type="text" id="productSlugPrefix" name="productSlugPrefix" placeholder="product">
+      <p class="field-hint">Mặc định sản phẩm có dạng /product/slug. Để trống để dùng /slug. Prefix sản phẩm không được trùng prefix bài viết.</p>
+
+      <label for="pageSlugPrefix">Prefix trang tĩnh</label>
+      <input type="text" id="pageSlugPrefix" name="pageSlugPrefix" placeholder="p">
+      <p class="field-hint">Mặc định trang tĩnh có dạng /p/slug. Không nên để trống để tránh trùng URL sản phẩm.</p>
+    </div>
+
+    <div id="tab-tracking" class="tab-pane">
+      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Công cụ Tracking & Scripts</h2>
+
+      <label for="gaId">Google Analytics Measurement ID</label>
+      <input type="text" id="gaId" name="gaId" placeholder="VD: G-XXXXXXXXXX">
+
+      <label for="gscVerificationId">Google Search Console Verification ID</label>
+      <input type="text" id="gscVerificationId" name="gscVerificationId" placeholder="Mã xác minh (ví dụ: XXXXXXXXXX)">
+
+      <label for="fbPixelId">Facebook Pixel ID</label>
+      <input type="text" id="fbPixelId" name="fbPixelId" placeholder="VD: 1234567890123456">
+
+      <label for="customHeadScript">Script tuỳ chỉnh khác (TikTok Pixel, Hotjar...)</label>
+      <textarea id="customHeadScript" name="customHeadScript" placeholder="Dán nguyên đoạn <script>...</script>" style="min-height:140px;"></textarea>
+      <p class="field-hint">Chèn nguyên văn vào mọi trang public (trước &lt;/head&gt;) — chỉ dán mã từ nguồn bạn tin tưởng.</p>
+    </div>
+
+    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #eee;">
+      <button type="submit" class="btn btn-primary">Lưu cài đặt</button>
+    </div>
+  </form>
+</div>
 
 <script>
 (function () {
+  // Tab logic
+  const tabs = document.querySelectorAll('.tab-btn');
+  const panes = document.querySelectorAll('.tab-pane');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active'));
+      
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.target).classList.add('active');
+    });
+  });
+
+  // Data logic
   const form = document.getElementById("settings-form");
   const flash = document.getElementById("flash");
 
   function showFlash(message, ok) {
     flash.textContent = message;
     flash.className = ok ? "success" : "error";
+  }
+
+  function formatSaveError(body) {
+    if (!body || !body.error) return "Lưu thất bại";
+    if (typeof body.error === "string") return body.error;
+
+    const messages = [];
+    const fieldErrors = body.error.fieldErrors || {};
+    Object.values(fieldErrors).forEach((errors) => {
+      if (Array.isArray(errors)) messages.push(...errors);
+    });
+    if (Array.isArray(body.error.formErrors)) messages.push(...body.error.formErrors);
+
+    return messages[0] || "Lưu thất bại";
   }
 
   async function load() {
@@ -81,7 +202,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript"].forEach((key) => {
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "gscVerificationId"].forEach((key) => {
       form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -94,6 +215,9 @@
     event.preventDefault();
     const payload = {
       siteType: form.siteType.value,
+      postSlugPrefix: form.postSlugPrefix.value.trim(),
+      productSlugPrefix: form.productSlugPrefix.value.trim(),
+      pageSlugPrefix: form.pageSlugPrefix.value.trim(),
       siteName: form.siteName.value,
       tagline: form.tagline.value || undefined,
       logoUrl: form.logoUrl.value || undefined,
@@ -106,6 +230,7 @@
       gaId: form.gaId.value || undefined,
       fbPixelId: form.fbPixelId.value || undefined,
       customHeadScript: form.customHeadScript.value || undefined,
+      gscVerificationId: form.gscVerificationId.value || undefined,
       socialLinks: {
         facebook: form.facebook.value || undefined,
         zalo: form.zalo.value || undefined,
@@ -121,7 +246,13 @@
     });
 
     if (!res.ok) {
-      showFlash("Lưu thất bại", false);
+      let body = null;
+      try {
+        body = await res.json();
+      } catch (error) {
+        body = null;
+      }
+      showFlash(formatSaveError(body), false);
       return;
     }
 

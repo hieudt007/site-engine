@@ -1,44 +1,42 @@
 {% layout "layout" %}
 {% block content %}
-<a href="/blog">← Tất cả bài viết</a>
+<a href="{{ backHref | default: "/blog" }}">← {{ backLabel | default: "Tất cả bài viết" }}</a>
 
 <h1>{{ category.name | escape }}</h1>
 {% if category.excerpt %}<p>{{ category.excerpt | escape }}</p>{% endif %}
 {% if category.body %}<div>{{ category.body }}</div>{% endif %}
 {% render "custom-fields", fields: category.customFields %}
 
+{% if category.faq and category.faq.size > 0 %}
+  <div style="margin-top: 2rem;">
+    <h2>Câu hỏi thường gặp</h2>
+    <dl>
+      {% for item in category.faq %}
+        <dt style="font-weight: bold; margin-top: 1rem;">{{ item.question | escape }}</dt>
+        <dd style="margin-left: 0; margin-bottom: 1rem;">{{ item.answer | escape | newline_to_br }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+{% endif %}
+
 {% if category.children.size > 0 %}
   <div>
     {% for child in category.children %}
-      <a href="/blog/danh-muc/{{ child.slug }}">{{ child.name | escape }}</a>
+      <a href="{{ childPathPrefix | default: "/danh-muc" }}/{{ child.slug }}">{{ child.name | escape }}</a>
     {% endfor %}
   </div>
 {% endif %}
 
 {% if posts.size == 0 %}
-  <p>Chưa có bài viết nào trong danh mục này.</p>
+  <p>{{ emptyText | default: "Chưa có bài viết nào trong danh mục này." }}</p>
 {% else %}
   <div>
     {% for post in posts %}
-      <article>
-        {% if post.coverImage %}
-          <a href="/blog/{{ post.slug }}">
-            <img src="{{ post.coverImage }}" alt="{{ post.title }}">
-          </a>
-        {% endif %}
-        <h2>
-          <a href="/blog/{{ post.slug }}">{{ post.title | escape }}</a>
-        </h2>
-        <div>{{ post.publishedAt | date: "%d/%m/%Y" }}</div>
-        {% if post.excerpt %}<p>{{ post.excerpt | escape }}</p>{% endif %}
-        <a href="/blog/{{ post.slug }}">Đọc tiếp →</a>
-      </article>
+      {% render "components/post/card", post: post, variant: "category", postUrlPrefix: postUrlPrefix, postCategoryPathPrefix: postCategoryPathPrefix %}
     {% endfor %}
   </div>
 
-  <div>
-    {% if hasPrev %}<a href="/blog/danh-muc/{{ category.slug }}?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
-    {% if hasNext %}<a href="/blog/danh-muc/{{ category.slug }}?page={{ nextPage }}">Trang sau →</a>{% endif %}
-  </div>
+  {% render "components/common/pagination", basePath: categoryPath, hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
 {% endif %}
 {% endblock %}
+

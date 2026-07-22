@@ -60,6 +60,10 @@
   <label for="name">Tên sản phẩm</label>
   <input type="text" id="name" name="name" value="{{ product.name | escape }}" required>
 
+  <label for="slug">Slug sản phẩm</label>
+  <input type="text" id="slug" name="slug" value="{{ product.slug | escape }}" required>
+  <div class="field-hint">Đường dẫn mặc định: /product/{{ product.slug | default: product.id }}</div>
+
   <label for="layoutMode">Định dạng trang</label>
   <select id="layoutMode" name="layoutMode">
     <option value="standard" {% if product.layoutMode == "standard" %}selected{% endif %}>Tiêu chuẩn</option>
@@ -78,6 +82,74 @@
     <button type="button" class="btn" id="imageUrls-pick-btn">+ Thêm ảnh từ thư viện</button>
   </div>
   <div id="imageUrls-preview" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.6rem;"></div>
+
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">Thông số sản phẩm</h2>
+  <div id="specs-rows">
+    {% for spec in product.specs %}
+      <div class="specs-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;">
+        <input type="text" class="specs-label" placeholder="Tên thông số (VD: RAM)" value="{{ spec.label | escape }}" style="flex:1;">
+        <input type="text" class="specs-value" placeholder="Giá trị (VD: 8GB)" value="{{ spec.value | escape }}" style="flex:1;">
+        <button type="button" class="btn btn-danger specs-remove">×</button>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn" id="specs-add-btn">+ Thêm thông số</button>
+
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">Sản phẩm liên kết</h2>
+  
+  <div style="margin-bottom:1rem; border: 1px solid #eee; padding: 1rem; border-radius: 4px;">
+    <h3 style="font-size:0.9rem; margin-top:0;">Upsell (Bán thêm / Nâng cấp)</h3>
+    <div style="display:flex; gap:1rem; margin-bottom: 0.5rem;">
+      <label><input type="radio" name="upsell_mode" value="specific" checked> Cụ thể</label>
+      <label><input type="radio" name="upsell_mode" value="category"> Danh mục</label>
+    </div>
+    
+    <div id="upsell-specific-section">
+      <input type="text" id="upsell-search" placeholder="Tìm sản phẩm..." autocomplete="off">
+      <div id="upsell-search-results" style="border:1px solid #ccc; max-height:150px; overflow-y:auto; display:none; background:#fff; position:absolute; z-index:10; width:300px;"></div>
+      <div id="upsell-selected" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;"></div>
+    </div>
+    
+    <div id="upsell-category-section" style="display:none;">
+      <input type="text" id="upsell-cat-search" placeholder="Tìm danh mục..." autocomplete="off">
+      <div id="upsell-cat-results" style="border:1px solid #ccc; max-height:150px; overflow-y:auto; display:none; background:#fff; position:absolute; z-index:10; width:300px;"></div>
+      <div id="upsell-cat-selected" style="margin-top:0.5rem; font-weight:bold; color:#0056b3;"></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:1rem; border: 1px solid #eee; padding: 1rem; border-radius: 4px;">
+    <h3 style="font-size:0.9rem; margin-top:0;">Cross-sell (Thường mua cùng)</h3>
+    <div style="display:flex; gap:1rem; margin-bottom: 0.5rem;">
+      <label><input type="radio" name="crossSell_mode" value="specific" checked> Cụ thể</label>
+      <label><input type="radio" name="crossSell_mode" value="category"> Danh mục</label>
+    </div>
+    
+    <div id="crossSell-specific-section">
+      <input type="text" id="crossSell-search" placeholder="Tìm sản phẩm..." autocomplete="off">
+      <div id="crossSell-search-results" style="border:1px solid #ccc; max-height:150px; overflow-y:auto; display:none; background:#fff; position:absolute; z-index:10; width:300px;"></div>
+      <div id="crossSell-selected" style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;"></div>
+    </div>
+    
+    <div id="crossSell-category-section" style="display:none;">
+      <input type="text" id="crossSell-cat-search" placeholder="Tìm danh mục..." autocomplete="off">
+      <div id="crossSell-cat-results" style="border:1px solid #ccc; max-height:150px; overflow-y:auto; display:none; background:#fff; position:absolute; z-index:10; width:300px;"></div>
+      <div id="crossSell-cat-selected" style="margin-top:0.5rem; font-weight:bold; color:#0056b3;"></div>
+    </div>
+  </div>
+
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">Câu hỏi thường gặp (FAQ)</h2>
+  <div id="faq-rows">
+    {% for item in product.faq %}
+      <div class="faq-row card" style="margin-bottom:0.5rem;position:relative;">
+        <button type="button" class="btn btn-danger faq-remove" style="position:absolute;top:0.5rem;right:0.5rem;">×</button>
+        <label>Câu hỏi</label>
+        <input type="text" class="faq-q" value="{{ item.question | escape }}" style="margin-bottom:0.5rem;">
+        <label>Câu trả lời</label>
+        <textarea class="faq-a" style="min-height:80px;">{{ item.answer | escape }}</textarea>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn" id="faq-add-btn">+ Thêm câu hỏi</button>
 
   <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
@@ -186,6 +258,63 @@
 
   renderImageUrlsPreview();
 
+  const specsRows = document.getElementById("specs-rows");
+
+  function addSpecRow(label, value) {
+    const row = document.createElement("div");
+    row.className = "specs-row";
+    row.style.cssText = "display:flex;gap:0.5rem;margin-bottom:0.5rem;align-items:center;";
+    row.innerHTML =
+      '<input type="text" class="specs-label" placeholder="Tên thông số (VD: RAM)" style="flex:1;">' +
+      '<input type="text" class="specs-value" placeholder="Giá trị (VD: 8GB)" style="flex:1;">' +
+      '<button type="button" class="btn btn-danger specs-remove">×</button>';
+    row.querySelector(".specs-label").value = label || "";
+    row.querySelector(".specs-value").value = value || "";
+    specsRows.appendChild(row);
+  }
+
+  document.getElementById("specs-add-btn").addEventListener("click", () => addSpecRow("", ""));
+
+  specsRows.addEventListener("click", (event) => {
+    const btn = event.target.closest(".specs-remove");
+    if (btn) btn.closest(".specs-row").remove();
+  });
+
+  function collectSpecs() {
+    return [...specsRows.querySelectorAll(".specs-row")]
+      .map((row) => ({
+        label: row.querySelector(".specs-label").value.trim(),
+        value: row.querySelector(".specs-value").value.trim(),
+      }))
+      .filter((s) => s.label && s.value);
+  }
+
+  const faqRows = document.getElementById("faq-rows");
+  function addFaqRow(q, a) {
+    const row = document.createElement("div");
+    row.className = "faq-row card";
+    row.style.cssText = "margin-bottom:0.5rem;position:relative;";
+    row.innerHTML =
+      '<button type="button" class="btn btn-danger faq-remove" style="position:absolute;top:0.5rem;right:0.5rem;">×</button>' +
+      '<label>Câu hỏi</label><input type="text" class="faq-q" style="margin-bottom:0.5rem;">' +
+      '<label>Câu trả lời</label><textarea class="faq-a" style="min-height:80px;"></textarea>';
+    row.querySelector(".faq-q").value = q || "";
+    row.querySelector(".faq-a").value = a || "";
+    faqRows.appendChild(row);
+  }
+  document.getElementById("faq-add-btn").addEventListener("click", () => addFaqRow("", ""));
+  faqRows.addEventListener("click", (e) => {
+    if (e.target.classList.contains("faq-remove")) e.target.closest(".faq-row").remove();
+  });
+  function collectFaq() {
+    return [...faqRows.querySelectorAll(".faq-row")]
+      .map(row => ({
+        question: row.querySelector(".faq-q").value.trim(),
+        answer: row.querySelector(".faq-a").value.trim()
+      }))
+      .filter(i => i.question && i.answer);
+  }
+
   document.getElementById("custom-fields-btn").addEventListener("click", async () => {
     const res = await fetch("/admin/api/products/" + productId);
     const { product: current } = await res.json();
@@ -252,13 +381,176 @@
     document.getElementById("unpublish-slot").appendChild(unpublishBtn);
   }
 
+  // RELATED PRODUCTS LOGIC
+  const state = {
+    upsell: { mode: "specific", productIds: [], products: [], categoryId: null, category: null },
+    crossSell: { mode: "specific", productIds: [], products: [], categoryId: null, category: null }
+  };
+
+  async function loadRelatedProducts() {
+    const res = await fetch("/admin/api/products/" + productId);
+    if (!res.ok) return;
+    const { resolvedRelatedProducts } = await res.json();
+    if (resolvedRelatedProducts) {
+      if (resolvedRelatedProducts.upsell) {
+        state.upsell.mode = resolvedRelatedProducts.upsell.mode || "specific";
+        if (state.upsell.mode === "specific") {
+           state.upsell.productIds = resolvedRelatedProducts.upsell.productIds || [];
+           state.upsell.products = resolvedRelatedProducts.upsell.resolvedProducts || [];
+        } else {
+           state.upsell.categoryId = resolvedRelatedProducts.upsell.categoryId || null;
+           state.upsell.category = resolvedRelatedProducts.upsell.resolvedCategory || null;
+        }
+      }
+      if (resolvedRelatedProducts.crossSell) {
+        state.crossSell.mode = resolvedRelatedProducts.crossSell.mode || "specific";
+        if (state.crossSell.mode === "specific") {
+           state.crossSell.productIds = resolvedRelatedProducts.crossSell.productIds || [];
+           state.crossSell.products = resolvedRelatedProducts.crossSell.resolvedProducts || [];
+        } else {
+           state.crossSell.categoryId = resolvedRelatedProducts.crossSell.categoryId || null;
+           state.crossSell.category = resolvedRelatedProducts.crossSell.resolvedCategory || null;
+        }
+      }
+      renderRelatedUI("upsell");
+      renderRelatedUI("crossSell");
+    }
+  }
+
+  function renderRelatedUI(type) {
+    const s = state[type];
+    document.querySelector(`input[name="${type}_mode"][value="${s.mode}"]`).checked = true;
+    document.getElementById(`${type}-specific-section`).style.display = s.mode === "specific" ? "block" : "none";
+    document.getElementById(`${type}-category-section`).style.display = s.mode === "category" ? "block" : "none";
+
+    // render specific products
+    const selectedDiv = document.getElementById(`${type}-selected`);
+    selectedDiv.innerHTML = s.products.map((p, i) => 
+      `<div style="background:#eef; padding:0.2rem 0.5rem; border-radius:4px; font-size:0.85rem; display:flex; align-items:center; gap:0.3rem;">
+        ${p.name} <span style="cursor:pointer; color:red; font-weight:bold;" data-${type}-remove="${i}">×</span>
+      </div>`
+    ).join("");
+
+    // render category
+    const catDiv = document.getElementById(`${type}-cat-selected`);
+    if (s.category) {
+       catDiv.innerHTML = `Danh mục: ${s.category.name} <span style="cursor:pointer; color:red; margin-left:0.5rem;" data-${type}-cat-remove>Xoá</span>`;
+    } else {
+       catDiv.innerHTML = "<span style='color:#999'>Để trống sẽ bị bỏ qua.</span>";
+    }
+  }
+
+  ["upsell", "crossSell"].forEach(type => {
+    // Mode toggles
+    document.querySelectorAll(`input[name="${type}_mode"]`).forEach(radio => {
+      radio.addEventListener("change", (e) => {
+        state[type].mode = e.target.value;
+        renderRelatedUI(type);
+      });
+    });
+
+    // Remove buttons delegation
+    document.getElementById(`${type}-selected`).addEventListener("click", e => {
+      if (e.target.hasAttribute(`data-${type}-remove`)) {
+         const idx = Number(e.target.getAttribute(`data-${type}-remove`));
+         state[type].productIds.splice(idx, 1);
+         state[type].products.splice(idx, 1);
+         renderRelatedUI(type);
+      }
+    });
+    document.getElementById(`${type}-cat-selected`).addEventListener("click", e => {
+      if (e.target.hasAttribute(`data-${type}-cat-remove`)) {
+         state[type].categoryId = null;
+         state[type].category = null;
+         renderRelatedUI(type);
+      }
+    });
+
+    // Autocomplete
+    let timeoutId;
+    const searchInput = document.getElementById(`${type}-search`);
+    const searchResults = document.getElementById(`${type}-search-results`);
+    
+    searchInput.addEventListener("input", e => {
+      clearTimeout(timeoutId);
+      const q = e.target.value.trim();
+      if (!q) { searchResults.style.display = "none"; return; }
+      timeoutId = setTimeout(async () => {
+        const res = await fetch(`/admin/api/search?q=${encodeURIComponent(q)}&type=product`);
+        if (res.ok) {
+          const { results } = await res.json();
+          searchResults.innerHTML = results.map(r => 
+            `<div class="ac-item" style="padding:0.5rem; cursor:pointer; border-bottom:1px solid #eee;" data-id="${r.id}" data-name="${r.name}">${r.name}</div>`
+          ).join("");
+          searchResults.style.display = "block";
+        }
+      }, 300);
+    });
+
+    searchResults.addEventListener("click", e => {
+      const item = e.target.closest(".ac-item");
+      if (item) {
+        const id = item.getAttribute("data-id");
+        if (id === productId) { alert("Không thể thêm chính sản phẩm này"); return; }
+        if (!state[type].productIds.includes(id)) {
+          state[type].productIds.push(id);
+          state[type].products.push({ id, name: item.getAttribute("data-name") });
+          renderRelatedUI(type);
+        }
+        searchInput.value = "";
+        searchResults.style.display = "none";
+      }
+    });
+
+    // Cat Autocomplete
+    const catInput = document.getElementById(`${type}-cat-search`);
+    const catResults = document.getElementById(`${type}-cat-results`);
+    catInput.addEventListener("input", e => {
+      clearTimeout(timeoutId);
+      const q = e.target.value.trim();
+      if (!q) { catResults.style.display = "none"; return; }
+      timeoutId = setTimeout(async () => {
+        const res = await fetch(`/admin/api/search?q=${encodeURIComponent(q)}&type=category`);
+        if (res.ok) {
+          const { results } = await res.json();
+          catResults.innerHTML = results.filter(r => r.entityType === "product").map(r => 
+            `<div class="ac-item" style="padding:0.5rem; cursor:pointer; border-bottom:1px solid #eee;" data-id="${r.id}" data-name="${r.name}">${r.name}</div>`
+          ).join("");
+          catResults.style.display = "block";
+        }
+      }, 300);
+    });
+
+    catResults.addEventListener("click", e => {
+      const item = e.target.closest(".ac-item");
+      if (item) {
+        state[type].categoryId = item.getAttribute("data-id");
+        state[type].category = { id: state[type].categoryId, name: item.getAttribute("data-name") };
+        renderRelatedUI(type);
+        catInput.value = "";
+        catResults.style.display = "none";
+      }
+    });
+    
+    // Hide autocomplete on blur
+    document.addEventListener("click", e => {
+      if (!e.target.closest(`#${type}-specific-section`)) searchResults.style.display = "none";
+      if (!e.target.closest(`#${type}-category-section`)) catResults.style.display = "none";
+    });
+  });
+
+  loadRelatedProducts();
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
       name: form.name.value,
+      slug: form.slug.value,
       description: form.description.value || undefined,
       imageUrls: form.imageUrls.value.split("\n").map((s) => s.trim()).filter(Boolean),
       layoutMode: form.layoutMode.value,
+      specs: collectSpecs(),
+      faq: collectFaq(),
       seo: {
         metaTitle: form.metaTitle.value || undefined,
         metaDescription: form.metaDescription.value || undefined,
@@ -266,6 +558,10 @@
         keyword: form.keyword.value || undefined,
         noindex: form.noindex.checked,
       },
+      relatedProducts: {
+        upsell: { mode: state.upsell.mode, productIds: state.upsell.productIds, categoryId: state.upsell.categoryId, limit: 4 },
+        crossSell: { mode: state.crossSell.mode, productIds: state.crossSell.productIds, categoryId: state.crossSell.categoryId, limit: 4 }
+      }
     };
 
     const res = await fetch("/admin/api/products/" + productId, {

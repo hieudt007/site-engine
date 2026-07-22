@@ -1,0 +1,11 @@
+{% if product.imageUrls.size > 0 %}
+  <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}">
+{% endif %}
+
+{% if product.imageUrls.size > 1 %}
+  <div>
+    {% for url in product.imageUrls offset: 1 %}
+      <img src="{{ url }}" alt="{{ product.name | escape }}">
+    {% endfor %}
+  </div>
+{% endif %}

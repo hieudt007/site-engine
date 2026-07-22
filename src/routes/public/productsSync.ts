@@ -3,6 +3,8 @@ import { z } from "zod";
 import { config } from "../../config.js";
 import { prisma } from "../../db.js";
 import { verifySiteEngineRequest } from "../../security.js";
+import { uniqueProductSlug } from "../../services/productSlug.js";
+import { recomputeCategoryCounts } from "../../services/categoryCounts.js";
 
 // LeadBase chủ động đẩy mỗi khi sản phẩm đổi (system_design.md §4.2) — 1 trong 3 API HTTP thật
 // duy nhất của toàn hệ thống, ký HMAC bằng Website.secret (= config.siteEngineSecret của CHÍNH
@@ -139,7 +141,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
     const brandId = await resolveTypedCategoryId("brand", parsed.data.brand);
 
     if (parsed.data.action === "create") {
-      const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId } });
+      const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId }, include: { categories: { select: { id: true } } } });
       if (existing) {
         // Đã tồn tại (vd retry trùng của LeadBase) - coi như update để không tạo bản ghi trùng.
         await prisma.productCache.update({
@@ -160,6 +162,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         if (hasVariants) {
           await upsertVariants(existing.id, parsed.data.variants!);
         }
+        await recomputeCategoryCounts([...existing.categories.map((category) => category.id), existing.brandId, categoryId, brandId]);
         return { success: true };
       }
 
@@ -167,6 +170,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         data: {
           leadbaseProductId,
           name: parsed.data.name,
+          slug: await uniqueProductSlug(parsed.data.name),
           price: parsed.data.price,
           salePrice: parsed.data.salePrice ?? null,
           stock: parsed.data.stock ?? null,
@@ -178,7 +182,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
           hasVariants,
           ...(categoryId ? { categories: { connect: [{ id: categoryId }] } } : {}),
           brandId,
-        },
+        } as any,
       });
       if (hasVariants) {
         await upsertVariants(created.id, parsed.data.variants!);
@@ -187,7 +191,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
     }
 
     // action === "update"
-    const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId } });
+    const existing = await prisma.productCache.findUnique({ where: { leadbaseProductId }, include: { categories: { select: { id: true } } } });
     if (!existing) {
       return reply.code(404).send({ error: "Sản phẩm chưa được sync 'create' trước đó" });
     }
@@ -210,6 +214,7 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
     if (hasVariants) {
       await upsertVariants(existing.id, parsed.data.variants!);
     }
+    await recomputeCategoryCounts([...existing.categories.map((category) => category.id), existing.brandId, categoryId, brandId]);
 
     return { success: true };
   });

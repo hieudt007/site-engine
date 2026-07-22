@@ -83,7 +83,15 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/cart", async (request, reply) => {
-    const html = await renderPublic("cart", { pageTitle: "Giỏ hàng" });
+    const html = await renderPublic("cart", {
+      pageTitle: "Giỏ hàng",
+      breadcrumbs: [
+        { name: "Trang chủ", url: "/" },
+        { name: "Sản phẩm", url: "/products" },
+        { name: "Giỏ hàng", url: "/cart" },
+      ],
+      breadcrumbVariant: "product",
+    });
     return reply.type("text/html").send(html);
   });
 
@@ -258,7 +266,18 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
 
     const pickupStore = order.storeId ? await prisma.store.findUnique({ where: { id: order.storeId } }) : null;
 
-    const html = await renderPublic("order-confirmation", { pageTitle: "Xác nhận đơn hàng", order, bankInfo, pickupStore });
+    const html = await renderPublic("order-confirmation", {
+      pageTitle: "Xác nhận đơn hàng",
+      breadcrumbs: [
+        { name: "Trang chủ", url: "/" },
+        { name: "Giỏ hàng", url: "/cart" },
+        { name: "Xác nhận đơn hàng", url: `/order-confirmation/${order.id}` },
+      ],
+      breadcrumbVariant: "product",
+      order,
+      bankInfo,
+      pickupStore,
+    });
     return reply.type("text/html").send(html);
   });
 }

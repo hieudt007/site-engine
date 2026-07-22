@@ -30,14 +30,7 @@ export async function registerSettingsUiRoutes(app: FastifyInstance): Promise<vo
     },
   );
 
-  app.get(
-    "/admin/stores",
-    { preHandler: requireRole("manager") },
-    async (request, reply) => {
-      const html = await renderAdmin("stores-list", { userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
-      return reply.type("text/html").send(html);
-    },
-  );
+
 
   app.get(
     "/admin/coupons",

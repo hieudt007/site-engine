@@ -1,0 +1,11 @@
+<a href="{{ productUrlPrefix }}/{{ product.slug | default: product.id }}">
+  {% if product.imageUrls.size > 0 %}
+    <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}">
+  {% endif %}
+  <div>{{ product.name | escape }}</div>
+  {% if product.salePrice %}
+    <div>{{ product.salePrice }}₫ {{ product.price }}₫</div>
+  {% else %}
+    <div>{{ product.price }}₫</div>
+  {% endif %}
+</a>

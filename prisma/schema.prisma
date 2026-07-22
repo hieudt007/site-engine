@@ -34,6 +34,13 @@ model SiteConfig {
   // chay that da co san (migration them cot voi default nay, khong can backfill).
   siteType String @default("ecommerce")
 
+  // Prefix URL cho bai viet, trang tinh va san pham. Mac dinh /blog/:slug, /p/:slug va
+  // /product/:slug; neu admin de rong string thi bo prefix. Rieng bai viet/san pham chi 1 trong 2
+  // duoc de rong de tranh route goc qua mo ho.
+  postSlugPrefix    String @default("blog")
+  pageSlugPrefix    String @default("p")
+  productSlugPrefix String @default("product")
+
   // Tracking pixel - chen thang vao HTML sau khi render (themeRenderer.ts injectAnalytics),
   // GIONG CACH schema.org dang lam (theme-agnostic, khong theme/AI nao can biet field nay ton
   // tai). gaId/fbPixelId chi can dan ID, tu build dung snippet script chuan. customHeadScript la
@@ -43,6 +50,7 @@ model SiteConfig {
   gaId              String?
   fbPixelId         String?
   customHeadScript  String?
+  gscVerificationId String?
 
   updatedAt DateTime @updatedAt
 }
@@ -156,6 +164,12 @@ model Category {
   // KHÔNG dùng cho số liệu hệ thống tự tính (vd lượt xem) — xem services/customFields.ts.
   customFields Json?
 
+  faq Json?
+
+  // Denormalized count of items in this category. For type='post' counts posts; for
+  // type='product' counts products in categories; for type='brand' counts products with brandId.
+  itemCount Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -251,6 +265,8 @@ model Post {
   // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts, model Category.
   customFields Json?
 
+  faq Json?
+
   // 'draft' | 'pending_review' | 'scheduled' | 'published' - xem services/contentStatus.ts cho
   // ma tran quyen chuyen trang thai theo role. scheduledAt tu dong -> published qua cron
   // (services/publishScheduler.ts), luc do publishedAt cung tu dong duoc set.
@@ -307,6 +323,7 @@ model ProductCache {
 
   // --- Do CHÍNH website tự quản, LeadBase chỉ set giá trị khởi tạo lúc tạo mới, không ghi đè sau đó ---
   name        String
+  slug        String? @unique
   // Mo ta ngan hien o trang danh sach - cung y nghia voi Post.excerpt (xem docblock o do).
   // LeadBase KHONG gui truong nay (site tu viet/sua qua /admin/products), khac description ben duoi.
   excerpt     String?
@@ -324,6 +341,21 @@ model ProductCache {
 
   // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts.
   customFields Json?
+
+  faq Json?
+
+  // Cấu hình hiển thị Upsell / Cross-sell cho riêng sản phẩm này.
+  // Cấu trúc:
+  // {
+  //   "upsell": { "mode": "specific" | "category", "productIds": ["id1"], "categoryId": "cat1" | null, "limit": 4 },
+  //   "crossSell": { "mode": "specific" | "category", "productIds": ["id2"], "categoryId": "cat2" | null, "limit": 4 }
+  // }
+  relatedProducts Json?
+
+  // Thong so ky thuat (RAM/CPU, chat lieu, kich thuoc...) - [{label, value}], CO THU TU hien thi,
+  // KHAC customFields (map string->string khong dam bao thu tu, dung cho field tuy y rai rac).
+  // Day la 1 khu vuc RIENG co y nghia co dinh "bang thong so san pham" hien o trang chi tiet.
+  specs Json?
 
   // Cổng xuất bản riêng của website — sản phẩm mới từ LeadBase luôn vào ở trạng thái draft,
   // tenant phải tự vào /admin/products sửa/bổ sung nội dung rồi publish. Cùng 4 trạng thái với
@@ -590,9 +622,41 @@ model ThemeChatMessage {
   // tin nhan MOI NHAT va co gia tri nay - bam vao se goi thang pipeline sua 18 file, KHONG qua lai
   // AI phan loai (xem routes/admin/themeChat.ts, endpoint /chat/confirm-redesign).
   redesignBrief String?
+  // Di kem redesignBrief - vai tu khoa tieng Anh AI tu viet, dung tra kho du lieu UI/UX
+  // (services/uiuxSearch.ts) luc bam "Xac nhan" (khong qua lai AI phan loai nen phai luu san).
+  styleQuery String?
   createdAt DateTime @default(now())
 
   @@index([slug, createdAt])
+}
+
+// Plugin admin-only (phase 1): plugin khong chay code server tu do, chi la manifest khai bao
+// trang admin/menu/quyen doc core model + storage rieng qua PluginRecord. Khac WordPress plugin:
+// khong duoc import prisma/core DB truc tiep, khong hien public site trong phase nay.
+model Plugin {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  version     String
+  enabled     Boolean  @default(false)
+  manifest    Json
+  source      String   @default("uploaded")
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  records PluginRecord[]
+}
+
+model PluginRecord {
+  id         String @id @default(cuid())
+  pluginSlug String
+  plugin     Plugin @relation(fields: [pluginSlug], references: [slug], onDelete: Cascade)
+  collection String
+  data       Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([pluginSlug, collection])
 }
 
 // File upload thật (ảnh bìa bài viết, ảnh chèn nội dung...) — lưu trên đĩa VPS ở uploads/

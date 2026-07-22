@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ pageTitle | default: "Quản trị" }}</title>
   {% if faviconUrl %}<link rel="icon" href="{{ faviconUrl }}">{% endif %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>
     // Doc truoc khi ve UI de tranh nhap nhay sidebar mo/dong luc reload trang (moi trang la 1
     // lan tai HTML moi hoan toan, khong phai SPA - phai luu trang thai qua localStorage).
@@ -16,8 +19,8 @@
     .sidebar-collapsed-init .sidebar { width: 0 !important; padding: 0 !important; overflow: hidden; }
     .sidebar-collapsed-init #sidebar-toggle { left: 14px !important; }
     :root {
-      --color-primary: #2563eb;
-      --color-primary-dark: #1d4ed8;
+      --color-primary: #0369a1;
+      --color-primary-dark: #075985;
       --color-danger: #dc2626;
       --color-danger-dark: #b91c1c;
       --color-sidebar-bg: #111827;
@@ -25,7 +28,7 @@
       --color-bg: #f6f7f9;
       --color-card-bg: #fff;
       --color-border: #e5e7eb;
-      --color-text: #1a1a1a;
+      --color-text: #0f172a;
       --color-text-muted: #6b7280;
       --radius-sm: 6px;
       --radius-md: 8px;
@@ -37,7 +40,9 @@
       --space-6: 2rem;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--color-text); background: var(--color-bg); display: flex; min-height: 100vh; }
+    body { margin: 0; font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--color-text); background: var(--color-bg); display: flex; min-height: 100vh; }
+
+    .table-scroll { overflow-x: auto; }
 
     .sidebar { width: 224px; flex-shrink: 0; background: var(--color-sidebar-bg); color: #fff; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: width 0.15s, padding 0.15s; }
     body.sidebar-collapsed .sidebar { width: 0; padding: 0; overflow: hidden; white-space: nowrap; }
@@ -155,24 +160,21 @@
     <div class="sidebar-group">
       <div class="sidebar-group-label">Nội dung</div>
       <a class="sidebar-link{% if currentPath contains "/admin/posts" %} active{% endif %}" href="/admin/posts">Bài viết</a>
-      {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/post-categories" %} active{% endif %}" href="/admin/post-categories">Danh mục bài viết</a>{% endif %}
-      {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/topics" %} active{% endif %}" href="/admin/topics">Chủ đề bài viết</a>{% endif %}
-      <a class="sidebar-link{% if currentPath contains "/admin/pages" %} active{% endif %}" href="/admin/pages">Trang tĩnh</a>
+      <a class="sidebar-link{% if currentPath contains "/admin/taxonomies" or currentPath contains "/admin/post-categories" %} active{% endif %}" href="/admin/taxonomies">Phân loại</a>
+      <a class="sidebar-link{% if currentPath contains "/admin/pages" %} active{% endif %}" href="/admin/pages">Trang</a>
       <a class="sidebar-link{% if currentPath contains "/admin/media" %} active{% endif %}" href="/admin/media">Media</a>
     </div>
 
     {% if siteType != "blog" %}
       {% if role == "manager" or role == "admin" %}
         <div class="sidebar-group">
-          <div class="sidebar-group-label">Thương mại</div>
           <a class="sidebar-link{% if currentPath contains "/admin/products" %} active{% endif %}" href="/admin/products">Sản phẩm</a>
-          <a class="sidebar-link{% if currentPath contains "/admin/product-categories" %} active{% endif %}" href="/admin/product-categories">Danh mục sản phẩm</a>
+          <a class="sidebar-link{% if currentPath contains "/admin/product-categories" %} active{% endif %}" href="/admin/product-categories">Danh mục</a>
           <a class="sidebar-link{% if currentPath contains "/admin/orders" %} active{% endif %}" href="/admin/orders">Đơn hàng</a>
           <a class="sidebar-link{% if currentPath contains "/admin/reviews" %} active{% endif %}" href="/admin/reviews">Đánh giá</a>
           {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/payment" %} active{% endif %}" href="/admin/settings/payment">Thanh toán</a>{% endif %}
-          <a class="sidebar-link{% if currentPath contains "/admin/settings/shipping" %} active{% endif %}" href="/admin/settings/shipping">Vận chuyển</a>
-          <a class="sidebar-link{% if currentPath contains "/admin/stores" %} active{% endif %}" href="/admin/stores">Cửa hàng</a>
-          <a class="sidebar-link{% if currentPath contains "/admin/coupons" %} active{% endif %}" href="/admin/coupons">Mã giảm giá</a>
+          {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/shipping" %} active{% endif %}" href="/admin/settings/shipping">Giao nhận</a>{% endif %}
+          {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/coupons" %} active{% endif %}" href="/admin/coupons">Mã giảm giá</a>{% endif %}
         </div>
       {% endif %}
     {% endif %}
@@ -180,12 +182,17 @@
     {% if role == "manager" or role == "admin" %}
       <div class="sidebar-group">
         <div class="sidebar-group-label">Hệ thống</div>
-        <a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">Redirect</a>
-        <a class="sidebar-link{% if currentPath contains "/admin/menus" %} active{% endif %}" href="/admin/menus">Menu điều hướng</a>
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">Người dùng</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">AI Agent</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">Cài đặt</a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/theme" %} active{% endif %}" href="/admin/settings/theme">Giao diện</a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath == "/admin/plugins" %} active{% endif %}" href="/admin/plugins">Plugins</a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">AI Agent</a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">Người dùng</a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">Cài đặt</a>{% endif %}
+        <a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">Chuyển hướng</a>
+        {% if role == "admin" and pluginAdminPages.size > 0 %}
+          {% for pluginPage in pluginAdminPages %}
+            <a class="sidebar-link{% if currentPath == pluginPage.href %} active{% endif %}" href="{{ pluginPage.href }}">{{ pluginPage.title | escape }}</a>
+          {% endfor %}
+        {% endif %}
       </div>
     {% endif %}
 
@@ -527,6 +534,21 @@
   </script>
 
   <script>
+  // Boc moi <table> trong main bang div.table-scroll (overflow-x:auto) luc load trang - lam 1 lan
+  // o day thay vi sua tung file posts-list/products-list/orders-list/... (16 file) rieng le, tranh
+  // bang nhieu cot vo layout tren man hinh nho.
+  (function () {
+    document.querySelectorAll("main table").forEach((table) => {
+      if (table.parentElement.classList.contains("table-scroll")) return;
+      const wrap = document.createElement("div");
+      wrap.className = "table-scroll";
+      table.parentNode.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    });
+  })();
+  </script>
+
+  <script>
   (function () {
     const input = document.getElementById("admin-search-input");
     const results = document.getElementById("admin-search-results");
@@ -555,7 +577,7 @@
       const { posts, pages, products, media } = await res.json();
       const html =
         groupHtml("Bài viết", posts, (p) => "/admin/posts/" + p.id, (p) => p.title) +
-        groupHtml("Trang tĩnh", pages, (p) => "/admin/pages/" + p.id, (p) => p.title) +
+        groupHtml("Trang", pages, (p) => "/admin/pages/" + p.id, (p) => p.title) +
         groupHtml("Sản phẩm", products, (p) => "/admin/products/" + p.id, (p) => p.name) +
         groupHtml("Media", media, (m) => "/admin/media", (m) => m.filename);
 

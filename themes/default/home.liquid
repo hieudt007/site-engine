@@ -1,5 +1,7 @@
 {% layout "layout" %}
 {% block content %}
+{% render "components/plugin/area", blocks: pluginAreas.home_top %}
+
 <section>
   <h1>{{ site.siteName }}</h1>
   {% if site.tagline %}<p>{{ site.tagline }}</p>{% endif %}
@@ -12,34 +14,19 @@
     <h2>Sản phẩm mới</h2>
     <a href="/products">Xem tất cả →</a>
     {% for product in products %}
-      <a href="/products/{{ product.id }}">
-        {% if product.imageUrls.size > 0 %}
-          <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}">
-        {% endif %}
-        <div>{{ product.name | escape }}</div>
-        {% if product.salePrice %}
-          <div>{{ product.salePrice }}₫ {{ product.price }}₫</div>
-        {% else %}
-          <div>{{ product.price }}₫</div>
-        {% endif %}
-      </a>
+      {% render "components/product/card", product: product, variant: "home", productUrlPrefix: productUrlPrefix %}
     {% endfor %}
   </section>
 {% endif %}
+
+{% render "components/plugin/area", blocks: pluginAreas.home_after_products %}
 
 {% if posts.size > 0 %}
   <section>
     <h2>Bài viết mới</h2>
     <a href="/blog">Xem tất cả →</a>
     {% for post in posts %}
-      <article>
-        {% if post.coverImage %}
-          <a href="/blog/{{ post.slug }}"><img src="{{ post.coverImage }}" alt="{{ post.title }}"></a>
-        {% endif %}
-        <h3><a href="/blog/{{ post.slug }}">{{ post.title | escape }}</a></h3>
-        <div>{{ post.publishedAt | date: "%d/%m/%Y" }}</div>
-        {% if post.excerpt %}<p>{{ post.excerpt | escape }}</p>{% endif %}
-      </article>
+      {% render "components/post/card", post: post, variant: "home", postUrlPrefix: postUrlPrefix, postCategoryPathPrefix: postCategoryPathPrefix %}
     {% endfor %}
   </section>
 {% endif %}
@@ -47,4 +34,5 @@
 {% if posts.size == 0 and products.size == 0 %}
   <p>Chưa có nội dung nào được xuất bản.</p>
 {% endif %}
+{% render "components/plugin/area", blocks: pluginAreas.home_bottom %}
 {% endblock %}

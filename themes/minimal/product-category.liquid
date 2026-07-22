@@ -1,6 +1,6 @@
 {% layout "layout" %}
 {% block content %}
-<a href="/products" class="text-stone-500 text-sm no-underline">← Tất cả sản phẩm</a>
+<a href="{{ backHref | default: "/products" }}" class="text-stone-500 text-sm no-underline">← {{ backLabel | default: "Tất cả sản phẩm" }}</a>
 
 <h1 class="font-serif text-3xl font-bold mt-3 mb-2 text-center">{{ category.name | escape }}</h1>
 {% if category.excerpt %}<p class="text-stone-600 text-center">{{ category.excerpt | escape }}</p>{% endif %}
@@ -10,17 +10,17 @@
 {% if category.children.size > 0 %}
   <div class="flex flex-wrap justify-center gap-2 mb-8">
     {% for child in category.children %}
-      <a href="/products/danh-muc/{{ child.slug }}" class="text-sm px-3 py-1 border border-stone-300 rounded-full no-underline text-stone-700 hover:border-brand hover:text-brand">{{ child.name | escape }}</a>
+      <a href="{{ childPathPrefix | default: productCategoryPathPrefix }}/{{ child.slug }}" class="text-sm px-3 py-1 border border-stone-300 rounded-full no-underline text-stone-700 hover:border-brand hover:text-brand">{{ child.name | escape }}</a>
     {% endfor %}
   </div>
 {% endif %}
 
 {% if products.size == 0 %}
-  <p class="text-stone-500 text-center mt-6">Chưa có sản phẩm nào trong danh mục này.</p>
+  <p class="text-stone-500 text-center mt-6">{{ emptyText | default: "Chưa có sản phẩm nào trong danh mục này." }}</p>
 {% else %}
   <div class="grid grid-cols-2 gap-8 mt-8">
     {% for product in products %}
-      <a href="/products/{{ product.id }}" class="no-underline text-inherit text-center block">
+      <a href="{{ productUrlPrefix }}/{{ product.slug | default: product.id }}" class="no-underline text-inherit text-center block">
         {% if product.imageUrls.size > 0 %}
           <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" class="w-full h-48 object-cover mb-2">
         {% else %}
@@ -37,8 +37,9 @@
   </div>
 
   <div class="flex justify-between mt-8 text-sm">
-    {% if hasPrev %}<a href="/products/danh-muc/{{ category.slug }}?page={{ prevPage }}" class="text-brand">← Trang trước</a>{% else %}<span></span>{% endif %}
-    {% if hasNext %}<a href="/products/danh-muc/{{ category.slug }}?page={{ nextPage }}" class="text-brand">Trang sau →</a>{% endif %}
+    {% if hasPrev %}<a href="{{ categoryPath }}?page={{ prevPage }}" class="text-brand">← Trang trước</a>{% else %}<span></span>{% endif %}
+    {% if hasNext %}<a href="{{ categoryPath }}?page={{ nextPage }}" class="text-brand">Trang sau →</a>{% endif %}
   </div>
 {% endif %}
 {% endblock %}
+

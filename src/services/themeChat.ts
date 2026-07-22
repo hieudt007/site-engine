@@ -23,6 +23,9 @@ export interface ClassifyResult {
   // Chi co gia tri khi mode la "redesign" - brief day du (phong cach + tinh nang giu/them/bot) AI
   // tong hop tu ca cuoc hoi thoai, dung thay cho "message" khi goi editThemeFiles cho ca 18 trang.
   redesignBrief: string | null;
+  // Di kem redesignBrief - vai tu khoa TIENG ANH (kho du lieu UI/UX trong uiuxSearch.ts toan
+  // tieng Anh, dua thang brief tieng Viet vao se ra ket qua sai - xem test thu voi query VN).
+  styleQuery: string | null;
 }
 
 export interface EditFileResult {
@@ -38,6 +41,11 @@ export interface EditFileResult {
 export interface EditResult {
   files: EditFileResult[];
   memoryUpdate: string | null;
+  needsMoreFiles: {
+    files: string[];
+    task: string;
+    reason: string | null;
+  } | null;
   // Cau ngan, khong thuat ngu, mo ta NHOM NAY vua doi gi - null neu khong co gi thuc su thay doi
   // (moi file skipped/that bai). Dung de nhom sau (hoac nhom cuoi tong hop SUMMARY) biet nhom nay
   // da lam gi ma khong can doc lai toan bo noi dung file.
@@ -67,26 +75,36 @@ function buildClassifySystemPrompt(): string {
     "",
     "Trả lời ĐÚNG định dạng, không giải thích, không code fence:",
     "MODE: chat, edit, hoặc redesign",
-    "FILES: <file cần sửa, cách nhau bởi dấu phẩy, để trống nếu chat/redesign. Mỗi trang có 3 file độc lập: " +
-      "{tên}.liquid, assets/sources/{tên}.css, assets/sources/{tên}.js — chỉ chọn ĐÚNG file cần, không chọn cả 3.>",
+    "FILES: <file cần sửa, cách nhau bởi dấu phẩy, để trống nếu chat/redesign. Chọn file chính liên quan nhất; server sẽ tự mở kèm cùng nhóm .liquid/.css/.js để bạn tách markup, style và script đúng chỗ.>",
     "REPLY: <1-3 câu, văn phong xem bên dưới>",
     "INTENT_UPDATE: <CHỈ khi admin nêu quy ước TOÀN SITE, ít đổi (màu chủ đạo, font, phong cách chung) thì ghi lại TOÀN BỘ quy " +
       "ước đã biết tới giờ; để trống nếu không có gì mới. KHÔNG ghi hành vi riêng của 1 tính năng/trang (thuộc về code).>",
     "REDESIGN_BRIEF: <điền khi ĐANG Ở BƯỚC ĐỀ XUẤT thiết kế lại toàn site (MODE vẫn là chat) HOẶC khi MODE là redesign — " +
       "brief đầy đủ, tổng hợp từ toàn bộ hội thoại: phong cách/giao diện muốn + tính năng giữ nguyên/thêm/bớt. Để trống ở " +
       "mọi trường hợp khác.>",
+    "STYLE_QUERY: <CHỈ điền cùng lúc với REDESIGN_BRIEF — vài từ khoá TIẾNG ANH (không phải câu, không dấu) mô tả " +
+      "ngành hàng + phong cách mong muốn, dùng để tra kho dữ liệu UI/UX (vd 'fashion apparel ecommerce pastel feminine " +
+      "modern', 'b2b saas dashboard professional dark'). Để trống ở mọi trường hợp khác.>",
     "",
     "QUY TẮC:",
     "- edit CHỈ khi đã rõ sửa GÌ và Ở FILE NÀO. Còn mơ hồ về VỊ TRÍ/CẤU TRÚC thì trả chat và hỏi lại — không đoán.",
     "- KHÔNG hỏi lại về GU THẨM MỸ (màu/font/phong cách) — tự quyết theo 'Quy ước & gu thẩm mỹ chung' trong THEME.md.",
-    "- FILES chỉ liệt kê file CÓ CĂN CỨ, không chọn dư phòng hờ.",
+    "- FILES chỉ liệt kê file CÓ CĂN CỨ, không chọn dư phòng hờ. Nếu chọn 1 file trong nhóm trang/component, server tự mở thêm cùng nhóm .liquid/.css/.js.",
     "- Các trang nội dung (home/blog-post/page/product-detail/...) render bên trong layout.liquid, KHÔNG tự có " +
       "bố cục riêng (max-width, khoảng lề...). Đổi bố cục TOÀN SITE thì chỉ cần chọn layout.liquid (+ header/" +
       "footer nếu chúng tự có wrapper riêng) — không chọn thêm trang nội dung nào khác.",
-    "- Cần CSS/JS riêng (Tailwind không làm được) thì chọn thẳng assets/sources/{tên}.css/.js — không nhúng " +
+    "- Cần CSS/JS riêng (Tailwind không làm được) thì viết vào file nguồn .css/.js được server gửi kèm ở bước sửa — không nhúng " +
       "<style>/<script> vào .liquid.",
-    "- File KHÔNG có trong FILES sẽ bị bỏ qua hoàn toàn ở lần sửa sau, dù bạn viết gì cho nó — định sửa CSS/JS PHẢI liệt kê " +
-      "thẳng file .css/.js, không chỉ chọn .liquid.",
+    "",
+    "BẢN ĐỒ CHỌN FILE CHO TRANG SẢN PHẨM:",
+    "- Sắp xếp/vị trí các khối lớn của trang chi tiết sản phẩm: product-detail.liquid.",
+    "- Ảnh/gallery/fallback ảnh sản phẩm: components/product/media.liquid.",
+    "- Tên, danh mục, thông tin nhận diện/ngắn của sản phẩm: components/product/info.liquid.",
+    "- Giá, biến thể, tồn kho, thêm giỏ, mua ngay, form mua ngay: components/product/purchase.liquid.",
+    "- Mô tả dài, thông số, FAQ, custom fields, đánh giá/list review/form review: components/product/content.liquid.",
+    "- Upsell/cross-sell/cụm sản phẩm liên quan trong trang chi tiết: components/product/related.liquid.",
+    "- Card sản phẩm xuất hiện ở trang chủ, danh sách, danh mục, tìm kiếm, related: components/product/card.liquid.",
+    "- Nếu admin nói 'card sản phẩm ở category/home/related/search' thì chọn components/product/card.liquid, không chọn product-detail.liquid.",
     "",
     "QUY TẮC RIÊNG cho THIẾT KẾ LẠI TOÀN SITE (theme còn trống hoàn toàn — 'Đã áp dụng' là '(chưa có)' — hoặc admin yêu cầu " +
       "'thiết kế lại/làm mới toàn bộ giao diện'): việc này SỬA CẢ 18 TRANG, rủi ro cao, đi qua 3 bước bắt buộc:",
@@ -125,7 +143,8 @@ function parseClassify(raw: string): ClassifyResult {
   const filesMatch = raw.match(/FILES:[ \t]*(.*)/);
   const replyMatch = raw.match(/REPLY:\s*([\s\S]*?)(?:\nINTENT_UPDATE:|\nREDESIGN_BRIEF:|$)/);
   const intentMatch = raw.match(/INTENT_UPDATE:\s*([\s\S]*?)(?:\nREDESIGN_BRIEF:|$)/);
-  const redesignMatch = raw.match(/REDESIGN_BRIEF:\s*([\s\S]*)$/);
+  const redesignMatch = raw.match(/REDESIGN_BRIEF:\s*([\s\S]*?)(?:\nSTYLE_QUERY:|$)/);
+  const styleQueryMatch = raw.match(/STYLE_QUERY:\s*([\s\S]*)$/);
 
   const modeRaw = modeMatch?.[1]?.toLowerCase();
   const mode: ClassifyMode = modeRaw === "edit" || modeRaw === "redesign" ? modeRaw : "chat";
@@ -138,8 +157,10 @@ function parseClassify(raw: string): ClassifyResult {
   const intentUpdate = intentRaw.length ? intentRaw : null;
   const redesignRaw = redesignMatch ? redesignMatch[1].trim() : "";
   const redesignBrief = redesignRaw.length ? redesignRaw : null;
+  const styleQueryRaw = styleQueryMatch ? styleQueryMatch[1].trim() : "";
+  const styleQuery = styleQueryRaw.length ? styleQueryRaw : null;
 
-  return { mode, files, reply, intentUpdate, redesignBrief };
+  return { mode, files, reply, intentUpdate, redesignBrief, styleQuery };
 }
 
 export async function classifyChatMessage(
@@ -250,6 +271,12 @@ function buildEditSystemPrompt(files: string[], isLastGroup: boolean): string {
     "### CHANGE_NOTE:",
     "<1 câu ngắn, không thuật ngữ kỹ thuật, mô tả cái vừa sửa (vd 'đổi màu nút mua hàng sang cam') — bỏ trống nếu không đổi gì.",
     "",
+    "### NEED_MORE_FILES:",
+    "FILES: <nếu không thấy chỗ sửa đúng yêu cầu trong các file đang mở, ghi file cần mở tiếp, cách nhau bằng dấu phẩy; để trống nếu không cần>",
+    "REASON: <1 câu ngắn nói vì sao nhóm hiện tại không đúng/không đủ>",
+    "TASK: <task cụ thể cho lần gọi tiếp theo, bám sát yêu cầu admin và nói rõ cần tìm/sửa gì trong file mới>",
+    "(Chỉ dùng NEED_MORE_FILES khi thật sự không thể hoàn thành với nhóm file hiện tại. Server chỉ cho tối đa 2 lần mở thêm file trong một lượt chat.)",
+    "",
     ...(isLastGroup
       ? [
           "Đây là NHÓM CUỐI của lượt chat. Thêm:",
@@ -271,6 +298,7 @@ function buildEditUserPrompt(
   fileContents: Record<string, string>,
   priorChangeNotes: string[],
   hasImage: boolean,
+  designSystemBlock?: string,
 ): string {
   const filesBlock = Object.entries(fileContents)
     .map(([file, content]) => `--- Nội dung hiện tại của ${file} ---\n${content}`)
@@ -289,6 +317,14 @@ function buildEditUserPrompt(
     `Yêu cầu gốc của admin: ${message}`,
     `Bạn (ở bước phân loại trước đó) đã xác nhận với admin sẽ làm: ${classifiedReply}`,
     ...(hasImage ? ["Admin có đính kèm 1 ảnh tham khảo — bám sát ảnh khi viết code cho đúng màu sắc/bố cục/phong cách."] : []),
+    ...(designSystemBlock
+      ? [
+          "",
+          "Design system gợi ý (tra từ kho dữ liệu UI/UX theo đúng ngành hàng — DÙNG LÀM CĂN CỨ CHÍNH cho màu/font/phong cách, " +
+            "trừ khi THEME.md hoặc ảnh tham khảo ở trên đã nói khác):",
+          designSystemBlock,
+        ]
+      : []),
     ...priorNotesBlock,
     "",
     filesBlock,
@@ -298,9 +334,15 @@ function buildEditUserPrompt(
 function parseEditResponse(
   raw: string,
   requestedFiles: string[],
-): { fileContents: Record<string, string>; memoryUpdate: string | null; changeNote: string | null; summary: string | null } {
+): {
+  fileContents: Record<string, string>;
+  memoryUpdate: string | null;
+  changeNote: string | null;
+  summary: string | null;
+  needsMoreFiles: { files: string[]; task: string; reason: string | null } | null;
+} {
   const fileContents: Record<string, string> = {};
-  const fileBlockRegex = /### FILE:\s*(.+?)\n([\s\S]*?)(?=\n### FILE:|\n### CHANGE_NOTE:|\n### SUMMARY:|\n### MEMORY_UPDATE:|$)/g;
+  const fileBlockRegex = /### FILE:\s*(.+?)\n([\s\S]*?)(?=\n### FILE:|\n### CHANGE_NOTE:|\n### NEED_MORE_FILES:|\n### SUMMARY:|\n### MEMORY_UPDATE:|$)/g;
   let match: RegExpExecArray | null;
   while ((match = fileBlockRegex.exec(raw)) !== null) {
     const file = match[1].trim();
@@ -312,8 +354,26 @@ function parseEditResponse(
   const memoryMatch = raw.match(/### MEMORY_UPDATE:\s*([\s\S]*)$/);
   const memoryUpdate = memoryMatch ? memoryMatch[1].trim() : null;
 
-  const changeNoteMatch = raw.match(/### CHANGE_NOTE:\s*([\s\S]*?)(?=\n### SUMMARY:|\n### MEMORY_UPDATE:|$)/);
+  const changeNoteMatch = raw.match(/### CHANGE_NOTE:\s*([\s\S]*?)(?=\n### NEED_MORE_FILES:|\n### SUMMARY:|\n### MEMORY_UPDATE:|$)/);
   const changeNote = changeNoteMatch ? changeNoteMatch[1].trim() : null;
+
+  const needMoreMatch = raw.match(/### NEED_MORE_FILES:\s*([\s\S]*?)(?=\n### SUMMARY:|\n### MEMORY_UPDATE:|$)/);
+  let needsMoreFiles: { files: string[]; task: string; reason: string | null } | null = null;
+  if (needMoreMatch) {
+    const block = needMoreMatch[1];
+    const filesLine = block.match(/FILES:\s*(.*)/)?.[1]?.trim() ?? "";
+    const reasonMatch = block.match(/REASON:\s*([\s\S]*?)(?=\nTASK:|$)/);
+    const taskMatch = block.match(/TASK:\s*([\s\S]*)$/);
+    const files = filesLine
+      .split(",")
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const task = taskMatch?.[1]?.trim() ?? "";
+    const reason = reasonMatch?.[1]?.trim() || null;
+    if (files.length && task) {
+      needsMoreFiles = { files, task, reason };
+    }
+  }
 
   const summaryMatch = raw.match(/### SUMMARY:\s*([\s\S]*?)(?=\n### MEMORY_UPDATE:|$)/);
   const summary = summaryMatch ? summaryMatch[1].trim() : null;
@@ -323,6 +383,7 @@ function parseEditResponse(
     memoryUpdate: memoryUpdate && memoryUpdate.length ? memoryUpdate : null,
     changeNote: changeNote && changeNote.length ? changeNote : null,
     summary: summary && summary.length ? summary : null,
+    needsMoreFiles,
   };
 }
 
@@ -339,15 +400,16 @@ export async function editThemeFiles(
   isLastGroup: boolean,
   priorChangeNotes: string[],
   imageUrl?: string,
+  designSystemBlock?: string,
 ): Promise<EditResult> {
   const requestedFiles = Object.keys(fileContents);
   const raw = await callAgent(
     agent,
     buildEditSystemPrompt(requestedFiles, isLastGroup),
-    buildEditUserPrompt(themeMd, message, classifiedReply, fileContents, priorChangeNotes, Boolean(imageUrl)),
+    buildEditUserPrompt(themeMd, message, classifiedReply, fileContents, priorChangeNotes, Boolean(imageUrl), designSystemBlock),
     imageUrl,
   );
-  const { fileContents: newContents, memoryUpdate, changeNote, summary } = parseEditResponse(raw, requestedFiles);
+  const { fileContents: newContents, memoryUpdate, changeNote, summary, needsMoreFiles } = parseEditResponse(raw, requestedFiles);
 
   const results: EditFileResult[] = [];
   for (const file of requestedFiles) {
@@ -376,6 +438,7 @@ export async function editThemeFiles(
   return {
     files: results,
     memoryUpdate: hasRealChange ? memoryUpdate : null,
+    needsMoreFiles,
     changeNote: hasRealChange ? changeNote : null,
     summary: isLastGroup ? summary : null,
   };

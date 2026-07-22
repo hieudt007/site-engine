@@ -502,8 +502,8 @@
     }
     if (pathname === "/") return "home";
     if (pathname === "/blog") return "blog-list";
-    if (pathname.startsWith("/blog/danh-muc/")) return "blog-category";
-    if (pathname.startsWith("/blog/")) return "blog-post";
+    if (pathname.startsWith("/danh-muc/") || pathname.startsWith("/chu-de/")) return "blog-category";
+    if (pathname !== "/" && !pathname.startsWith("/admin") && !pathname.startsWith("/products") && !pathname.startsWith("/cart")) return "blog-post";
     if (pathname === "/products") return "products-list";
     if (pathname.startsWith("/products/danh-muc/")) return "product-category";
     if (pathname.startsWith("/products/")) return "product-detail";

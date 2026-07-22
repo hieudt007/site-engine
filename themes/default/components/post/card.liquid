@@ -1,0 +1,17 @@
+<article>
+  {% if post.coverImage %}
+    <a href="{{ postUrlPrefix }}/{{ post.slug }}">
+      <img src="{{ post.coverImage }}" alt="{{ post.title | escape }}">
+    </a>
+  {% endif %}
+  {% if variant == "home" %}
+    <h3><a href="{{ postUrlPrefix }}/{{ post.slug }}">{{ post.title | escape }}</a></h3>
+  {% else %}
+    <h2><a href="{{ postUrlPrefix }}/{{ post.slug }}">{{ post.title | escape }}</a></h2>
+  {% endif %}
+  <div>
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% if variant != "category" %}{% for c in post.categories %} · <a href="{{ postCategoryPathPrefix }}/{{ c.slug }}">{{ c.name | escape }}</a>{% endfor %}{% endif %}
+  </div>
+  {% if post.excerpt %}<p>{{ post.excerpt | escape }}</p>{% endif %}
+  {% if variant != "home" %}<a href="{{ postUrlPrefix }}/{{ post.slug }}">Đọc tiếp →</a>{% endif %}
+</article>

@@ -7,6 +7,7 @@ import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
 import { customFieldsSchema } from "../../services/customFields.js";
+import { recomputeCategoryCounts } from "../../services/categoryCounts.js";
 
 const TYPE = "post";
 
@@ -21,6 +22,15 @@ const seoSchema = z
   })
   .optional();
 
+const faqSchema = z
+  .array(
+    z.object({
+      question: z.string().min(1),
+      answer: z.string().min(1),
+    }),
+  )
+  .optional();
+
 const createPostSchema = z.object({
   title: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -"),
@@ -33,6 +43,7 @@ const createPostSchema = z.object({
   layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
+  faq: faqSchema,
 });
 
 const updatePostSchema = createPostSchema.partial();
@@ -115,8 +126,8 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
-    const existing = await prisma.post.findUnique({
-      where: { type_slug: { type: TYPE, slug: parsed.data.slug } },
+    const existing = await prisma.post.findFirst({
+      where: { type: { in: ["post", "page"] }, slug: parsed.data.slug },
     });
     if (existing) {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
@@ -133,6 +144,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       },
     });
     await auditLog(userId, "post.create", post.id);
+    await recomputeCategoryCounts(categoryIds ?? []);
 
     return reply.code(201).send({ post });
   });
@@ -146,7 +158,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(422).send({ error: parsed.error.flatten() });
       }
 
-      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      const post = await prisma.post.findUnique({ where: { id: request.params.id }, include: { categories: { select: { id: true } } } });
       if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
@@ -158,8 +170,8 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
 
       const slugChanged = !!parsed.data.slug && parsed.data.slug !== post.slug;
       if (slugChanged) {
-        const slugTaken = await prisma.post.findUnique({
-          where: { type_slug: { type: TYPE, slug: parsed.data.slug! } },
+        const slugTaken = await prisma.post.findFirst({
+          where: { type: { in: ["post", "page"] }, slug: parsed.data.slug!, id: { not: post.id } },
         });
         if (slugTaken) {
           return reply.code(409).send({ error: "Slug đã tồn tại" });
@@ -185,6 +197,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           seo: post.seo,
           password: post.password,
           customFields: post.customFields,
+          faq: post.faq,
           layoutMode: post.layoutMode,
         },
         sanitizedRest,
@@ -199,12 +212,13 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       await auditLog(userId, "post.update", post.id);
+      await recomputeCategoryCounts([...(categoryIds ?? []), ...post.categories.map((category) => category.id)]);
 
       // Doi slug -> tu tao redirect URL cu sang moi (system_design.md, tinh nang Redirect) - link
       // cu (da chia se/da SEO) khong bi 404 khi bai viet doi duong dan.
       if (slugChanged) {
-        const fromPath = `/blog/${post.slug}`;
-        const toPath = `/blog/${updated.slug}`;
+        const fromPath = `/${post.slug}`;
+        const toPath = `/${updated.slug}`;
         await prisma.redirect.upsert({
           where: { fromPath },
           create: { fromPath, toPath },
@@ -259,6 +273,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
         password: string | null;
         customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        faq: Prisma.InputJsonValue | typeof Prisma.JsonNull;
         layoutMode?: string;
       };
 
@@ -277,6 +292,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           seo: post.seo,
           password: post.password,
           customFields: post.customFields,
+          faq: post.faq,
           layoutMode: post.layoutMode,
         },
         snapshot,
@@ -373,7 +389,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/posts/:id/unpublish",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
-      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      const post = await prisma.post.findUnique({ where: { id: request.params.id }, include: { categories: { select: { id: true } } } });
       if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
@@ -393,7 +409,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     "/admin/api/posts/:id",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
-      const post = await prisma.post.findUnique({ where: { id: request.params.id } });
+      const post = await prisma.post.findUnique({ where: { id: request.params.id }, include: { categories: { select: { id: true } } } });
       if (!post || post.type !== TYPE) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }
@@ -401,6 +417,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.session.get("userId")!;
       await prisma.post.delete({ where: { id: post.id } });
       await auditLog(userId, "post.delete", post.id, { title: post.title, slug: post.slug });
+      await recomputeCategoryCounts(post.categories.map((category) => category.id));
 
       return { success: true };
     },

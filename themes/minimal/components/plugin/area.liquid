@@ -1,0 +1,57 @@
+{% if blocks.size > 0 %}
+  <div class="plugin-area space-y-6">
+    {% for block in blocks %}
+      <section class="plugin-block plugin-block--{{ block.variant }} border-t border-stone-200 pt-6">
+        {% if block.title %}<h2 class="font-serif text-2xl font-semibold mb-4">{{ block.title | escape }}</h2>{% endif %}
+        {% if block.variant == "form" and block.action %}
+          <form class="plugin-action-form grid gap-3" data-plugin-slug="{{ block.pluginSlug | escape }}" data-action-key="{{ block.actionKey | escape }}">
+            <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true">
+            {% for field in block.action.fields %}
+              <label class="grid gap-1 text-sm">
+                <span>{{ field.label | default: field.name | escape }}</span>
+                {% if field.type == "textarea" %}
+                  <textarea name="{{ field.name | escape }}" {% if field.required %}required{% endif %} maxlength="{{ field.maxLength }}" class="border border-stone-300 bg-white px-3 py-2"></textarea>
+                {% elsif field.type == "select" %}
+                  <select name="{{ field.name | escape }}" {% if field.required %}required{% endif %} class="border border-stone-300 bg-white px-3 py-2">
+                    <option value=""></option>
+                    {% for option in field.options %}
+                      <option value="{{ option | escape }}">{{ option | escape }}</option>
+                    {% endfor %}
+                  </select>
+                {% elsif field.type == "checkbox" %}
+                  <input type="checkbox" name="{{ field.name | escape }}" value="true">
+                {% else %}
+                  <input type="{{ field.type | escape }}" name="{{ field.name | escape }}" {% if field.required %}required{% endif %} maxlength="{{ field.maxLength }}" class="border border-stone-300 bg-white px-3 py-2">
+                {% endif %}
+              </label>
+            {% endfor %}
+            <button type="submit" class="bg-brand hover:bg-brand-dark text-white px-5 py-2 text-sm">{{ block.action.submitLabel | default: "Submit" | escape }}</button>
+            <div class="plugin-action-form__message text-sm" aria-live="polite"></div>
+          </form>
+        {% elsif block.variant == "json" %}
+          <pre class="text-xs whitespace-pre-wrap bg-stone-100 p-4 overflow-auto">{{ block.items | json }}</pre>
+        {% elsif block.items.size > 0 %}
+          <div class="plugin-block__items grid gap-4">
+            {% for item in block.items %}
+              {% assign payload = item.data | default: item %}
+              <article class="plugin-block__item">
+                {% if payload.imageUrl %}
+                  <img src="{{ payload.imageUrl | escape }}" alt="{{ payload.title | default: payload.name | default: block.title | escape }}" class="w-full max-h-56 object-cover mb-3">
+                {% endif %}
+                {% if payload.title or payload.name %}
+                  <h3 class="font-serif text-xl font-semibold">{{ payload.title | default: payload.name | escape }}</h3>
+                {% endif %}
+                {% if payload.excerpt or payload.description %}
+                  <p class="text-stone-600 text-sm">{{ payload.excerpt | default: payload.description | escape }}</p>
+                {% endif %}
+                {% if payload.url %}
+                  <a href="{{ payload.url | escape }}" class="text-brand text-sm">{{ payload.linkLabel | default: "View" | escape }}</a>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% endif %}

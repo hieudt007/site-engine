@@ -7,27 +7,10 @@
 {% else %}
   <div>
     {% for post in posts %}
-      <article>
-        {% if post.coverImage %}
-          <a href="/blog/{{ post.slug }}">
-            <img src="{{ post.coverImage }}" alt="{{ post.title }}">
-          </a>
-        {% endif %}
-        <h2>
-          <a href="/blog/{{ post.slug }}">{{ post.title | escape }}</a>
-        </h2>
-        <div>
-          {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}">{{ c.name | escape }}</a>{% endfor %}
-        </div>
-        {% if post.excerpt %}<p>{{ post.excerpt | escape }}</p>{% endif %}
-        <a href="/blog/{{ post.slug }}">Đọc tiếp →</a>
-      </article>
+      {% render "components/post/card", post: post, variant: "list", postUrlPrefix: postUrlPrefix, postCategoryPathPrefix: postCategoryPathPrefix %}
     {% endfor %}
   </div>
 
-  <div>
-    {% if hasPrev %}<a href="/blog?page={{ prevPage }}">← Trang trước</a>{% else %}<span></span>{% endif %}
-    {% if hasNext %}<a href="/blog?page={{ nextPage }}">Trang sau →</a>{% endif %}
-  </div>
+  {% render "components/common/pagination", basePath: "/blog", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
 {% endif %}
 {% endblock %}

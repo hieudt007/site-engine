@@ -1,0 +1,155 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;gap:1rem;">
+  <div>
+    <h1 style="margin:0;">{{ page.title | escape }}</h1>
+    {% if page.description %}<p style="color:#777;margin:0.4rem 0 0;">{{ page.description | escape }}</p>{% endif %}
+  </div>
+  <a class="btn" href="/admin/plugins">All plugins</a>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <strong>{{ plugin.name | escape }}</strong>
+  <div style="color:#777;font-size:0.85rem;margin-top:0.3rem;">
+    Version {{ plugin.version | escape }}{% if manifest.description %} - {{ manifest.description | escape }}{% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="font-size:1rem;margin-top:0;">Public theme data</h2>
+  {% if manifest.publicData.size > 0 %}
+    <table>
+      <thead>
+        <tr>
+          <th>Liquid key</th>
+          <th>Source</th>
+          <th>Limit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in manifest.publicData %}
+          <tr>
+            <td><code>pluginData.{{ plugin.slug | replace: "-", "_" }}.{{ item.key }}</code></td>
+            <td>{{ item.source | escape }}{% if item.collection %}: {{ item.collection | escape }}{% endif %}{% if item.model %}: {{ item.model | escape }}{% endif %}</td>
+            <td>{{ item.limit }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:#777;">This plugin does not expose data to themes.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="font-size:1rem;margin-top:0;">Public theme blocks</h2>
+  {% if manifest.publicBlocks.size > 0 %}
+    <table>
+      <thead>
+        <tr>
+          <th>Block</th>
+          <th>Placement</th>
+          <th>Data</th>
+          <th>Variant</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in manifest.publicBlocks %}
+          <tr>
+            <td><code>{{ item.key }}</code>{% if item.title %}<br>{{ item.title | escape }}{% endif %}</td>
+            <td><code>{{ item.placement }}</code></td>
+            <td><code>{{ item.dataKey }}</code></td>
+            <td>{{ item.variant | escape }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:#777;">This plugin does not declare public blocks.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="font-size:1rem;margin-top:0;">Public actions</h2>
+  {% if manifest.publicActions.size > 0 %}
+    <table>
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Collection</th>
+          <th>Fields</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in manifest.publicActions %}
+          <tr>
+            <td><code>{{ item.key }}</code></td>
+            <td><code>{{ item.collection }}</code></td>
+            <td>
+              {% for field in item.fields %}
+                <code>{{ field.name }}</code>{% unless forloop.last %}, {% endunless %}
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:#777;">This plugin does not declare public actions.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="font-size:1rem;margin-top:0;">Allowed core data</h2>
+  {% if manifest.permissions.readModels.size > 0 %}
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      {% for model in manifest.permissions.readModels %}
+        <button type="button" class="btn" data-core-model="{{ model }}">{{ model }}</button>
+      {% endfor %}
+    </div>
+    <pre id="core-output" style="white-space:pre-wrap;background:#f8fafc;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0.8rem;max-height:320px;overflow:auto;margin-top:0.8rem;"></pre>
+  {% else %}
+    <p style="color:#777;">This plugin does not request core data access.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="font-size:1rem;margin-top:0;">Plugin records</h2>
+  {% if records.size > 0 %}
+    <table>
+      <thead>
+        <tr>
+          <th>Collection</th>
+          <th>Label</th>
+          <th>Records</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for collection in records %}
+          <tr>
+            <td><code>{{ collection.name }}</code></td>
+            <td>{{ collection.label | default: collection.name | escape }}</td>
+            <td>{{ collection.count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:#777;">This plugin does not declare any collections.</p>
+  {% endif %}
+</div>
+
+<script>
+(function () {
+  const output = document.getElementById("core-output");
+  document.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-core-model]");
+    if (!btn) return;
+    output.textContent = "Loading...";
+    const res = await fetch("/admin/api/plugins/{{ plugin.slug }}/core/" + btn.dataset.coreModel);
+    const body = await res.json().catch(() => ({}));
+    output.textContent = JSON.stringify(body, null, 2);
+  });
+})();
+</script>
+{% endblock %}

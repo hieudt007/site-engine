@@ -12,12 +12,27 @@ export async function renderAdmin(template: string, data: Record<string, unknown
   // Lay favicon + logo/ten TU CHINH site (SiteConfig, giong /admin/settings/general) de
   // layout.liquid hien (favicon tab trinh duyet, logo+ten sidebar) - fetch o day (1 cho duy nhat)
   // thay vi tung route admin tu truyen, tranh phai sua hang chuc file.
-  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const [siteConfig, enabledPlugins] = await Promise.all([
+    prisma.siteConfig.findUnique({ where: { id: "singleton" } }),
+    prisma.plugin.findMany({ where: { enabled: true }, orderBy: { name: "asc" } }),
+  ]);
+  const pluginAdminPages = enabledPlugins.flatMap((plugin) => {
+    const manifest = plugin.manifest as { adminPages?: Array<{ title?: string; path?: string; menuGroup?: string }> };
+    return (manifest.adminPages ?? [])
+      .filter((page) => page.title && page.path)
+      .map((page) => ({
+        title: page.title,
+        href: `/admin/plugins/${plugin.slug}/${page.path}`,
+        pluginName: plugin.name,
+        menuGroup: page.menuGroup ?? "Plugins",
+      }));
+  });
   return engine.renderFile(template, {
     faviconUrl: siteConfig?.faviconUrl ?? null,
     sidebarLogoUrl: siteConfig?.logoUrl ?? null,
     sidebarSiteName: siteConfig?.siteName ?? "Quản trị",
     siteType: siteConfig?.siteType ?? "ecommerce",
+    pluginAdminPages,
     ...data,
   });
 }

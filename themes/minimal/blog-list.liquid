@@ -9,18 +9,18 @@
     {% for post in posts %}
       <article class="text-center">
         {% if post.coverImage %}
-          <a href="/blog/{{ post.slug }}">
+          <a href="{{ postUrlPrefix }}/{{ post.slug }}">
             <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full max-h-72 object-cover mb-4">
           </a>
         {% endif %}
         <h2 class="font-serif text-2xl font-semibold mb-1">
-          <a href="/blog/{{ post.slug }}" class="text-stone-900 no-underline hover:text-brand">{{ post.title | escape }}</a>
+          <a href="{{ postUrlPrefix }}/{{ post.slug }}" class="text-stone-900 no-underline hover:text-brand">{{ post.title | escape }}</a>
         </h2>
         <div class="text-stone-400 text-sm mb-3 uppercase tracking-wide">
-          {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}" class="text-stone-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
+          {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="{{ postCategoryPathPrefix }}/{{ c.slug }}" class="text-stone-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
         </div>
         {% if post.excerpt %}<p class="text-stone-600 font-serif">{{ post.excerpt | escape }}</p>{% endif %}
-        <a href="/blog/{{ post.slug }}" class="text-brand text-sm mt-2 inline-block">Đọc tiếp →</a>
+        <a href="{{ postUrlPrefix }}/{{ post.slug }}" class="text-brand text-sm mt-2 inline-block">Đọc tiếp →</a>
       </article>
       <hr class="border-stone-200">
     {% endfor %}

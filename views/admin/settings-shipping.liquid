@@ -1,53 +1,158 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin:0 0 1.2rem;">Vận chuyển & nhận hàng</h1>
+<style>
+  .settings-layout {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+  }
+  .tabs-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .tab-btn {
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    text-align: left;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.2s;
+    font-size: 0.95rem;
+  }
+  .tab-btn:hover { background: #f5f5f5; }
+  .tab-btn.active {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+  }
+  .tabs-content {
+    flex-grow: 1;
+    min-width: 0;
+  }
+  .tab-pane { display: none; }
+  .tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
 
-<div class="card" style="margin-bottom:1.5rem;">
-  <strong>Hình thức nhận hàng</strong>
-  <div id="fulfillment-toggles" style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.5rem;"></div>
-  <p class="field-hint">Tắt "Nhận tại cửa hàng" nếu chưa có cửa hàng nào, hoặc tắt "Giao tận nơi" nếu chỉ bán tại chỗ. Quản lý danh sách cửa hàng ở mục "Cửa hàng".</p>
-</div>
+<h1 style="margin:0 0 1.5rem;">Giao nhận</h1>
 
-<h2 style="margin:0 0 0.8rem;font-size:1.1rem;">Phí vận chuyển (giao tận nơi)</h2>
-<div id="rules-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
+<div class="settings-layout">
+  <div class="tabs-sidebar">
+    <button type="button" class="tab-btn active" data-target="tab-shipping">Vận chuyển</button>
+    <button type="button" class="tab-btn" data-target="tab-stores">Cửa hàng</button>
+  </div>
 
-<div class="card">
-  <strong id="form-title">Thêm rule mới</strong>
-  <input type="hidden" id="rule-id">
-  <label for="rule-name">Tên rule</label>
-  <input type="text" id="rule-name" placeholder="VD: Nội thành HN & TP HCM">
+  <div class="tabs-content">
+    <!-- TAB SHIPPING -->
+    <div id="tab-shipping" class="tab-pane active">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <strong>Hình thức nhận hàng</strong>
+        <div id="fulfillment-toggles" style="margin-top:0.6rem;display:flex;flex-direction:column;gap:0.5rem;"></div>
+        <p class="field-hint">Tắt "Nhận tại cửa hàng" nếu chưa có cửa hàng nào, hoặc tắt "Giao tận nơi" nếu chỉ bán tại chỗ. Quản lý danh sách cửa hàng ở tab "Cửa hàng".</p>
+      </div>
 
-  <label>Áp dụng cho tỉnh/thành (bỏ trống = rule mặc định, áp dụng cho tỉnh không khớp rule nào khác)</label>
-  <div id="province-checkboxes" style="max-height:180px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0.6rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.2rem;"></div>
+      <h2 style="margin:0 0 0.8rem;font-size:1.1rem;">Phí vận chuyển (giao tận nơi)</h2>
+      <div id="rules-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
 
-  <label for="rule-fee">Phí ship (₫)</label>
-  <input type="number" id="rule-fee" min="0" value="0">
+      <div class="card">
+        <strong id="form-title">Thêm rule mới</strong>
+        <input type="hidden" id="rule-id">
+        <label for="rule-name">Tên rule</label>
+        <input type="text" id="rule-name" placeholder="VD: Nội thành HN & TP HCM">
 
-  <label for="rule-threshold">Miễn phí ship nếu đơn hàng từ (₫) — để trống nếu không bao giờ miễn</label>
-  <input type="number" id="rule-threshold" min="0">
+        <label>Áp dụng cho tỉnh/thành (bỏ trống = rule mặc định, áp dụng cho tỉnh không khớp rule nào khác)</label>
+        <div id="province-checkboxes" style="max-height:180px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0.6rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.2rem;"></div>
 
-  <label style="display:flex;align-items:center;gap:0.4rem;">
-    <input type="checkbox" id="rule-enabled" checked style="width:auto;"> Bật rule này
-  </label>
+        <label for="rule-fee">Phí ship (₫)</label>
+        <input type="number" id="rule-fee" min="0" value="0">
 
-  <div style="margin-top:1rem;display:flex;gap:0.6rem;">
-    <button type="button" id="save-btn" class="btn btn-primary">Lưu</button>
-    <button type="button" id="cancel-btn" class="btn" style="display:none;">Huỷ sửa</button>
+        <label for="rule-threshold">Miễn phí ship nếu đơn hàng từ (₫) — để trống nếu không bao giờ miễn</label>
+        <input type="number" id="rule-threshold" min="0">
+
+        <label style="display:flex;align-items:center;gap:0.4rem;">
+          <input type="checkbox" id="rule-enabled" checked style="width:auto;"> Bật rule này
+        </label>
+
+        <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+          <button type="button" id="save-rule-btn" class="btn btn-primary">Lưu rule</button>
+          <button type="button" id="cancel-rule-btn" class="btn" style="display:none;">Huỷ sửa</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB STORES -->
+    <div id="tab-stores" class="tab-pane">
+      <div id="stores-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
+
+      <div class="card">
+        <strong id="store-form-title">Thêm cửa hàng mới</strong>
+        <input type="hidden" id="store-id">
+        <label for="store-name">Tên cửa hàng</label>
+        <input type="text" id="store-name">
+        <label for="store-address">Địa chỉ</label>
+        <input type="text" id="store-address">
+        <label for="store-province">Tỉnh/Thành</label>
+        <select id="store-province">
+          <option value="">-- Chọn tỉnh/thành --</option>
+        </select>
+        <label for="store-phone">Số điện thoại</label>
+        <input type="text" id="store-phone">
+        <label style="display:flex;align-items:center;gap:0.4rem;">
+          <input type="checkbox" id="store-enabled" checked style="width:auto;"> Hiển thị cho khách chọn
+        </label>
+        <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+          <button type="button" id="save-store-btn" class="btn btn-primary">Lưu cửa hàng</button>
+          <button type="button" id="cancel-store-btn" class="btn" style="display:none;">Huỷ sửa</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 (function () {
+  // TABS LOGIC
+  const tabs = document.querySelectorAll('.tab-btn');
+  const panes = document.querySelectorAll('.tab-pane');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.target).classList.add('active');
+    });
+  });
+
   const flash = document.getElementById("flash");
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+    flash.style.display = "block";
+    setTimeout(() => { flash.style.display = "none"; }, 3000);
+  }
+
+  // --- SHIPPING LOGIC ---
   const rulesList = document.getElementById("rules-list");
   const provinceBox = document.getElementById("province-checkboxes");
   const ruleIdEl = document.getElementById("rule-id");
-  const nameEl = document.getElementById("rule-name");
+  const ruleNameEl = document.getElementById("rule-name");
   const feeEl = document.getElementById("rule-fee");
   const thresholdEl = document.getElementById("rule-threshold");
-  const enabledEl = document.getElementById("rule-enabled");
+  const ruleEnabledEl = document.getElementById("rule-enabled");
   const formTitle = document.getElementById("form-title");
-  const cancelBtn = document.getElementById("cancel-btn");
+  const cancelBtn = document.getElementById("cancel-rule-btn");
   let provinces = [];
   let rules = [];
 
@@ -61,20 +166,13 @@
       .map(
         (m) =>
           '<label style="display:flex;align-items:center;gap:0.5rem;font-weight:400;margin:0;"><input type="checkbox" class="fulfillment-toggle" data-method="' +
-          m.method +
-          '"' +
-          (m.enabled ? " checked" : "") +
-          "> " +
-          (FULFILLMENT_LABELS[m.method] || m.method) +
-          "</label>",
-      )
-      .join("");
+          m.method + '"' + (m.enabled ? " checked" : "") + "> " + (FULFILLMENT_LABELS[m.method] || m.method) + "</label>",
+      ).join("");
 
     box.querySelectorAll(".fulfillment-toggle").forEach((cb) => {
       cb.addEventListener("change", async () => {
         const res = await fetch("/admin/api/fulfillment-methods/" + cb.dataset.method, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          method: "PATCH", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ enabled: cb.checked }),
         });
         showFlash(res.ok ? "Đã lưu." : "Lưu thất bại", res.ok);
@@ -82,17 +180,12 @@
     });
   }
 
-  function showFlash(message, ok) {
-    flash.textContent = message;
-    flash.className = ok ? "success" : "error";
-  }
-
-  function resetForm() {
+  function resetRuleForm() {
     ruleIdEl.value = "";
-    nameEl.value = "";
+    ruleNameEl.value = "";
     feeEl.value = "0";
     thresholdEl.value = "";
-    enabledEl.checked = true;
+    ruleEnabledEl.checked = true;
     provinceBox.querySelectorAll("input").forEach((cb) => (cb.checked = false));
     formTitle.textContent = "Thêm rule mới";
     cancelBtn.style.display = "none";
@@ -115,57 +208,54 @@
         const free = r.freeShipThreshold != null ? "Miễn phí từ " + r.freeShipThreshold + "₫" : "Không miễn phí";
         return (
           '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
-          "<div>" +
-          "<strong>" + r.name + "</strong>" + (r.enabled ? "" : ' <span class="status-badge status-draft">Đã tắt</span>') +
-          '<div class="field-hint">' + scope + " — phí " + r.baseFee + "₫ — " + free + "</div>" +
-          "</div>" +
+          "<div><strong>" + r.name + "</strong>" + (r.enabled ? "" : ' <span class="status-badge status-draft">Đã tắt</span>') +
+          '<div class="field-hint">' + scope + " — phí " + r.baseFee + "₫ — " + free + "</div></div>" +
           '<div style="display:flex;gap:0.5rem;">' +
-          '<button type="button" class="btn edit-btn" data-id="' + r.id + '">Sửa</button>' +
-          '<button type="button" class="btn btn-danger delete-btn" data-id="' + r.id + '">Xoá</button>' +
+          '<button type="button" class="btn edit-rule-btn" data-id="' + r.id + '">Sửa</button>' +
+          '<button type="button" class="btn btn-danger delete-rule-btn" data-id="' + r.id + '">Xoá</button>' +
           "</div></div>"
         );
-      })
-      .join("");
+      }).join("");
 
-    rulesList.querySelectorAll(".edit-btn").forEach((btn) => {
-      btn.addEventListener("click", () => fillForm(rules.find((r) => r.id === btn.dataset.id)));
+    rulesList.querySelectorAll(".edit-rule-btn").forEach((btn) => {
+      btn.addEventListener("click", () => fillRuleForm(rules.find((r) => r.id === btn.dataset.id)));
     });
-    rulesList.querySelectorAll(".delete-btn").forEach((btn) => {
+    rulesList.querySelectorAll(".delete-rule-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!confirm("Xoá rule này?")) return;
         const res = await fetch("/admin/api/shipping-rules/" + btn.dataset.id, { method: "DELETE" });
-        if (!res.ok) {
-          showFlash("Xoá thất bại", false);
-          return;
-        }
-        await load();
+        if (!res.ok) { showFlash("Xoá thất bại", false); return; }
+        await loadShipping();
         showFlash("Đã xoá.", true);
       });
     });
   }
 
-  function fillForm(rule) {
+  function fillRuleForm(rule) {
     ruleIdEl.value = rule.id;
-    nameEl.value = rule.name;
+    ruleNameEl.value = rule.name;
     feeEl.value = rule.baseFee;
     thresholdEl.value = rule.freeShipThreshold ?? "";
-    enabledEl.checked = rule.enabled;
+    ruleEnabledEl.checked = rule.enabled;
     provinceBox.querySelectorAll("input").forEach((cb) => {
       cb.checked = rule.provinces.includes(cb.value);
     });
     formTitle.textContent = "Sửa rule";
     cancelBtn.style.display = "inline-block";
-    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   }
 
-  async function load() {
-    const [provRes, ruleRes] = await Promise.all([
-      fetch("/api/provinces"),
-      fetch("/admin/api/shipping-rules"),
-    ]);
+  const storeProvinceEl = document.getElementById("store-province");
+
+  async function loadShipping() {
+    const [provRes, ruleRes] = await Promise.all([ fetch("/api/provinces"), fetch("/admin/api/shipping-rules") ]);
     if (provinces.length === 0) {
       provinces = (await provRes.json()).provinces;
       renderProvinceCheckboxes();
+      provinces.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p; opt.textContent = p;
+        storeProvinceEl.appendChild(opt);
+      });
     } else {
       await provRes.json().catch(() => {});
     }
@@ -173,42 +263,116 @@
     renderRules();
   }
 
-  document.getElementById("save-btn").addEventListener("click", async () => {
+  document.getElementById("save-rule-btn").addEventListener("click", async () => {
     const selectedProvinces = [...provinceBox.querySelectorAll("input:checked")].map((cb) => cb.value);
     const payload = {
-      name: nameEl.value,
-      provinces: selectedProvinces,
+      name: ruleNameEl.value, provinces: selectedProvinces,
       baseFee: Number(feeEl.value) || 0,
       freeShipThreshold: thresholdEl.value === "" ? null : Number(thresholdEl.value),
-      enabled: enabledEl.checked,
+      enabled: ruleEnabledEl.checked,
     };
-
-    if (!payload.name) {
-      showFlash("Vui lòng nhập tên rule", false);
-      return;
-    }
+    if (!payload.name) { showFlash("Vui lòng nhập tên rule", false); return; }
 
     const id = ruleIdEl.value;
     const res = await fetch(id ? "/admin/api/shipping-rules/" + id : "/admin/api/shipping-rules", {
-      method: id ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
+      method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-
-    if (!res.ok) {
-      showFlash("Lưu thất bại", false);
-      return;
-    }
-
-    resetForm();
-    await load();
+    if (!res.ok) { showFlash("Lưu thất bại", false); return; }
+    resetRuleForm();
+    await loadShipping();
     showFlash("Đã lưu.", true);
   });
 
-  cancelBtn.addEventListener("click", resetForm);
+  cancelBtn.addEventListener("click", resetRuleForm);
+
+  // --- STORES LOGIC ---
+  const storeList = document.getElementById("stores-list");
+  const storeIdEl = document.getElementById("store-id");
+  const storeNameEl = document.getElementById("store-name");
+  const storeAddressEl = document.getElementById("store-address");
+  const storePhoneEl = document.getElementById("store-phone");
+  const storeEnabledEl = document.getElementById("store-enabled");
+  const storeFormTitle = document.getElementById("store-form-title");
+  const storeCancelBtn = document.getElementById("cancel-store-btn");
+  let stores = [];
+
+  function resetStoreForm() {
+    storeIdEl.value = ""; storeNameEl.value = "";
+    storeAddressEl.value = ""; storeProvinceEl.value = "";
+    storePhoneEl.value = ""; storeEnabledEl.checked = true;
+    storeFormTitle.textContent = "Thêm cửa hàng mới";
+    storeCancelBtn.style.display = "none";
+  }
+
+  function renderStores() {
+    if (stores.length === 0) {
+      storeList.innerHTML = '<div class="empty-state">Chưa có cửa hàng nào.</div>';
+      return;
+    }
+    storeList.innerHTML = stores.map((s) =>
+      '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
+      "<div><strong>" + s.name + "</strong>" + (s.enabled ? "" : ' <span class="status-badge status-draft">Đã ẩn</span>') +
+      '<div class="field-hint">' + s.address + (s.province ? ", " + s.province : "") + (s.phone ? " — " + s.phone : "") + "</div></div>" +
+      '<div style="display:flex;gap:0.5rem;">' +
+      '<button type="button" class="btn edit-store-btn" data-id="' + s.id + '">Sửa</button>' +
+      '<button type="button" class="btn btn-danger delete-store-btn" data-id="' + s.id + '">Xoá</button>' +
+      "</div></div>"
+    ).join("");
+
+    storeList.querySelectorAll(".edit-store-btn").forEach((btn) => {
+      btn.addEventListener("click", () => fillStoreForm(stores.find((s) => s.id === btn.dataset.id)));
+    });
+    storeList.querySelectorAll(".delete-store-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Xoá cửa hàng này?")) return;
+        const res = await fetch("/admin/api/stores/" + btn.dataset.id, { method: "DELETE" });
+        if (!res.ok) { showFlash("Xoá thất bại", false); return; }
+        await loadStores();
+        showFlash("Đã xoá.", true);
+      });
+    });
+  }
+
+  function fillStoreForm(store) {
+    storeIdEl.value = store.id; storeNameEl.value = store.name;
+    storeAddressEl.value = store.address; storeProvinceEl.value = store.province || "";
+    storePhoneEl.value = store.phone || ""; storeEnabledEl.checked = store.enabled;
+    storeFormTitle.textContent = "Sửa cửa hàng";
+    storeCancelBtn.style.display = "inline-block";
+  }
+
+  async function loadStores() {
+    const res = await fetch("/admin/api/stores");
+    stores = (await res.json()).stores;
+    renderStores();
+  }
+
+  document.getElementById("save-store-btn").addEventListener("click", async () => {
+    if (!storeNameEl.value || !storeAddressEl.value) {
+      showFlash("Vui lòng nhập tên và địa chỉ", false); return;
+    }
+    const payload = {
+      name: storeNameEl.value, address: storeAddressEl.value,
+      province: storeProvinceEl.value || undefined, phone: storePhoneEl.value || undefined,
+      enabled: storeEnabledEl.checked,
+    };
+    const id = storeIdEl.value;
+    const res = await fetch(id ? "/admin/api/stores/" + id : "/admin/api/stores", {
+      method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { showFlash("Lưu thất bại", false); return; }
+    resetStoreForm();
+    await loadStores();
+    showFlash("Đã lưu.", true);
+  });
+
+  storeCancelBtn.addEventListener("click", resetStoreForm);
 
   loadFulfillmentMethods();
-  load();
+  loadShipping();
+  loadStores();
 })();
 </script>
 {% endblock %}

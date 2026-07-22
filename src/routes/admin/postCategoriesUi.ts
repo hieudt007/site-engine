@@ -4,8 +4,8 @@ import { renderAdmin } from "../../services/adminView.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 export async function registerPostCategoriesUiRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/post-categories", { preHandler: requireRole("manager") }, async (request, reply) => {
-    const html = await renderAdmin("post-categories", {
+  app.get("/admin/taxonomies", { preHandler: requireRole("manager") }, async (request, reply) => {
+    const html = await renderAdmin("post-taxonomies", {
       userName: request.session.get("name"),
       role: request.session.get("role"),
       currentPath: request.url,

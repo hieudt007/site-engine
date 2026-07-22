@@ -26,6 +26,20 @@
   <label for="body">Nội dung trang danh mục (hiện phía trên danh sách sản phẩm)</label>
   <textarea id="body" name="body" style="min-height:160px;">{{ category.body }}</textarea>
 
+  <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">Câu hỏi thường gặp (FAQ)</h2>
+  <div id="faq-rows">
+    {% for item in category.faq %}
+      <div class="faq-row card" style="margin-bottom:0.5rem;position:relative;">
+        <button type="button" class="btn btn-danger faq-remove" style="position:absolute;top:0.5rem;right:0.5rem;">×</button>
+        <label>Câu hỏi</label>
+        <input type="text" class="faq-q" value="{{ item.question | escape }}" style="margin-bottom:0.5rem;">
+        <label>Câu trả lời</label>
+        <textarea class="faq-a" style="min-height:80px;">{{ item.answer | escape }}</textarea>
+      </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn" id="faq-add-btn">+ Thêm câu hỏi</button>
+
   <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
   <label for="metaTitle">Meta title</label>
@@ -54,6 +68,32 @@
     flash.className = ok ? "success" : "error";
   }
 
+  const faqRows = document.getElementById("faq-rows");
+  function addFaqRow(q, a) {
+    const row = document.createElement("div");
+    row.className = "faq-row card";
+    row.style.cssText = "margin-bottom:0.5rem;position:relative;";
+    row.innerHTML =
+      '<button type="button" class="btn btn-danger faq-remove" style="position:absolute;top:0.5rem;right:0.5rem;">×</button>' +
+      '<label>Câu hỏi</label><input type="text" class="faq-q" style="margin-bottom:0.5rem;">' +
+      '<label>Câu trả lời</label><textarea class="faq-a" style="min-height:80px;"></textarea>';
+    row.querySelector(".faq-q").value = q || "";
+    row.querySelector(".faq-a").value = a || "";
+    faqRows.appendChild(row);
+  }
+  document.getElementById("faq-add-btn").addEventListener("click", () => addFaqRow("", ""));
+  faqRows.addEventListener("click", (e) => {
+    if (e.target.classList.contains("faq-remove")) e.target.closest(".faq-row").remove();
+  });
+  function collectFaq() {
+    return [...faqRows.querySelectorAll(".faq-row")]
+      .map(row => ({
+        question: row.querySelector(".faq-q").value.trim(),
+        answer: row.querySelector(".faq-a").value.trim()
+      }))
+      .filter(i => i.question && i.answer);
+  }
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
@@ -65,6 +105,7 @@
         metaDescription: form.metaDescription.value || undefined,
         keyword: form.keyword.value || undefined,
       },
+      faq: collectFaq(),
     };
 
     const res = await fetch("/admin/api/product-categories/" + categoryId, {

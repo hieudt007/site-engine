@@ -1,0 +1,55 @@
+{% layout "layout" %}
+{% block content %}
+<h1>Tìm kiếm</h1>
+
+<form action="/search" method="get">
+  <input type="search" name="q" value="{{ q | escape }}" placeholder="Nhập từ khóa..." aria-label="Từ khóa tìm kiếm">
+  <button type="submit">Tìm kiếm</button>
+</form>
+
+{% if hasQuery %}
+  <p>Tìm thấy {{ totalResults }} kết quả cho “{{ q | escape }}”.</p>
+
+  {% if totalResults == 0 %}
+    <p>Không tìm thấy kết quả phù hợp.</p>
+  {% endif %}
+
+  {% if products.size > 0 %}
+    <section>
+      <h2>Sản phẩm</h2>
+      <div>
+        {% for product in products %}
+          {% render "components/product/card", product: product, variant: "list", productUrlPrefix: productUrlPrefix %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if posts.size > 0 %}
+    <section>
+      <h2>Bài viết</h2>
+      <div>
+        {% for post in posts %}
+          {% render "components/post/card", post: post, variant: "list", postUrlPrefix: postUrlPrefix, postCategoryPathPrefix: postCategoryPathPrefix %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if pages.size > 0 %}
+    <section>
+      <h2>Trang</h2>
+      <div>
+        {% for page in pages %}
+          <article>
+            <h3><a href="{{ pageUrlPrefix }}/{{ page.slug }}">{{ page.title | escape }}</a></h3>
+            {% if page.excerpt %}<p>{{ page.excerpt | escape }}</p>{% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+{% else %}
+  <p>Nhập từ khóa để tìm bài viết, trang và sản phẩm.</p>
+{% endif %}
+{% endblock %}

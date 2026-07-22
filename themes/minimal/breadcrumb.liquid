@@ -1,0 +1,17 @@
+{% if breadcrumbs.size > 0 %}
+  {% assign variant = breadcrumbVariant | default: "default" %}
+  <nav aria-label="Breadcrumb" class="mb-8 text-xs uppercase tracking-wide">
+    <ol class="flex flex-wrap items-center gap-2">
+      {% for item in breadcrumbs %}
+        <li class="flex items-center gap-2">
+          {% if forloop.last %}
+            <span aria-current="page" class="{% if variant == "product" %}font-medium text-brand{% elsif variant == "blog" %}font-medium text-stone-900{% else %}font-medium text-stone-900{% endif %}">{{ item.name | escape }}</span>
+          {% else %}
+            <a href="{{ item.url }}" class="{% if variant == "product" %}text-brand hover:text-brand-dark{% elsif variant == "blog" %}text-stone-500 hover:text-stone-900{% else %}text-stone-500 hover:text-stone-900{% endif %}">{{ item.name | escape }}</a>
+            <span aria-hidden="true" class="text-stone-300">/</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </nav>
+{% endif %}

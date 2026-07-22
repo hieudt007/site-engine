@@ -8,11 +8,24 @@
   {% endif %}
   <h1>{{ post.title | escape }}</h1>
   <div>
-    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}">{{ c.name | escape }}</a>{% endfor %}
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="{{ postCategoryPathPrefix }}/{{ c.slug }}">{{ c.name | escape }}</a>{% endfor %}
   </div>
   <div>
     {{ post.body }}
   </div>
   {% render "custom-fields", fields: post.customFields %}
+
+  {% if post.faq and post.faq.size > 0 %}
+    <div style="margin-top: 2rem;">
+      <h2>Câu hỏi thường gặp</h2>
+      <dl>
+        {% for item in post.faq %}
+          <dt style="font-weight: bold; margin-top: 1rem;">{{ item.question | escape }}</dt>
+          <dd style="margin-left: 0; margin-bottom: 1rem;">{{ item.answer | escape | newline_to_br }}</dd>
+        {% endfor %}
+      </dl>
+    </div>
+  {% endif %}
 </article>
+{% render "components/plugin/area", blocks: pluginAreas.blog_post_after_content %}
 {% endblock %}

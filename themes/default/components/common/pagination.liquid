@@ -1,0 +1,12 @@
+{% if hasPrev or hasNext %}
+  <nav aria-label="Phân trang">
+    {% if hasPrev %}
+      <a href="{{ basePath }}?page={{ prevPage }}">← Trang trước</a>
+    {% else %}
+      <span></span>
+    {% endif %}
+    {% if hasNext %}
+      <a href="{{ basePath }}?page={{ nextPage }}">Trang sau →</a>
+    {% endif %}
+  </nav>
+{% endif %}

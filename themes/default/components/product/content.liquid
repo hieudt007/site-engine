@@ -1,0 +1,67 @@
+{% if product.description %}
+  <div>{{ product.description | escape | newline_to_br }}</div>
+{% endif %}
+
+{% if product.specs.size > 0 %}
+  <h2>Thông số sản phẩm</h2>
+  <table>
+    <tbody>
+      {% for spec in product.specs %}
+        <tr>
+          <th>{{ spec.label | escape }}</th>
+          <td>{{ spec.value | escape }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+{% render "custom-fields", fields: product.customFields %}
+
+{% if product.faq and product.faq.size > 0 %}
+  <div style="margin-top: 2rem;">
+    <h2>Câu hỏi thường gặp</h2>
+    <dl>
+      {% for item in product.faq %}
+        <dt style="font-weight: bold; margin-top: 1rem;">{{ item.question | escape }}</dt>
+        <dd style="margin-left: 0; margin-bottom: 1rem;">{{ item.answer | escape | newline_to_br }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+{% endif %}
+
+<section>
+  <h2>
+    Đánh giá{% if avgRating %} — {{ avgRating }}★ ({{ reviews.size }} đánh giá){% endif %}
+  </h2>
+
+  {% if reviews.size == 0 %}
+    <p>Chưa có đánh giá nào.</p>
+  {% else %}
+    <div>
+      {% for r in reviews %}
+        <div>
+          <div>{{ r.customerName | escape }} <span>{% for i in (1..r.rating) %}★{% endfor %}</span></div>
+          {% if r.comment %}<div>{{ r.comment | escape }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <details>
+    <summary>Viết đánh giá</summary>
+    <form id="review-form">
+      <input type="text" name="customerName" placeholder="Tên của bạn" required>
+      <select name="rating">
+        <option value="5">5 sao</option>
+        <option value="4">4 sao</option>
+        <option value="3">3 sao</option>
+        <option value="2">2 sao</option>
+        <option value="1">1 sao</option>
+      </select>
+      <textarea name="comment" placeholder="Nhận xét (không bắt buộc)"></textarea>
+      <button type="submit">Gửi đánh giá</button>
+      <div id="review-msg"></div>
+    </form>
+  </details>
+</section>

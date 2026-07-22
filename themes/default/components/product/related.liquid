@@ -1,0 +1,10 @@
+{% if products and products.size > 0 %}
+  <section>
+    <h2>{{ title }}</h2>
+    <div>
+      {% for related in products %}
+        {% render "components/product/card", product: related, variant: "related", productUrlPrefix: productUrlPrefix %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

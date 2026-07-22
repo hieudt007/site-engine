@@ -15,7 +15,7 @@
   <label for="title">Tiêu đề</label>
   <input type="text" id="title" name="title" value="{% if page %}{{ page.title | escape }}{% endif %}" required>
 
-  <label for="slug">Slug (đường dẫn — /trang/slug)</label>
+  <label for="slug">Slug (đường dẫn — /slug)</label>
   <input type="text" id="slug" name="slug" value="{% if page %}{{ page.slug | escape }}{% endif %}" required>
   <div class="field-hint">Chỉ chữ thường/số, cách nhau bằng dấu gạch ngang. Vd: gioi-thieu</div>
 

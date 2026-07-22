@@ -5,8 +5,13 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { THEME_ASSET_FILES, THEME_BUNDLE_OUTPUTS, THEME_FILE_CONTRACTS } from "../../services/themeContract.js";
+import { validateThemeFile } from "../../services/themeValidator.js";
+import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
+import { ensureThemeMd } from "../../services/themeMemory.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
 
 // Theme built-in = MỌI thư mục con thật sự tồn tại dưới themes/ (đóng gói sẵn cùng zip release,
 // xem scripts/build-release.sh) — không cần khai báo danh sách tay, tự quét đĩa. Theme "custom"
@@ -21,6 +26,13 @@ function listBuiltInThemes(): string[] {
 }
 
 const activateSchema = z.object({ slug: z.string().min(1) });
+const importThemeSchema = z.object({
+  slug: z.string().regex(SLUG_RE, "Slug chỉ gồm chữ thường, số và dấu gạch ngang, dài 3-50 ký tự"),
+  name: z.string().trim().min(1).max(120).optional(),
+  mode: z.enum(["create", "update"]).default("create"),
+  activate: z.boolean().default(false),
+  files: z.record(z.string()),
+});
 
 // "default" la theme khung tho (chi co Cay thu muc Liquid + layout 1200px, khong style) - dung LAM
 // NEN de clone khi tao theme moi hoan toan (xem themeCustomize.ts), khong dung de hien thi truc
@@ -33,6 +45,53 @@ const HIDDEN_FROM_GRID_SLUGS = new Set(["default"]);
 // khong co, tranh vo layout vi broken image icon.
 function hasScreenshot(slug: string): boolean {
   return fs.existsSync(path.join(THEMES_ROOT, slug, "screenshot.png"));
+}
+
+function normalizeThemePath(file: string): string | null {
+  const normalized = file.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..") || path.isAbsolute(normalized)) return null;
+  return normalized;
+}
+
+function allowedImportFiles(): Set<string> {
+  return new Set([
+    ...THEME_FILE_CONTRACTS.map((c) => c.file),
+    ...THEME_ASSET_FILES.map((a) => a.file),
+    "THEME.md",
+    "theme.json",
+    "screenshot.png",
+  ]);
+}
+
+async function copyDir(src: string, dest: string): Promise<void> {
+  await fsp.mkdir(dest, { recursive: true });
+  const entries = await fsp.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDir(srcPath, destPath);
+    } else if (entry.isFile()) {
+      await fsp.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+async function validateImportedThemeDir(themeDir: string): Promise<string[]> {
+  const errors: string[] = [];
+  for (const contract of THEME_FILE_CONTRACTS) {
+    const filePath = path.join(themeDir, contract.file);
+    const source = await fsp.readFile(filePath, "utf-8").catch(() => null);
+    if (source === null) {
+      errors.push(`Thiếu file bắt buộc: ${contract.file}`);
+      continue;
+    }
+    const result = await validateThemeFile(contract.file, source);
+    if (!result.ok) {
+      errors.push(...result.errors.map((error) => `${contract.file}: ${error}`));
+    }
+  }
+  return errors;
 }
 
 export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
@@ -60,6 +119,82 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
     }));
 
     return { themes: [...builtIn, ...custom] };
+  });
+
+  app.post("/admin/api/themes/import", { preHandler: requireRole("admin") }, async (request, reply) => {
+    const parsed = importThemeSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(422).send({ error: parsed.error.flatten() });
+    }
+
+    const { slug, mode, activate } = parsed.data;
+    const name = parsed.data.name?.trim() || slug;
+    if (HIDDEN_FROM_GRID_SLUGS.has(slug)) {
+      return reply.code(422).send({ error: "Không thể import đè theme hệ thống." });
+    }
+
+    const allowedFiles = allowedImportFiles();
+    const normalizedFiles = new Map<string, string>();
+    for (const [rawFile, content] of Object.entries(parsed.data.files)) {
+      const file = normalizeThemePath(rawFile);
+      if (!file || !allowedFiles.has(file) || THEME_BUNDLE_OUTPUTS.includes(file)) {
+        return reply.code(422).send({ error: `File không được phép import: ${rawFile}` });
+      }
+      normalizedFiles.set(file, content);
+    }
+
+    const themeDir = path.join(THEMES_ROOT, slug);
+    const existsOnDisk = fs.existsSync(themeDir);
+    const existsInDb = await prisma.customTheme.findUnique({ where: { slug } });
+    if (mode === "create" && (existsOnDisk || existsInDb)) {
+      return reply.code(409).send({ error: "Slug theme đã tồn tại." });
+    }
+    if (mode === "update" && !existsOnDisk && !existsInDb) {
+      return reply.code(404).send({ error: "Không tìm thấy theme để cập nhật." });
+    }
+
+    const tmpDir = path.join(THEMES_ROOT, `.import-${slug}-${Date.now()}`);
+    try {
+      if (mode === "update" && existsOnDisk) {
+        await copyDir(themeDir, tmpDir);
+      } else {
+        await fsp.mkdir(tmpDir, { recursive: true });
+      }
+
+      for (const [file, content] of normalizedFiles) {
+        const filePath = path.join(tmpDir, file);
+        await fsp.mkdir(path.dirname(filePath), { recursive: true });
+        await fsp.writeFile(filePath, content, "utf-8");
+      }
+
+      const validationErrors = await validateImportedThemeDir(tmpDir);
+      if (validationErrors.length) {
+        return reply.code(422).send({ error: "Theme không hợp lệ", errors: validationErrors });
+      }
+
+      await fsp.rm(themeDir, { recursive: true, force: true });
+      await fsp.rename(tmpDir, themeDir);
+      await ensureThemeMd(slug);
+      await rebuildThemeAssets(slug);
+
+      const theme = await prisma.customTheme.upsert({
+        where: { slug },
+        create: { slug, name, source: "uploaded" },
+        update: { name, source: "uploaded" },
+      });
+
+      if (activate) {
+        await prisma.themeConfig.upsert({
+          where: { id: "singleton" },
+          create: { id: "singleton", activeTheme: slug },
+          update: { activeTheme: slug },
+        });
+      }
+
+      return reply.code(mode === "create" ? 201 : 200).send({ theme, activated: activate });
+    } finally {
+      await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+    }
   });
 
   app.post("/admin/api/themes/activate", { preHandler: requireRole("admin") }, async (request, reply) => {

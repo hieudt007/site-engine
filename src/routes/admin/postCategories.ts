@@ -17,10 +17,20 @@ const seoSchema = z
   })
   .optional();
 
+const faqSchema = z
+  .array(
+    z.object({
+      question: z.string().min(1),
+      answer: z.string().min(1),
+    }),
+  )
+  .optional();
+
 const createCategorySchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -"),
   parentId: z.string().nullable().optional(),
+  faq: faqSchema,
 });
 
 const updateCategorySchema = z.object({
@@ -31,6 +41,7 @@ const updateCategorySchema = z.object({
   body: z.string().optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
+  faq: faqSchema,
 });
 
 // Danh mục bài viết — khái niệm CỦA RIÊNG website, CRUD đầy đủ (khác danh mục sản phẩm,
@@ -43,7 +54,10 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
     const categories = await prisma.category.findMany({
       where: { type: TYPE },
       orderBy: { name: "asc" },
-      include: { parent: { select: { name: true } } },
+      include: { 
+        parent: { select: { name: true } },
+        _count: { select: { posts: true } }
+      },
     });
     return { categories };
   });

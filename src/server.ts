@@ -41,6 +41,7 @@ import { registerUserRoutes } from "./routes/admin/users.js";
 import { registerUsersUiRoutes } from "./routes/admin/usersUi.js";
 import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
+import { registerPluginRoutes } from "./routes/admin/plugins.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
 import { registerThemeRoutes } from "./routes/admin/themes.js";
@@ -64,6 +65,8 @@ import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
 import { registerReviewRoutes } from "./routes/public/reviews.js";
 import { registerSeoRoutes } from "./routes/public/seo.js";
+import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js";
+import { registerPublicSearchRoutes } from "./routes/public/search.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
 
@@ -229,6 +232,7 @@ async function start(): Promise<void> {
   await registerUsersUiRoutes(app);
   await registerAgentRoutes(app);
   await registerAgentsUiRoutes(app);
+  await registerPluginRoutes(app);
   await registerMenuRoutes(app);
   await registerMenusUiRoutes(app);
   await registerThemeRoutes(app);
@@ -245,6 +249,8 @@ async function start(): Promise<void> {
   await registerBlogRoutes(app);
   await registerPagesPublicRoutes(app);
   await registerProductsPublicRoutes(app);
+  await registerPublicSearchRoutes(app);
+  await registerDynamicPrefixRoutes(app);
   await registerProductsSyncRoutes(app);
   await registerReviewRoutes(app);
   await registerCartRoutes(app);

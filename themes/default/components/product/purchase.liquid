@@ -1,0 +1,37 @@
+{% if product.hasVariants %}
+  <div id="variant-picker"></div>
+  <div id="variant-price"></div>
+  <div id="variant-stock"></div>
+  <button id="add-to-cart">Thêm vào giỏ</button>
+  <button id="buy-now-btn">Mua ngay</button>
+  <span id="add-to-cart-msg"></span>
+  <template id="variants-data">{{ variantsJson }}</template>
+{% else %}
+  <div>
+    {% if product.salePrice %}
+      <span>{{ product.salePrice }}₫</span>
+      <span>{{ product.price }}₫</span>
+    {% else %}
+      <span>{{ product.price }}₫</span>
+    {% endif %}
+  </div>
+  {% if product.stock != nil and product.stock <= 0 %}
+    <div>Hết hàng</div>
+  {% else %}
+    <button id="add-to-cart" data-id="{{ product.id }}">Thêm vào giỏ</button>
+    <button id="buy-now-btn">Mua ngay</button>
+    <span id="add-to-cart-msg"></span>
+  {% endif %}
+{% endif %}
+
+<form id="buy-now-form" class="hidden">
+  <div>Mua ngay — điền thông tin nhận hàng</div>
+  <input type="text" name="customerName" placeholder="Họ tên" required>
+  <input type="text" name="customerPhone" placeholder="Số điện thoại" required>
+  <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng">
+  <div>
+    <button type="submit">Xác nhận đặt hàng</button>
+    <button type="button" id="buy-now-cancel">Huỷ</button>
+  </div>
+  <div id="buy-now-error"></div>
+</form>

@@ -1,0 +1,18 @@
+{% if products and products.size > 0 %}
+  <section>
+    <h2>{{ title }}</h2>
+    <div>
+      {% for p in products %}
+        <div>
+          {% if p.imageUrls[0] %}<img src="{{ p.imageUrls[0] }}" alt="{{ p.name | escape }}">{% endif %}
+          <h3><a href="/products/{{ p.id }}">{{ p.name | escape }}</a></h3>
+          {% if p.salePrice %}
+            <div>{{ p.salePrice }}₫ <span>{{ p.price }}₫</span></div>
+          {% else %}
+            <div>{{ p.price }}₫</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

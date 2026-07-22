@@ -8,7 +8,7 @@
   {% endif %}
   {% if product.categories.size > 0 %}
     <div class="text-stone-500 text-sm mb-1 uppercase tracking-wide">
-      {% for c in product.categories %}<a href="/products/danh-muc/{{ c.slug }}" class="text-stone-500 hover:text-brand">{{ c.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
+      {% for c in product.categories %}<a href="{{ productCategoryPathPrefix }}/{{ c.slug }}" class="text-stone-500 hover:text-brand">{{ c.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
     </div>
   {% endif %}
   <h1 class="font-serif text-3xl font-bold mb-4">{{ product.name | escape }}</h1>
@@ -39,6 +39,8 @@
     {% endif %}
   {% endif %}
 
+  {% render "components/plugin/area", blocks: pluginAreas.product_detail_sidebar %}
+
   <form id="buy-now-form" class="hidden mt-2 mb-4 max-w-md mx-auto border border-stone-200 p-4 flex flex-col gap-2.5 text-left">
     <div class="text-sm font-semibold">Mua ngay — điền thông tin nhận hàng</div>
     <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2 border border-stone-300 rounded-md">
@@ -65,6 +67,7 @@
     </div>
   {% endif %}
 </article>
+{% render "components/plugin/area", blocks: pluginAreas.product_detail_after_content %}
 
 <section class="mt-10 border-t border-stone-200 pt-6 text-left">
   <h2 class="font-serif text-xl font-semibold">

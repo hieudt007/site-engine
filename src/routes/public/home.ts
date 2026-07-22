@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderPublic } from "../../services/themeRenderer.js";
+import { ensureProductSlugs } from "../../services/productSlug.js";
 
 const LATEST_POSTS = 3;
 const LATEST_PRODUCTS = 6;
@@ -13,7 +14,7 @@ export async function registerHomeRoutes(app: FastifyInstance): Promise<void> {
     const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
     const isBlog = siteConfig?.siteType === "blog";
 
-    const [posts, products] = await Promise.all([
+    const [posts, productsRaw] = await Promise.all([
       prisma.post.findMany({
         where: { type: "post", status: "published" },
         orderBy: { publishedAt: "desc" },
@@ -29,9 +30,10 @@ export async function registerHomeRoutes(app: FastifyInstance): Promise<void> {
             where: { status: "published" },
             orderBy: { syncedAt: "desc" },
             take: LATEST_PRODUCTS,
-            select: { id: true, name: true, imageUrls: true, price: true, salePrice: true },
+            select: { id: true, slug: true, name: true, imageUrls: true, price: true, salePrice: true } as any,
           }),
     ]);
+    const products = await ensureProductSlugs(productsRaw as any);
 
     const html = await renderPublic("home", { posts, products });
     return reply.type("text/html").send(html);

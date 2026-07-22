@@ -17,12 +17,22 @@ const seoSchema = z
   })
   .optional();
 
+const faqSchema = z
+  .array(
+    z.object({
+      question: z.string().min(1),
+      answer: z.string().min(1),
+    }),
+  )
+  .optional();
+
 const updateCategorySchema = z.object({
   parentId: z.string().nullable().optional(),
   excerpt: z.string().optional(),
   body: z.string().optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
+  faq: faqSchema,
 });
 
 // Danh mục sản phẩm — name/slug do LeadBase sở hữu (đồng bộ qua productsSync.ts), KHÔNG có

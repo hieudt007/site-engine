@@ -1,0 +1,198 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Plugins</h1>
+</div>
+
+<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+  Plugins can add admin pages, read allowed core data, store their own records, and expose declared public data to themes.
+</p>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="margin-top:0;font-size:1rem;">Import plugin</h2>
+  <label>Manifest JSON</label>
+  <textarea id="manifest-input" style="min-height:220px;">{
+  "manifest": {
+    "name": "Demo Plugin",
+    "slug": "demo-plugin",
+    "version": "1.0.0",
+    "description": "Sample plugin.",
+    "adminPages": [
+      { "title": "Demo Plugin", "path": "dashboard", "menuGroup": "Plugins" }
+    ],
+    "permissions": { "readModels": ["Post", "ProductCache"] },
+    "collections": [
+      { "name": "items", "label": "Sample data" }
+    ],
+    "publicData": [
+      { "key": "items", "source": "collection", "collection": "items", "limit": 20 }
+    ],
+    "publicBlocks": [
+      { "key": "home_items", "title": "Featured items", "placement": "home_bottom", "dataKey": "items", "variant": "list" },
+      { "key": "contact_form", "title": "Contact us", "placement": "layout_before_footer", "actionKey": "contact", "variant": "form" }
+    ],
+    "publicActions": [
+      {
+        "key": "contact",
+        "collection": "items",
+        "submitLabel": "Send",
+        "successMessage": "Thanks, we received your message.",
+        "fields": [
+          { "name": "name", "label": "Name", "type": "text", "required": true, "maxLength": 120 },
+          { "name": "email", "label": "Email", "type": "email", "required": true, "maxLength": 160 },
+          { "name": "message", "label": "Message", "type": "textarea", "required": true, "maxLength": 1000 }
+        ]
+      }
+    ]
+  },
+  "mode": "create",
+  "enabled": false
+}</textarea>
+  <div style="margin-top:0.8rem;display:flex;gap:0.6rem;align-items:center;">
+    <button type="button" class="btn btn-primary" id="import-btn">Import</button>
+    <span id="import-status" style="font-size:0.85rem;color:#777;"></span>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Slug</th>
+      <th>Version</th>
+      <th>Status</th>
+      <th>Admin pages</th>
+      <th>Public data</th>
+      <th>Public blocks</th>
+      <th>Public actions</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="plugins-body">
+    <tr><td colspan="9" style="color:#999;">Loading...</td></tr>
+  </tbody>
+</table>
+
+<script>
+(function () {
+  const tbody = document.getElementById("plugins-body");
+  const flash = document.getElementById("flash");
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+
+  function showSuccess(message) {
+    flash.textContent = message;
+    flash.className = "success";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function rowHtml(plugin) {
+    const manifest = plugin.manifest || {};
+    const pages = Array.isArray(manifest.adminPages) ? manifest.adminPages : [];
+    const publicData = Array.isArray(manifest.publicData) ? manifest.publicData : [];
+    const publicBlocks = Array.isArray(manifest.publicBlocks) ? manifest.publicBlocks : [];
+    const publicActions = Array.isArray(manifest.publicActions) ? manifest.publicActions : [];
+    const pageLinks = pages.length
+      ? pages.map((page) => '<a href="/admin/plugins/' + plugin.slug + '/' + page.path + '">' + escapeHtml(page.title) + '</a>').join("<br>")
+      : '<span style="color:#999;">-</span>';
+    const statusBadge = plugin.enabled
+      ? '<span class="status-badge status-published">Enabled</span>'
+      : '<span class="status-badge status-draft">Disabled</span>';
+    const publicDataText = publicData.length
+      ? publicData.map((item) => '<code>' + escapeHtml(item.key) + '</code>').join("<br>")
+      : '<span style="color:#999;">-</span>';
+    const publicBlocksText = publicBlocks.length
+      ? publicBlocks.map((item) => escapeHtml(item.placement) + '<br><code>' + escapeHtml(item.key) + '</code>').join("<br>")
+      : '<span style="color:#999;">-</span>';
+    const publicActionsText = publicActions.length
+      ? publicActions.map((item) => '<code>' + escapeHtml(item.key) + '</code><br>' + escapeHtml(item.collection)).join("<br>")
+      : '<span style="color:#999;">-</span>';
+    return (
+      "<tr>" +
+      "<td>" + escapeHtml(plugin.name) + "</td>" +
+      "<td><code>" + escapeHtml(plugin.slug) + "</code></td>" +
+      "<td>" + escapeHtml(plugin.version) + "</td>" +
+      "<td>" + statusBadge + "</td>" +
+      "<td>" + pageLinks + "</td>" +
+      "<td>" + publicDataText + "</td>" +
+      "<td>" + publicBlocksText + "</td>" +
+      "<td>" + publicActionsText + "</td>" +
+      '<td style="text-align:right;white-space:nowrap;">' +
+      '<button class="btn" data-action="toggle" data-slug="' + plugin.slug + '" data-enabled="' + (!plugin.enabled) + '">' + (plugin.enabled ? "Disable" : "Enable") + "</button> " +
+      '<button class="btn btn-danger" data-action="delete" data-slug="' + plugin.slug + '">Delete</button>' +
+      "</td>" +
+      "</tr>"
+    );
+  }
+
+  async function load() {
+    const res = await fetch("/admin/api/plugins");
+    if (!res.ok) {
+      showError("Could not load plugins");
+      return;
+    }
+    const { plugins } = await res.json();
+    tbody.innerHTML = plugins.length ? plugins.map(rowHtml).join("") : '<tr><td colspan="9" class="empty-state">No plugins yet.</td></tr>';
+  }
+
+  document.getElementById("import-btn").addEventListener("click", async () => {
+    let body;
+    try {
+      body = JSON.parse(document.getElementById("manifest-input").value);
+    } catch {
+      showError("Invalid JSON");
+      return;
+    }
+    const res = await fetch("/admin/api/plugins/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showError(typeof err.error === "string" ? err.error : "Import failed");
+      return;
+    }
+    showSuccess("Plugin imported");
+    load();
+  });
+
+  tbody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-action]");
+    if (!btn) return;
+    const slug = btn.dataset.slug;
+    if (btn.dataset.action === "toggle") {
+      const res = await fetch("/admin/api/plugins/" + slug + "/enabled", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: btn.dataset.enabled === "true" }),
+      });
+      if (!res.ok) {
+        showError("Could not update plugin status");
+        return;
+      }
+      load();
+      return;
+    }
+
+    if (!confirm("Delete this plugin and all its own records?")) return;
+    const res = await fetch("/admin/api/plugins/" + slug, { method: "DELETE" });
+    if (!res.ok) {
+      showError("Could not delete plugin");
+      return;
+    }
+    load();
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

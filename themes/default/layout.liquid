@@ -15,9 +15,11 @@
   {% render "header", site: site, headerMenu: headerMenu %}
 
   <main style="max-width:1200px;margin:0 auto;">
+    {% render "components/common/breadcrumb", breadcrumbs: breadcrumbs, breadcrumbVariant: breadcrumbVariant %}
     {% block content %}{% endblock %}
   </main>
 
+  {% render "components/plugin/area", blocks: pluginAreas.layout_before_footer %}
   {% render "footer", site: site, footerMenu: footerMenu, year: year %}
   <script src="/theme-assets/{{ themeSlug }}/assets/custom.js" defer></script>
 </body>

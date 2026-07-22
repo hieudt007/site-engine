@@ -27,6 +27,7 @@ const FIELD_LABELS: Record<string, string> = {
   name: "Tên",
   description: "Mô tả",
   imageUrls: "Ảnh sản phẩm",
+  specs: "Thông số sản phẩm",
 };
 
 function valuesEqual(a: unknown, b: unknown): boolean {

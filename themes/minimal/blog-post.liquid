@@ -8,11 +8,12 @@
   {% endif %}
   <h1 class="font-serif text-4xl font-bold mb-2">{{ post.title | escape }}</h1>
   <div class="text-stone-400 text-sm mb-10 uppercase tracking-wide">
-    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="/blog/danh-muc/{{ c.slug }}" class="text-stone-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
+    {{ post.publishedAt | date: "%d/%m/%Y" }}{% for c in post.categories %} · <a href="{{ postCategoryPathPrefix }}/{{ c.slug }}" class="text-stone-400 hover:text-brand">{{ c.name | escape }}</a>{% endfor %}
   </div>
   <div class="prose prose-stone font-serif max-w-none text-left leading-relaxed text-[1.05rem]">
     {{ post.body }}
   </div>
   {% render "custom-fields", fields: post.customFields %}
 </article>
+{% render "components/plugin/area", blocks: pluginAreas.blog_post_after_content %}
 {% endblock %}

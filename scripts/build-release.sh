@@ -25,6 +25,9 @@ cp -r dist "$STAGE_DIR/dist"
 cp -r prisma "$STAGE_DIR/prisma"
 cp -r views "$STAGE_DIR/views"
 cp -r themes "$STAGE_DIR/themes"
+# assets/ (seed/logo.png doc luc seedSiteConfig.ts, data/uiux/*.csv doc luc theme chat redesign)
+# truoc day KHONG duoc dong goi - ca 2 se ENOENT tren VPS that du chay OK luc dev cuc bo.
+cp -r assets "$STAGE_DIR/assets"
 cp package.json "$STAGE_DIR/package.json"
 if [ -f package-lock.json ]; then
   cp package-lock.json "$STAGE_DIR/package-lock.json"

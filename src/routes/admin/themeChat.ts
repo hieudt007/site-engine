@@ -9,9 +9,11 @@ import { THEME_FILE_CONTRACTS, THEME_ASSET_FILES, THEME_BUNDLE_OUTPUTS, pageGrou
 import { ensureThemeMd, readThemeMd, updateIntentSection, updateAppliedSection, buildEditThemeMemory } from "../../services/themeMemory.js";
 import { classifyChatMessage, editThemeFiles, ChatHistoryItem, EditFileResult } from "../../services/themeChat.js";
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
+import { resolveDesignSystem, formatDesignSystem } from "../../services/uiuxSearch.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 const HISTORY_LIMIT = 3;
+const MAX_EXTRA_FILE_REQUESTS = 2;
 // Classify duoc tu chon BAT KY file nao trong 54 file (18 .liquid + 18 css + 18 js rieng tung
 // trang) - khong con bat buoc theo cap, AI tu quyet dinh dung file can dong den.
 const SELECTABLE_FILES = new Set([...THEME_FILE_CONTRACTS.map((c) => c.file), ...THEME_ASSET_FILES.map((a) => a.file)]);
@@ -54,6 +56,22 @@ async function withHeartbeat<T>(reply: import("fastify").FastifyReply, task: Pro
 // (validFiles = AI tu chon) hoac MODE=redesign (validFiles = TOAN BO 54 file, message = brief da
 // tong hop), (2) nut "Xac nhan" bam thang tu de xuat redesign (routes /chat/confirm-redesign),
 // KHONG qua lai AI phan loai - validFiles/message da co san tu tin nhan de xuat truoc do.
+function expandFilesWithPairedAssets(files: string[]): string[] {
+  const groupKeys = new Set(files.map((file) => pageGroupKey(file)));
+  return [...SELECTABLE_FILES].filter((file) => groupKeys.has(pageGroupKey(file)));
+}
+
+function groupFilesByPage(files: string[]): Array<[string, string[]]> {
+  const groups = new Map<string, string[]>();
+  for (const file of files) {
+    const key = pageGroupKey(file);
+    const list = groups.get(key) ?? [];
+    list.push(file);
+    groups.set(key, list);
+  }
+  return [...groups.entries()];
+}
+
 async function runFileEditPipeline(
   reply: import("fastify").FastifyReply,
   agent: Agent,
@@ -63,19 +81,16 @@ async function runFileEditPipeline(
   message: string,
   classifiedReply: string,
   imageUrl: string | undefined,
+  designSystemBlock?: string,
 ): Promise<void> {
-  const groups = new Map<string, string[]>();
-  for (const file of validFiles) {
-    const key = pageGroupKey(file);
-    const list = groups.get(key) ?? [];
-    list.push(file);
-    groups.set(key, list);
-  }
-  const groupEntries = [...groups.entries()];
-  sseWrite(reply, { step: "files", label: `Sẽ sửa: ${validFiles.join(", ")}`, files: validFiles, groups: groupEntries.length });
+  const editableFiles = expandFilesWithPairedAssets(validFiles);
+  const groupEntries = groupFilesByPage(editableFiles).map(([groupKey, files]) => ({ groupKey, files, task: message }));
+  const queuedGroups = new Set(groupEntries.map((entry) => entry.groupKey));
+  let extraFileRequests = 0;
+  sseWrite(reply, { step: "files", label: `Sẽ sửa: ${editableFiles.join(", ")}`, files: editableFiles, groups: groupEntries.length });
   // Danh sach buoc (theo dung thu tu se chay TUAN TU) de frontend biet truoc TOAN BO ke hoach -
   // frontend tu quyet dinh hien timeline (>=3 buoc) hay 1 dong trang thai ghi de (<3 buoc).
-  sseWrite(reply, { step: "plan", tasks: groupEntries.map(([groupKey]) => groupKey) });
+  sseWrite(reply, { step: "plan", tasks: groupEntries.map(({ groupKey }) => groupKey) });
 
   const allResults: EditFileResult[] = [];
   const changeNotes: string[] = [];
@@ -84,7 +99,7 @@ async function runFileEditPipeline(
   let aiSummary: string | null = null;
 
   for (let i = 0; i < groupEntries.length; i++) {
-    const [groupKey, groupFiles] = groupEntries[i];
+    const { groupKey, files: groupFiles, task } = groupEntries[i];
     const isLastGroup = i === groupEntries.length - 1;
     sseWrite(reply, { step: "group_start", group: groupKey, index: i, total: groupEntries.length, label: `AI đang sửa "${groupKey}"...` });
 
@@ -98,7 +113,17 @@ async function runFileEditPipeline(
 
       const groupResult = await withHeartbeat(
         reply,
-        editThemeFiles(agent, buildEditThemeMemory(currentThemeMd), message, classifiedReply, fileContents, isLastGroup, changeNotes, imageUrl),
+        editThemeFiles(
+          agent,
+          buildEditThemeMemory(currentThemeMd),
+          task,
+          classifiedReply,
+          fileContents,
+          isLastGroup,
+          changeNotes,
+          imageUrl,
+          designSystemBlock,
+        ),
       );
 
       for (const result of groupResult.files) {
@@ -119,6 +144,48 @@ async function runFileEditPipeline(
       if (groupResult.memoryUpdate) {
         await updateAppliedSection(slug, groupResult.memoryUpdate);
         currentThemeMd = await readThemeMd(slug);
+      }
+
+      if (groupResult.needsMoreFiles) {
+        if (extraFileRequests >= MAX_EXTRA_FILE_REQUESTS) {
+          allResults.push({
+            file: groupKey,
+            ok: false,
+            errors: [`AI cần mở thêm file nhưng đã vượt giới hạn ${MAX_EXTRA_FILE_REQUESTS} lần.`],
+          });
+        } else {
+          const validExtraFiles = groupResult.needsMoreFiles.files.filter((file) => SELECTABLE_FILES.has(file));
+          const expandedExtraFiles = expandFilesWithPairedAssets(validExtraFiles);
+          const newGroups = groupFilesByPage(expandedExtraFiles).filter(([extraGroupKey]) => !queuedGroups.has(extraGroupKey));
+
+          if (!validExtraFiles.length || !newGroups.length) {
+            allResults.push({
+              file: groupKey,
+              ok: false,
+              errors: [
+                groupResult.needsMoreFiles.reason
+                  ? `AI yêu cầu mở thêm file nhưng không có file hợp lệ mới: ${groupResult.needsMoreFiles.reason}`
+                  : "AI yêu cầu mở thêm file nhưng không có file hợp lệ mới.",
+              ],
+            });
+          } else {
+            extraFileRequests++;
+            const extraTask = groupResult.needsMoreFiles.task;
+            for (const [extraGroupKey, extraGroupFiles] of newGroups) {
+              queuedGroups.add(extraGroupKey);
+              groupEntries.push({ groupKey: extraGroupKey, files: extraGroupFiles, task: extraTask });
+            }
+            sseWrite(reply, {
+              step: "need_more_files",
+              group: groupKey,
+              files: validExtraFiles,
+              reason: groupResult.needsMoreFiles.reason,
+              task: extraTask,
+              remaining: MAX_EXTRA_FILE_REQUESTS - extraFileRequests,
+            });
+            sseWrite(reply, { step: "plan", tasks: groupEntries.map(({ groupKey }) => groupKey) });
+          }
+        }
       }
 
       const groupFailed = groupResult.files.some((r) => !r.ok);
@@ -262,7 +329,13 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         // cho xac nhan (chua lam gi ca) - luu kem brief de nut "Xac nhan" (hoac lan chat sau, neu
         // admin go "dong y" bang tay) co du du lieu de chay thang khong can hoi lai.
         await prisma.themeChatMessage.create({
-          data: { slug, role: "assistant", content: classified.reply, redesignBrief: classified.redesignBrief },
+          data: {
+            slug,
+            role: "assistant",
+            content: classified.reply,
+            redesignBrief: classified.redesignBrief,
+            styleQuery: classified.styleQuery,
+          },
         });
         sseWrite(reply, {
           step: "done",
@@ -288,6 +361,14 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       // AI quen dien REDESIGN_BRIEF.
       const effectiveMessage = isRedesign ? (classified.redesignBrief ?? message) : message;
 
+      // 'thiet ke lai toan site' - tra 1 LAN DUY NHAT design system (mau/font/style theo dung
+      // nganh hang, tu kho du lieu UI/UX) dua vao STYLE_QUERY tieng Anh AI tu viet rieng (KHONG
+      // dung thang brief tieng Viet - du lieu CSV toan tieng Anh, search bang tieng Viet ra ket
+      // qua sai hoan toan, da kiem chung thu). Dung CHUNG cho ca 18 trang de dam bao dong bo
+      // mau/font xuyen suot - khong tra rieng tung nhom.
+      const designSystemBlock =
+        isRedesign && classified.styleQuery ? formatDesignSystem(resolveDesignSystem(classified.styleQuery)) : undefined;
+
       // Reply cua lan goi 1 (classify) chi hien TAM THOI tren frontend (bao "da hieu yeu cau, dang
       // lam") - KHONG luu vao lich su chat, vi tin tom tat that su (SUMMARY cua nhom cuoi, hoac ban
       // du phong o duoi) moi la tin dai dien chinh thuc cho luot chat nay.
@@ -298,7 +379,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       // nhom, cap nhat ngay THEME.md ("Da ap dung") roi doc lai truoc khi sang nhom tiep theo, de
       // nhom sau biet nhom truoc vua doi gi (tranh MEMORY_UPDATE cua nhom sau ghi de mat thong tin
       // nhom truoc).
-      await runFileEditPipeline(reply, agent, slug, themeMd, validFiles, effectiveMessage, classified.reply, imageUrl);
+      await runFileEditPipeline(reply, agent, slug, themeMd, validFiles, effectiveMessage, classified.reply, imageUrl, designSystemBlock);
     } catch (err) {
       sseWrite(reply, { step: "error", label: (err as Error).message });
       reply.raw.end();
@@ -340,7 +421,8 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         const confirmMessage = "✅ Đã bấm xác nhận — tiến hành thiết kế lại toàn bộ theo kế hoạch trên.";
         await prisma.themeChatMessage.create({ data: { slug, role: "user", content: confirmMessage } });
         const themeMd = await ensureThemeMd(slug);
-        await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], lastMessage.redesignBrief, confirmMessage, undefined);
+        const designSystemBlock = lastMessage.styleQuery ? formatDesignSystem(resolveDesignSystem(lastMessage.styleQuery)) : undefined;
+        await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], lastMessage.redesignBrief, confirmMessage, undefined, designSystemBlock);
       } catch (err) {
         sseWrite(reply, { step: "error", label: (err as Error).message });
         reply.raw.end();

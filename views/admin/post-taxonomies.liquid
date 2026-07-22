@@ -1,0 +1,223 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+  <h1 style="margin:0;">Phân loại</h1>
+  <button class="btn btn-primary" id="open-add-modal">+ Thêm phân loại</button>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start;">
+  <!-- CATEGORIES -->
+  <div>
+    <h2 style="margin:0 0 1rem;font-size:1.2rem;">Danh mục</h2>
+    <table style="margin-bottom:2rem;">
+      <thead>
+        <tr><th>Tên</th><th>Danh mục cha</th><th>Slug</th><th>Số bài</th><th></th></tr>
+      </thead>
+      <tbody id="categories-body">
+        <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TOPICS -->
+  <div>
+    <h2 style="margin:0 0 0.5rem;font-size:1.2rem;">Chủ đề</h2>
+    <table>
+      <thead>
+        <tr><th>Tên</th><th>Slug</th><th>Số bài</th><th></th></tr>
+      </thead>
+      <tbody id="topics-body">
+        <tr><td colspan="4" style="color:#999;">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- NATIVE DIALOG FOR ADDING -->
+<dialog id="taxonomy-modal" style="border:none;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.2);padding:1.5rem;width:400px;max-width:90vw;">
+  <form id="taxonomy-form" method="dialog">
+    <h3 style="margin-top:0;margin-bottom:1.2rem;font-size:1.1rem;">Thêm phân loại mới</h3>
+    
+    <label for="tax-type">Loại phân loại</label>
+    <select id="tax-type" style="margin-bottom:1rem;width:100%;box-sizing:border-box;">
+      <option value="category">Danh mục</option>
+      <option value="topic">Chủ đề</option>
+    </select>
+
+    <label for="tax-name">Tên hiển thị</label>
+    <input type="text" id="tax-name" required style="margin-bottom:1rem;width:100%;box-sizing:border-box;">
+
+    <label for="tax-slug">Slug</label>
+    <input type="text" id="tax-slug" required style="margin-bottom:1rem;width:100%;box-sizing:border-box;">
+
+    <div id="parent-category-group">
+      <label for="tax-parent">Danh mục cha (tuỳ chọn)</label>
+      <select id="tax-parent" style="margin-bottom:1rem;width:100%;box-sizing:border-box;">
+        <option value="">-- Không có --</option>
+      </select>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.5rem;">
+      <button type="button" class="btn" id="close-modal-btn">Huỷ</button>
+      <button type="submit" class="btn btn-primary" id="save-modal-btn">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  const flash = document.getElementById("flash");
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  const modal = document.getElementById("taxonomy-modal");
+  const typeSelect = document.getElementById("tax-type");
+  const parentGroup = document.getElementById("parent-category-group");
+  const parentSelect = document.getElementById("tax-parent");
+  const nameInput = document.getElementById("tax-name");
+  const slugInput = document.getElementById("tax-slug");
+
+  document.getElementById("open-add-modal").addEventListener("click", () => {
+    nameInput.value = "";
+    slugInput.value = "";
+    typeSelect.value = "category";
+    parentSelect.value = "";
+    parentGroup.style.display = "block";
+    modal.showModal();
+  });
+
+  document.getElementById("close-modal-btn").addEventListener("click", () => {
+    modal.close();
+  });
+
+  typeSelect.addEventListener("change", (e) => {
+    if (e.target.value === "category") {
+      parentGroup.style.display = "block";
+    } else {
+      parentGroup.style.display = "none";
+    }
+  });
+
+  let currentCategories = [];
+  
+  // --- CATEGORIES ---
+  const catBody = document.getElementById("categories-body");
+  async function loadCategories() {
+    const res = await fetch("/admin/api/post-categories");
+    if (!res.ok) { catBody.innerHTML = '<tr><td colspan="4">Lỗi tải danh mục.</td></tr>'; return; }
+    const { categories } = await res.json();
+    currentCategories = categories;
+
+    // Update parent select
+    parentSelect.innerHTML = '<option value="">-- Không có --</option>' + categories.map(c => 
+      '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>'
+    ).join("");
+
+    catBody.innerHTML = categories.length
+      ? categories.map((c) =>
+          '<tr><td><a href="/admin/post-categories/' + c.id + '">' + escapeHtml(c.name) + "</a></td>" +
+          "<td>" + (c.parent ? escapeHtml(c.parent.name) : "-") + "</td>" +
+          "<td>" + escapeHtml(c.slug) + "</td>" +
+          "<td>" + (c._count && c._count.posts !== undefined ? c._count.posts : 0) + "</td>" +
+          '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' +
+          '<a class="btn" href="/admin/post-categories/' + c.id + '">Sửa nội dung</a>' +
+          '<button class="btn btn-danger" data-id="' + c.id + '">Xoá</button></td></tr>'
+        ).join("")
+      : '<tr><td colspan="5" class="empty-state">Chưa có danh mục nào.</td></tr>';
+  }
+
+  catBody.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-id]");
+    if (!btn) return;
+    if (!confirm("Xoá danh mục này? Bài viết đang gán sẽ về trạng thái không có danh mục.")) return;
+    const res = await fetch("/admin/api/post-categories/" + btn.dataset.id, { method: "DELETE" });
+    if (!res.ok) { showError("Xoá thất bại"); return; }
+    loadCategories();
+  });
+
+  // --- TOPICS ---
+  const topicBody = document.getElementById("topics-body");
+  let currentTopics = [];
+  async function loadTopics() {
+    const res = await fetch("/admin/api/topics");
+    if (!res.ok) { topicBody.innerHTML = '<tr><td colspan="3">Lỗi tải chủ đề.</td></tr>'; return; }
+    const { topics } = await res.json();
+    currentTopics = topics;
+    topicBody.innerHTML = topics.length
+      ? topics.map((t) =>
+          "<tr><td>" + escapeHtml(t.name) + "</td><td>" + escapeHtml(t.slug) + "</td>" +
+          "<td>" + (t._count && t._count.posts !== undefined ? t._count.posts : 0) + "</td>" +
+          '<td style="text-align:right;white-space:nowrap;">' +
+          '<button class="btn" data-custom-fields="' + t.id + '">Trường tùy biến</button> ' +
+          '<button class="btn btn-danger" data-id="' + t.id + '">Xoá</button></td></tr>'
+        ).join("")
+      : '<tr><td colspan="4" class="empty-state">Chưa có chủ đề nào.</td></tr>';
+  }
+
+  topicBody.addEventListener("click", async (event) => {
+    const cfBtn = event.target.closest("button[data-custom-fields]");
+    if (cfBtn) {
+      const topic = currentTopics.find((t) => t.id === cfBtn.dataset.customFields);
+      openCustomFieldsEditor({
+        title: "Trường tùy biến — chủ đề",
+        initial: (topic && topic.customFields) || {},
+        onSave: async (customFields) => {
+          const res = await fetch("/admin/api/topics/" + cfBtn.dataset.customFields, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customFields })
+          });
+          if (!res.ok) throw new Error("Lưu thất bại");
+          loadTopics();
+        },
+      });
+      return;
+    }
+
+    const btn = event.target.closest("button[data-id]");
+    if (!btn) return;
+    if (!confirm("Xoá chủ đề này? Bài viết đang gán sẽ về trạng thái không có chủ đề.")) return;
+    const res = await fetch("/admin/api/topics/" + btn.dataset.id, { method: "DELETE" });
+    if (!res.ok) { showError("Xoá thất bại"); return; }
+    loadTopics();
+  });
+
+  // --- MODAL SUBMIT ---
+  document.getElementById("taxonomy-form").addEventListener("submit", async (event) => {
+    event.preventDefault(); // Prevent native dialog submit
+    const type = typeSelect.value;
+    const name = nameInput.value;
+    const slug = slugInput.value;
+    const parentId = parentSelect.value || null;
+
+    const url = type === "category" ? "/admin/api/post-categories" : "/admin/api/topics";
+    const payload = { name, slug };
+    if (type === "category" && parentId) {
+      payload.parentId = parentId;
+    }
+
+    const res = await fetch(url, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showError(typeof body.error === "string" ? body.error : "Tạo thất bại");
+      return;
+    }
+
+    modal.close();
+    if (type === "category") loadCategories();
+    else loadTopics();
+  });
+
+  loadCategories();
+  loadTopics();
+})();
+</script>
+{% endblock %}

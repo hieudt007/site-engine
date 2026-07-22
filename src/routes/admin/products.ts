@@ -5,6 +5,8 @@ import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
 import { customFieldsSchema } from "../../services/customFields.js";
+import { slugify } from "../../services/slug.js";
+import { uniqueProductSlug } from "../../services/productSlug.js";
 
 // §5.2: sản phẩm thuộc nhóm "nội dung + sản phẩm" của manager — role "edit" KHÔNG được đụng vào
 // (khác Post, nơi edit tạo/sửa được bài nháp) — nên không có bước "nộp duyệt" như posts.ts,
@@ -21,14 +23,41 @@ const seoSchema = z
   })
   .optional();
 
+const faqSchema = z
+  .array(
+    z.object({
+      question: z.string().min(1),
+      answer: z.string().min(1),
+    }),
+  )
+  .optional();
+
+const specSchema = z.object({ label: z.string().min(1), value: z.string().min(1) });
+
+const relatedProductConfigSchema = z.object({
+  mode: z.enum(["specific", "category"]),
+  productIds: z.array(z.string()),
+  categoryId: z.string().nullable(),
+  limit: z.number().int().min(1).max(20).default(4),
+});
+
+const relatedProductsSchema = z.object({
+  upsell: relatedProductConfigSchema.optional(),
+  crossSell: relatedProductConfigSchema.optional(),
+});
+
 const updateContentSchema = z.object({
   name: z.string().min(1).optional(),
+  slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -").optional(),
   excerpt: z.string().optional(),
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
   layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
+  faq: faqSchema,
+  specs: z.array(specSchema).optional(),
+  relatedProducts: relatedProductsSchema.optional(),
 });
 
 const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
@@ -75,7 +104,31 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       if (!product) {
         return reply.code(404).send({ error: "Không tìm thấy sản phẩm" });
       }
-      return { product };
+      
+      let resolvedRelatedProducts: any = null;
+      if (product.relatedProducts) {
+        const rp = product.relatedProducts as any;
+        resolvedRelatedProducts = { upsell: null, crossSell: null };
+        
+        for (const type of ["upsell", "crossSell"] as const) {
+          if (rp[type]) {
+             resolvedRelatedProducts[type] = { ...rp[type], resolvedProducts: [], resolvedCategory: null };
+             if (rp[type].mode === "specific" && rp[type].productIds.length > 0) {
+               resolvedRelatedProducts[type].resolvedProducts = await prisma.productCache.findMany({
+                 where: { id: { in: rp[type].productIds } },
+                 select: { id: true, name: true, imageUrls: true }
+               });
+             } else if (rp[type].mode === "category" && rp[type].categoryId) {
+               resolvedRelatedProducts[type].resolvedCategory = await prisma.category.findUnique({
+                 where: { id: rp[type].categoryId },
+                 select: { id: true, name: true }
+               });
+             }
+          }
+        }
+      }
+
+      return { product, resolvedRelatedProducts };
     },
   );
 
@@ -94,16 +147,24 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       }
 
       const userId = request.session.get("userId") ?? null;
+      const nextSlug = parsed.data.slug ?? ((product as any).slug as string | null | undefined) ?? slugify(parsed.data.name ?? product.name);
+      const slugTaken = await prisma.productCache.findUnique({ where: { slug: nextSlug } as any });
+      if (slugTaken && slugTaken.id !== product.id) {
+        return reply.code(409).send({ error: "Slug đã tồn tại" });
+      }
       await saveRevision(
         "Product",
         product.id,
         {
           name: product.name,
+          slug: (product as any).slug,
           description: product.description,
           imageUrls: product.imageUrls,
           seo: product.seo,
           customFields: product.customFields,
+          specs: product.specs,
           layoutMode: product.layoutMode,
+          relatedProducts: product.relatedProducts,
         },
         parsed.data,
         userId,
@@ -111,7 +172,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
 
       const updated = await prisma.productCache.update({
         where: { id: product.id },
-        data: parsed.data,
+        data: { ...parsed.data, slug: nextSlug } as any,
       });
 
       return { product: updated };
@@ -154,7 +215,10 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         imageUrls: string[];
         seo: Prisma.InputJsonValue | typeof Prisma.JsonNull;
         customFields: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        faq: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+        specs?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
         layoutMode?: string;
+        relatedProducts?: Prisma.InputJsonValue | typeof Prisma.JsonNull;
       };
 
       await saveRevision(
@@ -167,7 +231,9 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           imageUrls: product.imageUrls,
           seo: product.seo,
           customFields: product.customFields,
+          specs: product.specs,
           layoutMode: product.layoutMode,
+          relatedProducts: product.relatedProducts,
         },
         snapshot,
         userId,
@@ -192,7 +258,6 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         where: { id: product.id },
         data: { status: "published", publishedAt: new Date(), scheduledAt: null },
       });
-
       return { product: updated };
     },
   );
@@ -220,7 +285,6 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         where: { id: product.id },
         data: { status: "scheduled", scheduledAt, publishedAt: null },
       });
-
       return { product: updated };
     },
   );
@@ -238,7 +302,6 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         where: { id: product.id },
         data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
-
       return { product: updated };
     },
   );

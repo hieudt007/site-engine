@@ -1,0 +1,7 @@
+{% if product.categories.size > 0 %}
+  <div>
+    {% for c in product.categories %}<a href="{{ productCategoryPathPrefix }}/{{ c.slug }}">{{ c.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
+  </div>
+{% endif %}
+
+<h1>{{ product.name | escape }}</h1>

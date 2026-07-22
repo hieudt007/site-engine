@@ -100,8 +100,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
-    const existing = await prisma.post.findUnique({
-      where: { type_slug: { type: TYPE, slug: parsed.data.slug } },
+    const existing = await prisma.post.findFirst({
+      where: { type: { in: ["post", "page"] }, slug: parsed.data.slug },
     });
     if (existing) {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
@@ -141,8 +141,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
 
       const slugChanged = !!parsed.data.slug && parsed.data.slug !== page.slug;
       if (slugChanged) {
-        const slugTaken = await prisma.post.findUnique({
-          where: { type_slug: { type: TYPE, slug: parsed.data.slug! } },
+        const slugTaken = await prisma.post.findFirst({
+          where: { type: { in: ["post", "page"] }, slug: parsed.data.slug!, id: { not: page.id } },
         });
         if (slugTaken) {
           return reply.code(409).send({ error: "Slug đã tồn tại" });
@@ -179,8 +179,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       await auditLog(userId, "page.update", page.id);
 
       if (slugChanged) {
-        const fromPath = `/trang/${page.slug}`;
-        const toPath = `/trang/${updated.slug}`;
+        const fromPath = `/${page.slug}`;
+        const toPath = `/${updated.slug}`;
         await prisma.redirect.upsert({
           where: { fromPath },
           create: { fromPath, toPath },
