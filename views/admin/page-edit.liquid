@@ -17,7 +17,7 @@
 
       <div style="font-size:0.85rem; color:#666; margin-bottom:1.2rem; display:flex; align-items:center; gap:0.4rem;">
         <span style="flex-shrink:0;">Đường dẫn:</span>
-        <span style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; color:var(--color-primary);" title="https://{{ siteDomain }}/{% if page %}{{ page.slug | escape }}{% endif %}">
+        <span style="flex: 1; min-width: 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-primary);" title="https://{{ siteDomain }}/{% if page %}{{ page.slug | escape }}{% endif %}">
           <span id="base-url-display">https://{{ siteDomain }}/</span><span style="font-weight:600;" id="slug-display">{% if page %}{{ page.slug | escape }}{% endif %}</span>
         </span>
         <button type="button" class="btn" id="slug-edit-btn" style="padding:0.1rem 0.4rem; font-size:0.75rem; margin-left:0.5rem; flex-shrink:0;">Sửa</button>
