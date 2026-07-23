@@ -948,6 +948,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const opts = {
       group: 'shared',
       animation: 150,
+      delay: 3000,
+      delayOnTouchOnly: true,
       filter: 'input, textarea, select, button, label', preventOnFilter: false,
       ghostClass: 'sortable-ghost',
       onEnd: function() {

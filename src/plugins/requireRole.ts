@@ -18,6 +18,9 @@ export function requireRole(minRole: Role) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const userId = request.session.get("userId");
     if (!userId) {
+      if (request.url.startsWith("/admin") && !request.url.startsWith("/admin/api")) {
+        return reply.redirect("/admin/login");
+      }
       return reply.code(401).send({ error: "Chưa đăng nhập" });
     }
 
