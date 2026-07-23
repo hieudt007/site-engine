@@ -768,6 +768,13 @@
         searchQuery: decodeURIComponent(query),
         onSelect: (url, media) => {
           body.focus();
+          if (selectedImage && document.body.contains(selectedImage)) {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNode(selectedImage);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
           document.execCommand("insertImage", false, url);
           if (media && media.alt) {
             const inserted = [...body.querySelectorAll('img[src="' + url + '"]')].pop();
@@ -776,6 +783,7 @@
               inserted.title = media.alt;
             }
           }
+          selectedImage = null;
           sync();
         },
       });
