@@ -328,8 +328,15 @@
     {% endif %}
 
     <div class="sidebar-footer">
-      {% if userName %}<div style="color:#fff;font-weight:600;margin-bottom:0.3rem;">{{ userName | escape }}</div>{% endif %}
-      {% if role %}<span class="role-badge">{{ role }}</span>{% endif %}
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          {% if userName %}<div style="color:#fff;font-weight:600;margin-bottom:0.3rem;">{{ userName | escape }}</div>{% endif %}
+          {% if role %}<span class="role-badge">{{ role }}</span>{% endif %}
+        </div>
+        <button type="button" title="Đăng xuất" onclick="adminLogout()" style="background: none; border: none; color: #9ca3af; cursor: pointer; padding: 0.4rem; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;" onmouseover="this.style.color='#fff'; this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.color='#9ca3af'; this.style.background='none'">
+          <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor; width: 18px; height: 18px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </div>
     </div>
   </nav>
   <main>
@@ -1026,6 +1033,18 @@
     const overlay = document.getElementById("mobile-overlay");
     if (overlay) overlay.addEventListener("click", () => document.body.classList.remove("sidebar-mobile-open"));
   })();
+
+    async function adminLogout() {
+      if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+        try {
+          const res = await fetch("/admin/logout", { method: "POST" });
+          if (res.ok) window.location.href = "/admin/login";
+          else alert("Lỗi khi đăng xuất");
+        } catch (e) {
+          alert("Lỗi kết nối");
+        }
+      }
+    }
   </script>
 
   <script>
