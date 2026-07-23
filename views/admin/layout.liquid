@@ -1020,15 +1020,15 @@
         <button type="button" class="edit-link-btn" title="Sửa liên kết" style="background:none; border:none; padding:0.2rem; cursor:pointer; color:var(--color-text); display:flex;">${editorIcon("edit")}</button>
         <button type="button" class="unlink-btn" title="Gỡ liên kết" style="background:none; border:none; padding:0.2rem; cursor:pointer; color:var(--color-text); display:flex;">${editorIcon("unlink")}</button>
       </div>
-      <div class="tooltip-edit" style="display:none; flex-direction:column; gap:0.5rem; width:100%;">
-        <div style="display:flex; align-items:center; gap:0.25rem;">
-          <input type="text" class="tooltip-url-input" style="flex:1; border:1px solid #ccc; padding:0.25rem 0.5rem; border-radius:3px; font-size:0.8rem; outline:none; min-width: 220px;" placeholder="Dán URL...">
-          <button type="button" class="apply-link-btn" title="Áp dụng" style="background:var(--color-primary); color:#fff; border:none; padding:0.3rem; border-radius:3px; cursor:pointer; display:flex;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
+      <div class="tooltip-edit" style="display:none; flex-direction:column; padding:0.2rem 0; width:100%;">
+        <div style="display:flex; align-items:stretch;">
+          <input type="text" class="tooltip-url-input" style="flex:1; border:1px solid #d1d5db; border-right:none; padding:0.35rem 0.5rem; border-radius:4px 0 0 4px; font-size:0.85rem; outline:none; min-width: 240px; margin:0;" placeholder="Dán URL hoặc gõ để tìm kiếm" onfocus="this.style.borderColor='#2563eb'; this.style.boxShadow='inset 0 0 0 1px #2563eb'" onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
+          <button type="button" class="apply-link-btn" title="Áp dụng" style="background:#1d4ed8; color:#fff; border:1px solid #1d4ed8; padding:0 0.6rem; border-radius:0 4px 4px 0; cursor:pointer; display:flex; align-items:center; justify-content:center; margin:0;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
           </button>
         </div>
-        <label style="display:flex; align-items:center; gap:0.25rem; font-size:0.8rem; cursor:pointer; color:var(--color-text);">
-          <input type="checkbox" class="tooltip-blank-check"> Mở liên kết trong thẻ mới
+        <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.85rem; cursor:pointer; color:#374151; margin-top:0.6rem; margin-bottom:0.1rem;">
+          <input type="checkbox" class="tooltip-blank-check" style="margin:0; width:14px; height:14px; cursor:pointer; accent-color:#1d4ed8;"> Mở liên kết trong thẻ mới
         </label>
       </div>
     `;
