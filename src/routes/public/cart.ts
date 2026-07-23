@@ -238,6 +238,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
         items: orderItems,
         total,
         shippingFee,
+        fulfillmentMethod: order.fulfillmentMethod,
         discountAmount,
         fulfillmentNote: await buildFulfillmentNote(order),
       });

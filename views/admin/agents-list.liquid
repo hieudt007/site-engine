@@ -27,14 +27,12 @@
     return div.innerHTML;
   }
 
-  const PURPOSE_LABEL = { content: "Nội dung bài viết", design: "Tuỳ chỉnh giao diện" };
-
   function rowHtml(agent) {
     const statusBadge = agent.isActive
       ? '<span class="status-badge status-published">Đang bật</span>'
       : '<span class="status-badge status-draft">Đã tắt</span>';
     const purposeBadge = agent.purpose
-      ? '<span class="status-badge">' + (PURPOSE_LABEL[agent.purpose] || agent.purpose) + '</span>'
+      ? '<span class="status-badge">' + agent.purpose + '</span>'
       : '<span style="color:#999;">—</span>';
     const botIcon = '<svg class="admin-icon" style="width:20px;height:20px;margin-right:0.4rem;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="2"></rect><path d="M12 7V3M8 11h.01M16 11h.01M9 15h6"></path></svg>';
 

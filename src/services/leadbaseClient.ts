@@ -18,6 +18,7 @@ export interface SendOrderInput {
   items: OrderItemPayload[];
   total: number;
   shippingFee?: number;
+  fulfillmentMethod?: string;
   discountAmount?: number;
   fulfillmentNote?: string;
 }
@@ -43,6 +44,7 @@ export async function sendOrderToLeadbase(
     items: input.items,
     total: input.total,
     shippingFee: input.shippingFee ?? 0,
+    fulfillmentMethod: input.fulfillmentMethod,
     discount: input.discountAmount ?? 0,
     note: input.fulfillmentNote,
   });
