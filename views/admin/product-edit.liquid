@@ -15,9 +15,11 @@
       <input type="text" id="name" name="name" value="{{ product.name | escape }}" required style="margin-bottom:0.3rem;">
 
       <div style="font-size:0.85rem; color:#666; margin-bottom:1.2rem; display:flex; align-items:center; gap:0.4rem;">
-        <span>Đường dẫn:</span>
-        <span style="display:inline-flex; align-items:center;"><span style="color:var(--color-primary);" id="base-url-display">https://{{ siteDomain }}/{% if productSlugPrefix and productSlugPrefix != "" %}{{ productSlugPrefix }}/{% endif %}</span><span style="color:var(--color-primary);font-weight:600;" id="slug-display">{% if product %}{{ product.slug | escape }}{% endif %}</span></span>
-        <button type="button" class="btn" id="slug-edit-btn" style="padding:0.1rem 0.4rem; font-size:0.75rem; margin-left:0.5rem;">Sửa</button>
+        <span style="flex-shrink:0;">Đường dẫn:</span>
+        <span style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; color:var(--color-primary);" title="https://{{ siteDomain }}/{% if productSlugPrefix and productSlugPrefix != "" %}{{ productSlugPrefix }}/{% endif %}{% if product %}{{ product.slug | escape }}{% endif %}">
+          <span id="base-url-display">https://{{ siteDomain }}/{% if productSlugPrefix and productSlugPrefix != "" %}{{ productSlugPrefix }}/{% endif %}</span><span style="font-weight:600;" id="slug-display">{% if product %}{{ product.slug | escape }}{% endif %}</span>
+        </span>
+        <button type="button" class="btn" id="slug-edit-btn" style="padding:0.1rem 0.4rem; font-size:0.75rem; margin-left:0.5rem; flex-shrink:0;">Sửa</button>
       </div>
 
       <div id="slug-edit-container" style="display:none; margin-bottom:1.2rem;">
