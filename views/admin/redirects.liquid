@@ -119,8 +119,8 @@
         } else {
           tbody.innerHTML = redirects.map(r => `
             <tr>
-              <td style="word-break: break-all;"><code>${escapeHtml(r.fromPath)}</code></td>
-              <td style="word-break: break-all;"><code>${escapeHtml(r.toPath)}</code></td>
+              <td style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(r.fromPath)}"><code>${escapeHtml(r.fromPath)}</code></td>
+              <td style="max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(r.toPath)}"><code>${escapeHtml(r.toPath)}</code></td>
               <td><span class="status-badge status-published">${r.statusCode || 301}</span></td>
               <td style="text-align:right;">
                 <button class="btn btn-danger btn-icon" data-delete-id="${r.id}" title="Xóa">
