@@ -204,6 +204,42 @@
     .preview-device-controls .btn:hover:not(.active) { background: #e5e7eb; }
   </style>
   <script>
+    window.renderPagination = function(container, currentPage, totalPages, clickCallback) {
+      if (!container) return;
+      if (totalPages <= 1) {
+        container.innerHTML = "";
+        return;
+      }
+      let html = "";
+      if (currentPage > 1) {
+        html += '<a href="#" data-page="' + (currentPage - 1) + '">&laquo;</a>';
+      } else {
+        html += '<span class="disabled">&laquo;</span>';
+      }
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+          html += '<span class="active">' + i + '</span>';
+        } else {
+          html += '<a href="#" data-page="' + i + '">' + i + '</a>';
+        }
+      }
+      if (currentPage < totalPages) {
+        html += '<a href="#" data-page="' + (currentPage + 1) + '">&raquo;</a>';
+      } else {
+        html += '<span class="disabled">&raquo;</span>';
+      }
+      container.innerHTML = html;
+      if (clickCallback) {
+        const links = container.querySelectorAll("a[data-page]");
+        for (let j = 0; j < links.length; j++) {
+          links[j].addEventListener("click", function(e) {
+            e.preventDefault();
+            clickCallback(Number(this.dataset.page));
+          });
+        }
+      }
+    };
+
     window.setPreviewDevice = function(device, btn) {
       const iframe = document.getElementById("preview-iframe");
       const controls = document.querySelectorAll(".preview-device-controls button");
