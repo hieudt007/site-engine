@@ -618,15 +618,18 @@
 
     let selectedImage = null;
     let linkBtn, imageBtn;
+    let linkTooltip, wrapper;
 
     function updateToolbarState() {
       const sel = window.getSelection();
       let isLink = false;
+      let activeLinkNode = null;
       if (sel.rangeCount > 0) {
         let node = sel.anchorNode;
         while (node && node !== body) {
           if (node.nodeType === 1 && node.tagName === "A") {
             isLink = true;
+            activeLinkNode = node;
             break;
           }
           node = node.parentNode;
@@ -639,6 +642,26 @@
       if (imageBtn) {
         if (selectedImage) imageBtn.classList.add("active");
         else imageBtn.classList.remove("active");
+      }
+      
+      // Update Tooltip
+      if (linkTooltip && wrapper) {
+        if (isLink && activeLinkNode) {
+          const rect = activeLinkNode.getBoundingClientRect();
+          const wrapperRect = wrapper.getBoundingClientRect();
+          linkTooltip.style.display = "flex";
+          // offset inside wrapper
+          linkTooltip.style.top = (rect.bottom - wrapperRect.top + 4) + "px";
+          linkTooltip.style.left = Math.max(0, rect.left - wrapperRect.left) + "px";
+          
+          const urlEl = linkTooltip.querySelector(".tooltip-url");
+          urlEl.href = activeLinkNode.href;
+          urlEl.textContent = activeLinkNode.href;
+          linkTooltip.activeNode = activeLinkNode;
+        } else {
+          linkTooltip.style.display = "none";
+          linkTooltip.activeNode = null;
+        }
       }
     }
 
@@ -683,6 +706,8 @@
         list: '<path d="M8 6h13M8 12h13M8 18h13"></path><path d="M3 6h.01M3 12h.01M3 18h.01"></path>',
         "list-ordered": '<path d="M10 6h11M10 12h11M10 18h11"></path><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M4 14h2l-2 4h2"></path>',
         link: '<path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1"></path>',
+        edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>',
+        unlink: '<path d="M15 7h2a5 5 0 0 1 0 10h-2m-6 0H7A5 5 0 0 1 7 7h2"></path><line x1="8" y1="12" x2="16" y2="12"></line><line x1="2" y1="2" x2="22" y2="22"></line>',
         image: '<rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="M21 15l-4-4-9 8"></path>',
         video: '<rect x="3" y="5" width="14" height="14" rx="2"></rect><path d="M17 10l4-2v8l-4-2z"></path>',
         table: '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18M3 16h18M9 4v16M15 4v16"></path>',
@@ -957,7 +982,7 @@
     textarea.addEventListener("input", sync);
 
     textarea.style.display = "none";
-    const wrapper = document.createElement("div");
+    wrapper = document.createElement("div");
     wrapper.className = "rich-editor-wrapper";
     wrapper.style.position = "relative";
     wrapper.style.display = "flex";
@@ -966,6 +991,50 @@
     wrapper.appendChild(toolbar);
     wrapper.appendChild(body);
     wrapper.appendChild(textarea);
+    
+    // Create Tooltip
+    linkTooltip = document.createElement("div");
+    linkTooltip.className = "rich-editor-link-tooltip";
+    linkTooltip.style.position = "absolute";
+    linkTooltip.style.display = "none";
+    linkTooltip.style.background = "#fff";
+    linkTooltip.style.border = "1px solid var(--color-border)";
+    linkTooltip.style.borderRadius = "var(--radius-sm)";
+    linkTooltip.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
+    linkTooltip.style.padding = "0.25rem 0.5rem";
+    linkTooltip.style.zIndex = "50";
+    linkTooltip.style.alignItems = "center";
+    linkTooltip.style.gap = "0.5rem";
+    linkTooltip.style.fontFamily = "inherit";
+    linkTooltip.innerHTML = `
+      <a href="#" target="_blank" class="tooltip-url" style="font-size: 0.8rem; color: var(--color-primary); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; text-decoration: none;"></a>
+      <button type="button" class="edit-link-btn" title="Sửa liên kết" style="background:none; border:none; padding:0.2rem; cursor:pointer; color:var(--color-text); display:flex;">${editorIcon("edit")}</button>
+      <button type="button" class="unlink-btn" title="Gỡ liên kết" style="background:none; border:none; padding:0.2rem; cursor:pointer; color:var(--color-text); display:flex;">${editorIcon("unlink")}</button>
+    `;
+    wrapper.appendChild(linkTooltip);
+
+    linkTooltip.querySelector(".edit-link-btn").addEventListener("click", () => {
+      if (!linkTooltip.activeNode) return;
+      const url = prompt("Nhập URL liên kết mới:", linkTooltip.activeNode.href);
+      if (url) {
+        linkTooltip.activeNode.href = url;
+        linkTooltip.querySelector(".tooltip-url").textContent = url;
+        linkTooltip.querySelector(".tooltip-url").href = url;
+        sync();
+      }
+    });
+
+    linkTooltip.querySelector(".unlink-btn").addEventListener("click", () => {
+      if (!linkTooltip.activeNode) return;
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(linkTooltip.activeNode);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("unlink", false, null);
+      updateToolbarState();
+      sync();
+    });
   };
   </script>
 
