@@ -65,7 +65,7 @@
     .edit-main, .edit-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
     .edit-card-title { font-size: 0.95rem; font-weight: 600; margin: 0 0 1rem; color: #111; }
     @media (max-width: 900px) {
-      .edit-layout { grid-template-columns: 1fr; }
+      .edit-layout { grid-template-columns: minmax(0, 1fr); }
     }
 
     main { flex: 1; min-width: 0; padding: var(--space-6); }
