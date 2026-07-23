@@ -232,6 +232,25 @@
     flash.className = ok ? "success" : "error";
   }
 
+  // Slug edit
+  const slugInput = document.getElementById("slug");
+  const slugDisplay = document.getElementById("slug-display");
+  const slugBtn = document.getElementById("slug-edit-btn");
+  const slugContainer = document.getElementById("slug-edit-container");
+  
+  if (slugBtn) {
+    slugBtn.addEventListener("click", () => {
+      const isVisible = slugContainer.style.display !== "none";
+      slugContainer.style.display = isVisible ? "none" : "block";
+      slugBtn.textContent = isVisible ? "Sửa" : "Đóng";
+    });
+  }
+  if (slugInput) {
+    slugInput.addEventListener("input", () => {
+      slugDisplay.textContent = slugInput.value;
+    });
+  }
+
   const coverImageInput = document.getElementById("coverImage");
   const coverImagePreview = document.getElementById("coverImage-preview");
   const dropzone = document.getElementById("coverImage-dropzone");
