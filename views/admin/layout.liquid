@@ -652,22 +652,31 @@
         if (isLink && activeLinkNode) {
           const rect = activeLinkNode.getBoundingClientRect();
           const wrapperRect = wrapper.getBoundingClientRect();
-          linkTooltip.style.display = "flex";
-          // offset inside wrapper
-          linkTooltip.style.top = (rect.bottom - wrapperRect.top + 4) + "px";
-          linkTooltip.style.left = Math.max(0, rect.left - wrapperRect.left) + "px";
+          const bodyRect = body.getBoundingClientRect();
           
-          const urlEl = linkTooltip.querySelector(".tooltip-url");
-          urlEl.href = activeLinkNode.href;
-          urlEl.textContent = activeLinkNode.href;
-          linkTooltip.activeNode = activeLinkNode;
-          
-          // Reset to view mode
-          const viewMode = linkTooltip.querySelector(".tooltip-view");
-          const editMode = linkTooltip.querySelector(".tooltip-edit");
-          if (viewMode && editMode) {
-            viewMode.style.display = "flex";
-            editMode.style.display = "none";
+          if (rect.bottom < bodyRect.top || rect.top > bodyRect.bottom) {
+            linkTooltip.style.display = "none";
+          } else {
+            linkTooltip.style.display = "flex";
+            // offset inside wrapper
+            linkTooltip.style.top = (rect.bottom - wrapperRect.top + 4) + "px";
+            linkTooltip.style.left = Math.max(0, rect.left - wrapperRect.left) + "px";
+            
+            const urlEl = linkTooltip.querySelector(".tooltip-url");
+            urlEl.href = activeLinkNode.href;
+            urlEl.textContent = activeLinkNode.href;
+            
+            // Reset to view mode only if changing links
+            if (linkTooltip.activeNode !== activeLinkNode) {
+              const viewMode = linkTooltip.querySelector(".tooltip-view");
+              const editMode = linkTooltip.querySelector(".tooltip-edit");
+              if (viewMode && editMode) {
+                viewMode.style.display = "flex";
+                editMode.style.display = "none";
+              }
+            }
+            
+            linkTooltip.activeNode = activeLinkNode;
           }
         } else {
           linkTooltip.style.display = "none";
@@ -1003,6 +1012,10 @@
     fsBtn.style.marginLeft = "auto";
 
     body.addEventListener("input", sync);
+    body.addEventListener("scroll", () => {
+      // Small debounce or direct call for scroll
+      updateToolbarState();
+    });
     textarea.addEventListener("input", sync);
 
     body.addEventListener("keydown", function(e) {
