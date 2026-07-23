@@ -75,14 +75,14 @@
       <label for="tagline">Slogan / tagline</label>
       <input type="text" id="tagline" name="tagline">
 
-      <label for="logoUrl">Logo (URL)</label>
-      <input type="text" id="logoUrl" name="logoUrl">
+      <label style="margin-bottom:0.5rem;display:block;">Logo (URL)</label>
+      {% render "components/image-picker", id: "logoUrl", name: "logoUrl", value: logoUrl, width: "120px", height: "120px" %}
 
-      <label for="faviconUrl">Favicon (URL)</label>
-      <input type="text" id="faviconUrl" name="faviconUrl">
+      <label style="margin-bottom:0.5rem;display:block;margin-top:1rem;">Favicon (URL)</label>
+      {% render "components/image-picker", id: "faviconUrl", name: "faviconUrl", value: faviconUrl, width: "120px", height: "120px" %}
 
-      <label for="defaultOgImage">Ảnh chia sẻ mặc định (Open Graph, URL)</label>
-      <input type="text" id="defaultOgImage" name="defaultOgImage">
+      <label style="margin-bottom:0.5rem;display:block;margin-top:1rem;">Ảnh chia sẻ mặc định (Open Graph, URL)</label>
+      {% render "components/image-picker", id: "defaultOgImage", name: "defaultOgImage", value: defaultOgImage, width: "120px", height: "120px" %}
 
       <h3 style="margin-top:2rem;font-size:1.05rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;color:#333;">Liên hệ & Mạng xã hội</h3>
       <label for="contactEmail">Email liên hệ</label>
@@ -209,6 +209,18 @@
     ["facebook", "zalo", "tiktok", "youtube"].forEach((key) => {
       form[key].value = social[key] ?? "";
     });
+
+    // Cập nhật giao diện ảnh (Image pickers)
+    document.querySelectorAll(".image-picker-box").forEach(box => {
+      const input = box.querySelector("input");
+      if (input.value) {
+        box.querySelector(".image-picker-empty").style.display = "none";
+        const img = box.querySelector(".image-picker-preview");
+        img.src = input.value;
+        img.style.display = "block";
+        box.querySelector(".image-picker-remove").style.display = "flex";
+      }
+    });
   }
 
   form.addEventListener("submit", async (event) => {
@@ -220,13 +232,13 @@
       pageSlugPrefix: form.pageSlugPrefix.value.trim(),
       siteName: form.siteName.value,
       tagline: form.tagline.value || undefined,
-      logoUrl: form.logoUrl.value || undefined,
-      faviconUrl: form.faviconUrl.value || undefined,
+      logoUrl: document.getElementById("logoUrl").value || undefined,
+      faviconUrl: document.getElementById("faviconUrl").value || undefined,
+      defaultOgImage: document.getElementById("defaultOgImage").value || undefined,
       contactEmail: form.contactEmail.value || undefined,
       contactPhone: form.contactPhone.value || undefined,
       contactAddress: form.contactAddress.value || undefined,
       businessLicense: form.businessLicense.value || undefined,
-      defaultOgImage: form.defaultOgImage.value || undefined,
       gaId: form.gaId.value || undefined,
       fbPixelId: form.fbPixelId.value || undefined,
       customHeadScript: form.customHeadScript.value || undefined,

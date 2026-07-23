@@ -8,6 +8,7 @@ import { canEditContentFields } from "../../services/contentStatus.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
 import { customFieldsSchema } from "../../services/customFields.js";
 import { recomputeCategoryCounts } from "../../services/categoryCounts.js";
+import { analyzeContentSeo } from "../../services/seoAnalyzer.js";
 
 const TYPE = "post";
 
@@ -19,6 +20,19 @@ const seoSchema = z
     noindex: z.boolean().optional(),
     keyword: z.string().optional(),
     score: z.number().optional(),
+    internalLinks: z.number().optional(),
+    checks: z
+      .array(
+        z.object({
+          key: z.string(),
+          status: z.enum(["pass", "warning", "fail"]),
+          message: z.string(),
+          points: z.number(),
+          maxPoints: z.number(),
+        }),
+      )
+      .optional(),
+    analyzedAt: z.string().optional(),
   })
   .optional();
 
@@ -100,7 +114,7 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         prisma.post.count({ where }),
       ]);
 
-      return { posts, total, page, hasNext: skip + posts.length < total, hasPrev: page > 1 };
+      return { posts, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + posts.length < total, hasPrev: page > 1 };
     },
   );
 
@@ -134,11 +148,22 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const { categoryIds, ...rest } = parsed.data;
+    const body = resolveBody(rest.body, rest.layoutMode);
+    const seo = analyzeContentSeo({
+      title: rest.title,
+      slug: rest.slug,
+      body,
+      excerpt: rest.excerpt,
+      coverImage: rest.coverImage,
+      seo: rest.seo,
+      faq: rest.faq,
+    });
     const post = await prisma.post.create({
       data: {
         ...rest,
         type: TYPE,
-        body: resolveBody(rest.body, rest.layoutMode),
+        body,
+        seo: seo as Prisma.InputJsonValue,
         authorId: userId,
         ...(categoryIds ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
       },
@@ -182,6 +207,18 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.session.get("userId")!;
       const effectiveLayoutMode = rest.layoutMode ?? post.layoutMode;
       const sanitizedRest = rest.body ? { ...rest, body: resolveBody(rest.body, effectiveLayoutMode) } : rest;
+      const dataWithSeo = {
+        ...sanitizedRest,
+        seo: analyzeContentSeo({
+          title: sanitizedRest.title ?? post.title,
+          slug: sanitizedRest.slug ?? post.slug,
+          body: sanitizedRest.body ?? post.body,
+          excerpt: sanitizedRest.excerpt ?? post.excerpt,
+          coverImage: sanitizedRest.coverImage ?? post.coverImage,
+          seo: sanitizedRest.seo ?? post.seo,
+          faq: sanitizedRest.faq ?? post.faq,
+        }),
+      };
 
       // So sanh gia tri hien tai vs payload MOI GUI (da sanitize body de khong sinh sai khac gia
       // tao boi buoc lam sach HTML) - chi tao Revision khi that su co field doi (xem services/revisions.ts).
@@ -200,16 +237,16 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           faq: post.faq,
           layoutMode: post.layoutMode,
         },
-        sanitizedRest,
+        dataWithSeo,
         userId,
       );
 
       const updated = await prisma.post.update({
         where: { id: post.id },
         data: {
-          ...sanitizedRest,
+          ...dataWithSeo,
           ...(categoryIds ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
-        },
+        } as any,
       });
       await auditLog(userId, "post.update", post.id);
       await recomputeCategoryCounts([...(categoryIds ?? []), ...post.categories.map((category) => category.id)]);

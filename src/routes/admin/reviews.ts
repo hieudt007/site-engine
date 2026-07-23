@@ -30,7 +30,7 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         prisma.productReview.count({ where }),
       ]);
 
-      return { reviews, total, page, hasNext: skip + reviews.length < total, hasPrev: page > 1 };
+      return { reviews, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + reviews.length < total, hasPrev: page > 1 };
     },
   );
 

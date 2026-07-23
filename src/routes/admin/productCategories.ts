@@ -14,6 +14,7 @@ const seoSchema = z
     noindex: z.boolean().optional(),
     keyword: z.string().optional(),
     score: z.number().optional(),
+    internalLinks: z.number().optional(),
   })
   .optional();
 
@@ -25,6 +26,13 @@ const faqSchema = z
     }),
   )
   .optional();
+
+const createCategorySchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -"),
+  type: z.enum(["product", "brand"]),
+  parentId: z.string().nullable().optional(),
+});
 
 const updateCategorySchema = z.object({
   parentId: z.string().nullable().optional(),
@@ -41,9 +49,9 @@ const updateCategorySchema = z.object({
 export async function registerProductCategoryRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/product-categories", { preHandler: requireRole("manager") }, async () => {
     const categories = await prisma.category.findMany({
-      where: { type: TYPE },
+      where: { type: { in: ["product", "brand"] } },
       orderBy: { name: "asc" },
-      include: { parent: { select: { name: true } } },
+      include: { parent: { select: { name: true } }, _count: { select: { products: true } } },
     });
     return { categories };
   });
@@ -53,7 +61,7 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const category = await prisma.category.findUnique({ where: { id: request.params.id } });
-      if (!category || category.type !== TYPE) {
+      if (!category || !["product", "brand"].includes(category.type)) {
         return reply.code(404).send({ error: "Không tìm thấy danh mục" });
       }
       return { category };
@@ -70,7 +78,7 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
       }
 
       const category = await prisma.category.findUnique({ where: { id: request.params.id } });
-      if (!category || category.type !== TYPE) {
+      if (!category || !["product", "brand"].includes(category.type)) {
         return reply.code(404).send({ error: "Không tìm thấy danh mục" });
       }
 
@@ -79,13 +87,51 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
           return reply.code(422).send({ error: "Danh mục không thể là cha của chính nó" });
         }
         const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
-        if (!parent || parent.type !== TYPE) {
-          return reply.code(422).send({ error: "Danh mục cha không hợp lệ" });
+        if (!parent || parent.type !== category.type) {
+          return reply.code(422).send({ error: "Danh mục cha không hợp lệ (phải cùng loại)" });
         }
       }
 
       const updated = await prisma.category.update({ where: { id: category.id }, data: parsed.data });
       return { category: updated };
     },
+  );
+
+  app.post("/admin/api/product-categories", { preHandler: requireRole("manager") }, async (request, reply) => {
+    const parsed = createCategorySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(422).send({ error: parsed.error.flatten() });
+    }
+
+    const existing = await prisma.category.findUnique({
+      where: { type_slug: { type: parsed.data.type, slug: parsed.data.slug } },
+    });
+    if (existing) {
+      return reply.code(409).send({ error: "Slug đã tồn tại" });
+    }
+
+    if (parsed.data.parentId) {
+      const parent = await prisma.category.findUnique({ where: { id: parsed.data.parentId } });
+      if (!parent || parent.type !== parsed.data.type) {
+        return reply.code(422).send({ error: "Danh mục cha không hợp lệ (phải cùng loại)" });
+      }
+    }
+
+    const category = await prisma.category.create({ data: parsed.data });
+    return reply.code(201).send({ category });
+  });
+
+  app.delete<{ Params: { id: string } }>(
+    "/admin/api/product-categories/:id",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const category = await prisma.category.findUnique({ where: { id: request.params.id } });
+      if (!category || !["product", "brand"].includes(category.type)) {
+        return reply.code(404).send({ error: "Không tìm thấy danh mục" });
+      }
+
+      await prisma.category.delete({ where: { id: category.id } });
+      return { success: true };
+    }
   );
 }

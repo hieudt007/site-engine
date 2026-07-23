@@ -7,6 +7,7 @@ import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
 import { customFieldsSchema } from "../../services/customFields.js";
+import { analyzeContentSeo } from "../../services/seoAnalyzer.js";
 
 const TYPE = "page";
 
@@ -18,6 +19,19 @@ const seoSchema = z
     noindex: z.boolean().optional(),
     keyword: z.string().optional(),
     score: z.number().optional(),
+    internalLinks: z.number().optional(),
+    checks: z
+      .array(
+        z.object({
+          key: z.string(),
+          status: z.enum(["pass", "warning", "fail"]),
+          message: z.string(),
+          points: z.number(),
+          maxPoints: z.number(),
+        }),
+      )
+      .optional(),
+    analyzedAt: z.string().optional(),
   })
   .optional();
 
@@ -77,7 +91,7 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         prisma.post.count({ where }),
       ]);
 
-      return { pages, total, page, hasNext: skip + pages.length < total, hasPrev: page > 1 };
+      return { pages, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + pages.length < total, hasPrev: page > 1 };
     },
   );
 
@@ -107,11 +121,21 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(409).send({ error: "Slug đã tồn tại" });
     }
 
+    const body = resolveBody(parsed.data.body, parsed.data.layoutMode);
+    const seo = analyzeContentSeo({
+      title: parsed.data.title,
+      slug: parsed.data.slug,
+      body,
+      excerpt: parsed.data.excerpt,
+      coverImage: parsed.data.coverImage,
+      seo: parsed.data.seo,
+    });
     const page = await prisma.post.create({
       data: {
         ...parsed.data,
         type: TYPE,
-        body: resolveBody(parsed.data.body, parsed.data.layoutMode),
+        body,
+        seo: seo as Prisma.InputJsonValue,
         authorId: userId,
       },
     });
@@ -154,6 +178,17 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       const sanitizedData = parsed.data.body
         ? { ...parsed.data, body: resolveBody(parsed.data.body, effectiveLayoutMode) }
         : parsed.data;
+      const dataWithSeo = {
+        ...sanitizedData,
+        seo: analyzeContentSeo({
+          title: sanitizedData.title ?? page.title,
+          slug: sanitizedData.slug ?? page.slug,
+          body: sanitizedData.body ?? page.body,
+          excerpt: sanitizedData.excerpt ?? page.excerpt,
+          coverImage: sanitizedData.coverImage ?? page.coverImage,
+          seo: sanitizedData.seo ?? page.seo,
+        }),
+      };
 
       await saveRevision(
         "Page",
@@ -168,13 +203,13 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
           customFields: page.customFields,
           layoutMode: page.layoutMode,
         },
-        sanitizedData,
+        dataWithSeo,
         userId,
       );
 
       const updated = await prisma.post.update({
         where: { id: page.id },
-        data: sanitizedData,
+        data: dataWithSeo as any,
       });
       await auditLog(userId, "page.update", page.id);
 

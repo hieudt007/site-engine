@@ -1,9 +1,14 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin:0 0 0.3rem;">Sản phẩm</h1>
-<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
-  Đồng bộ tự động từ LeadBase (giá/tồn kho/trạng thái). Sửa tên/mô tả/ảnh/SEO tại đây, LeadBase không ghi đè.
-</p>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;">
+  <div>
+    <h1 style="margin:0 0 0.3rem;">Sản phẩm</h1>
+    <p style="color:#777;font-size:0.85rem;margin:0;">
+      Đồng bộ tự động từ LeadBase (giá/tồn kho/trạng thái). Sửa tên/mô tả/ảnh/SEO tại đây, LeadBase không ghi đè.
+    </p>
+  </div>
+  <a class="btn btn-primary" href="/admin/products/new">+ Tạo sản phẩm</a>
+</div>
 
 <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
   <input type="search" id="search-input" class="search-input" placeholder="Tìm theo tên sản phẩm...">
@@ -31,16 +36,19 @@
   <thead>
     <tr>
       <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
+      <th style="width:3rem;">Ảnh</th>
       <th>Sản phẩm</th>
+      <th>SKU</th>
       <th>Danh mục</th>
       <th>Giá</th>
       <th>Tồn kho</th>
       <th>Trạng thái</th>
+      <th style="width:5rem;text-align:center;">SEO</th>
       <th></th>
     </tr>
   </thead>
   <tbody id="products-body">
-    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="10" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
 <div class="pagination" id="pagination"></div>
@@ -77,15 +85,37 @@
       : "";
     const category = (p.categories && p.categories.length) ? p.categories.map((c) => escapeHtml(c.name)).join(", ") : "-";
     const variantsBadge = p.hasVariants ? ' <span class="status-badge">Có biến thể</span>' : "";
+    const score = (p.seo && p.seo.score) || 0;
+    let color = "#ef4444";
+    if (score >= 80) color = "#10b981";
+    else if (score >= 50) color = "#f59e0b";
+    
+    const seoHtml = '<div style="width:28px;height:28px;border-radius:50%;background:conic-gradient(' + color + ' ' + score + '%, #e5e7eb 0);display:flex;align-items:center;justify-content:center;margin:0 auto;"><div style="width:22px;height:22px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:' + color + ';">' + score + '</div></div>';
+
+    const thumbHtml = (p.imageUrls && p.imageUrls.length > 0) 
+      ? '<img src="' + escapeHtml(p.imageUrls[0]) + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;vertical-align:middle;">' 
+      : '<div style="width:32px;height:32px;background:#eee;border-radius:4px;display:inline-block;vertical-align:middle;"></div>';
+
+    const priceHtml = p.salePrice 
+      ? '<del style="color:#999;font-size:0.8rem;">' + p.price + '₫</del> <strong style="color:var(--color-primary);">' + p.salePrice + '₫</strong>'
+      : p.price + '₫';
+
     return (
       "<tr>" +
       '<td><input type="checkbox" class="row-select" value="' + p.id + '"></td>' +
+      '<td>' + thumbHtml + '</td>' +
       '<td><a href="/admin/products/' + p.id + '">' + escapeHtml(p.name) + "</a>" + variantsBadge + "</td>" +
+      "<td>" + (p.sku ? escapeHtml(p.sku) : "-") + "</td>" +
       "<td>" + category + "</td>" +
-      "<td>" + p.price + "₫</td>" +
+      "<td>" + priceHtml + "</td>" +
       "<td>" + (p.stock ?? "-") + "</td>" +
       "<td>" + statusBadge + "</td>" +
-      '<td style="text-align:right;">' + publishBtn + "</td>" +
+      '<td style="text-align:center;">' + seoHtml + '</td>' +
+      '<td style="text-align:right;white-space:nowrap;">' + 
+      '<button type="button" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trước" onclick="window.openPreview(\'/admin/preview/product/' + p.id + '\')">' + window.adminIcon("eye") + '</button>' +
+      '<a href="/products/' + p.slug + '" target="_blank" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trên web">' + window.adminIcon("external-link") + '</a>' +
+      publishBtn + 
+      "</td>" +
       "</tr>"
     );
   }
@@ -101,15 +131,15 @@
       showError("Không tải được danh sách sản phẩm");
       return;
     }
-    const { products, hasNext, hasPrev } = await res.json();
-    tbody.innerHTML = products.length
-      ? products.map(rowHtml).join("")
-      : '<tr><td colspan="6" class="empty-state">Không tìm thấy sản phẩm nào.</td></tr>';
+    const { products, totalPages } = await res.json();
+    if (products.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Không tìm thấy sản phẩm nào.</td></tr>';
+      pagination.innerHTML = "";
+      return;
+    }
 
-    pagination.innerHTML =
-      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
-      "<span>Trang " + currentPage + "</span>" +
-      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
+    tbody.innerHTML = products.map(rowHtml).join("");
+    window.renderPagination(pagination, currentPage, totalPages);
   }
 
   searchInput.addEventListener("input", () => {

@@ -8,6 +8,16 @@ export interface SeoFields {
   noindex?: boolean;
   keyword?: string;
   score?: number;
+  checks?: SeoCheck[];
+  analyzedAt?: string;
+}
+
+export interface SeoCheck {
+  key: string;
+  status: "pass" | "warning" | "fail";
+  message: string;
+  points: number;
+  maxPoints: number;
 }
 
 export function readSeo(value: unknown): SeoFields {

@@ -11,19 +11,29 @@ const updateMediaSchema = z.object({ alt: z.string().max(300).optional() });
 const PAGE_SIZE = 20;
 
 export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { page?: string } }>(
+  app.get<{ Querystring: { page?: string; q?: string } }>(
     "/admin/api/media",
     { preHandler: requireRole("edit") },
     async (request) => {
       const page = Math.max(1, Number(request.query.page ?? 1) || 1);
       const skip = (page - 1) * PAGE_SIZE;
+      const q = request.query.q?.trim();
+
+      const where = q
+        ? {
+            OR: [
+              { filename: { contains: q, mode: "insensitive" as const } },
+              { alt: { contains: q, mode: "insensitive" as const } },
+            ],
+          }
+        : {};
 
       const [media, total] = await Promise.all([
-        prisma.media.findMany({ orderBy: { createdAt: "desc" }, skip, take: PAGE_SIZE }),
-        prisma.media.count(),
+        prisma.media.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.media.count({ where }),
       ]);
 
-      return { media, total, page, hasNext: skip + media.length < total, hasPrev: page > 1 };
+      return { media, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + media.length < total, hasPrev: page > 1 };
     },
   );
 

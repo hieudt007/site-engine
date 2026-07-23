@@ -24,8 +24,8 @@ export async function renderPage(slug: string, reply: FastifyReply) {
   const seo = readSeo(page.seo);
   const urlConfig = await siteUrlConfig();
   const pageData = {
-    pageTitle: page.title,
-    metaDescription: seo.metaDescription ?? page.excerpt ?? undefined,
+    pageTitle: seo.metaTitle || page.title,
+    metaDescription: seo.metaDescription || page.excerpt || undefined,
     noindex: seo.noindex,
   };
 

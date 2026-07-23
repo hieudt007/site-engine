@@ -289,6 +289,7 @@ model Post {
 // apiKey rong) moi khi 1 site moi duoc tao (xem WebsiteProvisionService ben lead-base).
 model Agent {
   id           String   @id @default(cuid())
+  key          String?  @unique
   name         String
   provider     String   @default("openai")
   model        String
@@ -406,6 +407,8 @@ model ProductReview {
   rating       Int // 1-5
   comment      String?
   status       String @default("pending") // 'pending' | 'approved' | 'rejected'
+
+  imageUrls    String[]
 
   // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts.
   customFields Json?

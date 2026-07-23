@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { AiCallError, callAgent } from "../../services/aiClient.js";
 import { renderAdmin } from "../../services/adminView.js";
 import {
   READABLE_CORE_MODELS,
@@ -25,6 +26,10 @@ const importSchema = z.object({
 const enabledSchema = z.object({ enabled: z.boolean() });
 const recordSchema = z.object({ data: z.record(z.unknown()) });
 const collectionParamSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,48}$/);
+const aiCallSchema = z.object({
+  agentKey: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/),
+  prompt: z.string().min(1),
+});
 
 function auditLog(userId: number, action: string, entityId: string, metadata?: object) {
   return prisma.auditLog.create({
@@ -99,6 +104,36 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
   app.get("/admin/api/plugins", { preHandler: requireRole("admin") }, async () => {
     const plugins = await prisma.plugin.findMany({ orderBy: { installedAt: "desc" } });
     return { plugins };
+  });
+
+  app.post<{ Params: { slug: string } }>("/admin/api/plugins/:slug/ai", { preHandler: requireRole("admin") }, async (request, reply) => {
+    const plugin = await findEnabledPlugin(request.params.slug);
+    if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+
+    const manifest = manifestOf(plugin);
+    const aiPermission = manifest.permissions.ai;
+    if (!aiPermission?.enabled) return reply.code(403).send({ error: "Plugin cannot call AI" });
+
+    const parsed = aiCallSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
+    if (!aiPermission.agents.includes(parsed.data.agentKey)) {
+      return reply.code(403).send({ error: "Plugin cannot call this agent" });
+    }
+    if (parsed.data.prompt.length > aiPermission.maxPromptLength) {
+      return reply.code(422).send({ error: "Prompt is too long" });
+    }
+
+    const agent = await prisma.agent.findUnique({ where: { key: parsed.data.agentKey } });
+    if (!agent || !agent.isActive) return reply.code(404).send({ error: "Active agent not found" });
+
+    try {
+      const text = await callAgent(agent, aiPermission.systemPrompt ?? "You are an assistant used by an admin plugin. Return a concise, useful answer.", parsed.data.prompt);
+      await auditLog(request.session.get("userId")!, "plugin.ai.call", plugin.slug, { agentKey: agent.key, agentId: agent.id });
+      return { text, agent: { key: agent.key, name: agent.name, model: agent.model, provider: agent.provider } };
+    } catch (err) {
+      if (err instanceof AiCallError) return reply.code(502).send({ error: err.message });
+      throw err;
+    }
   });
 
   app.post("/admin/api/plugins/import", { preHandler: requireRole("admin") }, async (request, reply) => {

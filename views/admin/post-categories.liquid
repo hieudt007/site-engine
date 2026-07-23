@@ -43,7 +43,7 @@
           "<td>" + escapeHtml(c.slug) + "</td>" +
           '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' +
           '<a class="btn" href="/admin/post-categories/' + c.id + '">Sửa nội dung</a>' +
-          '<button class="btn btn-danger" data-id="' + c.id + '">Xoá</button></td></tr>'
+          '<button class="btn btn-danger btn-icon" data-id="' + c.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button></td></tr>'
         ).join("")
       : '<tr><td colspan="4" class="empty-state">Chưa có danh mục nào.</td></tr>';
   }

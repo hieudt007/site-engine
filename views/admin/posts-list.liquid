@@ -26,7 +26,7 @@
 <div id="bulk-bar" style="display:none;align-items:center;gap:0.6rem;margin-bottom:0.8rem;padding:0.6rem 0.9rem;background:#eff6ff;border-radius:var(--radius-sm);font-size:0.85rem;">
   <span id="bulk-count"></span>
   <button type="button" class="btn" id="bulk-publish">Xuất bản</button>
-  <button type="button" class="btn btn-danger" id="bulk-delete">Xoá</button>
+  <button type="button" class="btn btn-danger btn-icon" id="bulk-delete" title="Xoá" aria-label="Xoá">{% render "components/icon", name: "trash" %}</button>
 </div>
 {% endif %}
 
@@ -37,13 +37,15 @@
       <th>Tiêu đề</th>
       <th>Danh mục</th>
       <th>Trạng thái</th>
+      <th style="width:5rem;text-align:center;">SEO</th>
+      <th style="width:6rem;text-align:center;">Inter Link</th>
       <th>Tác giả</th>
       <th>Cập nhật</th>
       <th></th>
     </tr>
   </thead>
   <tbody id="posts-body">
-    <tr><td colspan="7" style="color:#999;">Đang tải...</td></tr>
+    <tr><td colspan="9" style="color:#999;">Đang tải...</td></tr>
   </tbody>
 </table>
 <div class="pagination" id="pagination"></div>
@@ -80,25 +82,39 @@
     const author = post.author ? escapeHtml(post.author.name) : "-";
     const category = (post.categories && post.categories.length) ? post.categories.map((c) => escapeHtml(c.name)).join(", ") : "-";
     const updated = new Date(post.updatedAt).toLocaleString("vi-VN");
+
+    const score = (post.seo && post.seo.score) || 0;
+    let color = "#ef4444";
+    if (score >= 80) color = "#10b981";
+    else if (score >= 50) color = "#f59e0b";
+    
+    const seoHtml = '<div style="width:28px;height:28px;border-radius:50%;background:conic-gradient(' + color + ' ' + score + '%, #e5e7eb 0);display:flex;align-items:center;justify-content:center;margin:0 auto;"><div style="width:22px;height:22px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:' + color + ';">' + score + '</div></div>';
+
+    const internalLinks = (post.seo && post.seo.internalLinks !== undefined) ? post.seo.internalLinks : "-";
+
     const submitBtn = post.status === "draft"
       ? '<button class="btn" data-action="submit" data-id="' + post.id + '">Nộp duyệt</button>'
       : "";
     const publishBtn = (post.status === "pending_review" || post.status === "scheduled") && canManage
       ? '<button class="btn" data-action="publish" data-id="' + post.id + '">Xuất bản</button>'
       : "";
-    const deleteBtn = canManage
-      ? '<button class="btn btn-danger" data-action="delete" data-id="' + post.id + '">Xoá</button>'
-      : "";
     const selectCell = canManage ? '<td><input type="checkbox" class="row-select" value="' + post.id + '"></td>' : "";
     return (
       "<tr>" +
       selectCell +
-      '<td><a href="/admin/posts/' + post.id + '">' + escapeHtml(post.title) + "</a></td>" +
+      '<td>' + (post.password ? '<span style="color:#f59e0b;vertical-align:-2px;margin-right:0.2rem;display:inline-block;width:14px;height:14px;" title="Có mật khẩu">' + window.adminIcon("lock") + '</span>' : '') + '<a href="/admin/posts/' + post.id + '">' + escapeHtml(post.title) + "</a></td>" +
       "<td>" + category + "</td>" +
       "<td>" + statusBadge + "</td>" +
+      '<td style="text-align:center;">' + seoHtml + '</td>' +
+      '<td style="text-align:center;">' + internalLinks + '</td>' +
       "<td>" + author + "</td>" +
       "<td>" + updated + "</td>" +
-      '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' + submitBtn + publishBtn + deleteBtn + "</td>" +
+      '<td style="text-align:right;white-space:nowrap;">' +
+      '<button type="button" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trước" onclick="window.openPreview(\'/admin/preview/post/' + post.id + '\')">' + window.adminIcon("eye") + '</button>' +
+      '<a href="/blog/' + post.slug + '" target="_blank" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trên web">' + window.adminIcon("external-link") + '</a>' +
+      submitBtn +
+      publishBtn +
+      "</td>" +
       "</tr>"
     );
   }
@@ -156,15 +172,15 @@
       showError("Không tải được danh sách bài viết");
       return;
     }
-    const { posts, hasNext, hasPrev } = await res.json();
-    tbody.innerHTML = posts.length
-      ? posts.map(rowHtml).join("")
-      : '<tr><td colspan="6" class="empty-state">Không tìm thấy bài viết nào.</td></tr>';
+    const { posts, totalPages } = await res.json();
+    if (posts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Không tìm thấy bài viết nào.</td></tr>';
+      pagination.innerHTML = "";
+      return;
+    }
 
-    pagination.innerHTML =
-      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
-      "<span>Trang " + currentPage + "</span>" +
-      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
+    tbody.innerHTML = posts.map(rowHtml).join("");
+    window.renderPagination(pagination, currentPage, totalPages);
   }
 
   searchInput.addEventListener("input", () => {

@@ -39,7 +39,7 @@ const LOADERS: Record<string, () => Promise<{ template: string; data: Record<str
       select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true, categories: { select: { name: true, slug: true } } },
     });
     if (!posts.length) return null;
-    return { template: "blog-list", data: { pageTitle: "Blog", posts, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2 } };
+    return { template: "blog-list", data: { pageTitle: "Blog", posts, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2, currentPage: 1, totalPages: 1 } };
   },
 
   "blog-post": async () => {
@@ -63,7 +63,7 @@ const LOADERS: Record<string, () => Promise<{ template: string; data: Record<str
       take: 10,
       select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
     });
-    return { template: "blog-category", data: { pageTitle: category.name, category, posts, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2 } };
+    return { template: "blog-category", data: { pageTitle: category.name, category, posts, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2, currentPage: 1, totalPages: 1 } };
   },
 
   page: async () => {
@@ -82,7 +82,7 @@ const LOADERS: Record<string, () => Promise<{ template: string; data: Record<str
       include: { categories: { select: { name: true, slug: true } } },
     });
     if (!products.length) return null;
-    return { template: "products-list", data: { pageTitle: "Sản phẩm", products, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2 } };
+    return { template: "products-list", data: { pageTitle: "Sản phẩm", products, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2, currentPage: 1, totalPages: 1 } };
   },
 
   "product-category": async () => {
@@ -93,7 +93,7 @@ const LOADERS: Record<string, () => Promise<{ template: string; data: Record<str
       orderBy: { syncedAt: "desc" },
       take: 12,
     });
-    return { template: "product-category", data: { pageTitle: category.name, category, products, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2 } };
+    return { template: "product-category", data: { pageTitle: category.name, category, products, hasPrev: false, hasNext: false, prevPage: 0, nextPage: 2, currentPage: 1, totalPages: 1 } };
   },
 
   "product-detail": async () => {

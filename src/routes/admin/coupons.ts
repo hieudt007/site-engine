@@ -26,7 +26,7 @@ export async function registerCouponRoutes(app: FastifyInstance): Promise<void> 
         prisma.coupon.findMany({ orderBy: { createdAt: "desc" }, skip, take: PAGE_SIZE }),
         prisma.coupon.count(),
       ]);
-      return { coupons, total, page, hasNext: skip + coupons.length < total, hasPrev: page > 1 };
+      return { coupons, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + coupons.length < total, hasPrev: page > 1 };
     },
   );
 

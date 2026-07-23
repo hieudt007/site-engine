@@ -5,7 +5,14 @@
   <button class="btn btn-primary" id="open-add-modal">+ Thêm phân loại</button>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start;">
+<div id="empty-state-container" style="display:none;text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;margin-bottom:2rem;">
+  <div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">📂</div>
+  <h3 style="margin-top:0;color:#374151;">Chưa có phân loại nào</h3>
+  <p style="color:#6b7280;margin-bottom:1.5rem;">Thêm danh mục hoặc chủ đề để quản lý bài viết khoa học hơn.</p>
+  <button class="btn btn-primary" onclick="document.getElementById('open-add-modal').click()">+ Thêm phân loại</button>
+</div>
+
+<div id="taxonomies-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start;">
   <!-- CATEGORIES -->
   <div>
     <h2 style="margin:0 0 1rem;font-size:1.2rem;">Danh mục</h2>
@@ -128,9 +135,10 @@
           "<td>" + (c._count && c._count.posts !== undefined ? c._count.posts : 0) + "</td>" +
           '<td style="text-align:right;display:flex;gap:0.4rem;justify-content:flex-end;">' +
           '<a class="btn" href="/admin/post-categories/' + c.id + '">Sửa nội dung</a>' +
-          '<button class="btn btn-danger" data-id="' + c.id + '">Xoá</button></td></tr>'
+          '<button class="btn btn-danger btn-icon" data-id="' + c.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button></td></tr>'
         ).join("")
       : '<tr><td colspan="5" class="empty-state">Chưa có danh mục nào.</td></tr>';
+    if (typeof checkEmptyState === "function") checkEmptyState();
   }
 
   catBody.addEventListener("click", async (event) => {
@@ -156,9 +164,10 @@
           "<td>" + (t._count && t._count.posts !== undefined ? t._count.posts : 0) + "</td>" +
           '<td style="text-align:right;white-space:nowrap;">' +
           '<button class="btn" data-custom-fields="' + t.id + '">Trường tùy biến</button> ' +
-          '<button class="btn btn-danger" data-id="' + t.id + '">Xoá</button></td></tr>'
+          '<button class="btn btn-danger btn-icon" data-id="' + t.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button></td></tr>'
         ).join("")
       : '<tr><td colspan="4" class="empty-state">Chưa có chủ đề nào.</td></tr>';
+    if (typeof checkEmptyState === "function") checkEmptyState();
   }
 
   topicBody.addEventListener("click", async (event) => {
@@ -212,12 +221,27 @@
     }
 
     modal.close();
-    if (type === "category") loadCategories();
-    else loadTopics();
+    if (type === "category") await loadCategories();
+    else await loadTopics();
+    checkEmptyState();
   });
 
-  loadCategories();
-  loadTopics();
+  function checkEmptyState() {
+    if (currentCategories.length === 0 && currentTopics.length === 0) {
+      document.getElementById("taxonomies-grid").style.display = "none";
+      document.getElementById("empty-state-container").style.display = "block";
+    } else {
+      document.getElementById("taxonomies-grid").style.display = "grid";
+      document.getElementById("empty-state-container").style.display = "none";
+    }
+  }
+
+  async function loadAll() {
+    await Promise.all([loadCategories(), loadTopics()]);
+    checkEmptyState();
+  }
+
+  loadAll();
 })();
 </script>
 {% endblock %}

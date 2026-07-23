@@ -7,6 +7,7 @@ const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "a
 const PURPOSES = ["content", "design"] as const;
 
 const agentSchema = z.object({
+  key: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/).nullable().optional(),
   name: z.string().min(1),
   provider: z.enum(PROVIDERS),
   model: z.string().min(1),
@@ -52,7 +53,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
-    const agent = await prisma.agent.create({ data: parsed.data });
+    const agent = await prisma.agent.create({ data: { ...parsed.data, key: parsed.data.key || null } });
     await auditLog(userId, "agent.create", agent.id);
 
     return reply.code(201).send({ agent });
@@ -75,7 +76,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       // apiKey de trong = giu key cu (khong ghi de rong) - giong pattern posts.ts update ban dau
       // giu nguyen field khong truyen, khac cho apiKey rong tu form vi form luon gui key rong khi
       // khong doi -> can loai truoc khi update.
-      const data = { ...parsed.data };
+      const data = { ...parsed.data, ...(parsed.data.key !== undefined ? { key: parsed.data.key || null } : {}) };
       if (data.apiKey === "") {
         delete data.apiKey;
       }

@@ -1,12 +1,60 @@
-{% if hasPrev or hasNext %}
-  <nav aria-label="Phân trang">
-    {% if hasPrev %}
-      <a href="{{ basePath }}?page={{ prevPage }}">← Trang trước</a>
-    {% else %}
-      <span></span>
-    {% endif %}
-    {% if hasNext %}
-      <a href="{{ basePath }}?page={{ nextPage }}">Trang sau →</a>
-    {% endif %}
+{% if totalPages > 1 %}
+  <nav aria-label="Phân trang" class="pagination-nav">
+    <div class="pagination">
+      {% if currentPage > 1 %}
+        <a href="{{ basePath }}?page={{ currentPage | minus: 1 }}" class="page-link prev">←</a>
+      {% else %}
+        <span class="page-link prev disabled">←</span>
+      {% endif %}
+
+      {% assign maxPages = 5 %}
+      {% assign startPage = currentPage | minus: 2 %}
+      {% if startPage < 1 %}{% assign startPage = 1 %}{% endif %}
+      
+      {% assign endPage = startPage | plus: maxPages | minus: 1 %}
+      {% if endPage > totalPages %}
+        {% assign endPage = totalPages %}
+        {% assign startPage = endPage | minus: maxPages | plus: 1 %}
+        {% if startPage < 1 %}{% assign startPage = 1 %}{% endif %}
+      {% endif %}
+
+      {% if startPage > 1 %}
+        <a href="{{ basePath }}?page=1" class="page-link">1</a>
+        {% if startPage > 2 %}
+          <span class="page-link disabled">...</span>
+        {% endif %}
+      {% endif %}
+
+      {% for i in (startPage..endPage) %}
+        {% if i == currentPage %}
+          <span class="page-link active">{{ i }}</span>
+        {% else %}
+          <a href="{{ basePath }}?page={{ i }}" class="page-link">{{ i }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if endPage < totalPages %}
+        {% assign totalPagesMinus1 = totalPages | minus: 1 %}
+        {% if endPage < totalPagesMinus1 %}
+          <span class="page-link disabled">...</span>
+        {% endif %}
+        <a href="{{ basePath }}?page={{ totalPages }}" class="page-link">{{ totalPages }}</a>
+      {% endif %}
+
+      {% if currentPage < totalPages %}
+        <a href="{{ basePath }}?page={{ currentPage | plus: 1 }}" class="page-link next">→</a>
+      {% else %}
+        <span class="page-link next disabled">→</span>
+      {% endif %}
+    </div>
   </nav>
+
+  <style>
+    .pagination-nav { margin: 2rem 0; display: flex; justify-content: center; }
+    .pagination-nav .pagination { display: flex; gap: 0.5rem; align-items: center; list-style: none; padding: 0; margin: 0; }
+    .pagination-nav .page-link { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 0.5rem; border: 1px solid #e5e7eb; border-radius: 4px; color: #374151; text-decoration: none; font-size: 0.95rem; font-weight: 500; background: #fff; transition: all 0.2s; }
+    .pagination-nav .page-link:hover:not(.disabled):not(.active) { background: #f3f4f6; border-color: #d1d5db; }
+    .pagination-nav .page-link.active { background: #000; color: #fff; border-color: #000; }
+    .pagination-nav .page-link.disabled { color: #9ca3af; border-color: transparent; background: transparent; pointer-events: none; }
+  </style>
 {% endif %}

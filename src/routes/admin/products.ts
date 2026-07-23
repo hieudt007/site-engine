@@ -7,6 +7,7 @@ import { saveRevision, listRevisions } from "../../services/revisions.js";
 import { customFieldsSchema } from "../../services/customFields.js";
 import { slugify } from "../../services/slug.js";
 import { uniqueProductSlug } from "../../services/productSlug.js";
+import { analyzeProductSeo } from "../../services/seoAnalyzer.js";
 
 // §5.2: sản phẩm thuộc nhóm "nội dung + sản phẩm" của manager — role "edit" KHÔNG được đụng vào
 // (khác Post, nơi edit tạo/sửa được bài nháp) — nên không có bước "nộp duyệt" như posts.ts,
@@ -20,6 +21,19 @@ const seoSchema = z
     noindex: z.boolean().optional(),
     keyword: z.string().optional(),
     score: z.number().optional(),
+    internalLinks: z.number().optional(),
+    checks: z
+      .array(
+        z.object({
+          key: z.string(),
+          status: z.enum(["pass", "warning", "fail"]),
+          message: z.string(),
+          points: z.number(),
+          maxPoints: z.number(),
+        }),
+      )
+      .optional(),
+    analyzedAt: z.string().optional(),
   })
   .optional();
 
@@ -46,9 +60,14 @@ const relatedProductsSchema = z.object({
   crossSell: relatedProductConfigSchema.optional(),
 });
 
-const updateContentSchema = z.object({
-  name: z.string().min(1).optional(),
+const createProductSchema = z.object({
+  name: z.string().min(1),
+  leadbaseProductId: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -").optional(),
+  price: z.number().nonnegative().optional().default(0),
+  salePrice: z.number().nonnegative().nullable().optional(),
+  stock: z.number().int().nonnegative().nullable().optional(),
+  sku: z.string().nullable().optional(),
   excerpt: z.string().optional(),
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
@@ -57,7 +76,45 @@ const updateContentSchema = z.object({
   customFields: customFieldsSchema,
   faq: faqSchema,
   specs: z.array(specSchema).optional(),
+  categoryIds: z.array(z.string()).optional(),
+  brandId: z.string().nullable().optional(),
   relatedProducts: relatedProductsSchema.optional(),
+}).refine(data => {
+  if (data.salePrice != null && data.price != null) {
+    return data.salePrice <= data.price;
+  }
+  return true;
+}, {
+  message: "Giá khuyến mãi không được lớn hơn giá bán",
+  path: ["salePrice"]
+});
+
+const updateContentSchema = z.object({
+  name: z.string().min(1).optional(),
+  slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -").optional(),
+  price: z.number().nonnegative().optional(),
+  salePrice: z.number().nonnegative().nullable().optional(),
+  stock: z.number().int().nonnegative().nullable().optional(),
+  sku: z.string().nullable().optional(),
+  excerpt: z.string().optional(),
+  description: z.string().optional(),
+  imageUrls: z.array(z.string()).optional(),
+  layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
+  seo: seoSchema,
+  customFields: customFieldsSchema,
+  faq: faqSchema,
+  specs: z.array(specSchema).optional(),
+  categoryIds: z.array(z.string()).optional(),
+  brandId: z.string().nullable().optional(),
+  relatedProducts: relatedProductsSchema.optional(),
+}).refine(data => {
+  if (data.salePrice != null && data.price != null) {
+    return data.salePrice <= data.price;
+  }
+  return true;
+}, {
+  message: "Giá khuyến mãi không được lớn hơn giá bán",
+  path: ["salePrice"]
 });
 
 const scheduleSchema = z.object({ scheduledAt: z.string().min(1) });
@@ -89,7 +146,7 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         prisma.productCache.count({ where }),
       ]);
 
-      return { products, total, page, hasNext: skip + products.length < total, hasPrev: page > 1 };
+      return { products, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + products.length < total, hasPrev: page > 1 };
     },
   );
 
@@ -132,12 +189,87 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
     },
   );
 
+  app.post(
+    "/admin/api/products",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const parsed = createProductSchema.safeParse(request.body);
+      if (!parsed.success) {
+        request.log.warn({ issues: parsed.error.issues }, "Validation error in createProduct");
+        return reply.code(422).send({ error: parsed.error.flatten() });
+      }
+
+      const userId = request.session.get("userId") ?? null;
+      let nextSlug = parsed.data.slug ?? slugify(parsed.data.name);
+      const slugTaken = await prisma.productCache.findUnique({ where: { slug: nextSlug } as any });
+      
+      // If slug taken, append unique part
+      if (slugTaken) {
+        nextSlug = await uniqueProductSlug(nextSlug);
+      }
+      
+      const leadbaseIdTaken = await prisma.productCache.findUnique({ where: { leadbaseProductId: parsed.data.leadbaseProductId } });
+      if (leadbaseIdTaken) {
+         return reply.code(409).send({ error: "ID Sản phẩm LeadBase này đã tồn tại" });
+      }
+
+      const { categoryIds, brandId, ...restParsed } = parsed.data;
+
+      const dataWithSeo = {
+        ...restParsed,
+        brandId: brandId || null,
+        slug: nextSlug,
+        seo: analyzeProductSeo({
+          name: parsed.data.name,
+          slug: nextSlug,
+          description: parsed.data.description ?? null,
+          excerpt: parsed.data.excerpt ?? null,
+          imageUrls: parsed.data.imageUrls ?? [],
+          seo: parsed.data.seo ?? {},
+          faq: parsed.data.faq ?? [],
+          specs: parsed.data.specs ?? [],
+        }),
+      };
+
+      const product = await prisma.productCache.create({
+        data: {
+          ...dataWithSeo,
+          categories: categoryIds && categoryIds.length > 0 ? { connect: categoryIds.map(id => ({ id })) } : undefined,
+          leadbaseStatus: 'active',
+          status: 'draft',
+        } as any,
+      });
+
+      await saveRevision(
+        "Product",
+        product.id,
+        {
+          name: "",
+          slug: "",
+          excerpt: null,
+          description: null,
+          imageUrls: [],
+          seo: {},
+          customFields: {},
+          specs: [],
+          layoutMode: "standard",
+          relatedProducts: {},
+        },
+        dataWithSeo,
+        userId,
+      );
+
+      return { product };
+    }
+  );
+
   app.patch<{ Params: { id: string } }>(
     "/admin/api/products/:id",
     { preHandler: requireRole("manager") },
     async (request, reply) => {
       const parsed = updateContentSchema.safeParse(request.body);
       if (!parsed.success) {
+        request.log.warn({ issues: parsed.error.issues }, "Validation error in updateProduct");
         return reply.code(422).send({ error: parsed.error.flatten() });
       }
 
@@ -152,12 +284,29 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       if (slugTaken && slugTaken.id !== product.id) {
         return reply.code(409).send({ error: "Slug đã tồn tại" });
       }
+      const { categoryIds, brandId, ...restParsed } = parsed.data;
+
+      const updateData = {
+        ...restParsed,
+        slug: nextSlug,
+        seo: analyzeProductSeo({
+          name: parsed.data.name ?? product.name,
+          slug: nextSlug,
+          description: parsed.data.description ?? product.description,
+          excerpt: parsed.data.excerpt ?? product.excerpt,
+          imageUrls: parsed.data.imageUrls ?? product.imageUrls,
+          seo: (parsed.data.seo as any) ?? product.seo ?? {},
+          faq: (parsed.data.faq as any) ?? product.faq ?? [],
+          specs: (parsed.data.specs as any) ?? product.specs ?? [],
+        }),
+      };
       await saveRevision(
         "Product",
         product.id,
         {
           name: product.name,
           slug: (product as any).slug,
+          excerpt: product.excerpt,
           description: product.description,
           imageUrls: product.imageUrls,
           seo: product.seo,
@@ -166,13 +315,17 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           layoutMode: product.layoutMode,
           relatedProducts: product.relatedProducts,
         },
-        parsed.data,
+        updateData,
         userId,
       );
 
       const updated = await prisma.productCache.update({
         where: { id: product.id },
-        data: { ...parsed.data, slug: nextSlug } as any,
+        data: {
+          ...updateData,
+          brandId: brandId !== undefined ? (brandId || null) : product.brandId,
+          categories: categoryIds !== undefined ? { set: categoryIds.map(id => ({ id })) } : undefined,
+        } as any,
       });
 
       return { product: updated };

@@ -15,6 +15,16 @@ export async function registerProductsUiRoutes(app: FastifyInstance): Promise<vo
     });
     return reply.type("text/html").send(html);
   });
+  app.get(
+    "/admin/products/new",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const categories = await prisma.category.findMany({ where: { type: "product" }, orderBy: { name: "asc" } });
+      const brands = await prisma.category.findMany({ where: { type: "brand" }, orderBy: { name: "asc" } });
+      const html = await renderAdmin("product-edit", { product: null, categories, brands, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
+      return reply.type("text/html").send(html);
+    },
+  );
 
   app.get<{ Params: { id: string } }>(
     "/admin/products/:id",
@@ -27,7 +37,10 @@ export async function registerProductsUiRoutes(app: FastifyInstance): Promise<vo
       if (!product) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy sản phẩm</h1>");
       }
-      const html = await renderAdmin("product-edit", { product, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
+      const categories = await prisma.category.findMany({ where: { type: "product" }, orderBy: { name: "asc" } });
+      const brands = await prisma.category.findMany({ where: { type: "brand" }, orderBy: { name: "asc" } });
+      const selectedCategoryIds = product.categories.map((c) => c.id);
+      const html = await renderAdmin("product-edit", { product, categories, brands, selectedCategoryIds, userName: request.session.get("name"), role: request.session.get("role"), currentPath: request.url });
       return reply.type("text/html").send(html);
     },
   );

@@ -23,7 +23,7 @@
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
   <h1 style="margin:0;">Sửa theme — {{ theme.name | escape }}</h1>
   <div style="display:flex;gap:0.5rem;">
-    <button type="button" class="btn btn-danger" id="delete-theme-btn">Xoá theme</button>
+    <button type="button" class="btn btn-danger btn-icon" id="delete-theme-btn" title="Xoá theme" aria-label="Xoá theme">{% render "components/icon", name: "trash" %}</button>
     <a class="btn" href="/admin/settings/theme">← Danh sách theme</a>
   </div>
 </div>

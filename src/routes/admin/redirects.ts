@@ -29,7 +29,7 @@ export async function registerRedirectRoutes(app: FastifyInstance): Promise<void
         prisma.redirect.count({ where }),
       ]);
 
-      return { redirects, total, page, hasNext: skip + redirects.length < total, hasPrev: page > 1 };
+      return { redirects, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + redirects.length < total, hasPrev: page > 1 };
     },
   );
 

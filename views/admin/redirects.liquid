@@ -1,0 +1,217 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+  <h1 style="margin:0;">Chuyển hướng</h1>
+  <button type="button" class="btn btn-primary" id="top-add-btn" onclick="document.getElementById('create-modal').showModal()">+ Thêm chuyển hướng</button>
+</div>
+
+<div id="empty-state-container" style="display:none;text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;margin-bottom:2rem;">
+  <div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">🔀</div>
+  <h3 style="margin-top:0;color:#374151;">Chưa có chuyển hướng nào</h3>
+  <p style="color:#6b7280;margin-bottom:1.5rem;">Tạo quy tắc chuyển hướng để giữ hạng SEO cho đường dẫn cũ.</p>
+  <button class="btn btn-primary" onclick="document.getElementById('create-modal').showModal()">+ Thêm chuyển hướng</button>
+</div>
+
+<div class="card" id="redirects-content" style="margin-bottom: 1.5rem; display: none;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <input type="search" id="search-input" placeholder="Tìm kiếm đường dẫn nguồn..." style="max-width: 320px;">
+  </div>
+  
+  <div class="table-scroll">
+    <table id="redirects-table">
+      <thead>
+        <tr>
+          <th>URL Nguồn</th>
+          <th>URL Đích</th>
+          <th>Status</th>
+          <th style="width: 80px; text-align:right;">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="redirects-tbody">
+        <tr><td colspan="4" style="text-align:center; color:#999;">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<dialog id="create-modal" style="width: 500px; max-width: 95vw; padding: 0; border: none; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+  <form id="create-form" style="display: flex; flex-direction: column;">
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 1.1rem;">Thêm chuyển hướng mới</h3>
+      <button type="button" onclick="document.getElementById('create-modal').close()" style="background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0;">&times;</button>
+    </div>
+    
+    <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+      <div>
+        <label>Đường dẫn nguồn (Bắt đầu bằng /)</label>
+        <input type="text" name="fromPath" required placeholder="/old-path">
+      </div>
+      <div>
+        <label>Đường dẫn đích</label>
+        <input type="text" name="toPath" required placeholder="/new-path hoặc https://domain.com">
+      </div>
+      <div>
+        <label>Mã trạng thái (Status Code)</label>
+        <select name="statusCode">
+          <option value="301">301 (Moved Permanently)</option>
+          <option value="302">302 (Found / Temporary)</option>
+        </select>
+      </div>
+      <div id="create-error" style="color: var(--color-danger); font-size: 0.85rem;"></div>
+    </div>
+    
+    <div style="padding: 1.25rem 1.5rem; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; justify-content: flex-end; gap: 0.5rem; border-radius: 0 0 12px 12px;">
+      <button type="button" class="btn" onclick="document.getElementById('create-modal').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary">Thêm</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function() {
+  const tbody = document.getElementById("redirects-tbody");
+  const pagination = document.getElementById("pagination");
+  const searchInput = document.getElementById("search-input");
+  const flash = document.getElementById("flash");
+  const form = document.getElementById("create-form");
+  const createModal = document.getElementById("create-modal");
+  const createError = document.getElementById("create-error");
+  
+  let currentPage = 1;
+  let searchTimer;
+
+  function showError(msg) {
+    flash.textContent = msg;
+    flash.className = "error";
+  }
+  function showSuccess(msg) {
+    flash.textContent = msg;
+    flash.className = "success";
+  }
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  async function load() {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">Đang tải...</td></tr>';
+    const params = new URLSearchParams({ page: currentPage });
+    if (searchInput.value) params.set("q", searchInput.value.trim());
+
+    try {
+      const res = await fetch("/admin/api/redirects?" + params.toString());
+      if (!res.ok) throw new Error("Tải dữ liệu thất bại");
+      const { redirects, totalPages } = await res.json();
+      
+      if (!redirects.length && !searchInput.value) {
+        document.getElementById("empty-state-container").style.display = "block";
+        document.getElementById("redirects-content").style.display = "none";
+        document.getElementById("top-add-btn").style.display = "none";
+      } else {
+        document.getElementById("empty-state-container").style.display = "none";
+        document.getElementById("redirects-content").style.display = "block";
+        document.getElementById("top-add-btn").style.display = "block";
+        
+        if (!redirects.length) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">Không có dữ liệu</td></tr>';
+        } else {
+          tbody.innerHTML = redirects.map(r => `
+            <tr>
+              <td style="word-break: break-all;"><code>${escapeHtml(r.fromPath)}</code></td>
+              <td style="word-break: break-all;"><code>${escapeHtml(r.toPath)}</code></td>
+              <td><span class="status-badge status-published">${r.statusCode || 301}</span></td>
+              <td style="text-align:right;">
+                <button class="btn btn-danger btn-icon" data-delete-id="${r.id}" title="Xóa">
+                  ${window.adminIcon("trash")}
+                </button>
+              </td>
+            </tr>
+          `).join("");
+        }
+      }
+      window.renderPagination(pagination, currentPage, totalPages);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="4" style="color:var(--color-danger); text-align:center;">Lỗi: ${e.message}</td></tr>`;
+    }
+  }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; load(); }, 300);
+  });
+
+  pagination.addEventListener("click", (e) => {
+    const link = e.target.closest("a[data-page]");
+    if (!link) return;
+    e.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
+
+  tbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-delete-id]");
+    if (!btn) return;
+    
+    if (!confirm("Bạn có chắc muốn xóa chuyển hướng này?")) return;
+    
+    const res = await fetch("/admin/api/redirects/" + btn.dataset.deleteId, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showError(err.error || "Xóa thất bại");
+      return;
+    }
+    showSuccess("Đã xóa chuyển hướng");
+    load();
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    createError.textContent = "";
+    
+    const formData = new FormData(form);
+    const data = {
+      fromPath: formData.get("fromPath").trim(),
+      toPath: formData.get("toPath").trim(),
+      statusCode: parseInt(formData.get("statusCode")) || 301
+    };
+    
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = "Đang xử lý...";
+    
+    try {
+      const res = await fetch("/admin/api/redirects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      
+      const body = await res.json();
+      
+      if (!res.ok) {
+        if (body.error && typeof body.error === 'object' && body.error.fieldErrors) {
+          createError.textContent = Object.values(body.error.fieldErrors).flat().join(", ");
+        } else {
+          createError.textContent = body.error || "Lỗi tạo chuyển hướng";
+        }
+      } else {
+        createModal.close();
+        form.reset();
+        showSuccess("Tạo chuyển hướng thành công!");
+        currentPage = 1;
+        load();
+      }
+    } catch (err) {
+      createError.textContent = "Lỗi mạng hoặc server";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Thêm";
+    }
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

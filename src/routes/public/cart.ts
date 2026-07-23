@@ -119,6 +119,9 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
       if (!product) {
         return reply.code(422).send({ error: `Sản phẩm ${item.productId} không tồn tại hoặc chưa xuất bản` });
       }
+      if (product.leadbaseStatus !== "selling") {
+        return reply.code(422).send({ error: `Sản phẩm ${product.name} đã ngừng kinh doanh` });
+      }
 
       let unitPrice: number;
       let displayName = product.name;
@@ -128,6 +131,9 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
         const variant = product.variants.find((v) => v.id === item.variantId);
         if (!variant) {
           return reply.code(422).send({ error: `Biến thể ${item.variantId} không tồn tại` });
+        }
+        if (variant.leadbaseStatus !== "selling") {
+          return reply.code(422).send({ error: `Biến thể của ${product.name} đã ngừng kinh doanh` });
         }
         unitPrice = variant.salePrice ? Number(variant.salePrice) : Number(variant.price);
         const attrs = (variant.attributes as Record<string, string> | null) ?? {};

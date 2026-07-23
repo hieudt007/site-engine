@@ -1,11 +1,15 @@
 {% layout "layout" %}
 {% block content %}
-<h1 style="margin:0 0 1.2rem;">Mã giảm giá</h1>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+  <h1 style="margin:0;">Mã giảm giá</h1>
+  <button class="btn btn-primary" id="open-add-modal">+ Thêm mã giảm giá</button>
+</div>
 
 <div id="coupons-list" style="display:flex;flex-direction:column;gap:0.8rem;margin-bottom:1.5rem;"></div>
 
-<div class="card">
-  <strong id="form-title">Thêm mã mới</strong>
+<dialog id="coupon-modal" style="border:none;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.2);padding:1.5rem;width:400px;max-width:90vw;">
+  <form id="coupon-form" method="dialog">
+    <h3 style="margin-top:0;margin-bottom:1.2rem;font-size:1.1rem;" id="form-title">Thêm mã mới</h3>
   <input type="hidden" id="coupon-id">
   <label for="coupon-code">Mã (không phân biệt hoa/thường)</label>
   <input type="text" id="coupon-code" placeholder="VD: SALE50" style="text-transform:uppercase;">
@@ -32,11 +36,12 @@
     <input type="checkbox" id="coupon-enabled" checked style="width:auto;"> Bật mã này
   </label>
 
-  <div style="margin-top:1rem;display:flex;gap:0.6rem;">
+  <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;gap:0.5rem;">
+    <button type="button" class="btn" id="cancel-btn">Huỷ</button>
     <button type="button" id="save-btn" class="btn btn-primary">Lưu</button>
-    <button type="button" id="cancel-btn" class="btn" style="display:none;">Huỷ sửa</button>
   </div>
-</div>
+  </form>
+</dialog>
 
 <script>
 (function () {
@@ -54,6 +59,13 @@
   const formTitle = document.getElementById("form-title");
   const cancelBtn = document.getElementById("cancel-btn");
   let coupons = [];
+
+  const modal = document.getElementById("coupon-modal");
+
+  document.getElementById("open-add-modal").addEventListener("click", () => {
+    resetForm();
+    modal.showModal();
+  });
 
   function showFlash(message, ok) {
     flash.textContent = message;
@@ -77,12 +89,17 @@
     enabledEl.checked = true;
     updateValueLabel();
     formTitle.textContent = "Thêm mã mới";
-    cancelBtn.style.display = "none";
   }
 
   function renderCoupons() {
     if (coupons.length === 0) {
-      list.innerHTML = '<div class="empty-state">Chưa có mã giảm giá nào.</div>';
+      list.innerHTML = 
+        '<div style="text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;">' +
+        '<div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">🎟️</div>' +
+        '<h3 style="margin-top:0;color:#374151;">Chưa có mã giảm giá nào</h3>' +
+        '<p style="color:#6b7280;margin-bottom:1.5rem;">Tạo mã giảm giá đầu tiên để thu hút khách hàng.</p>' +
+        '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'open-add-modal\').click()">+ Tạo mã giảm giá</button>' +
+        '</div>';
       return;
     }
     list.innerHTML = coupons
@@ -95,7 +112,7 @@
           '<div class="field-hint">Giảm ' + valueText + " — đơn tối thiểu " + c.minOrderTotal + "₫ — " + usage + "</div></div>" +
           '<div style="display:flex;gap:0.5rem;">' +
           '<button type="button" class="btn edit-btn" data-id="' + c.id + '">Sửa</button>' +
-          '<button type="button" class="btn btn-danger delete-btn" data-id="' + c.id + '">Xoá</button>' +
+          '<button type="button" class="btn btn-danger btn-icon delete-btn" data-id="' + c.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>' +
           "</div></div>"
         );
       })
@@ -129,8 +146,7 @@
     enabledEl.checked = coupon.enabled;
     updateValueLabel();
     formTitle.textContent = "Sửa mã";
-    cancelBtn.style.display = "inline-block";
-    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    modal.showModal();
   }
 
   async function load() {
@@ -164,11 +180,12 @@
       return;
     }
     resetForm();
+    modal.close();
     await load();
     showFlash("Đã lưu.", true);
   });
 
-  cancelBtn.addEventListener("click", resetForm);
+  cancelBtn.addEventListener("click", () => modal.close());
 
   load();
 })();

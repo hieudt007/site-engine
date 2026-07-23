@@ -47,7 +47,7 @@
           "<tr><td>" + escapeHtml(t.name) + "</td><td>" + escapeHtml(t.slug) + "</td>" +
           '<td style="text-align:right;white-space:nowrap;">' +
           '<button class="btn" data-custom-fields="' + t.id + '">Trường tùy biến</button> ' +
-          '<button class="btn btn-danger" data-id="' + t.id + '">Xoá</button></td></tr>'
+          '<button class="btn btn-danger btn-icon" data-id="' + t.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button></td></tr>'
         ).join("")
       : '<tr><td colspan="3" class="empty-state">Chưa có chủ đề nào.</td></tr>';
   }

@@ -72,8 +72,8 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
   }
 
   const pageData = {
-    pageTitle: post.title,
-    metaDescription: seo.metaDescription ?? post.excerpt ?? undefined,
+    pageTitle: seo.metaTitle || post.title,
+    metaDescription: seo.metaDescription || post.excerpt || undefined,
     noindex: seo.noindex,
   };
 
@@ -163,6 +163,8 @@ export async function renderPostCategoryBySlug(slug: string, request: FastifyReq
     hasNext: skip + posts.length < total,
     prevPage: page - 1,
     nextPage: page + 1,
+    currentPage: page,
+    totalPages: Math.ceil(total / PAGE_SIZE),
     schemas: [buildBreadcrumbSchema(breadcrumbItems)],
   });
 
@@ -216,6 +218,8 @@ export async function renderTopicBySlug(slug: string, request: FastifyRequest<{ 
     hasNext: skip + posts.length < total,
     prevPage: page - 1,
     nextPage: page + 1,
+    currentPage: page,
+    totalPages: Math.ceil(total / PAGE_SIZE),
     schemas: [buildBreadcrumbSchema(breadcrumbItems)],
   });
 
@@ -260,6 +264,8 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       hasNext: skip + posts.length < total,
       prevPage: page - 1,
       nextPage: page + 1,
+      currentPage: page,
+      totalPages: Math.ceil(total / PAGE_SIZE),
     });
 
     return reply.type("text/html").send(html);
@@ -321,6 +327,8 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
         hasNext: skip + posts.length < total,
         prevPage: page - 1,
         nextPage: page + 1,
+        currentPage: page,
+        totalPages: Math.ceil(total / PAGE_SIZE),
         schemas: [buildBreadcrumbSchema(breadcrumbItems)],
       });
 
@@ -396,6 +404,8 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
         hasNext: skip + posts.length < total,
         prevPage: page - 1,
         nextPage: page + 1,
+        currentPage: page,
+        totalPages: Math.ceil(total / PAGE_SIZE),
         schemas: [buildBreadcrumbSchema(breadcrumbItems)],
       });
 
@@ -602,7 +612,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{ Params: { slug: string }; Body: { password?: string } }>(
-    "/:slug/unlock",
+    "/api/posts/:slug/unlock",
     async (request, reply) => {
       const post = await prisma.post.findUnique({
         where: { type_slug: { type: "post", slug: request.params.slug } },

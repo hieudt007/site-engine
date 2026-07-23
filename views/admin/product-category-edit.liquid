@@ -30,7 +30,7 @@
   <div id="faq-rows">
     {% for item in category.faq %}
       <div class="faq-row card" style="margin-bottom:0.5rem;position:relative;">
-        <button type="button" class="btn btn-danger faq-remove" style="position:absolute;top:0.5rem;right:0.5rem;">×</button>
+        <button type="button" class="btn btn-danger btn-icon faq-remove" title="Xoá" aria-label="Xoá" style="position:absolute;top:0.5rem;right:0.5rem;">{% render "components/icon", name: "trash" %}</button>
         <label>Câu hỏi</label>
         <input type="text" class="faq-q" value="{{ item.question | escape }}" style="margin-bottom:0.5rem;">
         <label>Câu trả lời</label>
@@ -42,14 +42,15 @@
 
   <h2 style="font-size:0.95rem;margin:1.5rem 0 0.5rem;border-top:1px solid #eee;padding-top:1rem;">SEO</h2>
 
+  <label for="keyword">Từ khoá chính</label>
+  <input type="text" id="keyword" name="keyword" value="{% if category.seo %}{{ category.seo.keyword | escape }}{% endif %}" placeholder="Ví dụ: máy hút bụi, thiết bị gia dụng">
+  <div class="field-hint">Có thể nhập nhiều từ khoá, ngăn cách bởi dấu phẩy.</div>
+
   <label for="metaTitle">Meta title</label>
-  <input type="text" id="metaTitle" name="metaTitle" value="{% if category.seo %}{{ category.seo.metaTitle | escape }}{% endif %}">
+  <input type="text" id="metaTitle" name="metaTitle" value="{% if category.seo %}{{ category.seo.metaTitle | escape }}{% endif %}" placeholder="Để trống nếu dùng tên danh mục">
 
   <label for="metaDescription">Meta description</label>
-  <input type="text" id="metaDescription" name="metaDescription" value="{% if category.seo %}{{ category.seo.metaDescription | escape }}{% endif %}">
-
-  <label for="keyword">Từ khoá chính</label>
-  <input type="text" id="keyword" name="keyword" value="{% if category.seo %}{{ category.seo.keyword | escape }}{% endif %}">
+  <input type="text" id="metaDescription" name="metaDescription" value="{% if category.seo %}{{ category.seo.metaDescription | escape }}{% endif %}" placeholder="Để trống nếu dùng tóm tắt danh mục">
 
   <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
     <button type="submit" class="btn btn-primary">Lưu</button>
@@ -74,7 +75,7 @@
     row.className = "faq-row card";
     row.style.cssText = "margin-bottom:0.5rem;position:relative;";
     row.innerHTML =
-      '<button type="button" class="btn btn-danger faq-remove" style="position:absolute;top:0.5rem;right:0.5rem;">×</button>' +
+      '<button type="button" class="btn btn-danger btn-icon faq-remove" title="Xoá" aria-label="Xoá" style="position:absolute;top:0.5rem;right:0.5rem;">' + window.adminIcon("trash") + '</button>' +
       '<label>Câu hỏi</label><input type="text" class="faq-q" style="margin-bottom:0.5rem;">' +
       '<label>Câu trả lời</label><textarea class="faq-a" style="min-height:80px;"></textarea>';
     row.querySelector(".faq-q").value = q || "";
@@ -83,7 +84,8 @@
   }
   document.getElementById("faq-add-btn").addEventListener("click", () => addFaqRow("", ""));
   faqRows.addEventListener("click", (e) => {
-    if (e.target.classList.contains("faq-remove")) e.target.closest(".faq-row").remove();
+    const removeBtn = e.target.closest(".faq-remove");
+    if (removeBtn) removeBtn.closest(".faq-row").remove();
   });
   function collectFaq() {
     return [...faqRows.querySelectorAll(".faq-row")]

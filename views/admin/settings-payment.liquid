@@ -1,16 +1,18 @@
 {% layout "layout" %}
 {% block content %}
+
 <h1 style="margin:0 0 1.2rem;">Phương thức thanh toán</h1>
 
 <div id="payment-methods" style="display:flex;flex-direction:column;gap:1rem;"></div>
 
 <template id="tpl-cod">
   <div class="card" data-method="cod">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <strong>Thanh toán khi nhận hàng (COD)</strong>
-      <label style="display:flex;align-items:center;gap:0.4rem;font-weight:400;margin:0;">
-        <input type="checkbox" class="method-enabled"> Bật
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+      <label class="toggle-switch">
+        <input type="checkbox" class="method-enabled">
+        <span class="slider"></span>
       </label>
+      <strong style="margin:0;">Thanh toán khi nhận hàng (COD)</strong>
     </div>
     <p class="field-hint">Không cần cấu hình gì thêm — xác nhận đã thu tiền là việc thủ công.</p>
   </div>
@@ -18,11 +20,12 @@
 
 <template id="tpl-bank_transfer">
   <div class="card" data-method="bank_transfer">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <strong>Chuyển khoản ngân hàng</strong>
-      <label style="display:flex;align-items:center;gap:0.4rem;font-weight:400;margin:0;">
-        <input type="checkbox" class="method-enabled"> Bật
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+      <label class="toggle-switch">
+        <input type="checkbox" class="method-enabled">
+        <span class="slider"></span>
       </label>
+      <strong style="margin:0;">Chuyển khoản ngân hàng</strong>
     </div>
     <div class="method-config">
       <label>Tên ngân hàng</label>
@@ -33,19 +36,20 @@
       <input type="text" data-field="accountHolder">
       <label>Chi nhánh</label>
       <input type="text" data-field="branch">
-      <label>Ảnh mã QR (URL)</label>
-      <input type="text" data-field="qrImage">
+      <label style="margin-bottom:0.5rem;display:block;margin-top:1rem;">Ảnh mã QR (URL)</label>
+      {% render "components/image-picker", id: "qrImage", dataField: "qrImage", width: "160px", height: "160px" %}
     </div>
   </div>
 </template>
 
 <template id="tpl-vnpay">
   <div class="card" data-method="vnpay">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <strong>VNPay</strong>
-      <label style="display:flex;align-items:center;gap:0.4rem;font-weight:400;margin:0;">
-        <input type="checkbox" class="method-enabled"> Bật
+    <div style="display:flex;align-items:center;gap:0.8rem;">
+      <label class="toggle-switch">
+        <input type="checkbox" class="method-enabled">
+        <span class="slider"></span>
       </label>
+      <strong style="margin:0;">VNPay</strong>
     </div>
     <div class="method-config">
       <label>Mã TMN (Terminal Code)</label>
@@ -90,6 +94,30 @@
         el.value = config[field] || "";
       }
     });
+
+    // Cập nhật giao diện ảnh (Image pickers) cho thẻ mới
+    card.querySelectorAll(".image-picker-box").forEach(box => {
+      const input = box.querySelector("input");
+      if (input.value) {
+        box.querySelector(".image-picker-empty").style.display = "none";
+        const img = box.querySelector(".image-picker-preview");
+        img.src = input.value;
+        img.style.display = "block";
+        box.querySelector(".image-picker-remove").style.display = "flex";
+      }
+    });
+
+    const methodConfig = card.querySelector(".method-config");
+    const methodEnabledEl = card.querySelector(".method-enabled");
+
+    if (methodConfig) {
+      methodConfig.style.display = methodEnabledEl.checked ? "block" : "none";
+      methodConfig.style.marginTop = "1rem";
+      methodEnabledEl.addEventListener("change", (e) => {
+        methodConfig.style.display = e.target.checked ? "block" : "none";
+      });
+    }
+
     container.appendChild(card);
   }
 

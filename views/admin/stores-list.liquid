@@ -69,7 +69,7 @@
           '<div class="field-hint">' + s.address + (s.province ? ", " + s.province : "") + (s.phone ? " — " + s.phone : "") + "</div></div>" +
           '<div style="display:flex;gap:0.5rem;">' +
           '<button type="button" class="btn edit-btn" data-id="' + s.id + '">Sửa</button>' +
-          '<button type="button" class="btn btn-danger delete-btn" data-id="' + s.id + '">Xoá</button>' +
+          '<button type="button" class="btn btn-danger btn-icon delete-btn" data-id="' + s.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>' +
           "</div></div>",
       )
       .join("");

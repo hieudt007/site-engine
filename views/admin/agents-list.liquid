@@ -2,31 +2,18 @@
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
   <h1 style="margin:0;">AI Agent</h1>
-  <a class="btn btn-primary" href="/admin/agents/new">+ Agent mới</a>
+  <a class="btn btn-primary" href="/admin/agents/new">{% render "components/icon", name: "plus" %}<span>Agent mới</span></a>
 </div>
 <p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
   Cấu hình nhà cung cấp AI + API key. Agent có "Mục đích" sẽ tự động dùng cho tính năng viết bài (post-edit) hoặc tuỳ chỉnh giao diện (Giao diện).
 </p>
 
-<table>
-  <thead>
-    <tr>
-      <th>Tên</th>
-      <th>Nhà cung cấp</th>
-      <th>Model</th>
-      <th>Mục đích</th>
-      <th>Trạng thái</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody id="agents-body">
-    <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
-  </tbody>
-</table>
+<div id="agents-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:1.5rem;">
+  <div style="color:#999;grid-column:1/-1;">Đang tải...</div>
+</div>
 
 <script>
 (function () {
-  const tbody = document.getElementById("agents-body");
   const flash = document.getElementById("flash");
 
   function showError(message) {
@@ -49,15 +36,25 @@
     const purposeBadge = agent.purpose
       ? '<span class="status-badge">' + (PURPOSE_LABEL[agent.purpose] || agent.purpose) + '</span>'
       : '<span style="color:#999;">—</span>';
+    const botIcon = '<svg class="admin-icon" style="width:20px;height:20px;margin-right:0.4rem;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="2"></rect><path d="M12 7V3M8 11h.01M16 11h.01M9 15h6"></path></svg>';
+
     return (
-      "<tr>" +
-      '<td><a href="/admin/agents/' + agent.id + '">' + escapeHtml(agent.name) + "</a></td>" +
-      "<td>" + escapeHtml(agent.provider) + "</td>" +
-      "<td>" + escapeHtml(agent.model) + "</td>" +
-      "<td>" + purposeBadge + "</td>" +
-      "<td>" + statusBadge + "</td>" +
-      '<td style="text-align:right;"><button class="btn btn-danger" data-action="delete" data-id="' + agent.id + '">Xoá</button></td>' +
-      "</tr>"
+      '<div class="card" style="display:flex;flex-direction:column;gap:1rem;height:100%;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+      '<div>' +
+      '<h3 style="margin:0 0 0.2rem;font-size:1.1rem;display:flex;align-items:center;">' + botIcon + '<a href="/admin/agents/' + agent.id + '" style="text-decoration:none;color:var(--color-primary);">' + escapeHtml(agent.name) + '</a></h3>' +
+      '<div style="font-size:0.85rem;color:#6b7280;">' + escapeHtml(agent.provider) + ' — ' + escapeHtml(agent.model) + '</div>' +
+      '</div>' +
+      statusBadge +
+      '</div>' +
+      '<div style="font-size:0.9rem;">' +
+      '<div style="margin-bottom:0.3rem;"><strong style="color:#374151;">Mục đích:</strong> ' + purposeBadge + '</div>' +
+      '</div>' +
+      '<div style="margin-top:auto;display:flex;justify-content:flex-end;gap:0.5rem;border-top:1px solid #e5e7eb;padding-top:1rem;">' +
+      '<a href="/admin/agents/' + agent.id + '" class="btn">Cấu hình</a>' +
+      '<button class="btn btn-danger btn-icon" data-action="delete" data-id="' + agent.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>' +
+      '</div>' +
+      '</div>'
     );
   }
 
@@ -68,12 +65,13 @@
       return;
     }
     const { agents } = await res.json();
-    tbody.innerHTML = agents.length
+    const grid = document.getElementById("agents-grid");
+    grid.innerHTML = agents.length
       ? agents.map(rowHtml).join("")
-      : '<tr><td colspan="6" class="empty-state">Chưa có agent nào.</td></tr>';
+      : '<div class="empty-state" style="grid-column:1/-1;">Chưa có agent nào.</div>';
   }
 
-  tbody.addEventListener("click", async (event) => {
+  document.getElementById("agents-grid").addEventListener("click", async (event) => {
     const btn = event.target.closest("button[data-action=delete]");
     if (!btn) return;
     if (!confirm("Xoá agent này?")) return;

@@ -67,17 +67,17 @@
     const params = new URLSearchParams({ page: String(currentPage), status: currentStatus });
 
     const res = await fetch("/admin/api/reviews?" + params.toString());
-    const { reviews, hasNext, hasPrev } = await res.json();
+    const { reviews, totalPages } = await res.json();
     currentReviews = reviews;
 
     tbody.innerHTML = reviews.length
       ? reviews.map(rowHtml).join("")
       : '<tr><td colspan="5" class="empty-state">Không có đánh giá nào.</td></tr>';
 
-    pagination.innerHTML =
-      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
-      "<span>Trang " + currentPage + "</span>" +
-      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
+    window.renderPagination(pagination, currentPage, totalPages, (page) => {
+      currentPage = page;
+      load();
+    });
   }
 
   tabs.addEventListener("click", (event) => {

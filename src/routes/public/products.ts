@@ -55,6 +55,8 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       hasNext: skip + products.length < total,
       prevPage: page - 1,
       nextPage: page + 1,
+      currentPage: page,
+      totalPages: Math.ceil(total / PAGE_SIZE),
     });
 
     return reply.type("text/html").send(html);
@@ -111,6 +113,8 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         hasNext: skip + products.length < total,
         prevPage: page - 1,
         nextPage: page + 1,
+        currentPage: page,
+        totalPages: Math.ceil(total / PAGE_SIZE),
         schemas: [buildBreadcrumbSchema(breadcrumbItems)],
       });
 
@@ -174,6 +178,8 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         hasNext: skip + products.length < total,
         prevPage: page - 1,
         nextPage: page + 1,
+        currentPage: page,
+        totalPages: Math.ceil(total / PAGE_SIZE),
         schemas: [buildBreadcrumbSchema(breadcrumbItems)],
       });
 
@@ -220,7 +226,8 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     // rieng vi trang nay con hien TUNG binh luan, khong chi con so trung binh.
     const avgRating = product.avgRating;
 
-    const pageData = { pageTitle: product.name, metaDescription: readSeo(product.seo).metaDescription };
+    const seo = readSeo(product.seo);
+    const pageData = { pageTitle: seo.metaTitle || product.name, metaDescription: seo.metaDescription || undefined };
 
     let html: string;
     if (product.layoutMode === "landing") {

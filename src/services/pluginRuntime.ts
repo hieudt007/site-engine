@@ -112,6 +112,14 @@ export const pluginManifestSchema = z.object({
   permissions: z
     .object({
       readModels: z.array(z.enum(READABLE_CORE_MODELS)).default([]),
+      ai: z
+        .object({
+          enabled: z.boolean().default(false),
+          agents: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/)).max(20).default([]),
+          maxPromptLength: z.number().int().min(1).max(20000).default(4000),
+          systemPrompt: z.string().max(4000).optional(),
+        })
+        .optional(),
     })
     .default({ readModels: [] }),
   collections: z.array(collectionSchema).default([]),

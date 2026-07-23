@@ -11,6 +11,6 @@
     {% endfor %}
   </div>
 
-  {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+  {% render "components/common/pagination", basePath: "/products", currentPage: currentPage, totalPages: totalPages %}
 {% endif %}
 {% endblock %}

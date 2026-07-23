@@ -57,34 +57,40 @@
   <div class="tabs-content">
     <!-- TAB THEMES -->
     <div id="tab-themes" class="tab-pane active">
-      <p style="color:#777;font-size:0.85rem;margin-top:0;margin-bottom:1.2rem;">
-        Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
-      </p>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.2rem; margin-top:0;">
+        <p style="color:#777;font-size:0.85rem;margin:0;max-width:600px;">
+          Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
+        </p>
+        <button class="btn btn-primary" id="open-theme-modal" style="white-space:nowrap;">+ Tạo theme mới</button>
+      </div>
 
       <div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
         <p style="color:#999;">Đang tải...</p>
       </div>
 
-      <div class="card">
-        <h2 style="font-size:1rem;margin-top:0;">+ Tạo theme mới</h2>
-        <p style="color:#777;font-size:0.82rem;">
-          Tạo 1 bản sao từ theme nền — dùng được ngay, chưa cần AI. Sau khi tạo sẽ chuyển thẳng vào trang sửa để chat với AI tuỳ chỉnh từng phần.
-        </p>
+      <dialog id="theme-modal" style="border:none;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.2);padding:1.5rem;width:400px;max-width:90vw;">
+        <form method="dialog">
+          <h2 style="font-size:1.1rem;margin-top:0;margin-bottom:0.5rem;">Tạo theme mới</h2>
+          <p style="color:#777;font-size:0.82rem;margin-bottom:1.2rem;">
+            Tạo 1 bản sao từ theme nền — dùng được ngay, chưa cần AI. Sau khi tạo sẽ chuyển thẳng vào trang sửa để chat với AI tuỳ chỉnh từng phần.
+          </p>
 
-        <label for="base-theme">Theme nền</label>
-        <select id="base-theme"></select>
+          <label for="base-theme">Theme nền</label>
+          <select id="base-theme" style="width:100%;box-sizing:border-box;margin-bottom:1rem;"></select>
 
-        <label for="new-name">Tên theme mới</label>
-        <input type="text" id="new-name" placeholder="vd: Shop mỹ phẩm cao cấp">
+          <label for="new-name">Tên theme mới</label>
+          <input type="text" id="new-name" placeholder="vd: Shop mỹ phẩm cao cấp" style="width:100%;box-sizing:border-box;margin-bottom:1rem;">
 
-        <label for="new-slug">Slug (tên thư mục, chỉ chữ thường/số/gạch ngang)</label>
-        <input type="text" id="new-slug" placeholder="vd: my-pham-cao-cap">
+          <label for="new-slug">Slug (tên thư mục, chỉ chữ thường/số/gạch ngang)</label>
+          <input type="text" id="new-slug" placeholder="vd: my-pham-cao-cap" style="width:100%;box-sizing:border-box;margin-bottom:1.5rem;">
 
-        <div style="margin-top:1rem;">
-          <button type="button" class="btn btn-primary" id="create-btn">Tạo theme</button>
-          <span id="create-status" style="font-size:0.85rem;color:#777;margin-left:0.6rem;"></span>
-        </div>
-      </div>
+          <div style="display:flex;justify-content:flex-end;gap:0.5rem;align-items:center;">
+            <span id="create-status" style="font-size:0.85rem;color:#777;"></span>
+            <button type="button" class="btn" id="close-theme-modal">Huỷ</button>
+            <button type="button" class="btn btn-primary" id="create-btn">Tạo theme</button>
+          </div>
+        </form>
+      </dialog>
     </div>
 
     <!-- TAB MENUS -->
@@ -159,7 +165,7 @@
       ? '<a class="btn" href="/admin/themes/' + theme.slug + '/edit" style="margin-top:0.4rem;">Sửa theme</a>'
       : "";
     const deleteBtn = theme.source === "agent-generated" && !theme.active
-      ? '<button class="btn btn-danger" data-delete="' + theme.slug + '" style="margin-top:0.4rem;margin-left:0.4rem;">Xoá</button>'
+      ? '<button class="btn btn-danger btn-icon" data-delete="' + theme.slug + '" title="Xoá" aria-label="Xoá" style="margin-top:0.4rem;margin-left:0.4rem;">' + window.adminIcon("trash") + '</button>'
       : "";
     const screenshot = theme.hasScreenshot
       ? '<img src="/theme-assets/' + theme.slug + '/screenshot.png" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.6rem;">'
@@ -216,6 +222,10 @@
     }
   });
 
+  const themeModal = document.getElementById("theme-modal");
+  document.getElementById("open-theme-modal").addEventListener("click", () => themeModal.showModal());
+  document.getElementById("close-theme-modal").addEventListener("click", () => themeModal.close());
+
   document.getElementById("create-btn").addEventListener("click", async () => {
     const baseSlug = document.getElementById("base-theme").value;
     const newName = document.getElementById("new-name").value.trim();
@@ -250,7 +260,7 @@
       '<td><input type="text" class="item-label" value="' + escapeHtml(item.label || "") + '"></td>' +
       '<td><input type="text" class="item-url" value="' + escapeHtml(item.url || "") + '" placeholder="/blog"></td>' +
       '<td><input type="number" class="item-sort" value="' + (item.sortOrder ?? 0) + '" style="width:4rem;"></td>' +
-      '<td><button type="button" class="btn btn-danger" data-remove>Xoá</button></td>' +
+      '<td><button type="button" class="btn btn-danger btn-icon" data-remove title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button></td>' +
       '</tr>'
     );
   }

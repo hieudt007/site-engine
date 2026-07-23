@@ -5,7 +5,7 @@
     <h1 style="margin:0;">{{ page.title | escape }}</h1>
     {% if page.description %}<p style="color:#777;margin:0.4rem 0 0;">{{ page.description | escape }}</p>{% endif %}
   </div>
-  <a class="btn" href="/admin/plugins">All plugins</a>
+  <a class="btn" href="/admin/plugins">{% render "components/icon", name: "arrow-left" %}<span>All plugins</span></a>
 </div>
 
 <div class="card" style="margin-bottom:1rem;">
@@ -96,6 +96,19 @@
     </table>
   {% else %}
     <p style="color:#777;">This plugin does not declare public actions.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <h2 style="font-size:1rem;margin-top:0;">AI agents</h2>
+  {% if manifest.permissions.ai.enabled and manifest.permissions.ai.agents.size > 0 %}
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      {% for agentKey in manifest.permissions.ai.agents %}
+        <code>{{ agentKey }}</code>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:#777;">This plugin cannot call AI agents.</p>
   {% endif %}
 </div>
 

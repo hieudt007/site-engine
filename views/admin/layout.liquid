@@ -46,30 +46,40 @@
 
     .sidebar { width: 224px; flex-shrink: 0; background: var(--color-sidebar-bg); color: #fff; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: width 0.15s, padding 0.15s; }
     body.sidebar-collapsed .sidebar { width: 0; padding: 0; overflow: hidden; white-space: nowrap; }
-    #sidebar-toggle { position: fixed; top: 14px; left: 14px; z-index: 600; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-card-bg); cursor: pointer; font-size: 0.95rem; line-height: 1; }
-    body.sidebar-collapsed #sidebar-toggle { left: 14px; }
-    body:not(.sidebar-collapsed) #sidebar-toggle { left: 238px; top: 14px; background: transparent; border-color: transparent; color: #9ca3af; }
+    #sidebar-toggle { position: fixed; top: 14px; left: 14px; z-index: 600; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-card-bg); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--color-text); transition: left 0.15s, top 0.15s; }
+    body.sidebar-collapsed #sidebar-toggle { left: 14px; top: 14px; }
+    body:not(.sidebar-collapsed) #sidebar-toggle { left: 178px; top: 22px; background: transparent; border-color: transparent; color: #9ca3af; }
     body:not(.sidebar-collapsed) #sidebar-toggle:hover { color: #fff; }
     .sidebar-brand { padding: var(--space-5) var(--space-5) var(--space-4); font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; display: flex; align-items: center; gap: var(--space-2); }
     .sidebar-brand img { width: 28px; height: 28px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
     .sidebar-group { margin-top: var(--space-3); }
     .sidebar-group-label { padding: 0 var(--space-5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: var(--space-2); }
-    .sidebar-link { display: block; padding: var(--space-2) var(--space-5); color: var(--color-sidebar-text); text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent; }
+    .admin-icon { width: 1rem; height: 1rem; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.15em; }
+    .sidebar-link { display: flex; align-items: center; gap: 0.55rem; padding: var(--space-2) var(--space-5); color: var(--color-sidebar-text); text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent; }
+    .sidebar-link .admin-icon { opacity: 0.82; }
     .sidebar-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
     .sidebar-link.active { background: rgba(37,99,235,0.15); color: #fff; font-weight: 600; border-left-color: var(--color-primary); }
     .sidebar-footer { margin-top: auto; padding: var(--space-4) var(--space-5); border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; color: var(--color-sidebar-text); }
+
+    .edit-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+    .edit-main, .edit-sidebar { display: flex; flex-direction: column; gap: 1.5rem; }
+    .edit-card-title { font-size: 0.95rem; font-weight: 600; margin: 0 0 1rem; color: #111; }
+    @media (max-width: 900px) {
+      .edit-layout { grid-template-columns: 1fr; }
+    }
 
     main { flex: 1; min-width: 0; padding: var(--space-6); }
 
     .role-badge { display: inline-block; background: var(--color-primary); color: #fff; font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; }
 
-    .btn { display: inline-block; border: 1px solid var(--color-border); background: var(--color-card-bg); color: #111; padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem; cursor: pointer; text-decoration: none; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border: 1px solid var(--color-border); background: var(--color-card-bg); color: #111; padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem; cursor: pointer; text-decoration: none; }
     .btn:hover { background: #f3f4f6; }
     .btn-primary { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
     .btn-primary:hover { background: var(--color-primary-dark); }
     .btn-danger { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
     .btn-danger:hover { background: var(--color-danger-dark); }
     .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .btn-icon { width: 32px; height: 32px; padding: 0; }
 
     .card { background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-5); }
 
@@ -77,10 +87,19 @@
     th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
     th { background: #fafafa; color: var(--color-text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
 
-    input[type=text], input[type=search], input[type=number], select, textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.9rem; font-family: inherit; }
+    input[type=text], input[type=search], input[type=number], input[type=password], select, textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.9rem; font-family: inherit; box-sizing: border-box; }
     textarea { min-height: 260px; resize: vertical; font-family: ui-monospace, monospace; }
     label { display: block; font-size: 0.85rem; font-weight: 600; margin: var(--space-4) 0 0.3rem; }
     .field-hint { color: #888; font-size: 0.78rem; margin-top: 0.2rem; }
+    .seo-score-box { margin-top: 0.9rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; background: #f8fafc; }
+    .seo-score-head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.75rem 0.85rem; border-bottom: 1px solid var(--color-border); }
+    .seo-score-number { font-size: 1.25rem; font-weight: 800; color: var(--color-primary); }
+    .seo-check-list { list-style: none; padding: 0.65rem 0.85rem; margin: 0; display: grid; gap: 0.45rem; }
+    .seo-check-list li { display: flex; gap: 0.45rem; align-items: flex-start; font-size: 0.8rem; color: var(--color-text-muted); }
+    .seo-check-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; margin-top: 0.35rem; flex-shrink: 0; background: #9ca3af; }
+    .seo-check-pass .seo-check-dot { background: #16a34a; }
+    .seo-check-warning .seo-check-dot { background: #d97706; }
+    .seo-check-fail .seo-check-dot { background: var(--color-danger); }
 
     .status-badge { font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px; white-space: nowrap; }
     .status-published { background: #dcfce7; color: #166534; }
@@ -93,8 +112,11 @@
     .filter-tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
     .filter-tab { padding: var(--space-2) var(--space-3); font-size: 0.85rem; color: var(--color-text-muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
     .filter-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
-    .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-4); font-size: 0.85rem; color: var(--color-text-muted); }
-    .pagination a { color: var(--color-primary); text-decoration: none; }
+    .pagination { display: flex; justify-content: center; gap: 0.3rem; align-items: center; margin-top: var(--space-4); font-size: 0.9rem; }
+    .pagination a, .pagination span { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 0.5rem; border-radius: var(--radius-sm); color: var(--color-text); text-decoration: none; border: 1px solid transparent; }
+    .pagination a:hover { background: #f3f4f6; }
+    .pagination .active { background: var(--color-primary); color: white; font-weight: 600; border-color: var(--color-primary); }
+    .pagination .disabled { color: var(--color-text-muted); pointer-events: none; }
 
     .empty-state { text-align: center; padding: var(--space-6) var(--space-4); color: var(--color-text-muted); font-size: 0.9rem; }
 
@@ -105,27 +127,52 @@
     .stat-card .stat-label { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 0.2rem; }
     .stat-card.stat-alert .stat-value { color: var(--color-danger); }
 
-    #flash { margin-bottom: var(--space-4); padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem; display: none; }
-    #flash.error { background: #fee2e2; color: #991b1b; display: block; }
-    #flash.success { background: #dcfce7; color: #166534; display: block; }
+    #flash { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; padding: 1rem 1.5rem; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 500; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 250px; }
+    #flash.error { background: #fee2e2; color: #991b1b; display: block; border-left: 4px solid #b91c1c; }
+    #flash.success { background: #dcfce7; color: #166534; display: block; border-left: 4px solid #15803d; }
 
     #media-picker-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    #media-picker-panel { background: var(--color-card-bg); border-radius: var(--radius-md); padding: var(--space-5); width: 640px; max-width: 92vw; max-height: 85vh; overflow-y: auto; }
-    #media-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--space-2); min-height: 120px; }
-    #media-picker-grid .media-picker-item { cursor: pointer; border: 2px solid transparent; border-radius: var(--radius-sm); overflow: hidden; }
+    #media-picker-panel { background: var(--color-card-bg); border-radius: var(--radius-md); padding: var(--space-5); width: 1200px; max-width: 95vw; height: 85vh; max-height: 85vh; display: flex; flex-direction: column; }
+    #media-picker-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--space-3); min-height: 120px; margin-bottom: 0.8rem; }
+    #media-picker-grid .media-picker-item { cursor: pointer; border: 2px solid transparent; border-radius: var(--radius-sm); overflow: hidden; aspect-ratio: 1; }
     #media-picker-grid .media-picker-item:hover { border-color: var(--color-primary); }
-    #media-picker-grid .media-picker-item img { width: 100%; height: 90px; object-fit: cover; display: block; }
+    #media-picker-grid .media-picker-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .image-preview-thumb { position: relative; display: inline-block; }
     .image-preview-thumb img { width: 70px; height: 70px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--color-border); display: block; }
     .image-preview-thumb button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0; line-height: 1; font-size: 0.7rem; border-radius: 50%; }
+    
+    .image-picker-box { border: 1px dashed #d1d5db; border-radius: 8px; position: relative; background: #fafafa; cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .image-picker-box:hover { border-color: var(--color-primary); }
+    .image-picker-empty { color: #9ca3af; text-align: center; pointer-events: none; }
+    .image-picker-preview { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+    .image-picker-remove { position: absolute; top: 0.3rem; right: 0.3rem; width: 24px; height: 24px; min-width: 24px; padding: 0; border-radius: 50%; z-index: 10; display: flex; align-items: center; justify-content: center; }
 
-    .rich-editor-toolbar { display: flex; flex-wrap: wrap; gap: 0.2rem; border: 1px solid var(--color-border); border-bottom: none; border-radius: var(--radius-sm) var(--radius-sm) 0 0; padding: 0.35rem; background: #fafafa; }
-    .rich-editor-toolbar button { border: 1px solid transparent; background: none; padding: 0.3rem 0.55rem; border-radius: var(--radius-sm); font-size: 0.85rem; cursor: pointer; color: var(--color-text); }
-    .rich-editor-toolbar button:hover { background: #e5e7eb; }
-    .rich-editor-toolbar .sep { width: 1px; background: var(--color-border); margin: 0.2rem 0.3rem; }
-    .rich-editor-body { min-height: 300px; max-height: 600px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); padding: 0.7rem 0.9rem; font-size: 0.95rem; line-height: 1.6; }
+    .toggle-switch { position: relative; display: inline-block; width: 36px; height: 20px; margin: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-switch .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 20px; }
+    .toggle-switch .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+    .toggle-switch input:checked + .slider { background-color: var(--color-primary); }
+    .toggle-switch input:checked + .slider:before { transform: translateX(16px); }
+
+    .rich-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem; border: 1px solid var(--color-border); border-bottom: none; border-radius: var(--radius-sm) var(--radius-sm) 0 0; padding: 0.5rem; background: #fafafa; }
+    .rich-editor-toolbar button, .rich-editor-toolbar select, .rich-editor-toolbar input[type="color"] { border: 1px solid transparent; background: none; padding: 0.35rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.85rem; cursor: pointer; color: var(--color-text); font-family: inherit; }
+    .rich-editor-toolbar button { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+    .rich-editor-toolbar .editor-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .rich-editor-toolbar .editor-text-tool { font-weight: 700; line-height: 1; }
+    .rich-editor-toolbar .editor-text-tool.is-italic { font-style: italic; font-weight: 700; }
+    .rich-editor-toolbar .editor-text-tool.is-underline { text-decoration: underline; }
+    .rich-editor-toolbar select { width: auto; padding-right: 1.5rem; -webkit-appearance: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill="%23666" height="14" viewBox="0 0 24 24" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>'); background-repeat: no-repeat; background-position: right 0.5rem center; outline: none; }
+    .rich-editor-toolbar input[type="color"] { padding: 0; width: 24px; height: 24px; border-radius: 50%; overflow: hidden; cursor: pointer; border: 1px solid var(--color-border); box-sizing: border-box; }
+    .rich-editor-toolbar input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    .rich-editor-toolbar input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
+    .rich-editor-toolbar button:hover, .rich-editor-toolbar select:hover { background: #e5e7eb; }
+    .rich-editor-toolbar button.active { background: #e5e7eb; font-weight: 600; }
+    .rich-editor-toolbar .sep { width: 1px; background: var(--color-border); height: 16px; margin: 0 0.2rem; }
+    .rich-editor-body { min-height: 300px; max-height: 600px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); padding: 1rem; font-size: 0.95rem; line-height: 1.6; background: #fff; }
     .rich-editor-body:focus { outline: 2px solid var(--color-primary); outline-offset: -1px; }
-    .rich-editor-body img { max-width: 100%; border-radius: 4px; }
+    .rich-editor-body img, .rich-editor-body video, .rich-editor-body iframe { max-width: 100%; border-radius: 4px; }
+    .rich-editor-body table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    .rich-editor-body table, .rich-editor-body th, .rich-editor-body td { border: 1px solid var(--color-border); padding: 0.5rem; }
 
     #admin-search-box { position: relative; margin: var(--space-3) var(--space-5); }
     #admin-search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--color-card-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); margin-top: 0.3rem; max-height: 360px; overflow-y: auto; display: none; z-index: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
@@ -136,19 +183,66 @@
 
     @media (max-width: 768px) {
       body { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; overflow-x: auto; padding: var(--space-2) 0; }
-      .sidebar-brand { padding: var(--space-2) var(--space-4); }
-      .sidebar-group { margin-top: 0; display: flex; align-items: center; }
-      .sidebar-group-label { display: none; }
-      .sidebar-link { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; }
-      .sidebar-link.active { border-left: none; border-bottom-color: var(--color-primary); }
-      .sidebar-footer { display: none; }
-      main { padding: var(--space-4); }
+      #sidebar-toggle { display: inline-flex !important; position: fixed !important; top: 12px !important; left: 12px !important; z-index: 1050 !important; background: var(--color-card-bg) !important; color: var(--color-text) !important; border: 1px solid var(--color-border) !important; }
+      body.sidebar-mobile-open #sidebar-toggle { left: calc(min(260px, 80vw) - 44px) !important; background: transparent !important; border-color: transparent !important; color: #9ca3af !important; }
+      body.sidebar-mobile-open #sidebar-toggle:hover { color: #fff !important; }
+      .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 260px; max-width: 80vw; z-index: 1000; transform: translateX(-100%); transition: transform 0.3s ease; box-shadow: 4px 0 15px rgba(0,0,0,0.1); }
+      body.sidebar-mobile-open .sidebar { transform: translateX(0); }
+      main { padding: var(--space-4); padding-top: 60px; }
+      #mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 900; opacity: 0; transition: opacity 0.3s; }
+      body.sidebar-mobile-open #mobile-overlay { display: block; opacity: 1; }
     }
+
+    #preview-modal { width: 95vw; height: 95vh; max-width: none; max-height: none; padding: 0; border: none; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); overflow: hidden; background: #fff; }
+    #preview-modal::backdrop { background: rgba(0,0,0,0.7); }
+    .preview-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; background: #f3f4f6; border-bottom: 1px solid #e5e7eb; }
+    .preview-modal-header h3 { margin: 0; font-size: 1rem; color: #374151; }
+    .preview-modal-close { background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; }
+    .preview-modal-close:hover { color: #ef4444; }
+    .preview-device-controls .btn { padding: 0.2rem; width: 28px; height: 28px; border: 1px solid transparent; background: transparent; }
+    .preview-device-controls .btn.active { background: #d1d5db; border-color: #9ca3af; }
+    .preview-device-controls .btn:hover:not(.active) { background: #e5e7eb; }
   </style>
+  <script>
+    window.setPreviewDevice = function(device, btn) {
+      const iframe = document.getElementById("preview-iframe");
+      const controls = document.querySelectorAll(".preview-device-controls button");
+      controls.forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+      
+      if (device === 'mobile') iframe.style.width = '375px';
+      else if (device === 'tablet') iframe.style.width = '768px';
+      else iframe.style.width = '100%';
+    };
+    window.openPreview = function(url) {
+      const modal = document.getElementById("preview-modal");
+      const iframe = document.getElementById("preview-iframe");
+      const controls = document.querySelectorAll(".preview-device-controls button");
+      if (controls.length > 0) window.setPreviewDevice('desktop', controls[0]);
+      iframe.src = url;
+      modal.showModal();
+    };
+    window.closePreview = function() {
+      const modal = document.getElementById("preview-modal");
+      const iframe = document.getElementById("preview-iframe");
+      modal.close();
+      iframe.src = "about:blank";
+    };
+    window.adminIcon = function (name) {
+      const paths = {
+        trash: '<path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 16h10l1-16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path>',
+        "external-link": '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>',
+        eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
+        lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>'
+      };
+      return '<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true">' + (paths[name] || "") + "</svg>";
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
-  <button type="button" id="sidebar-toggle" title="Ẩn/hiện menu">☰</button>
+  <div id="mobile-overlay"></div>
+  <button type="button" id="sidebar-toggle" title="Ẩn/hiện menu">{% render "components/icon", name: "menu" %}</button>
   <nav class="sidebar">
     <a class="sidebar-brand" href="/admin">{% if sidebarLogoUrl %}<img src="{{ sidebarLogoUrl }}" alt="">{% endif %}<span>{{ sidebarSiteName | default: "Quản trị" }}</span></a>
 
@@ -159,22 +253,22 @@
 
     <div class="sidebar-group">
       <div class="sidebar-group-label">Nội dung</div>
-      <a class="sidebar-link{% if currentPath contains "/admin/posts" %} active{% endif %}" href="/admin/posts">Bài viết</a>
-      <a class="sidebar-link{% if currentPath contains "/admin/taxonomies" or currentPath contains "/admin/post-categories" %} active{% endif %}" href="/admin/taxonomies">Phân loại</a>
-      <a class="sidebar-link{% if currentPath contains "/admin/pages" %} active{% endif %}" href="/admin/pages">Trang</a>
-      <a class="sidebar-link{% if currentPath contains "/admin/media" %} active{% endif %}" href="/admin/media">Media</a>
+      <a class="sidebar-link{% if currentPath contains "/admin/posts" %} active{% endif %}" href="/admin/posts">{% render "components/icon", name: "file-text" %}<span>Bài viết</span></a>
+      <a class="sidebar-link{% if currentPath contains "/admin/taxonomies" or currentPath contains "/admin/post-categories" %} active{% endif %}" href="/admin/taxonomies">{% render "components/icon", name: "folder" %}<span>Phân loại</span></a>
+      <a class="sidebar-link{% if currentPath contains "/admin/pages" %} active{% endif %}" href="/admin/pages">{% render "components/icon", name: "file" %}<span>Trang</span></a>
+      <a class="sidebar-link{% if currentPath contains "/admin/media" %} active{% endif %}" href="/admin/media">{% render "components/icon", name: "image" %}<span>Media</span></a>
     </div>
 
     {% if siteType != "blog" %}
       {% if role == "manager" or role == "admin" %}
         <div class="sidebar-group">
-          <a class="sidebar-link{% if currentPath contains "/admin/products" %} active{% endif %}" href="/admin/products">Sản phẩm</a>
-          <a class="sidebar-link{% if currentPath contains "/admin/product-categories" %} active{% endif %}" href="/admin/product-categories">Danh mục</a>
-          <a class="sidebar-link{% if currentPath contains "/admin/orders" %} active{% endif %}" href="/admin/orders">Đơn hàng</a>
-          <a class="sidebar-link{% if currentPath contains "/admin/reviews" %} active{% endif %}" href="/admin/reviews">Đánh giá</a>
-          {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/payment" %} active{% endif %}" href="/admin/settings/payment">Thanh toán</a>{% endif %}
-          {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/shipping" %} active{% endif %}" href="/admin/settings/shipping">Giao nhận</a>{% endif %}
-          {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/coupons" %} active{% endif %}" href="/admin/coupons">Mã giảm giá</a>{% endif %}
+          <a class="sidebar-link{% if currentPath contains "/admin/products" %} active{% endif %}" href="/admin/products">{% render "components/icon", name: "package" %}<span>Sản phẩm</span></a>
+          <a class="sidebar-link{% if currentPath contains "/admin/product-categories" %} active{% endif %}" href="/admin/product-categories">{% render "components/icon", name: "tags" %}<span>Danh mục</span></a>
+          <a class="sidebar-link{% if currentPath contains "/admin/orders" %} active{% endif %}" href="/admin/orders">{% render "components/icon", name: "receipt" %}<span>Đơn hàng</span></a>
+          <a class="sidebar-link{% if currentPath contains "/admin/reviews" %} active{% endif %}" href="/admin/reviews">{% render "components/icon", name: "star" %}<span>Đánh giá</span></a>
+          {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/payment" %} active{% endif %}" href="/admin/settings/payment">{% render "components/icon", name: "credit-card" %}<span>Thanh toán</span></a>{% endif %}
+          {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/shipping" %} active{% endif %}" href="/admin/settings/shipping">{% render "components/icon", name: "truck" %}<span>Giao nhận</span></a>{% endif %}
+          {% if role == "manager" or role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/coupons" %} active{% endif %}" href="/admin/coupons">{% render "components/icon", name: "ticket" %}<span>Mã giảm giá</span></a>{% endif %}
         </div>
       {% endif %}
     {% endif %}
@@ -182,15 +276,15 @@
     {% if role == "manager" or role == "admin" %}
       <div class="sidebar-group">
         <div class="sidebar-group-label">Hệ thống</div>
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/theme" %} active{% endif %}" href="/admin/settings/theme">Giao diện</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath == "/admin/plugins" %} active{% endif %}" href="/admin/plugins">Plugins</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">AI Agent</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">Người dùng</a>{% endif %}
-        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">Cài đặt</a>{% endif %}
-        <a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">Chuyển hướng</a>
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/theme" %} active{% endif %}" href="/admin/settings/theme">{% render "components/icon", name: "palette" %}<span>Giao diện</span></a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath == "/admin/plugins" %} active{% endif %}" href="/admin/plugins">{% render "components/icon", name: "plug" %}<span>Plugins</span></a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">{% render "components/icon", name: "bot" %}<span>AI Agent</span></a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">{% render "components/icon", name: "users" %}<span>Người dùng</span></a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">{% render "components/icon", name: "settings" %}<span>Cài đặt</span></a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">{% render "components/icon", name: "route" %}<span>Chuyển hướng</span></a>{% endif %}
         {% if role == "admin" and pluginAdminPages.size > 0 %}
           {% for pluginPage in pluginAdminPages %}
-            <a class="sidebar-link{% if currentPath == pluginPage.href %} active{% endif %}" href="{{ pluginPage.href }}">{{ pluginPage.title | escape }}</a>
+            <a class="sidebar-link{% if currentPath == pluginPage.href %} active{% endif %}" href="{{ pluginPage.href }}">{% render "components/icon", name: "plug" %}<span>{{ pluginPage.title | escape }}</span></a>
           {% endfor %}
         {% endif %}
       </div>
@@ -225,12 +319,20 @@
     <div id="media-picker-panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;">
         <strong id="media-picker-title">Chọn ảnh</strong>
-        <button type="button" class="btn" id="media-picker-close">Đóng</button>
+        <div>
+          <button type="button" class="btn btn-primary" id="media-picker-confirm" style="display:none;margin-right:0.5rem;">Xong (0)</button>
+          <button type="button" class="btn" id="media-picker-close">Đóng</button>
+        </div>
       </div>
-      <div style="margin-bottom:0.8rem;">
-        <input type="file" id="media-picker-file-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
-        <span id="media-picker-upload-status" style="font-size:0.8rem;color:#777;margin-left:0.5rem;"></span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:1rem;">
+        <input type="search" id="media-picker-search" placeholder="Tìm ảnh..." style="flex:1;">
+        <label class="btn btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.4rem;margin:0;white-space:nowrap;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Tải lên
+          <input type="file" id="media-picker-file-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple style="display:none;">
+        </label>
       </div>
+      <div id="media-picker-upload-status" style="font-size:0.8rem;color:#777;margin-bottom:0.8rem;"></div>
       <div id="media-picker-grid"></div>
       <div class="pagination" id="media-picker-pagination" style="margin-top:0.8rem;"></div>
     </div>
@@ -244,10 +346,16 @@
     const fileInput = document.getElementById("media-picker-file-input");
     const status = document.getElementById("media-picker-upload-status");
     const closeBtn = document.getElementById("media-picker-close");
+    const confirmBtn = document.getElementById("media-picker-confirm");
     const titleEl = document.getElementById("media-picker-title");
+
+    const searchInput = document.getElementById("media-picker-search");
 
     let currentPage = 1;
     let onSelectCallback = null;
+    let isMultiple = false;
+    let selectedMedia = [];
+    let searchTimer;
 
     function escapeHtml(str) {
       const div = document.createElement("div");
@@ -257,31 +365,46 @@
 
     async function loadGrid() {
       grid.innerHTML = '<p style="color:#999;grid-column:1/-1;">Đang tải...</p>';
-      const res = await fetch("/admin/api/media?page=" + currentPage);
+      const params = new URLSearchParams({ page: String(currentPage) });
+      if (searchInput.value) params.set("q", searchInput.value.trim());
+
+      const res = await fetch("/admin/api/media?" + params.toString());
       if (!res.ok) {
         grid.innerHTML = '<p style="color:#c00;grid-column:1/-1;">Tải thất bại</p>';
         return;
       }
-      const { media, hasNext, hasPrev } = await res.json();
-      grid.innerHTML = media.length
-        ? media.map((m) =>
-            '<div class="media-picker-item" data-url="' + m.url + '" data-alt="' + escapeHtml(m.alt || "") + '">' +
-            '<img src="' + m.url + '" alt="' + escapeHtml(m.alt || m.filename) + '">' +
-            "</div>"
-          ).join("")
-        : '<p style="color:#999;grid-column:1/-1;">Chưa có file nào — tải ảnh lên ở trên.</p>';
+      const { media, totalPages } = await res.json();
+      const gridEl = document.getElementById("media-picker-grid");
+      const paginationEl = document.getElementById("media-picker-pagination");
 
-      pagination.innerHTML =
-        (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trước</a>' : "<span></span>") +
-        "<span>Trang " + currentPage + "</span>" +
-        (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Sau →</a>' : "<span></span>");
+      gridEl.innerHTML = media.map(m => {
+        const isSel = selectedMedia.some(s => s.url === m.url);
+        const selStyle = isSel ? 'border:3px solid var(--color-primary);opacity:0.7;' : '';
+        return '<div class="media-picker-item" data-url="' + m.url + '" data-alt="' + escapeHtml(m.alt || "") + '" style="' + selStyle + '">' +
+               '<img src="' + m.url + '" alt="' + escapeHtml(m.alt || m.filename) + '"></div>';
+      }).join("");
+
+      if (media.length === 0) {
+        gridEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#666;">Chưa có tệp nào.</div>';
+      }
+
+      window.renderPagination(paginationEl, mediaPickerPage, totalPages);
     }
+
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { currentPage = 1; loadGrid(); }, 300);
+    });
 
     function close() {
       overlay.style.display = "none";
       onSelectCallback = null;
       fileInput.value = "";
       status.textContent = "";
+      isMultiple = false;
+      selectedMedia = [];
+      confirmBtn.style.display = "none";
+      confirmBtn.textContent = "Xong (0)";
     }
 
     function select(media) {
@@ -292,6 +415,13 @@
     closeBtn.addEventListener("click", close);
     overlay.addEventListener("click", (event) => {
       if (event.target === overlay) close();
+    });
+
+    confirmBtn.addEventListener("click", () => {
+      if (onSelectCallback) {
+        selectedMedia.forEach(m => onSelectCallback(m.url, m));
+      }
+      close();
     });
 
     pagination.addEventListener("click", (event) => {
@@ -305,7 +435,23 @@
     grid.addEventListener("click", (event) => {
       const item = event.target.closest("[data-url]");
       if (!item) return;
-      select({ url: item.dataset.url, alt: item.dataset.alt || "" });
+      const mediaObj = { url: item.dataset.url, alt: item.dataset.alt || "" };
+      
+      if (isMultiple) {
+        const index = selectedMedia.findIndex(m => m.url === mediaObj.url);
+        if (index > -1) {
+          selectedMedia.splice(index, 1);
+          item.style.border = "";
+          item.style.opacity = "";
+        } else {
+          selectedMedia.push(mediaObj);
+          item.style.border = "3px solid var(--color-primary)";
+          item.style.opacity = "0.7";
+        }
+        confirmBtn.textContent = "Xong (" + selectedMedia.length + ")";
+      } else {
+        select(mediaObj);
+      }
     });
 
     fileInput.addEventListener("change", async () => {
@@ -334,13 +480,50 @@
       if (!failed.length) close();
     });
 
-    // API dung chung cho post-edit/page-edit/product-edit: openMediaPicker({ title, onSelect(url, media) })
-    // - media la row Media day du (co alt) khi chon anh co san, hoac vua tao khi upload moi.
+    document.addEventListener('click', (e) => {
+      const box = e.target.closest('.image-picker-box');
+      if (box) {
+        const removeBtn = e.target.closest('.image-picker-remove');
+        const input = box.querySelector('input');
+        const img = box.querySelector('.image-picker-preview');
+        const empty = box.querySelector('.image-picker-empty');
+        const btn = box.querySelector('.image-picker-remove');
+
+        if (removeBtn) {
+          e.stopPropagation();
+          input.value = '';
+          img.src = '';
+          img.style.display = 'none';
+          empty.style.display = 'block';
+          btn.style.display = 'none';
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          return;
+        }
+
+        window.openMediaPicker({
+          title: 'Chọn ảnh',
+          onSelect: (url) => {
+            input.value = url;
+            img.src = url;
+            img.style.display = 'block';
+            empty.style.display = 'none';
+            btn.style.display = 'flex';
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+      }
+    });
+
     window.openMediaPicker = function (options) {
       options = options || {};
       onSelectCallback = options.onSelect || null;
       titleEl.textContent = options.title || "Chọn ảnh";
+      isMultiple = options.multiple || false;
+      selectedMedia = [];
+      confirmBtn.style.display = isMultiple ? "inline-block" : "none";
+      confirmBtn.textContent = "Xong (0)";
       currentPage = 1;
+      searchInput.value = "";
       overlay.style.display = "flex";
       loadGrid();
     };
@@ -364,15 +547,36 @@
     body.innerHTML = textarea.value;
 
     function sync() {
-      textarea.value = body.innerHTML;
+      if (textarea.style.display !== "none") {
+        body.innerHTML = textarea.value; // reverse sync if in source mode
+      } else {
+        textarea.value = body.innerHTML;
+      }
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
-    function addButton(label, title, action) {
+    function editorIcon(name) {
+      const paths = {
+        sparkles: '<path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"></path><path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z"></path><path d="M5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8z"></path>',
+        list: '<path d="M8 6h13M8 12h13M8 18h13"></path><path d="M3 6h.01M3 12h.01M3 18h.01"></path>',
+        "list-ordered": '<path d="M10 6h11M10 12h11M10 18h11"></path><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M4 14h2l-2 4h2"></path>',
+        link: '<path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1"></path>',
+        image: '<rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10" r="1.5"></circle><path d="M21 15l-4-4-9 8"></path>',
+        video: '<rect x="3" y="5" width="14" height="14" rx="2"></rect><path d="M17 10l4-2v8l-4-2z"></path>',
+        table: '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18M3 16h18M9 4v16M15 4v16"></path>',
+        code: '<path d="M8 17l-5-5 5-5"></path><path d="M16 7l5 5-5 5"></path><path d="M14 4l-4 16"></path>',
+        fullscreen: '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>',
+        minimize: '<path d="M8 3v3h-3m18 0h-3V3m0 18v-3h3M3 16h3v3"></path>',
+      };
+      return '<svg class="editor-icon" viewBox="0 0 24 24" aria-hidden="true">' + (paths[name] || paths.code) + "</svg>";
+    }
+
+    function addButton(html, title, action) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent = label;
+      btn.innerHTML = html;
       btn.title = title;
+      btn.setAttribute("aria-label", title);
       btn.addEventListener("click", () => {
         body.focus();
         action();
@@ -383,35 +587,95 @@
     }
 
     function addSep() {
-      const sep = document.createElement("span");
+      const sep = document.createElement("div");
       sep.className = "sep";
       toolbar.appendChild(sep);
     }
 
-    addButton("B", "In đậm", () => document.execCommand("bold"));
-    addButton("I", "In nghiêng", () => document.execCommand("italic"));
-    addButton("U", "Gạch chân", () => document.execCommand("underline"));
+    // AI Rewrite
+    addButton(editorIcon("sparkles"), "AI viết lại", () => {
+      const globalBtn = document.getElementById("ai-rewrite-btn");
+      if (globalBtn) globalBtn.click();
+      else alert("Tính năng AI không khả dụng ở đây.");
+    });
+
     addSep();
-    addButton("H2", "Tiêu đề lớn", () => document.execCommand("formatBlock", false, "h2"));
-    addButton("H3", "Tiêu đề nhỏ", () => document.execCommand("formatBlock", false, "h3"));
-    addButton("¶", "Đoạn văn thường", () => document.execCommand("formatBlock", false, "p"));
+
+    // Format Block
+    const formatSelect = document.createElement("select");
+    formatSelect.innerHTML = `
+      <option value="p">Paragraph</option>
+      <option value="h1">Heading 1</option>
+      <option value="h2">Heading 2</option>
+      <option value="h3">Heading 3</option>
+      <option value="blockquote">Quote</option>
+    `;
+    formatSelect.addEventListener("change", () => {
+      body.focus();
+      document.execCommand("formatBlock", false, formatSelect.value);
+      sync();
+      formatSelect.value = "p"; // reset UI
+    });
+    toolbar.appendChild(formatSelect);
+
     addSep();
-    addButton("•", "Danh sách gạch đầu dòng", () => document.execCommand("insertUnorderedList"));
-    addButton("1.", "Danh sách đánh số", () => document.execCommand("insertOrderedList"));
-    addButton("❝❞", "Trích dẫn", () => document.execCommand("formatBlock", false, "blockquote"));
+
+    addButton('<span class="editor-text-tool">B</span>', "In đậm", () => document.execCommand("bold"));
+    addButton('<span class="editor-text-tool is-italic">I</span>', "In nghiêng", () => document.execCommand("italic"));
+    addButton('<span class="editor-text-tool is-underline">U</span>', "Gạch chân", () => document.execCommand("underline"));
+    
+    // Text Color
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.title = "Màu chữ";
+    colorInput.value = "#0f172a";
+    colorInput.addEventListener("input", () => {
+      body.focus();
+      document.execCommand("foreColor", false, colorInput.value);
+      sync();
+    });
+    toolbar.appendChild(colorInput);
+
     addSep();
-    addButton("Link", "Chèn liên kết", () => {
+
+    // Alignment
+    const alignSelect = document.createElement("select");
+    alignSelect.innerHTML = `
+      <option value="">≡ Căn lề</option>
+      <option value="justifyLeft">Trái</option>
+      <option value="justifyCenter">Giữa</option>
+      <option value="justifyRight">Phải</option>
+      <option value="justifyFull">Đều</option>
+    `;
+    alignSelect.addEventListener("change", () => {
+      body.focus();
+      if (alignSelect.value) {
+        document.execCommand(alignSelect.value);
+        sync();
+      }
+      alignSelect.value = "";
+    });
+    toolbar.appendChild(alignSelect);
+
+    addSep();
+
+    // Lists
+    addButton(editorIcon("list"), "Danh sách gạch đầu dòng", () => document.execCommand("insertUnorderedList"));
+    addButton(editorIcon("list-ordered"), "Danh sách đánh số", () => document.execCommand("insertOrderedList"));
+
+    addSep();
+
+    // Media
+    addButton(editorIcon("link"), "Chèn liên kết", () => {
       const url = prompt("Nhập URL liên kết:");
       if (url) document.execCommand("createLink", false, url);
     });
-    addButton("Ảnh", "Chèn ảnh vào nội dung", () => {
+    addButton(editorIcon("image"), "Chèn ảnh", () => {
       openMediaPicker({
         title: "Chèn ảnh vào nội dung",
         onSelect: (url, media) => {
           body.focus();
           document.execCommand("insertImage", false, url);
-          // execCommand khong co cach truyen alt truc tiep - tim lai ĐÚNG the <img> vua chen (theo
-          // src) roi gan alt thu cong ngay sau do.
           if (media && media.alt) {
             const inserted = [...body.querySelectorAll('img[src="' + url + '"]')].pop();
             if (inserted) {
@@ -423,12 +687,139 @@
         },
       });
     });
+    addButton(editorIcon("video"), "Chèn Video", () => {
+      const url = prompt("Nhập URL video (YouTube, Vimeo, MP4...):");
+      if (!url) return;
+      body.focus();
+      let embedHtml = "";
+      if (url.includes("youtube.com") || url.includes("youtu.be")) {
+        const vid = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+        embedHtml = '<iframe width="560" height="315" src="https://www.youtube.com/embed/' + vid + '" frameborder="0" allowfullscreen></iframe><br/>';
+      } else if (url.endsWith(".mp4")) {
+        embedHtml = '<video controls src="' + url + '" style="max-width:100%;"></video><br/>';
+      } else {
+        embedHtml = '<iframe src="' + url + '" frameborder="0" allowfullscreen></iframe><br/>';
+      }
+      document.execCommand("insertHTML", false, embedHtml);
+    });
+    
+    // Table
+    addButton(editorIcon("table"), "Chèn Bảng", () => {
+      body.focus();
+      const tableHtml = '<table style="width:100%; border-collapse: collapse;"><tbody><tr><td style="border:1px solid #ccc; padding:8px;"><br></td><td style="border:1px solid #ccc; padding:8px;"><br></td></tr><tr><td style="border:1px solid #ccc; padding:8px;"><br></td><td style="border:1px solid #ccc; padding:8px;"><br></td></tr></tbody></table><br/>';
+      document.execCommand("insertHTML", false, tableHtml);
+    });
+
+    addSep();
+
+    // More formatting
+    addButton('<span class="editor-text-tool" style="text-decoration:line-through;">S</span>', "Gạch ngang", () => document.execCommand("strikeThrough"));
+    addButton('<span class="editor-text-tool" style="font-size:0.9rem;">T<sub>x</sub></span>', "Xoá định dạng", () => document.execCommand("removeFormat"));
+
+    addSep();
+
+    function formatHTML(html) {
+      let formatted = '';
+      let indent = 0;
+      html = html.replace(/>\s*</g, '>\n<');
+      const lines = html.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
+        if (line.match(/^<\//)) indent = Math.max(0, indent - 1);
+        formatted += "  ".repeat(indent) + line + "\n";
+        if (line.match(/^<[^\/!]/) && !line.match(/<\/[^>]+>$/) && !line.match(/\/>$/)) {
+          const tagName = line.match(/^<([a-zA-Z0-9]+)/);
+          if (tagName && !["br", "hr", "img", "input", "meta", "link", "col", "source"].includes(tagName[1].toLowerCase())) {
+            indent++;
+          }
+        }
+      }
+      return formatted.trim();
+    }
+
+    // Source Code Mode
+    let sourceMode = false;
+    const sourceBtn = addButton(editorIcon("code"), "Xem mã nguồn HTML", () => {
+      sourceMode = !sourceMode;
+      if (sourceMode) {
+        // Switch to textarea
+        sync();
+        textarea.value = formatHTML(textarea.value);
+        body.style.display = "none";
+        textarea.style.display = "block";
+        textarea.style.minHeight = "300px";
+        sourceBtn.classList.add("active");
+        [...toolbar.children].forEach(c => { if (c !== sourceBtn) c.disabled = true; });
+      } else {
+        // Switch to visual
+        body.innerHTML = textarea.value;
+        textarea.style.display = "none";
+        body.style.display = "block";
+        sourceBtn.classList.remove("active");
+        [...toolbar.children].forEach(c => { c.disabled = false; });
+      }
+    });
+
+    // Fullscreen Mode
+    let isFullscreen = false;
+    const fsBtn = addButton(editorIcon("fullscreen"), "Toàn màn hình", () => {
+      isFullscreen = !isFullscreen;
+      if (isFullscreen) {
+        wrapper.style.position = "fixed";
+        wrapper.style.top = "0";
+        wrapper.style.left = "0";
+        wrapper.style.width = "100vw";
+        wrapper.style.height = "100vh";
+        wrapper.style.zIndex = "9999";
+        wrapper.style.background = "var(--color-bg)";
+        wrapper.style.padding = "2rem";
+        
+        body.style.flex = "1";
+        body.style.overflowY = "auto";
+        body.style.background = "#fff";
+        body.style.maxHeight = "none";
+        textarea.style.flex = "1";
+        textarea.style.maxHeight = "none";
+        
+        fsBtn.innerHTML = editorIcon("minimize");
+        fsBtn.title = "Thu nhỏ";
+        document.body.style.overflow = "hidden";
+      } else {
+        wrapper.style.position = "relative";
+        wrapper.style.width = "auto";
+        wrapper.style.height = "auto";
+        wrapper.style.zIndex = "auto";
+        wrapper.style.padding = "0";
+        wrapper.style.background = "transparent";
+        
+        body.style.flex = "none";
+        body.style.overflowY = "auto"; // keep it auto for scroll
+        body.style.background = "transparent";
+        body.style.maxHeight = ""; // reset to CSS default
+        textarea.style.flex = "none";
+        textarea.style.maxHeight = "";
+        
+        fsBtn.innerHTML = editorIcon("fullscreen");
+        fsBtn.title = "Toàn màn hình";
+        document.body.style.overflow = "";
+      }
+    });
+    fsBtn.style.marginLeft = "auto";
 
     body.addEventListener("input", sync);
+    textarea.addEventListener("input", sync);
 
     textarea.style.display = "none";
-    textarea.parentNode.insertBefore(toolbar, textarea);
-    textarea.parentNode.insertBefore(body, textarea);
+    const wrapper = document.createElement("div");
+    wrapper.className = "rich-editor-wrapper";
+    wrapper.style.position = "relative";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    textarea.parentNode.insertBefore(wrapper, textarea);
+    wrapper.appendChild(toolbar);
+    wrapper.appendChild(body);
+    wrapper.appendChild(textarea);
   };
   </script>
 
@@ -455,7 +846,7 @@
       row.innerHTML =
         '<input type="text" class="cf-key" placeholder="Tên trường" style="flex:1;">' +
         '<input type="text" class="cf-value" placeholder="Giá trị" style="flex:1;">' +
-        '<button type="button" class="btn btn-danger" data-remove>×</button>';
+        '<button type="button" class="btn btn-danger btn-icon" data-remove title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>';
       row.querySelector(".cf-key").value = key || "";
       row.querySelector(".cf-value").value = value || "";
       rowsEl.appendChild(row);
@@ -523,13 +914,16 @@
       document.body.classList.add("sidebar-collapsed");
     }
     document.getElementById("sidebar-toggle").addEventListener("click", () => {
-      // "sidebar-collapsed-init" (chan FOUC luc vua tai trang, dung !important) phai go het ngay
-      // lan bam dau tien - neu khong, rule !important cua no de len ket qua toggle ben duoi, khien
-      // sidebar khong bao gio mo lai duoc khi trang tai san o trang thai dang dong.
-      document.documentElement.classList.remove("sidebar-collapsed-init");
-      const collapsed = document.body.classList.toggle("sidebar-collapsed");
-      localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+      if (window.innerWidth <= 768) {
+        document.body.classList.toggle("sidebar-mobile-open");
+      } else {
+        document.documentElement.classList.remove("sidebar-collapsed-init");
+        const collapsed = document.body.classList.toggle("sidebar-collapsed");
+        localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+      }
     });
+    const overlay = document.getElementById("mobile-overlay");
+    if (overlay) overlay.addEventListener("click", () => document.body.classList.remove("sidebar-mobile-open"));
   })();
   </script>
 
@@ -585,20 +979,122 @@
       results.style.display = "block";
     }
 
-    input.addEventListener("input", () => {
-      clearTimeout(searchTimer);
-      const q = input.value.trim();
-      if (!q) {
-        results.style.display = "none";
-        return;
-      }
-      searchTimer = setTimeout(() => search(q), 300);
-    });
+    if (input) {
+      input.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        const q = input.value.trim();
+        if (!q) {
+          results.style.display = "none";
+          return;
+        }
+        searchTimer = setTimeout(() => search(q), 300);
+      });
+    }
 
     document.addEventListener("click", (event) => {
       if (!event.target.closest("#admin-search-box")) results.style.display = "none";
     });
   })();
+
+  window.generateSlug = function (str) {
+    str = str.toLowerCase();
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/[^a-z0-9\s-]/g, "");
+    str = str.replace(/\s+/g, "-");
+    str = str.replace(/-+/g, "-");
+    return str.replace(/^-+|-+$/g, "");
+  };
+
+  document.addEventListener("DOMContentLoaded", function() {
+    const sourceInput = document.getElementById("title") || document.getElementById("name");
+    const targetSlug = document.getElementById("slug");
+    const displaySlug = document.getElementById("slug-display");
+    const slugBtn = document.getElementById("slug-edit-btn");
+    
+    // Only auto-generate if it's a new item (slug is currently empty)
+    if (sourceInput && targetSlug) {
+      let autoGenerateSlug = !targetSlug.value;
+      
+      // Stop auto-generating if user manually edits the slug or clicks edit
+      if (slugBtn) {
+        slugBtn.addEventListener("click", () => { autoGenerateSlug = false; });
+      }
+      targetSlug.addEventListener("input", () => { autoGenerateSlug = false; });
+
+      sourceInput.addEventListener("input", function() {
+        if (autoGenerateSlug) {
+          const newSlug = window.generateSlug(this.value);
+          targetSlug.value = newSlug;
+          if (displaySlug) {
+            displaySlug.textContent = newSlug;
+          }
+        }
+      });
+    }
+  });
+
+  // Add global Ctrl+S shortcut for forms
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      const submitBtn = document.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        e.preventDefault();
+        submitBtn.click();
+      }
+    }
+  });
+
+  // Warn on unsaved changes
+  document.addEventListener("DOMContentLoaded", function() {
+    let isDirty = false;
+    const form = document.querySelector('form.edit-layout') || document.querySelector('form');
+    if (form) {
+      form.addEventListener('input', () => { isDirty = true; });
+      form.addEventListener('change', () => { isDirty = true; });
+      
+      const flashEl = document.getElementById('flash');
+      if (flashEl) {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class' && flashEl.classList.contains('success')) {
+              isDirty = false;
+            }
+          });
+        });
+        observer.observe(flashEl, { attributes: true });
+      }
+      
+      window.addEventListener('beforeunload', function(e) {
+        if (isDirty) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+    }
+  });
   </script>
+
+  <dialog id="preview-modal">
+    <div class="preview-modal-header">
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <h3 style="margin:0;">Xem trước</h3>
+        <div class="preview-device-controls" style="display:flex;gap:0.2rem;">
+          <button type="button" class="btn btn-icon active" onclick="window.setPreviewDevice('desktop', this)" title="Desktop"><svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></button>
+          <button type="button" class="btn btn-icon" onclick="window.setPreviewDevice('tablet', this)" title="Tablet"><svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></button>
+          <button type="button" class="btn btn-icon" onclick="window.setPreviewDevice('mobile', this)" title="Mobile"><svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></button>
+        </div>
+      </div>
+      <button class="preview-modal-close" onclick="closePreview()">&times;</button>
+    </div>
+    <div id="preview-wrapper" style="width:100%;height:calc(100% - 43px);background:#e5e7eb;display:flex;justify-content:center;">
+      <iframe id="preview-iframe" src="about:blank" style="width:100%;height:100%;border:none;background:#fff;transition:width 0.3s ease;box-shadow:0 0 15px rgba(0,0,0,0.1);"></iframe>
+    </div>
+  </dialog>
 </body>
 </html>

@@ -27,7 +27,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         prisma.cartOrder.count({ where }),
       ]);
 
-      return { orders, total, page, hasNext: skip + orders.length < total, hasPrev: page > 1 };
+      return { orders, total, page, totalPages: Math.ceil(total / PAGE_SIZE), hasNext: skip + orders.length < total, hasPrev: page > 1 };
     },
   );
 

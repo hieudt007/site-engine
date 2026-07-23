@@ -32,6 +32,10 @@ export async function renderAdmin(template: string, data: Record<string, unknown
     sidebarLogoUrl: siteConfig?.logoUrl ?? null,
     sidebarSiteName: siteConfig?.siteName ?? "Quản trị",
     siteType: siteConfig?.siteType ?? "ecommerce",
+    siteDomain: siteConfig?.domain ?? "domain.com",
+    postSlugPrefix: siteConfig?.postSlugPrefix ?? "blog",
+    pageSlugPrefix: siteConfig?.pageSlugPrefix ?? "page",
+    productSlugPrefix: siteConfig?.productSlugPrefix ?? "product",
     pluginAdminPages,
     ...data,
   });

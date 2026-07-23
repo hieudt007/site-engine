@@ -70,16 +70,15 @@
     if (currentStatus) params.set("status", currentStatus);
 
     const res = await fetch("/admin/api/orders?" + params.toString());
-    const { orders, hasNext, hasPrev } = await res.json();
+    const { orders, totalPages } = await res.json();
+    if (orders.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Không có đơn hàng nào.</td></tr>';
+      pagination.innerHTML = "";
+      return;
+    }
 
-    tbody.innerHTML = orders.length
-      ? orders.map(rowHtml).join("")
-      : '<tr><td colspan="6" class="empty-state">Không có đơn hàng nào.</td></tr>';
-
-    pagination.innerHTML =
-      (hasPrev ? '<a href="#" data-page="' + (currentPage - 1) + '">← Trang trước</a>' : "<span></span>") +
-      "<span>Trang " + currentPage + "</span>" +
-      (hasNext ? '<a href="#" data-page="' + (currentPage + 1) + '">Trang sau →</a>' : "<span></span>");
+    tbody.innerHTML = orders.map(rowHtml).join("");
+    window.renderPagination(pagination, currentPage, totalPages);
   }
 
   tabs.addEventListener("click", (event) => {

@@ -6,7 +6,7 @@
   <h1>Bài viết được bảo vệ</h1>
   <p>Nhập mật khẩu để xem "{{ pageTitle | escape }}".</p>
 
-  <form id="unlock-form">
+  <form id="unlock-form" data-slug="{{ slug }}">
     <input type="password" id="password" name="password" placeholder="Mật khẩu" required>
     <button type="submit">Xem bài viết</button>
     <div id="unlock-error" class="hidden"></div>

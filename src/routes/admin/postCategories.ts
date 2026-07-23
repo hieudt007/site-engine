@@ -14,6 +14,7 @@ const seoSchema = z
     noindex: z.boolean().optional(),
     keyword: z.string().optional(),
     score: z.number().optional(),
+    internalLinks: z.number().optional(),
   })
   .optional();
 
