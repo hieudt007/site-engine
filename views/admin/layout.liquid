@@ -617,6 +617,30 @@
     body.innerHTML = textarea.value;
 
     let selectedImage = null;
+    let linkBtn, imageBtn;
+
+    function updateToolbarState() {
+      const sel = window.getSelection();
+      let isLink = false;
+      if (sel.rangeCount > 0) {
+        let node = sel.anchorNode;
+        while (node && node !== body) {
+          if (node.nodeType === 1 && node.tagName === "A") {
+            isLink = true;
+            break;
+          }
+          node = node.parentNode;
+        }
+      }
+      if (linkBtn) {
+        if (isLink) linkBtn.classList.add("active");
+        else linkBtn.classList.remove("active");
+      }
+      if (imageBtn) {
+        if (selectedImage) imageBtn.classList.add("active");
+        else imageBtn.classList.remove("active");
+      }
+    }
 
     body.addEventListener("click", function(e) {
       if (e.target.tagName === "IMG") {
@@ -629,7 +653,10 @@
       } else {
         selectedImage = null;
       }
+      updateToolbarState();
     });
+
+    body.addEventListener("keyup", updateToolbarState);
 
     window.addEventListener('mediaAltUpdated', (e) => {
       const { url, alt } = e.detail;
@@ -761,11 +788,21 @@
     addSep();
 
     // Media
-    addButton(editorIcon("link"), "Chèn liên kết", () => {
+    linkBtn = addButton(editorIcon("link"), "Chèn liên kết", () => {
+      if (linkBtn.classList.contains("active")) {
+        document.execCommand("unlink", false, null);
+        updateToolbarState();
+        sync();
+        return;
+      }
       const url = prompt("Nhập URL liên kết:");
-      if (url) document.execCommand("createLink", false, url);
+      if (url) {
+        document.execCommand("createLink", false, url);
+        updateToolbarState();
+        sync();
+      }
     });
-    addButton(editorIcon("image"), "Chèn ảnh", () => {
+    imageBtn = addButton(editorIcon("image"), "Chèn ảnh", () => {
       let query = "";
       if (selectedImage && selectedImage.src) {
         query = selectedImage.src.split('/').pop() || "";
@@ -791,6 +828,7 @@
             }
           }
           selectedImage = null;
+          updateToolbarState();
           sync();
         },
       });
