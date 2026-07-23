@@ -417,8 +417,11 @@
       gridEl.innerHTML = media.map(m => {
         const isSel = selectedMedia.some(s => s.url === m.url);
         const selStyle = isSel ? 'border:3px solid var(--color-primary);opacity:0.7;' : '';
-        return '<div class="media-picker-item" data-url="' + m.url + '" data-alt="' + escapeHtml(m.alt || "") + '" style="' + selStyle + '">' +
-               '<img src="' + m.url + '" alt="' + escapeHtml(m.alt || m.filename) + '"></div>';
+        return '<div class="media-picker-item" data-id="' + m.id + '" data-url="' + m.url + '" data-alt="' + escapeHtml(m.alt || "") + '" style="' + selStyle + ' position: relative;">' +
+               '<img src="' + m.url + '" alt="' + escapeHtml(m.alt || m.filename) + '">' +
+               '<button type="button" class="btn btn-icon edit-alt-btn" style="position:absolute; top:4px; right:4px; background:rgba(255,255,255,0.9); padding:0.2rem; width:24px; height:24px;" title="Sửa thẻ Alt ảnh này">' +
+               '<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="width:14px;height:14px;"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>' +
+               '</button></div>';
       }).join("");
 
       if (media.length === 0) {
@@ -469,7 +472,29 @@
       loadGrid();
     });
 
-    grid.addEventListener("click", (event) => {
+    grid.addEventListener("click", async (event) => {
+      const editBtn = event.target.closest(".edit-alt-btn");
+      if (editBtn) {
+        event.stopPropagation();
+        const item = editBtn.closest(".media-picker-item");
+        const currentAlt = item.dataset.alt || "";
+        const newAlt = prompt("Nhập thẻ Alt cho ảnh này:", currentAlt);
+        if (newAlt !== null && newAlt !== currentAlt) {
+          const res = await fetch("/admin/api/media/" + item.dataset.id, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ alt: newAlt })
+          });
+          if (res.ok) {
+            item.dataset.alt = newAlt;
+            alert("Đã lưu thẻ Alt!");
+          } else {
+            alert("Lỗi khi lưu thẻ Alt");
+          }
+        }
+        return;
+      }
+
       const item = event.target.closest("[data-url]");
       if (!item) return;
       const mediaObj = { url: item.dataset.url, alt: item.dataset.alt || "" };
