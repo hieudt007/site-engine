@@ -1038,7 +1038,7 @@
       if (confirm("Bạn có chắc chắn muốn đăng xuất?")) {
         try {
           const res = await fetch("/admin/logout", { method: "POST" });
-          if (res.ok) window.location.href = "/admin/login";
+          if (res.ok) window.location.href = "/";
           else alert("Lỗi khi đăng xuất");
         } catch (e) {
           alert("Lỗi kết nối");
