@@ -488,6 +488,10 @@
     faqRows.appendChild(row);
   }
 
+  document.addEventListener("ai-fill-faq", (e) => {
+    appendFaqRow(e.detail.question, e.detail.answer);
+  });
+
   faqAddBtn.addEventListener("click", () => {
     const q = newFaqQ.value.trim();
     const a = newFaqA.value.trim();

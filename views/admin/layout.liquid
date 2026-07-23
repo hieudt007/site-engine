@@ -814,6 +814,8 @@
       <option value="h1">Heading 1</option>
       <option value="h2">Heading 2</option>
       <option value="h3">Heading 3</option>
+      <option value="h4">Heading 4</option>
+      <option value="h5">Heading 5</option>
       <option value="blockquote">Quote</option>
     `;
     formatSelect.addEventListener("change", () => {
@@ -1454,5 +1456,161 @@
       <iframe id="preview-iframe" src="about:blank" style="width:100%;height:100%;border:none;background:#fff;transition:width 0.3s ease;box-shadow:0 0 15px rgba(0,0,0,0.1);"></iframe>
     </div>
   </dialog>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const keywordInput = document.getElementById('keyword');
+    if (!keywordInput) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'keyword-tags-wrapper';
+    wrapper.style.cssText = 'display:flex; flex-wrap:wrap; gap:0.4rem; padding:0.4rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:#fff; align-items:center; min-height:42px; cursor:text;';
+    
+    keywordInput.parentNode.insertBefore(wrapper, keywordInput.nextSibling);
+    keywordInput.style.display = 'none';
+
+    const tagsContainer = document.createElement('div');
+    tagsContainer.style.cssText = 'display:flex; flex-wrap:wrap; gap:0.4rem;';
+    wrapper.appendChild(tagsContainer);
+
+    const inputField = document.createElement('input');
+    inputField.type = 'text';
+    inputField.placeholder = keywordInput.placeholder || 'Thêm keyword...';
+    inputField.style.cssText = 'border:none; outline:none; flex:1; min-width:120px; font-size:0.9rem; padding:0; background:transparent;';
+    wrapper.appendChild(inputField);
+
+    wrapper.addEventListener('click', () => inputField.focus());
+
+    function getKeywordCount(kw) {
+      if (!kw) return 0;
+      const bodyText = document.getElementById('body-body') ? document.getElementById('body-body').innerText : (document.getElementById('body') ? document.getElementById('body').value : '');
+      if (!bodyText) return 0;
+      
+      const regex = new RegExp(kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+      const matches = bodyText.match(regex);
+      return matches ? matches.length : 0;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function renderTags() {
+      tagsContainer.innerHTML = '';
+      const val = keywordInput.value.trim();
+      if (!val) return;
+      const tags = val.split(',').map(t => t.trim()).filter(t => t);
+      
+      tags.forEach((tag, idx) => {
+        const count = getKeywordCount(tag);
+        const color = count > 0 ? '#10b981' : '#6b7280';
+        const bgColor = count > 0 ? '#ecfdf5' : '#f3f4f6';
+        const borderColor = count > 0 ? '#10b981' : '#e5e7eb';
+        
+        const tagEl = document.createElement('span');
+        tagEl.style.cssText = `display:inline-flex; align-items:center; gap:0.3rem; background:${bgColor}; padding:0.2rem 0.4rem; border-radius:4px; font-size:0.85rem; border:1px solid ${borderColor}; color:#1f2937;`;
+        
+        tagEl.innerHTML = `
+          <span>${escapeHtml(tag)}</span>
+          <span style="background:${color}; color:#fff; border-radius:10px; padding:0 0.4rem; min-width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:600;" title="Số lần xuất hiện trong bài">${count}</span>
+          <button type="button" class="keyword-remove-btn" style="border:none; background:transparent; color:#9ca3af; cursor:pointer; font-size:1.1rem; line-height:1; padding:0 0.1rem;" data-idx="${idx}">&times;</button>
+        `;
+        
+        tagsContainer.appendChild(tagEl);
+      });
+    }
+
+    tagsContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('.keyword-remove-btn');
+      if (btn) {
+        const idx = parseInt(btn.getAttribute('data-idx'));
+        let tags = keywordInput.value.split(',').map(t => t.trim()).filter(t => t);
+        tags.splice(idx, 1);
+        keywordInput.value = tags.join(', ');
+        renderTags();
+      }
+    });
+
+    function addTag(val) {
+      val = val.trim();
+      if (!val) return;
+      // split by comma in case user pastes comma separated list
+      const newTags = val.split(',').map(t => t.trim()).filter(t => t);
+      let tags = keywordInput.value.split(',').map(t => t.trim()).filter(t => t);
+      let changed = false;
+      
+      newTags.forEach(t => {
+        if (!tags.includes(t)) {
+          tags.push(t);
+          changed = true;
+        }
+      });
+      
+      if (changed) {
+        keywordInput.value = tags.join(', ');
+        renderTags();
+      }
+      inputField.value = '';
+    }
+
+    inputField.addEventListener('keydown', (e) => {
+      if (e.key === ',' || e.key === 'Enter') {
+        e.preventDefault();
+        addTag(inputField.value);
+      } else if (e.key === 'Backspace' && !inputField.value) {
+        let tags = keywordInput.value.split(',').map(t => t.trim()).filter(t => t);
+        if (tags.length > 0) {
+          tags.pop();
+          keywordInput.value = tags.join(', ');
+          renderTags();
+        }
+      }
+    });
+
+    inputField.addEventListener('blur', () => {
+      addTag(inputField.value);
+    });
+
+    let timeout;
+    const observer = new MutationObserver(() => {
+      clearTimeout(timeout);
+      timeout = setTimeout(renderTags, 400);
+    });
+    
+    const bodyBody = document.getElementById('body-body');
+    if (bodyBody) {
+      bodyBody.addEventListener('input', () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(renderTags, 400);
+      });
+      observer.observe(bodyBody, { childList: true, characterData: true, subtree: true });
+    } else {
+      const bodyText = document.getElementById('body');
+      if (bodyText) {
+        bodyText.addEventListener('input', () => {
+          clearTimeout(timeout);
+          timeout = setTimeout(renderTags, 400);
+        });
+      }
+    }
+
+    keywordInput.addEventListener('change', renderTags);
+    
+    // In case value changes via JS without event (wait, we did dispatch event for AI chat, but just in case)
+    const valObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "value") {
+          renderTags();
+        }
+      });
+    });
+    valObserver.observe(keywordInput, { attributes: true });
+
+    renderTags();
+  });
+  </script>
+
+  {% render "components/ai-chat-widget" %}
 </body>
 </html>

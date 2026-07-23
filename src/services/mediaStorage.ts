@@ -56,6 +56,26 @@ export async function saveUploadedFile(
   return { url: `/uploads/${subDir}/${filename}`, filename };
 }
 
+export async function saveAiChatImage(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<{ url: string; filename: string }> {
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    throw new InvalidUploadError(`Định dạng không hỗ trợ: ${mimeType} (chỉ nhận JPG/PNG/WEBP/GIF)`);
+  }
+  if (buffer.length > MAX_SIZE_BYTES) {
+    throw new InvalidUploadError("File vượt quá 8MB");
+  }
+
+  const subDir = "ai-chat";
+  await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
+
+  const filename = `${randomUUID()}.${extensionFor(mimeType)}`;
+  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
+
+  return { url: `/uploads/${subDir}/${filename}`, filename };
+}
+
 export async function deleteUploadedFile(url: string): Promise<void> {
   // url luu nguyen dang "/uploads/2026/07/{uuid}.ext" (hoac dang phang cu truoc khi co thu muc
   // nam/thang, van xoa dung vi relativePath luc do chi la ten file) - bo tien to "/uploads/" la

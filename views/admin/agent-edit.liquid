@@ -9,9 +9,9 @@
   <label for="name">Tên</label>
   <input type="text" id="name" name="name" value="{% if agent %}{{ agent.name | escape }}{% endif %}" required>
 
-  <label for="key">Agent key</label>
-  <input type="text" id="key" name="key" value="{% if agent and agent.key %}{{ agent.key | escape }}{% endif %}" placeholder="seo-writer">
-  <div class="field-hint">Plugin calls this agent by key. Use lowercase letters, numbers, and hyphen.</div>
+  <label for="key">Agent key (Mục đích sử dụng)</label>
+  <input type="text" id="key" name="key" value="{% if agent and agent.key %}{{ agent.key | escape }}{% endif %}" placeholder="vd: image, content, chat..." required {% if agent and agent.key %}readonly style="background-color: #f3f4f6; cursor: not-allowed;"{% endif %}>
+  <div class="field-hint">Plugin/hệ thống sẽ gọi agent bằng key này. Chỉ được thiết lập lúc tạo và không thể sửa.</div>
 
   <label for="provider">Nhà cung cấp</label>
   <select id="provider" name="provider">
@@ -27,8 +27,13 @@
   <label for="model">Model</label>
   <input type="text" id="model" name="model" value="{% if agent %}{{ agent.model | escape }}{% endif %}" placeholder="vd: gpt-5.4-mini, claude-sonnet-5" required>
 
-  <label for="purpose">Mục đích</label>
-  <input type="text" id="purpose" name="purpose" value="{% if agent %}{{ agent.purpose | escape }}{% endif %}" placeholder="Nhập mục đích">
+  <label for="endpoint">Khả năng</label>
+  <select id="endpoint" name="endpoint">
+    <option value="/chat/completions" {% if agent.endpoint == "/chat/completions" or agent.endpoint == null %}selected{% endif %}>Chat</option>
+    <option value="/images/generations" {% if agent.endpoint == "/images/generations" %}selected{% endif %}>Tạo ảnh</option>
+    <option value="/audio/transcriptions" {% if agent.endpoint == "/audio/transcriptions" %}selected{% endif %}>Nhận diện giọng nói</option>
+    <option value="/embeddings" {% if agent.endpoint == "/embeddings" %}selected{% endif %}>Embeddings</option>
+  </select>
 
   <div id="base-url-group" style="display:none;">
     <label for="baseUrl">Base URL <span style="font-weight:400;color:#888;">(chỉ dùng cho Custom provider)</span></label>
@@ -41,10 +46,16 @@
   <label for="systemPrompt">System prompt</label>
   <textarea id="systemPrompt" name="systemPrompt" style="min-height:160px;">{% if agent %}{{ agent.systemPrompt }}{% endif %}</textarea>
 
-  <label style="display:flex;align-items:center;gap:0.4rem;">
-    <input type="checkbox" id="isActive" name="isActive" style="width:auto;" {% if agent == null or agent.isActive %}checked{% endif %}>
-    Đang bật
-  </label>
+  <div style="display:flex;gap:1rem;margin-top:0.5rem;flex-wrap:wrap;">
+    <label style="display:flex;align-items:center;gap:0.4rem;">
+      <input type="checkbox" id="isActive" name="isActive" style="width:auto;" {% if agent == null or agent.isActive %}checked{% endif %}>
+      Đang bật
+    </label>
+    <label style="display:flex;align-items:center;gap:0.4rem;">
+      <input type="checkbox" id="isSystem" name="isSystem" style="width:auto;" {% if agent.isSystem %}checked{% endif %}>
+      Agent hệ thống (Không thể xoá)
+    </label>
+  </div>
 
   <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
     <button type="submit" class="btn btn-primary">{% render "components/icon", name: "save" %}<span>Lưu</span></button>
@@ -65,30 +76,48 @@
 
   const providerSelect = document.getElementById("provider");
   const baseUrlGroup = document.getElementById("base-url-group");
+  const apiKeyInput = document.getElementById("apiKey");
+  const aiProviderKeys = {{ aiProviderKeys | json | default: "{}" }};
+  
+  let previousProvider = providerSelect.value;
 
-  function toggleBaseUrl() {
+  function handleProviderChange() {
     baseUrlGroup.style.display = providerSelect.value === "custom" ? "block" : "none";
+    
+    // Auto fill API key if empty and available in config
+    if (!apiKeyInput.value && aiProviderKeys[providerSelect.value]) {
+      apiKeyInput.value = aiProviderKeys[providerSelect.value];
+    }
+    previousProvider = providerSelect.value;
   }
   
-  providerSelect.addEventListener("change", toggleBaseUrl);
-  toggleBaseUrl();
+  providerSelect.addEventListener("change", handleProviderChange);
+  baseUrlGroup.style.display = providerSelect.value === "custom" ? "block" : "none";
 
   if (agentId) {
+    const isSystem = {% if agent.isSystem %}true{% else %}false{% endif %};
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "btn btn-danger btn-icon";
     deleteBtn.innerHTML = window.adminIcon("trash");
     deleteBtn.title = "Xoá";
     deleteBtn.setAttribute("aria-label", "Xoá");
-    deleteBtn.onclick = async () => {
-      if (!confirm("Xoá agent này?")) return;
-      const res = await fetch("/admin/api/agents/" + agentId, { method: "DELETE" });
-      if (!res.ok) {
-        showFlash("Xoá thất bại", false);
-        return;
-      }
-      window.location.href = "/admin/agents";
-    };
+    if (isSystem) {
+      deleteBtn.disabled = true;
+      deleteBtn.style.opacity = "0.5";
+      deleteBtn.style.cursor = "not-allowed";
+      deleteBtn.title = "Không thể xoá Agent hệ thống";
+    } else {
+      deleteBtn.onclick = async () => {
+        if (!confirm("Xoá agent này?")) return;
+        const res = await fetch("/admin/api/agents/" + agentId, { method: "DELETE" });
+        if (!res.ok) {
+          showFlash("Xoá thất bại", false);
+          return;
+        }
+        window.location.href = "/admin/agents";
+      };
+    }
     document.getElementById("delete-slot").appendChild(deleteBtn);
   }
 
@@ -101,8 +130,9 @@
       model: form.model.value,
       baseUrl: form.baseUrl.value || undefined,
       systemPrompt: form.systemPrompt.value || undefined,
-      purpose: form.purpose.value || null,
+      endpoint: form.endpoint.value || undefined,
       isActive: form.isActive.checked,
+      isSystem: form.isSystem.checked,
     };
     if (form.apiKey.value) {
       payload.apiKey = form.apiKey.value;

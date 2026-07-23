@@ -384,6 +384,10 @@
     faqRows.appendChild(row);
   }
   
+  document.addEventListener("ai-fill-faq", (e) => {
+    addFaqRow(e.detail.question, e.detail.answer);
+  });
+
   document.getElementById("faq-add-btn").addEventListener("click", () => {
     const newQ = document.getElementById("new-faq-q");
     const newA = document.getElementById("new-faq-a");

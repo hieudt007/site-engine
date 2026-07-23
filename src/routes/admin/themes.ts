@@ -223,7 +223,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
 
   // Chi xoa duoc CustomTheme (agent-generated) - theme built-in la nguon sach dong goi cung app,
   // khong cho xoa qua UI. Chan xoa theme dang active de tranh site public mat theme dang dung
-  // (phai doi sang theme khac truoc). Xoa ca thu muc tren dia lan ThemeChatMessage lien quan.
+  // (phai doi sang theme khac truoc). Xoa ca thu muc tren dia lan AdminChatHistory lien quan.
   app.delete<{ Params: { slug: string } }>(
     "/admin/api/themes/:slug",
     { preHandler: requireRole("admin") },
@@ -240,7 +240,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
       }
 
       await fsp.rm(path.join(THEMES_ROOT, slug), { recursive: true, force: true });
-      await prisma.themeChatMessage.deleteMany({ where: { slug } });
+      await prisma.adminChatHistory.deleteMany({ where: { entityId: slug } });
       await prisma.customTheme.delete({ where: { slug } });
 
       return { success: true };

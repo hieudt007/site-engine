@@ -92,7 +92,9 @@
   }
 
   function renderCoupons() {
+    const addBtn = document.getElementById("open-add-modal");
     if (coupons.length === 0) {
+      if (addBtn) addBtn.style.display = "none";
       list.innerHTML = 
         '<div style="text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;">' +
         '<div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">🎟️</div>' +
@@ -102,6 +104,7 @@
         '</div>';
       return;
     }
+    if (addBtn) addBtn.style.display = "";
     list.innerHTML = coupons
       .map((c) => {
         const valueText = c.discountType === "percent" ? c.discountValue + "%" : c.discountValue + "₫";

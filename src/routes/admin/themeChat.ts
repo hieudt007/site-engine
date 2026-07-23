@@ -82,6 +82,7 @@ async function runFileEditPipeline(
   classifiedReply: string,
   imageUrl: string | undefined,
   designSystemBlock?: string,
+  historyId?: number
 ): Promise<void> {
   const editableFiles = expandFilesWithPairedAssets(validFiles);
   const groupEntries = groupFilesByPage(editableFiles).map(([groupKey, files]) => ({ groupKey, files, task: message }));
@@ -231,7 +232,12 @@ async function runFileEditPipeline(
     summary += ` (Không sửa được: ${failedFiles.map((f) => f.file).join(", ")} — giữ nguyên bản cũ.)`;
   }
 
-  await prisma.themeChatMessage.create({ data: { slug, role: "assistant", content: summary } });
+  if (historyId) {
+    await prisma.adminChatHistory.update({
+      where: { id: historyId },
+      data: { assistantResponse: summary, status: "success" }
+    });
+  }
   sseWrite(reply, { step: "done", mode: "edit", reply: summary, files: allResults });
   reply.raw.end();
 }
@@ -267,11 +273,31 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       if (!customTheme) {
         return reply.code(404).send({ error: "Không tìm thấy theme" });
       }
-      const messages = await prisma.themeChatMessage.findMany({
-        where: { slug: request.params.slug },
+      const rows = await prisma.adminChatHistory.findMany({
+        where: { entityId: request.params.slug },
         orderBy: { createdAt: "asc" },
-        take: 200,
+        take: 100,
       });
+      const messages: any[] = [];
+      for (const row of rows) {
+        messages.push({
+          id: `u_${row.id}`,
+          role: "user",
+          content: row.userMessage,
+          imageUrl: row.imageUrl
+        });
+        if (row.assistantResponse) {
+          const meta = row.metadata ? JSON.parse(row.metadata) : {};
+          messages.push({
+            id: `a_${row.id}`,
+            role: "assistant",
+            content: row.assistantResponse,
+            redesignBrief: meta.redesignBrief,
+            styleQuery: meta.styleQuery,
+            createdAt: row.createdAt
+          });
+        }
+      }
       const themeMd = await ensureThemeMd(request.params.slug);
       return { messages, themeMd };
     },
@@ -302,17 +328,27 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
     });
 
     try {
-      await prisma.themeChatMessage.create({ data: { slug, role: "user", content: message, imageUrl } });
+      const chatRow = await prisma.adminChatHistory.create({
+        data: {
+          userId: (request as any).user.id,
+          entityId: slug,
+          userMessage: message,
+          imageUrl,
+          status: "pending"
+        }
+      });
 
-      const recentRows = await prisma.themeChatMessage.findMany({
-        where: { slug },
+      const recentRows = await prisma.adminChatHistory.findMany({
+        where: { entityId: slug },
         orderBy: { createdAt: "desc" },
-        take: HISTORY_LIMIT + 1, // +1 vi ban ghi user vua tao cung nam trong nay, bo no khi build history
+        take: HISTORY_LIMIT,
         skip: 1,
       });
-      const history: ChatHistoryItem[] = recentRows
-        .reverse()
-        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+      const history: ChatHistoryItem[] = [];
+      for (const m of recentRows.reverse()) {
+        history.push({ role: "user", content: m.userMessage });
+        if (m.assistantResponse) history.push({ role: "assistant", content: m.assistantResponse });
+      }
 
       const themeMd = await ensureThemeMd(slug);
 
@@ -328,13 +364,12 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         // redesignBrief co gia tri o day nghia la AI dang O BUOC DE XUAT thiet ke lai toan site,
         // cho xac nhan (chua lam gi ca) - luu kem brief de nut "Xac nhan" (hoac lan chat sau, neu
         // admin go "dong y" bang tay) co du du lieu de chay thang khong can hoi lai.
-        await prisma.themeChatMessage.create({
+        await prisma.adminChatHistory.update({
+          where: { id: chatRow.id },
           data: {
-            slug,
-            role: "assistant",
-            content: classified.reply,
-            redesignBrief: classified.redesignBrief,
-            styleQuery: classified.styleQuery,
+            assistantResponse: classified.reply,
+            status: "success",
+            metadata: classified.redesignBrief ? JSON.stringify({ redesignBrief: classified.redesignBrief, styleQuery: classified.styleQuery }) : null
           },
         });
         sseWrite(reply, {
@@ -351,7 +386,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       const validFiles = isRedesign ? [...SELECTABLE_FILES] : classified.files.filter((f) => SELECTABLE_FILES.has(f));
       if (!validFiles.length) {
         const fallback = "Xin lỗi, tôi chưa xác định được cần sửa file nào — bạn nói rõ hơn giúp tôi nhé.";
-        await prisma.themeChatMessage.create({ data: { slug, role: "assistant", content: fallback } });
+        await prisma.adminChatHistory.update({ where: { id: chatRow.id }, data: { assistantResponse: fallback, status: "error" } });
         sseWrite(reply, { step: "done", mode: "chat", reply: fallback });
         reply.raw.end();
         return;
@@ -405,8 +440,9 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         return reply.code(422).send({ error: "Chưa có Agent nào bật với mục đích 'Tuỳ chỉnh giao diện' — vào Quản trị → AI Agent kiểm tra lại." });
       }
 
-      const lastMessage = await prisma.themeChatMessage.findFirst({ where: { slug }, orderBy: { createdAt: "desc" } });
-      if (!lastMessage || lastMessage.role !== "assistant" || !lastMessage.redesignBrief) {
+      const lastMessage = await prisma.adminChatHistory.findFirst({ where: { entityId: slug }, orderBy: { createdAt: "desc" } });
+      const meta = lastMessage && lastMessage.metadata ? JSON.parse(lastMessage.metadata) : {};
+      if (!lastMessage || !lastMessage.assistantResponse || !meta.redesignBrief) {
         return reply.code(422).send({ error: "Không có đề xuất thiết kế lại nào đang chờ xác nhận." });
       }
 
@@ -419,10 +455,12 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
 
       try {
         const confirmMessage = "✅ Đã bấm xác nhận — tiến hành thiết kế lại toàn bộ theo kế hoạch trên.";
-        await prisma.themeChatMessage.create({ data: { slug, role: "user", content: confirmMessage } });
+        const confirmRow = await prisma.adminChatHistory.create({
+          data: { userId: (request as any).user.id, entityId: slug, userMessage: confirmMessage, status: "pending" }
+        });
         const themeMd = await ensureThemeMd(slug);
-        const designSystemBlock = lastMessage.styleQuery ? formatDesignSystem(resolveDesignSystem(lastMessage.styleQuery)) : undefined;
-        await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], lastMessage.redesignBrief, confirmMessage, undefined, designSystemBlock);
+        const designSystemBlock = meta.styleQuery ? formatDesignSystem(resolveDesignSystem(meta.styleQuery)) : undefined;
+        await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], meta.redesignBrief, confirmMessage, undefined, designSystemBlock, confirmRow.id);
       } catch (err) {
         sseWrite(reply, { step: "error", label: (err as Error).message });
         reply.raw.end();

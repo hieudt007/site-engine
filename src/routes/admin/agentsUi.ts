@@ -14,8 +14,10 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
   });
 
   app.get("/admin/agents/new", { preHandler: requireRole("admin") }, async (request, reply) => {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
     const html = await renderAdmin("agent-edit", {
       agent: null,
+      aiProviderKeys: config?.aiProviderKeys || {},
       userName: request.session.get("name"),
       role: request.session.get("role"),
       currentPath: request.url,
@@ -31,8 +33,10 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       if (!agent) {
         return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy agent</h1>");
       }
+      const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
       const html = await renderAdmin("agent-edit", {
         agent,
+        aiProviderKeys: config?.aiProviderKeys || {},
         userName: request.session.get("name"),
         role: request.session.get("role"),
         currentPath: request.url,

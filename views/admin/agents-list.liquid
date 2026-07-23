@@ -5,7 +5,7 @@
   <a class="btn btn-primary" href="/admin/agents/new">{% render "components/icon", name: "plus" %}<span>Agent mới</span></a>
 </div>
 <p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
-  Cấu hình nhà cung cấp AI + API key. Agent có "Mục đích" sẽ tự động dùng cho tính năng viết bài (post-edit) hoặc tuỳ chỉnh giao diện (Giao diện).
+  Cấu hình nhà cung cấp AI + API key. Agent có "Key" sẽ tự động dùng cho các tính năng hệ thống tương ứng (vd: design, chat). Agent hệ thống không thể bị xoá.
 </p>
 
 <div id="agents-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:1.5rem;">
@@ -28,29 +28,42 @@
   }
 
   function rowHtml(agent) {
-    const statusBadge = agent.isActive
-      ? '<span class="status-badge status-published">Đang bật</span>'
-      : '<span class="status-badge status-draft">Đã tắt</span>';
-    const purposeBadge = agent.purpose
-      ? '<span class="status-badge">' + agent.purpose + '</span>'
+    const statusToggle = '<label class="toggle-switch" title="Bật/Tắt agent">' +
+      '<input type="checkbox" class="agent-toggle" data-id="' + agent.id + '" ' + (agent.isActive ? 'checked' : '') + '>' +
+      '<span class="slider"></span></label>';
+    const keyBadge = agent.key
+      ? '<span class="status-badge" style="background:#e0e7ff;color:#3730a3;">' + escapeHtml(agent.key) + '</span>'
       : '<span style="color:#999;">—</span>';
+      
+    const systemBadge = agent.isSystem
+      ? '<span style="font-size:0.7rem;background:#ef4444;color:#fff;padding:0.1rem 0.3rem;border-radius:4px;margin-left:0.4rem;vertical-align:middle;">SYSTEM</span>'
+      : '';
+
+    const endpointLabel = agent.endpoint === '/images/generations' ? 'Tạo ảnh' :
+                          agent.endpoint === '/audio/transcriptions' ? 'Nhận diện giọng nói' :
+                          agent.endpoint === '/embeddings' ? 'Embeddings' : 'Chat';
+
     const botIcon = '<svg class="admin-icon" style="width:20px;height:20px;margin-right:0.4rem;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="2"></rect><path d="M12 7V3M8 11h.01M16 11h.01M9 15h6"></path></svg>';
+
+    const deleteBtn = agent.isSystem ? '' : '<button class="btn btn-danger btn-icon" data-action="delete" data-id="' + agent.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>';
 
     return (
       '<div class="card" style="display:flex;flex-direction:column;gap:1rem;height:100%;">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
       '<div>' +
-      '<h3 style="margin:0 0 0.2rem;font-size:1.1rem;display:flex;align-items:center;">' + botIcon + '<a href="/admin/agents/' + agent.id + '" style="text-decoration:none;color:var(--color-primary);">' + escapeHtml(agent.name) + '</a></h3>' +
+      '<h3 style="margin:0 0 0.2rem;font-size:1.1rem;display:flex;align-items:center;">' + botIcon + '<a href="/admin/agents/' + agent.id + '" style="text-decoration:none;color:var(--color-primary);">' + escapeHtml(agent.name) + '</a>' + systemBadge + '</h3>' +
       '<div style="font-size:0.85rem;color:#6b7280;">' + escapeHtml(agent.provider) + ' — ' + escapeHtml(agent.model) + '</div>' +
       '</div>' +
-      statusBadge +
       '</div>' +
       '<div style="font-size:0.9rem;">' +
-      '<div style="margin-bottom:0.3rem;"><strong style="color:#374151;">Mục đích:</strong> ' + purposeBadge + '</div>' +
+      '<div style="margin-bottom:0.3rem;"><strong style="color:#374151;">Key:</strong> ' + keyBadge + '</div>' +
       '</div>' +
-      '<div style="margin-top:auto;display:flex;justify-content:flex-end;gap:0.5rem;border-top:1px solid #e5e7eb;padding-top:1rem;">' +
+      '<div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e5e7eb;padding-top:1rem;">' +
+      statusToggle +
+      '<div style="display:flex;gap:0.5rem;">' +
       '<a href="/admin/agents/' + agent.id + '" class="btn">Cấu hình</a>' +
-      '<button class="btn btn-danger btn-icon" data-action="delete" data-id="' + agent.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>' +
+      deleteBtn +
+      '</div>' +
       '</div>' +
       '</div>'
     );
@@ -80,6 +93,23 @@
       return;
     }
     load();
+  });
+
+  document.getElementById("agents-grid").addEventListener("change", async (event) => {
+    const toggle = event.target.closest(".agent-toggle");
+    if (!toggle) return;
+
+    const isActive = toggle.checked;
+    const res = await fetch("/admin/api/agents/" + toggle.dataset.id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive })
+    });
+    
+    if (!res.ok) {
+      showError("Cập nhật trạng thái thất bại");
+      toggle.checked = !isActive; // revert
+    }
   });
 
   load();

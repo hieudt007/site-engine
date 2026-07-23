@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
+import { prisma } from "../db.js";
 
 // Ghi lai context gui/nhan voi AI de debug - GHI DE (khong noi tiep) - chi giu LAN GOI GAN NHAT,
 // tranh file phinh to vo han qua nhieu luot chat (1 luot co the goi AI nhieu lan: phan loai + tung
@@ -43,7 +44,10 @@ function resolveBaseUrl(agent: Agent): string {
   return fallback;
 }
 
-async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string): Promise<string> {
+async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string, forceJson?: boolean): Promise<string> {
+  if (forceJson) {
+    systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object.";
+  }
   writeDebugLog("input", agent, `--- SYSTEM ---\n${systemPrompt}\n--- USER ---\n${userPrompt}${imageUrl ? `\n--- IMAGE ---\n${imageUrl}` : ""}`);
   const userContent = imageUrl
     ? [{ type: "text", text: userPrompt }, { type: "image", source: { type: "url", url: imageUrl } }]
@@ -75,7 +79,10 @@ async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: str
   return text;
 }
 
-async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string): Promise<string> {
+async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string, forceJson?: boolean): Promise<string> {
+  if (forceJson) {
+    systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object.";
+  }
   writeDebugLog("input", agent, `--- SYSTEM ---\n${systemPrompt}\n--- USER ---\n${userPrompt}${imageUrl ? `\n--- IMAGE ---\n${imageUrl}` : ""}`);
   const userContent = imageUrl
     ? [{ type: "text", text: userPrompt }, { type: "image_url", image_url: { url: imageUrl } }]
@@ -93,6 +100,7 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
       ],
+      ...(forceJson ? { response_format: { type: "json_object" } } : {}),
       temperature: 0.7,
       // Vai model qua 9router (vd Claude qua provider "cc") tra ve SSE streaming DU KHONG
       // truyen "stream" - ep tuong minh false de luon nhan 1 JSON object thuong, tranh crash
@@ -117,12 +125,72 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
 // can truy cap duoc tu ben ngoai. Model khong ho tro vision se tuy provider (thuong bo qua block
 // anh hoac loi ro rang) - khong tu dong kiem tra truoc, de nguyen trach nhiem chon model vision-capable
 // cho nguoi cau hinh Agent.
-export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string): Promise<string> {
+export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string, forceJson?: boolean): Promise<string> {
   if (!agent.isActive) {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
-  if (agent.provider === "anthropic") {
-    return callAnthropic(agent, systemPrompt, userPrompt, imageUrl);
+
+  // Fallback to SiteConfig api keys if agent's key is not set
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
   }
-  return callOpenAiCompatible(agent, systemPrompt, userPrompt, imageUrl);
+
+  if (agent.provider === "anthropic") {
+    return callAnthropic(agent, systemPrompt, userPrompt, imageUrl, forceJson);
+  }
+  return callOpenAiCompatible(agent, systemPrompt, userPrompt, imageUrl, forceJson);
+}
+
+export async function generateImage(agent: Agent, prompt: string, size: string = "1024x1024"): Promise<string> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  // Anthropic does not support image generation
+  if (agent.provider === "anthropic") {
+    throw new AiCallError("Anthropic không hỗ trợ tạo ảnh qua API này");
+  }
+
+  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "").replace(/\/chat\/completions$/, "").replace(/\/v1$/, "");
+  const endpoint = `${baseUrl}/v1/images/generations`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: agent.model,
+      prompt: prompt,
+      n: 1,
+      size: size,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new AiCallError(`Image Generation API lỗi ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as any;
+  const url = data.data?.[0]?.url;
+  if (!url) {
+    throw new AiCallError("AI API không trả về URL ảnh");
+  }
+  return url;
 }

@@ -213,7 +213,9 @@
   }
 
   function renderRules() {
+    const addBtn = document.getElementById("open-rule-modal");
     if (rules.length === 0) {
+      if (addBtn) addBtn.style.display = "none";
       rulesList.innerHTML = 
         '<div style="text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;">' +
         '<div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">🚚</div>' +
@@ -223,6 +225,7 @@
         '</div>';
       return;
     }
+    if (addBtn) addBtn.style.display = "";
     rulesList.innerHTML = rules
       .map((r) => {
         const scope = r.provinces.length === 0 ? "Mặc định (mọi tỉnh khác)" : r.provinces.join(", ");
@@ -333,7 +336,9 @@
   }
 
   function renderStores() {
+    const addBtn = document.getElementById("open-store-modal");
     if (stores.length === 0) {
+      if (addBtn) addBtn.style.display = "none";
       storeList.innerHTML = 
         '<div style="text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;">' +
         '<div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">🏪</div>' +
@@ -343,6 +348,7 @@
         '</div>';
       return;
     }
+    if (addBtn) addBtn.style.display = "";
     storeList.innerHTML = stores.map((s) =>
       '<div class="card" style="display:flex;justify-content:space-between;align-items:center;">' +
       "<div><strong>" + s.name + "</strong>" + (s.enabled ? "" : ' <span class="status-badge status-draft">Đã ẩn</span>') +

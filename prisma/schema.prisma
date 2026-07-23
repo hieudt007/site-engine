@@ -52,6 +52,8 @@ model SiteConfig {
   customHeadScript  String?
   gscVerificationId String?
 
+  aiProviderKeys    Json?
+
   updatedAt DateTime @updatedAt
 }
 
@@ -73,6 +75,7 @@ model User {
   auditLogs AuditLog[]
   media     Media[]
   revisions Revision[]
+  chatHistory AdminChatHistory[]
 }
 
 // Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange + lấy userinfo từ LeadBase.
@@ -104,6 +107,25 @@ model AuditLog {
 
   @@index([entityType, entityId])
 }
+
+// Lịch sử trò chuyện của admin với AI Agent
+model AdminChatHistory {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  user              User     @relation(fields: [userId], references: [leadbaseUserId], onDelete: Cascade)
+  userMessage       String
+  imageUrl          String?
+  assistantResponse String?
+  status            String   @default("success") // 'success' | 'error'
+  errorMessage      String?
+  entityId          String?  // Gộp chung ID của Post, Page, Product, hoặc slug của Theme. Dùng chung 1 bảng.
+  metadata          String?  // Lưu JSON cho các data phụ (vd: redesignBrief, styleQuery của Theme Chat)
+  createdAt         DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entityId])
+}
+
 
 // Lịch sử chỉnh sửa nội dung — snapshot TOÀN BỘ field nội dung của Post/Page/Product NGAY TRƯỚC
 // mỗi lần PATCH sửa nội dung (KHÔNG snapshot khi chỉ đổi status/lên lịch/xuất bản, và KHÔNG
@@ -296,7 +318,8 @@ model Agent {
   systemPrompt String?
   apiKey       String?
   baseUrl      String?
-  purpose      String?
+  endpoint     String   @default("/chat/completions")
+  isSystem     Boolean  @default(false)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -610,28 +633,7 @@ model CustomTheme {
 // file-he-thong dung slug lam nguon that, khong dung CustomTheme.id) vi ban chat gan voi thu muc
 // theme tren dia, khong phai row DB. role: 'user' | 'assistant'. Day la NHAT KY DAY DU cho nguoi
 // xem lai — khac voi themes/{slug}/THEME.md (tri nho NEN, luon nhet vao prompt AI, xem themeMemory.ts).
-model ThemeChatMessage {
-  id        String   @id @default(cuid())
-  slug      String
-  role      String
-  content   String
-  // Anh admin dinh kem khi gui yeu cau (vd anh mau giao dien muon lam theo) - URL tuyet doi
-  // (khong phai duong dan tuong doi /uploads/...) vi AI goi qua API se tu tai anh, can URL
-  // truy cap duoc tu ben ngoai. Chi 'user' message moi co the co gia tri nay.
-  imageUrl  String?
-  // Chi co gia tri tren 1 tin nhan 'assistant' dang la DE XUAT thiet ke lai TOAN BO 18 trang, cho
-  // AI tong hop day du (phong cach + tinh nang giu/them/bot), CHO admin xac nhan - null nghia la
-  // khong phai de xuat cho xac nhan. Nut "Xac nhan" tren UI (giong Plan Mode) chi hien khi day la
-  // tin nhan MOI NHAT va co gia tri nay - bam vao se goi thang pipeline sua 18 file, KHONG qua lai
-  // AI phan loai (xem routes/admin/themeChat.ts, endpoint /chat/confirm-redesign).
-  redesignBrief String?
-  // Di kem redesignBrief - vai tu khoa tieng Anh AI tu viet, dung tra kho du lieu UI/UX
-  // (services/uiuxSearch.ts) luc bam "Xac nhan" (khong qua lai AI phan loai nen phai luu san).
-  styleQuery String?
-  createdAt DateTime @default(now())
-
-  @@index([slug, createdAt])
-}
+// -- Đã gộp ThemeChatMessage vào AdminChatHistory để quản lý tập trung --
 
 // Plugin admin-only (phase 1): plugin khong chay code server tu do, chi la manifest khai bao
 // trang admin/menu/quyen doc core model + storage rieng qua PluginRecord. Khac WordPress plugin:

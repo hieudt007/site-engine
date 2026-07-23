@@ -41,6 +41,7 @@ import { registerUserRoutes } from "./routes/admin/users.js";
 import { registerUsersUiRoutes } from "./routes/admin/usersUi.js";
 import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
+import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
 import { registerPluginRoutes } from "./routes/admin/plugins.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
@@ -69,6 +70,7 @@ import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js"
 import { registerPublicSearchRoutes } from "./routes/public/search.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
+import { startAiChatCleanupCron } from "./services/aiChatCleanup.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -232,6 +234,7 @@ async function start(): Promise<void> {
   await registerUsersUiRoutes(app);
   await registerAgentRoutes(app);
   await registerAgentsUiRoutes(app);
+  await registerAiChatRoutes(app);
   await registerPluginRoutes(app);
   await registerMenuRoutes(app);
   await registerMenusUiRoutes(app);
@@ -258,8 +261,12 @@ async function start(): Promise<void> {
   await registerProvincesRoutes(app);
   await registerSeoRoutes(app);
 
-  startOrderRetryCron();
-  startPublishScheduler();
+  // Cron jobs (chỉ chay tren main worker neu pm2, hoac chay local doc lap)
+  if (process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === "0") {
+    startOrderRetryCron();
+    startPublishScheduler();
+    startAiChatCleanupCron();
+  }
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 }
@@ -268,3 +275,7 @@ start().catch((err) => {
   app.log.error(err);
   process.exit(1);
 });
+
+
+
+

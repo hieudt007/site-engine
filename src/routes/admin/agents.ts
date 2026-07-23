@@ -4,7 +4,6 @@ import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "ai-router", "custom"] as const;
-const PURPOSES = ["content", "design"] as const;
 
 const agentSchema = z.object({
   key: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/).nullable().optional(),
@@ -14,7 +13,8 @@ const agentSchema = z.object({
   systemPrompt: z.string().optional(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
-  purpose: z.enum(PURPOSES).nullable().optional(),
+  endpoint: z.string().optional(),
+  isSystem: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -56,6 +56,15 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     const agent = await prisma.agent.create({ data: { ...parsed.data, key: parsed.data.key || null } });
     await auditLog(userId, "agent.create", agent.id);
 
+    if (parsed.data.apiKey && parsed.data.apiKey.trim() !== "") {
+      const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+      if (config) {
+        const keys = (config.aiProviderKeys as Record<string, string> | null) || {};
+        keys[parsed.data.provider] = parsed.data.apiKey;
+        await prisma.siteConfig.update({ where: { id: "singleton" }, data: { aiProviderKeys: keys } });
+      }
+    }
+
     return reply.code(201).send({ agent });
   });
 
@@ -85,6 +94,15 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const updated = await prisma.agent.update({ where: { id: agent.id }, data });
       await auditLog(userId, "agent.update", agent.id);
 
+      if (data.apiKey && data.apiKey.trim() !== "") {
+        const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+        if (config) {
+          const keys = (config.aiProviderKeys as Record<string, string> | null) || {};
+          keys[data.provider || agent.provider] = data.apiKey;
+          await prisma.siteConfig.update({ where: { id: "singleton" }, data: { aiProviderKeys: keys } });
+        }
+      }
+
       return { agent: updated };
     },
   );
@@ -96,6 +114,10 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const agent = await prisma.agent.findUnique({ where: { id: request.params.id } });
       if (!agent) {
         return reply.code(404).send({ error: "Không tìm thấy agent" });
+      }
+
+      if (agent.isSystem) {
+        return reply.code(400).send({ error: "Không thể xoá Agent hệ thống" });
       }
 
       const userId = request.session.get("userId")!;

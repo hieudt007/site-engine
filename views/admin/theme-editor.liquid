@@ -1,6 +1,9 @@
 {% layout "layout" %}
 {% block content %}
 <style>
+  #ai-chat-widget { display: none !important; }
+</style>
+<style>
   .tl-list { list-style: none; margin: 0; padding: 0; }
   .tl-item { display: flex; gap: 0.5rem; }
   .tl-dotcol { display: flex; flex-direction: column; align-items: center; }
@@ -616,26 +619,42 @@
   chatImageBtn.addEventListener("click", () => chatImageInput.click());
   chatImageRemove.addEventListener("click", clearPendingImage);
 
-  chatImageInput.addEventListener("change", async () => {
-    const file = chatImageInput.files[0];
+  async function handleChatImageUpload(file) {
     if (!file) return;
     chatImageBtn.disabled = true;
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/admin/api/media", { method: "POST", body: formData });
+      const res = await fetch("/admin/api/ai-chat/upload", { method: "POST", body: formData });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         showFlash(typeof body.error === "string" ? body.error : "Tải ảnh lên thất bại", false);
         chatImageInput.value = "";
         return;
       }
-      const { media } = await res.json();
-      pendingImageUrl = window.location.origin + media.url;
-      chatImagePreviewThumb.src = media.url;
+      const { url } = await res.json();
+      pendingImageUrl = window.location.origin + url;
+      chatImagePreviewThumb.src = url;
       chatImagePreview.style.display = "flex";
     } finally {
       chatImageBtn.disabled = false;
+    }
+  }
+
+  chatImageInput.addEventListener("change", () => {
+    handleChatImageUpload(chatImageInput.files[0]);
+  });
+
+  chatInput.addEventListener('paste', (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+      const item = items[index];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        handleChatImageUpload(blob);
+        break;
+      }
     }
   });
 
