@@ -69,9 +69,7 @@
     const publishBtn = (page.status === "pending_review" || page.status === "scheduled") && canManage
       ? '<button class="btn" data-action="publish" data-id="' + page.id + '">Xuất bản</button>'
       : "";
-    const deleteBtn = canManage
-      ? '<button class="btn btn-danger btn-icon" data-action="delete" data-id="' + page.id + '" title="Xoá" aria-label="Xoá">' + window.adminIcon("trash") + '</button>'
-      : "";
+    const deleteBtn = "";
     const score = (page.seo && page.seo.score) || 0;
     let color = "#ef4444";
     if (score >= 80) color = "#10b981";
