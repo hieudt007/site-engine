@@ -24,6 +24,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
             OR: [
               { filename: { contains: q, mode: "insensitive" as const } },
               { alt: { contains: q, mode: "insensitive" as const } },
+              { url: { contains: q, mode: "insensitive" as const } },
             ],
           }
         : {};
