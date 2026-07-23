@@ -170,7 +170,7 @@
     .rich-editor-toolbar .sep { width: 1px; background: var(--color-border); height: 16px; margin: 0 0.2rem; }
     .rich-editor-body { min-height: 300px; max-height: 600px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); padding: 1rem; font-size: 0.95rem; line-height: 1.6; background: #fff; }
     .rich-editor-body:focus { outline: 2px solid var(--color-primary); outline-offset: -1px; }
-    .rich-editor-body img, .rich-editor-body video, .rich-editor-body iframe { max-width: 100%; border-radius: 4px; }
+    .rich-editor-body img, .rich-editor-body video, .rich-editor-body iframe { max-width: 100%; height: auto; border-radius: 4px; }
     .rich-editor-body table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
     .rich-editor-body table, .rich-editor-body th, .rich-editor-body td { border: 1px solid var(--color-border); padding: 0.5rem; }
 
@@ -583,6 +583,15 @@
     body.contentEditable = "true";
     body.innerHTML = textarea.value;
 
+    body.addEventListener("click", function(e) {
+      if (e.target.tagName === "IMG") {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNode(e.target);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    });
     function sync() {
       if (textarea.style.display !== "none") {
         body.innerHTML = textarea.value; // reverse sync if in source mode
