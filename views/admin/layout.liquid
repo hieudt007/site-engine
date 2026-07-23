@@ -1005,6 +1005,13 @@
     body.addEventListener("input", sync);
     textarea.addEventListener("input", sync);
 
+    body.addEventListener("keydown", function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        linkBtn.click();
+      }
+    });
+
     textarea.style.display = "none";
     wrapper = document.createElement("div");
     wrapper.className = "rich-editor-wrapper";
