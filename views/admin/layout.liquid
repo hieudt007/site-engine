@@ -583,13 +583,29 @@
     body.contentEditable = "true";
     body.innerHTML = textarea.value;
 
+    let selectedImage = null;
+
     body.addEventListener("click", function(e) {
       if (e.target.tagName === "IMG") {
+        selectedImage = e.target;
         const selection = window.getSelection();
         const range = document.createRange();
         range.selectNode(e.target);
         selection.removeAllRanges();
         selection.addRange(range);
+      } else {
+        selectedImage = null;
+      }
+    });
+
+    body.addEventListener("dblclick", function(e) {
+      if (e.target.tagName === "IMG") {
+        const altText = prompt("Nhập văn bản thay thế (Alt) cho ảnh:", e.target.alt || "");
+        if (altText !== null) {
+          e.target.alt = altText;
+          e.target.title = altText;
+          sync();
+        }
       }
     });
     function sync() {
@@ -732,6 +748,17 @@
           sync();
         },
       });
+    });
+    addButton('<span class="editor-text-tool" style="font-size:0.75rem; border:1px solid currentColor; padding:0 2px; border-radius:2px;">Alt</span>', "Sửa thẻ Alt ảnh đang chọn", () => {
+      if (!selectedImage) {
+        alert("Vui lòng click chọn một bức ảnh trước khi sửa Alt!");
+        return;
+      }
+      const altText = prompt("Nhập văn bản thay thế (Alt) cho ảnh:", selectedImage.alt || "");
+      if (altText !== null) {
+        selectedImage.alt = altText;
+        selectedImage.title = altText;
+      }
     });
     addButton(editorIcon("video"), "Chèn Video", () => {
       const url = prompt("Nhập URL video (YouTube, Vimeo, MP4...):");
