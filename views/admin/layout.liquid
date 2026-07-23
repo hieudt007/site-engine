@@ -621,6 +621,7 @@
 
     let selectedImage = null;
     let linkBtn, imageBtn;
+    let boldBtn, italicBtn, underlineBtn, ulBtn, olBtn, formatSelect, alignSelect;
     let linkTooltip, wrapper;
 
     function updateToolbarState() {
@@ -645,6 +646,44 @@
       if (imageBtn) {
         if (selectedImage) imageBtn.classList.add("active");
         else imageBtn.classList.remove("active");
+      }
+      if (boldBtn) {
+        if (document.queryCommandState("bold")) boldBtn.classList.add("active");
+        else boldBtn.classList.remove("active");
+      }
+      if (italicBtn) {
+        if (document.queryCommandState("italic")) italicBtn.classList.add("active");
+        else italicBtn.classList.remove("active");
+      }
+      if (underlineBtn) {
+        if (document.queryCommandState("underline")) underlineBtn.classList.add("active");
+        else underlineBtn.classList.remove("active");
+      }
+      if (ulBtn) {
+        if (document.queryCommandState("insertUnorderedList")) ulBtn.classList.add("active");
+        else ulBtn.classList.remove("active");
+      }
+      if (olBtn) {
+        if (document.queryCommandState("insertOrderedList")) olBtn.classList.add("active");
+        else olBtn.classList.remove("active");
+      }
+      if (formatSelect) {
+        let block = document.queryCommandValue("formatBlock");
+        if (block) {
+          let val = block.toLowerCase();
+          const options = Array.from(formatSelect.options).map(o => o.value);
+          if (options.includes(val)) formatSelect.value = val;
+          else formatSelect.value = "p";
+        } else {
+          formatSelect.value = "p";
+        }
+      }
+      if (alignSelect) {
+        if (document.queryCommandState("justifyCenter")) alignSelect.value = "justifyCenter";
+        else if (document.queryCommandState("justifyRight")) alignSelect.value = "justifyRight";
+        else if (document.queryCommandState("justifyFull")) alignSelect.value = "justifyFull";
+        else if (document.queryCommandState("justifyLeft")) alignSelect.value = "justifyLeft";
+        else alignSelect.value = "";
       }
       
       // Update Tooltip
@@ -781,15 +820,15 @@
       body.focus();
       document.execCommand("formatBlock", false, formatSelect.value);
       sync();
-      formatSelect.value = "p"; // reset UI
+      updateToolbarState();
     });
     toolbar.appendChild(formatSelect);
 
     addSep();
 
-    addButton('<span class="editor-text-tool">B</span>', "In đậm", () => document.execCommand("bold"));
-    addButton('<span class="editor-text-tool is-italic">I</span>', "In nghiêng", () => document.execCommand("italic"));
-    addButton('<span class="editor-text-tool is-underline">U</span>', "Gạch chân", () => document.execCommand("underline"));
+    boldBtn = addButton('<span class="editor-text-tool">B</span>', "In đậm", () => { document.execCommand("bold"); updateToolbarState(); });
+    italicBtn = addButton('<span class="editor-text-tool is-italic">I</span>', "In nghiêng", () => { document.execCommand("italic"); updateToolbarState(); });
+    underlineBtn = addButton('<span class="editor-text-tool is-underline">U</span>', "Gạch chân", () => { document.execCommand("underline"); updateToolbarState(); });
     
     // Text Color
     const colorInput = document.createElement("input");
@@ -820,15 +859,15 @@
         document.execCommand(alignSelect.value);
         sync();
       }
-      alignSelect.value = "";
+      updateToolbarState();
     });
     toolbar.appendChild(alignSelect);
 
     addSep();
 
     // Lists
-    addButton(editorIcon("list"), "Danh sách gạch đầu dòng", () => document.execCommand("insertUnorderedList"));
-    addButton(editorIcon("list-ordered"), "Danh sách đánh số", () => document.execCommand("insertOrderedList"));
+    ulBtn = addButton(editorIcon("list"), "Danh sách gạch đầu dòng", () => { document.execCommand("insertUnorderedList"); updateToolbarState(); });
+    olBtn = addButton(editorIcon("list-ordered"), "Danh sách đánh số", () => { document.execCommand("insertOrderedList"); updateToolbarState(); });
 
     addSep();
 
@@ -1045,7 +1084,7 @@
     linkTooltip.style.border = "1px solid var(--color-border)";
     linkTooltip.style.borderRadius = "var(--radius-sm)";
     linkTooltip.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
-    linkTooltip.style.padding = "0.25rem 0.5rem";
+    linkTooltip.style.padding = "0.35rem 0.5rem";
     linkTooltip.style.zIndex = "50";
     linkTooltip.style.alignItems = "center";
     linkTooltip.style.gap = "0.5rem";
