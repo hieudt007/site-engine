@@ -488,6 +488,7 @@
           if (res.ok) {
             item.dataset.alt = newAlt;
             alert("Đã lưu thẻ Alt!");
+            window.dispatchEvent(new CustomEvent('mediaAltUpdated', { detail: { url: item.dataset.url, alt: newAlt } }));
           } else {
             alert("Lỗi khi lưu thẻ Alt");
           }
@@ -585,7 +586,7 @@
       confirmBtn.style.display = isMultiple ? "inline-block" : "none";
       confirmBtn.textContent = "Xong (0)";
       currentPage = 1;
-      searchInput.value = "";
+      searchInput.value = options.searchQuery || "";
       overlay.style.display = "flex";
       loadGrid();
     };
@@ -623,16 +624,16 @@
       }
     });
 
-    body.addEventListener("dblclick", function(e) {
-      if (e.target.tagName === "IMG") {
-        const altText = prompt("Nhập văn bản thay thế (Alt) cho ảnh:", e.target.alt || "");
-        if (altText !== null) {
-          e.target.alt = altText;
-          e.target.title = altText;
-          sync();
-        }
-      }
+    window.addEventListener('mediaAltUpdated', (e) => {
+      const { url, alt } = e.detail;
+      const images = body.querySelectorAll('img[src="' + url + '"]');
+      images.forEach(img => {
+        img.alt = alt;
+        img.title = alt;
+      });
+      if (images.length > 0) sync();
     });
+
     function sync() {
       if (textarea.style.display !== "none") {
         body.innerHTML = textarea.value; // reverse sync if in source mode
@@ -758,8 +759,13 @@
       if (url) document.execCommand("createLink", false, url);
     });
     addButton(editorIcon("image"), "Chèn ảnh", () => {
+      let query = "";
+      if (selectedImage && selectedImage.src) {
+        query = selectedImage.src.split('/').pop() || "";
+      }
       openMediaPicker({
-        title: "Chèn ảnh vào nội dung",
+        title: selectedImage ? "Đổi ảnh hoặc Sửa Alt" : "Chèn ảnh vào nội dung",
+        searchQuery: decodeURIComponent(query),
         onSelect: (url, media) => {
           body.focus();
           document.execCommand("insertImage", false, url);
@@ -773,17 +779,6 @@
           sync();
         },
       });
-    });
-    addButton('<span class="editor-text-tool" style="font-size:0.75rem; border:1px solid currentColor; padding:0 2px; border-radius:2px;">Alt</span>', "Sửa thẻ Alt ảnh đang chọn", () => {
-      if (!selectedImage) {
-        alert("Vui lòng click chọn một bức ảnh trước khi sửa Alt!");
-        return;
-      }
-      const altText = prompt("Nhập văn bản thay thế (Alt) cho ảnh:", selectedImage.alt || "");
-      if (altText !== null) {
-        selectedImage.alt = altText;
-        selectedImage.title = altText;
-      }
     });
     addButton(editorIcon("video"), "Chèn Video", () => {
       const url = prompt("Nhập URL video (YouTube, Vimeo, MP4...):");
