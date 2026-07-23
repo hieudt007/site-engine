@@ -36,12 +36,12 @@
   <thead>
     <tr>
       <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
-      <th style="width:3rem;">Ảnh</th>
-      <th>Sản phẩm</th>
-      <th>SKU</th>
-      <th>Danh mục</th>
+      <th class="hide-on-mobile" style="width:3rem;">Ảnh</th>
+      <th style="min-width:180px;">Sản phẩm</th>
+      <th class="hide-on-mobile">SKU</th>
+      <th class="hide-on-mobile">Danh mục</th>
       <th>Giá</th>
-      <th>Tồn kho</th>
+      <th class="hide-on-mobile">Tồn kho</th>
       <th>Trạng thái</th>
       <th style="width:5rem;text-align:center;">SEO</th>
       <th></th>
@@ -103,12 +103,12 @@
     return (
       "<tr>" +
       '<td><input type="checkbox" class="row-select" value="' + p.id + '"></td>' +
-      '<td>' + thumbHtml + '</td>' +
+      '<td class="hide-on-mobile">' + thumbHtml + '</td>' +
       '<td><a href="/admin/products/' + p.id + '">' + escapeHtml(p.name) + "</a>" + variantsBadge + "</td>" +
-      "<td>" + (p.sku ? escapeHtml(p.sku) : "-") + "</td>" +
-      "<td>" + category + "</td>" +
+      "<td class=\"hide-on-mobile\">" + (p.sku ? escapeHtml(p.sku) : "-") + "</td>" +
+      "<td class=\"hide-on-mobile\">" + category + "</td>" +
       "<td>" + priceHtml + "</td>" +
-      "<td>" + (p.stock ?? "-") + "</td>" +
+      "<td class=\"hide-on-mobile\">" + (p.stock ?? "-") + "</td>" +
       "<td>" + statusBadge + "</td>" +
       '<td style="text-align:center;">' + seoHtml + '</td>' +
       '<td style="text-align:right;white-space:nowrap;">' + 

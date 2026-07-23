@@ -34,13 +34,13 @@
   <thead>
     <tr>
       {% if role == "manager" or role == "admin" %}<th style="width:2rem;"><input type="checkbox" id="select-all"></th>{% endif %}
-      <th>Tiêu đề</th>
-      <th>Danh mục</th>
+      <th style="min-width:180px;">Tiêu đề</th>
+      <th class="hide-on-mobile">Danh mục</th>
       <th>Trạng thái</th>
       <th style="width:5rem;text-align:center;">SEO</th>
-      <th style="width:6rem;text-align:center;">Inter Link</th>
-      <th>Tác giả</th>
-      <th>Cập nhật</th>
+      <th class="hide-on-mobile" style="width:6rem;text-align:center;">Inter Link</th>
+      <th class="hide-on-mobile">Tác giả</th>
+      <th class="hide-on-mobile">Cập nhật</th>
       <th></th>
     </tr>
   </thead>
@@ -103,12 +103,12 @@
       "<tr>" +
       selectCell +
       '<td>' + (post.password ? '<span style="color:#f59e0b;vertical-align:-2px;margin-right:0.2rem;display:inline-block;width:14px;height:14px;" title="Có mật khẩu">' + window.adminIcon("lock") + '</span>' : '') + '<a href="/admin/posts/' + post.id + '">' + escapeHtml(post.title) + "</a></td>" +
-      "<td>" + category + "</td>" +
+      "<td class=\"hide-on-mobile\">" + category + "</td>" +
       "<td>" + statusBadge + "</td>" +
       '<td style="text-align:center;">' + seoHtml + '</td>' +
-      '<td style="text-align:center;">' + internalLinks + '</td>' +
-      "<td>" + author + "</td>" +
-      "<td>" + updated + "</td>" +
+      '<td class="hide-on-mobile" style="text-align:center;">' + internalLinks + '</td>' +
+      "<td class=\"hide-on-mobile\">" + author + "</td>" +
+      "<td class=\"hide-on-mobile\">" + updated + "</td>" +
       '<td style="text-align:right;white-space:nowrap;">' +
       '<button type="button" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trước" onclick="window.openPreview(\'/admin/preview/post/' + post.id + '\')">' + window.adminIcon("eye") + '</button>' +
       '<a href="/blog/' + post.slug + '" target="_blank" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trên web">' + window.adminIcon("external-link") + '</a>' +

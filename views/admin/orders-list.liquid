@@ -14,7 +14,7 @@
 
 <table>
   <thead>
-    <tr><th>Khách hàng</th><th>SĐT</th><th>Tổng tiền</th><th>Trạng thái</th><th>Ngày đặt</th><th></th></tr>
+    <tr><th style="min-width:150px;">Khách hàng</th><th class="hide-on-mobile">SĐT</th><th>Tổng tiền</th><th>Trạng thái</th><th class="hide-on-mobile">Ngày đặt</th><th></th></tr>
   </thead>
   <tbody id="orders-body">
     <tr><td colspan="6" style="color:#999;">Đang tải...</td></tr>
@@ -49,12 +49,12 @@
   function rowHtml(o) {
     return (
       "<tr>" +
-      "<td>" + escapeHtml(o.customerName) + "</td>" +
-      "<td>" + escapeHtml(o.customerPhone) + "</td>" +
+      '<td><a href="/admin/orders/' + o.id + '">' + escapeHtml(o.customerName) + "</a></td>" +
+      '<td class="hide-on-mobile">' + escapeHtml(o.customerPhone) + "</td>" +
       "<td>" + o.total + "₫</td>" +
       "<td>" + statusBadge(o.status) + "</td>" +
-      "<td>" + new Date(o.createdAt).toLocaleString("vi-VN") + "</td>" +
-      '<td><a class="btn" href="/admin/orders/' + o.id + '">Xem</a></td>' +
+      '<td class="hide-on-mobile">' + new Date(o.createdAt).toLocaleString("vi-VN") + "</td>" +
+      '<td style="text-align:right;"><a class="btn btn-icon" href="/admin/orders/' + o.id + '" title="Xem">' + window.adminIcon("eye") + '</a></td>' +
       "</tr>"
     );
   }

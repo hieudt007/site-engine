@@ -19,11 +19,11 @@
 <table>
   <thead>
     <tr>
-      <th>Tiêu đề</th>
+      <th style="min-width:180px;">Tiêu đề</th>
       <th>Trạng thái</th>
       <th style="width:5rem;text-align:center;">SEO</th>
-      <th>Tác giả</th>
-      <th>Cập nhật</th>
+      <th class="hide-on-mobile">Tác giả</th>
+      <th class="hide-on-mobile">Cập nhật</th>
       <th></th>
     </tr>
   </thead>
@@ -84,8 +84,8 @@
       '<td><a href="/admin/pages/' + page.id + '">' + escapeHtml(page.title) + "</a></td>" +
       "<td>" + statusBadge + "</td>" +
       '<td style="text-align:center;">' + seoHtml + '</td>' +
-      "<td>" + author + "</td>" +
-      "<td>" + updated + "</td>" +
+      "<td class=\"hide-on-mobile\">" + author + "</td>" +
+      "<td class=\"hide-on-mobile\">" + updated + "</td>" +
       '<td style="text-align:right;white-space:nowrap;">' +
       '<button type="button" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trước" onclick="window.openPreview(\'/admin/preview/page/' + page.id + '\')">' + window.adminIcon("eye") + '</button>' +
       '<a href="/' + page.slug + '" target="_blank" class="btn btn-icon" style="margin-right:0.2rem;" title="Xem trên web">' + window.adminIcon("external-link") + '</a>' +
