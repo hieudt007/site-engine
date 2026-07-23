@@ -828,11 +828,24 @@
         sync();
         return;
       }
-      const url = prompt("Nhập URL liên kết:");
-      if (url) {
-        document.execCommand("createLink", false, url);
-        updateToolbarState();
-        sync();
+      
+      const sel = window.getSelection();
+      if (sel.isCollapsed) {
+        document.execCommand("insertHTML", false, '<a href="http://_pending_link_">Liên kết mới</a>');
+      } else {
+        document.execCommand("createLink", false, "http://_pending_link_");
+      }
+      
+      updateToolbarState();
+      
+      if (linkTooltip && linkTooltip.activeNode && linkTooltip.activeNode.href.includes("_pending_link_")) {
+        linkTooltip.activeNode.setAttribute("href", "");
+        linkTooltip.querySelector(".tooltip-view").style.display = "none";
+        linkTooltip.querySelector(".tooltip-edit").style.display = "flex";
+        const urlInput = linkTooltip.querySelector(".tooltip-url-input");
+        urlInput.value = "";
+        linkTooltip.querySelector(".tooltip-blank-check").checked = false;
+        urlInput.focus();
       }
     });
     imageBtn = addButton(editorIcon("image"), "Chèn ảnh", () => {
@@ -1060,6 +1073,15 @@
         }
         linkTooltip.querySelector(".tooltip-url").textContent = url;
         linkTooltip.querySelector(".tooltip-url").href = url;
+        sync();
+      } else {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(linkTooltip.activeNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand("unlink", false, null);
+        updateToolbarState();
         sync();
       }
       editMode.style.display = "none";
