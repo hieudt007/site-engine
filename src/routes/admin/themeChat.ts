@@ -315,7 +315,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
     if (!customTheme) {
       return reply.code(404).send({ error: "Chỉ chat sửa được theme do AI tạo" });
     }
-    const agent = await prisma.agent.findFirst({ where: { purpose: "design", isActive: true } });
+    const agent = await prisma.agent.findFirst({ where: { key: "design", isActive: true } });
     if (!agent) {
       return reply.code(422).send({ error: "Chưa có Agent nào bật với mục đích 'Tuỳ chỉnh giao diện' — vào Quản trị → AI Agent kiểm tra lại." });
     }
@@ -435,7 +435,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       if (!customTheme) {
         return reply.code(404).send({ error: "Chỉ chat sửa được theme do AI tạo" });
       }
-      const agent = await prisma.agent.findFirst({ where: { purpose: "design", isActive: true } });
+      const agent = await prisma.agent.findFirst({ where: { key: "design", isActive: true } });
       if (!agent) {
         return reply.code(422).send({ error: "Chưa có Agent nào bật với mục đích 'Tuỳ chỉnh giao diện' — vào Quản trị → AI Agent kiểm tra lại." });
       }

@@ -1,17 +1,17 @@
 {% layout "layout" %}
 {% block content %}
-<h1 class="font-serif text-3xl font-bold text-center mb-10">Giỏ hàng</h1>
+<h1 class="font-serif text-3xl font-bold text-center mb-10">Thanh toán</h1>
 
-<div id="cart-items"></div>
+<div id="checkout-items"></div>
 
-<form id="checkout-form" class="hidden mt-10 border-t border-stone-200 pt-8">
+<form id="checkout-form" class="mt-10 border-t border-stone-200 pt-8">
   <h2 class="font-serif text-xl font-semibold">Thông tin nhận hàng</h2>
   <div class="flex flex-col gap-3 max-w-md mx-auto">
     <input type="text" name="customerName" placeholder="Họ tên" required class="px-3 py-2.5 border border-stone-300 rounded-md">
     <input type="text" name="customerPhone" placeholder="Số điện thoại" required class="px-3 py-2.5 border border-stone-300 rounded-md">
     <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2.5 border border-stone-300 rounded-md">
   </div>
-  <div id="cart-total" class="my-4 font-bold text-lg text-center"></div>
+  <div id="checkout-total" class="my-4 font-bold text-lg text-center"></div>
   <div class="text-center">
     <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 text-[0.95rem] cursor-pointer">Đặt hàng</button>
   </div>

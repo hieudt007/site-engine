@@ -27,6 +27,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
       '{% render "header"',
       '{% render "footer"',
       '{% render "components/common/breadcrumb"',
+      '{% render "components/common/cart-drawer"',
       "/theme-assets/{{ themeSlug }}/assets/custom.css",
       "/theme-assets/{{ themeSlug }}/assets/custom.js",
     ],
@@ -35,7 +36,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
       'PHAI giu nguyen script Tailwind CDN (co the doi query plugin), PHAI giu {% block content %}{% endblock %} ' +
       'de noi dung tung trang chen vao, PHAI goi {% render "header", site: site, headerMenu: headerMenu %} va ' +
       '{% render "footer", site: site, footerMenu: footerMenu, year: year %}, PHAI giu {% render "components/common/breadcrumb", ... %} ' +
-      'o trong layout de breadcrumb hien toan site khi route truyen breadcrumbs, PHAI giu the <link> toi ' +
+      'o trong layout de breadcrumb hien toan site khi route truyen breadcrumbs, PHAI goi {% render "components/common/cart-drawer" %} ngay truoc the dong body, PHAI giu the <link> toi ' +
       "/theme-assets/{{ themeSlug }}/assets/custom.css va <script> toi .../custom.js (CSS/JS tuy bien rieng cua " +
       "theme, sinh/sua o buoc khac). Duoc tu do doi font (Google Fonts link), tailwind.config (mau sac, " +
       "fontFamily), bo cuc <body> ngoai cac phan bat buoc tren.",
@@ -44,17 +45,19 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     file: "header.liquid",
     description: "Thanh dieu huong dau trang.",
     requiredSubstrings: ["site.siteName", "headerMenu"],
-    requiredIds: [],
+    requiredIds: ["cart-icon"],
     notes:
       "Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). " +
-      "Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart.",
+      "Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. " +
+      "NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. " +
+      "NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.",
   },
   {
     file: "footer.liquid",
     description: "Chan trang.",
     requiredSubstrings: ["site.siteName", "footerMenu"],
     requiredIds: [],
-    notes: "Nhan bien site va footerMenu (giong header.liquid), hien nam ban quyen + ten site.",
+    notes: "Nhan bien site va footerMenu (giong header.liquid), hien nam ban quyen + ten site. NÊN CÓ thêm: Cột nhập email đăng ký nhận bản tin (Newsletter subscription) và các icon mạng xã hội.",
   },
   {
     file: "home.liquid",
@@ -63,14 +66,14 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredIds: [],
     notes:
       "Nhan post[] (slug/title/excerpt/coverImage/publishedAt) va products[] (id/name/imageUrls/price/salePrice). " +
-      "Ca 2 co the rong — phai co fallback khi rong.",
+      "Ca 2 co the rong — phai co fallback khi rong. NÊN CÓ thêm: Hero Banner (Slider hoặc ảnh lớn) với nút Call-to-Action, và Khối danh mục nổi bật.",
   },
   {
     file: "blog-list.liquid",
     description: "Danh sach bai viet, co phan trang.",
     requiredSubstrings: [...WRAPPER, "posts", "post.slug", "post.title", "hasNext", "hasPrev"],
     requiredIds: [],
-    notes: "posts[] tung phan tu co slug/title/excerpt/coverImage/publishedAt/categories[]. hasPrev/hasNext/prevPage/nextPage cho phan trang.",
+    notes: "posts[] tung phan tu co slug/title/excerpt/coverImage/publishedAt/categories[]. hasPrev/hasNext/prevPage/nextPage cho phan trang. NÊN CÓ thêm: Ô tìm kiếm bài viết và Danh sách các chuyên mục/tag phổ biến (Category pills).",
   },
   {
     file: "blog-post.liquid",
@@ -112,7 +115,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     description: "Danh sach san pham, co phan trang.",
     requiredSubstrings: [...WRAPPER, "products", "product.id", "hasNext", "hasPrev"],
     requiredIds: [],
-    notes: "products[] co id/name/imageUrls/price/salePrice.",
+    notes: "products[] co id/name/imageUrls/price/salePrice. NÊN CÓ thêm: Sidebar hoặc Dropdown bộ lọc (Filter) cơ bản và Sắp xếp (Sort: giá, mới nhất).",
   },
   {
     file: "product-category.liquid",
@@ -147,7 +150,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     description: "Khoi anh san pham.",
     requiredSubstrings: ["product.imageUrls", "product.name"],
     requiredIds: [],
-    notes: "Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua.",
+    notes: "Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua. NÊN CÓ thêm: Image Gallery có ảnh chính lớn và danh sách ảnh thumbnail nhỏ bên dưới (hỗ trợ click đổi ảnh chính).",
   },
   {
     file: "components/product/info.liquid",
@@ -172,7 +175,7 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredIds: ["review-form", "review-msg"],
     notes:
       'Nhan product, reviews va avgRating. Sua mo ta dai, thong so, FAQ, custom fields va danh gia/review o day. PHAI giu {% render "custom-fields", fields: product.customFields %}. ' +
-      "JS gui danh gia doc form#review-form va #review-msg. Form can customerName, rating va comment.",
+      "JS gui danh gia doc form#review-form va #review-msg. Form can customerName, rating va comment. NÊN CÓ thêm: UI dạng Tabs hoặc Accordion để chứa gọn gàng phần mô tả, thông số và đánh giá.",
   },
   {
     file: "components/product/related.liquid",
@@ -182,16 +185,23 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     notes: "Nhan title, products[], productUrlPrefix. Sua block upsell/cross-sell/related trong trang chi tiet o day. Tu an khi products rong/null. Co the dung product-card neu phu hop.",
   },
   {
-    file: "cart.liquid",
-    description: "Trang gio hang + checkout.",
-    requiredSubstrings: [...WRAPPER],
-    requiredIds: ["cart-items", "checkout-form", "cart-total", "checkout-error"],
+    file: "components/common/cart-drawer.liquid",
+    description: "Mini cart hien thi dang drawer hoac popup.",
+    requiredSubstrings: [],
+    requiredIds: ["cart-drawer", "cart-drawer-items", "cart-drawer-total", "cart-drawer-close"],
     notes:
-      "JS (giu nguyen, chi doi HTML/class xung quanh) doc localStorage, bom noi dung vao #cart-items, " +
-      "form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #cart-total, " +
+      "Giao dien giỏ hàng nhỏ gọn trượt từ cạnh bên hoac popup. JS se dung #cart-drawer de hien/an, render html danh sach vao #cart-drawer-items, hien tong tien vao #cart-drawer-total. Nút close dùng #cart-drawer-close. Phải có link tới /checkout.",
+  },
+  {
+    file: "checkout.liquid",
+    description: "Trang thanh toán don hang (checkout).",
+    requiredSubstrings: [...WRAPPER],
+    requiredIds: ["checkout-items", "checkout-form", "checkout-total", "checkout-error"],
+    notes:
+      "JS (giu nguyen) doc localStorage, bom danh sach sp tom tat vao #checkout-items, " +
+      "form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #checkout-total, " +
       "loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd " +
-      '<input name="secondaryPhone">) - JS tu dong gop moi input NGOAI 3 ten tren thanh customFields ' +
-      "gui kem don hang, KHONG can sua JS.",
+      '<input name="secondaryPhone">) - JS tu dong gop moi input NGOAI cac field chuan thanh customFields.',
   },
   {
     file: "order-confirmation.liquid",
@@ -201,23 +211,6 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     notes:
       "order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. " +
       'PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).',
-  },
-  {
-    file: "custom-content.liquid",
-    description: "Che do 'Tuy bien' cua Post/Page/Product - van co header/footer nhung noi dung render THO, khong qua khung tieu de/danh muc chuan.",
-    requiredSubstrings: [...WRAPPER, "rawHtml"],
-    requiredIds: [],
-    notes: "Chi can render {{ rawHtml }} (HTML da duoc admin tu soan, KHONG duoc escape/sanitize them) vao trong block content, khong them chrome (tieu de/breadcrumb) nao ca.",
-  },
-  {
-    file: "landing.liquid",
-    description: "Che do 'Landing page' cua Post/Page/Product - KHONG header/footer/layout gi ca, trang doc lap hoan toan.",
-    requiredSubstrings: ["cdn.tailwindcss.com", "rawHtml"],
-    requiredIds: [],
-    notes:
-      "KHONG duoc {% render \"header\" %}/{% render \"footer\" %} - day la trang doc lap (vd landing quang cao), " +
-      "khong duoc co nav/footer cua site chinh. Van giu <head> voi Tailwind CDN + font de rawHtml (admin tu viet, " +
-      "co the dung class Tailwind) hien dung. Chi render {{ rawHtml }} thang vao <body>, KHONG escape/sanitize them.",
   },
   {
     file: "404.liquid",
@@ -259,7 +252,8 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
     requiredIds: [],
     notes:
       "Nhan product, productUrlPrefix va variant. Sua card san pham o home/list/category/search/related o day. Variant co the la 'home', 'list', 'category', 'related', 'upsell', 'cross-sell'. " +
-      "Duoc phep doi layout/style theo variant, nhung phai link den productUrlPrefix + slug/id va hien ten/gia san pham.",
+      "Duoc phep doi layout/style theo variant, nhung phai link den productUrlPrefix + slug/id va hien ten/gia san pham. " +
+      "NÊN CÓ: Nút 'Thêm vào giỏ' dùng thẻ <a class='global-add-to-cart-btn' rel='nofollow' href='/cart/checkout?add_product_id={{ product.id }}' data-product-id='{{ product.id }}'>. Lõi JS đã tự bắt sự kiện này để giỏ hàng trượt ra, nếu JS hỏng sẽ tự fallback về trang thanh toán.",
   },
   {
     file: "components/post/card.liquid",
@@ -309,7 +303,7 @@ export const THEME_ASSET_FILES: ThemeAssetFile[] = THEME_FILE_CONTRACTS.flatMap(
       notes:
         `JS riêng cho "${c.file}" (${c.description}) — chỉ ảnh hưởng trang này. KHÔNG được định nghĩa lại các id ` +
         "đã dùng bởi JS nguồn của theme: add-to-cart, " +
-        "cart-items, checkout-form, checkout-error, cart-total, variant-picker, variant-price, variant-stock, " +
+        "cart-drawer-items, checkout-items, checkout-form, checkout-error, checkout-total, cart-drawer-total, variant-picker, variant-price, variant-stock, " +
         "review-form, unlock-form, password, unlock-error.",
     },
   ];

@@ -8,8 +8,11 @@
   {% if noindex %}<meta name="robots" content="noindex">{% endif %}
   {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
 </head>
 <body>
 {{ rawHtml }}
+{% render "components/common/cart-drawer" %}
+<script src="/theme-assets/{{ themeSlug }}/assets/custom.js" defer></script>
 </body>
 </html>

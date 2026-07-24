@@ -24,18 +24,18 @@ export async function registerSearchRoutes(app: FastifyInstance): Promise<void> 
       const [posts, pages, products, media] = await Promise.all([
         prisma.post.findMany({
           where: { type: "post", title: { contains: q, mode: "insensitive" } },
-          select: { id: true, title: true },
+          select: { id: true, title: true, slug: true },
           take: RESULT_LIMIT,
         }),
         prisma.post.findMany({
           where: { type: "page", title: { contains: q, mode: "insensitive" } },
-          select: { id: true, title: true },
+          select: { id: true, title: true, slug: true },
           take: RESULT_LIMIT,
         }),
         canManage
           ? prisma.productCache.findMany({
               where: { name: { contains: q, mode: "insensitive" } },
-              select: { id: true, name: true },
+              select: { id: true, name: true, slug: true },
               take: RESULT_LIMIT,
             })
           : Promise.resolve([]),

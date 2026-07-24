@@ -82,13 +82,13 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.get("/cart", async (request, reply) => {
-    const html = await renderPublic("cart", {
-      pageTitle: "Giỏ hàng",
+  app.get("/checkout", async (request, reply) => {
+    const html = await renderPublic("checkout", {
+      pageTitle: "Thanh toán",
       breadcrumbs: [
         { name: "Trang chủ", url: "/" },
         { name: "Sản phẩm", url: "/products" },
-        { name: "Giỏ hàng", url: "/cart" },
+        { name: "Thanh toán", url: "/checkout" },
       ],
       breadcrumbVariant: "product",
     });

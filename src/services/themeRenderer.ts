@@ -75,7 +75,10 @@ function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string 
 // lan render nay thoi.
 export async function renderPublic(template: string, data: RenderData, themeSlugOverride?: string): Promise<string> {
   const slug = themeSlugOverride ?? (await activeThemeSlug());
-  const engine = new Liquid({ root: path.join(THEMES_ROOT, slug), extname: ".liquid" });
+  const engine = new Liquid({ 
+    root: [path.join(THEMES_ROOT, slug), path.join(THEMES_ROOT, "default")], 
+    extname: ".liquid" 
+  });
 
   const [siteConfig, headerMenu, footerMenu, pluginContext] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: "singleton" } }),
@@ -105,7 +108,7 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const pageUrlPrefix = prefixPath(pagePrefix(urlConfig));
   const productUrlPrefix = prefixPath(productPrefix(urlConfig));
 
-  const html = await engine.renderFile(template, {
+  const contextData = {
     ...restData,
     site,
     // headerMenu/footerMenu co the null (chua tung luu, xem routes/admin/menus.ts) - theme tu
@@ -125,7 +128,19 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     // dang active - xem routes/public/themeAssets.ts.
     themeSlug: slug,
     year: new Date().getFullYear(),
-  });
+  };
+
+  // NẾU nội dung có chứa rawHtml (từ các trang Custom/Landing) -> Parse Liquid cho chính rawHtml trước khi đẩy ra layout
+  if (typeof contextData.rawHtml === "string" && contextData.rawHtml.includes("{")) {
+    try {
+      contextData.rawHtml = await engine.parseAndRender(contextData.rawHtml, contextData);
+    } catch (e) {
+      // Bỏ qua lỗi parse Liquid nếu cú pháp bị sai (để tránh sập trang), giữ nguyên html tĩnh
+      console.error("Error parsing Liquid in rawHtml:", e);
+    }
+  }
+
+  const html = await engine.renderFile(template, contextData);
 
   const allSchemas = [buildOrganizationSchema({ siteName: site.siteName, logoUrl: site.logoUrl, domain: site.domain }), ...(schemas ?? [])];
   const withSchemas = injectSchemas(html, allSchemas);

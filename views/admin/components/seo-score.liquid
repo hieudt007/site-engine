@@ -1,21 +1,22 @@
-{% if seo and seo.score != nil %}
-  <div class="card">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
-      <div>
-        <h3 class="edit-card-title" style="margin-bottom:0;">Chấm điểm SEO</h3>
-        {% if seo.analyzedAt %}<div class="field-hint" style="margin-top:0.2rem;">Tính toán sau lần lưu cuối.</div>{% endif %}
+<div class="card" id="seo-score-card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
+    <div>
+      <h3 class="edit-card-title" style="margin-bottom:0;">SEO Score</h3>
+      <div id="seo-score-hint" class="field-hint" style="margin-top:0.2rem;">
+        {% if seo and seo.analyzedAt %}Chấm điểm lúc {{ seo.analyzedAt | date: "%H:%M %d/%m/%Y" }}{% else %}Sẵn sàng chấm điểm...{% endif %}
       </div>
-      <div class="seo-score-number">{{ seo.score }}/100</div>
     </div>
-    {% if seo.checks and seo.checks.size > 0 %}
-      <ul class="seo-check-list" style="border-top:1px dashed #eee; padding-top:0.8rem;">
-        {% for check in seo.checks %}
-          <li class="seo-check-{{ check.status }}">
-            <span class="seo-check-dot"></span>
-            <span>{{ check.message | escape }}</span>
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
+    <div id="seo-score-number" class="seo-score-number">{% if seo and seo.score != nil %}{{ seo.score }}{% else %}0{% endif %}/100</div>
   </div>
-{% endif %}
+  
+  <ul id="seo-check-list" class="seo-check-list" style="border-top:1px dashed #eee; padding-top:0.8rem; {% if not seo or seo.checks == null or seo.checks.size == 0 %}display:none;{% endif %}">
+    {% if seo and seo.checks and seo.checks.size > 0 %}
+      {% for check in seo.checks %}
+        <li class="seo-check-{{ check.status }}">
+          <span class="seo-check-dot"></span>
+          <span>{{ check.message | escape }}</span>
+        </li>
+      {% endfor %}
+    {% endif %}
+  </ul>
+</div>

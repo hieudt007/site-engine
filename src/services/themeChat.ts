@@ -260,6 +260,8 @@ function buildEditSystemPrompt(files: string[], isLastGroup: boolean): string {
     "Hợp đồng từng file (bắt buộc, hệ thống tự kiểm tra):",
     contractNotes,
     "",
+    "CRITICAL INSTRUCTION: Các mục trong hợp đồng trên là những CẤU TRÚC NÊN CÓ để hệ thống hoạt động. Tuy nhiên, YÊU CẦU CỦA NGƯỜI DÙNG (User) VẪN LÀ TIÊN QUYẾT. Bạn PHẢI thiết kế giao diện và thêm các chức năng nâng cao theo đúng yêu cầu, sở thích của người dùng, kết hợp với các cấu trúc nên có trên.",
+    "",
     "Lưu ý CHUNG cho CHANGE_NOTE/SUMMARY/MEMORY_UPDATE bên dưới: chỉ mô tả những gì VỪA THỰC SỰ code xong (xem file ở trên) — " +
       "'Quy ước & gu thẩm mỹ chung' trong THEME.md là mục tiêu dài hạn, có thể CHƯA làm xong, KHÔNG được lấy nội dung từ đó.",
     "",

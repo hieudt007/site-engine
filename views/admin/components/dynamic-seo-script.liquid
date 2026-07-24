@@ -1,0 +1,161 @@
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const entityType = '{{ entityType }}';
+  const fieldIds = {{ fieldIds | json }};
+  
+  let seoTimeout = null;
+  const hintEl = document.getElementById('seo-score-hint');
+  const numberEl = document.getElementById('seo-score-number');
+  const listEl = document.getElementById('seo-check-list');
+
+  function getFieldValue(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    
+    // Support tinymce/rich-editor if applicable
+    if (el.tagName === 'TEXTAREA' && el.classList.contains('rich-editor') && typeof tinymce !== 'undefined') {
+      const editor = tinymce.get(id);
+      if (editor) return editor.getContent();
+    }
+    
+    // Support custom rich-editor with div
+    if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
+       const editorBody = el.parentNode.querySelector('.rich-editor-body');
+       if (editorBody) return editorBody.innerHTML;
+    }
+    
+    if (el.type === 'checkbox') return el.checked;
+    
+    return el.value;
+  }
+
+  function getFaqValue() {
+    const faqRows = document.getElementById('faq-rows');
+    if (!faqRows) return undefined;
+    const faqs = [];
+    faqRows.querySelectorAll('.faq-row').forEach(row => {
+      const q = row.querySelector('.faq-q');
+      const a = row.querySelector('.faq-a');
+      if (q && a && q.value.trim() && a.value.trim()) {
+        faqs.push({ question: q.value.trim(), answer: a.value.trim() });
+      }
+    });
+    return faqs.length > 0 ? faqs : undefined;
+  }
+  
+  function getSpecsValue() {
+    const specsRows = document.getElementById('specs-rows');
+    if (!specsRows) return undefined;
+    const specs = [];
+    specsRows.querySelectorAll('.spec-row').forEach(row => {
+      const k = row.querySelector('.spec-k');
+      const v = row.querySelector('.spec-v');
+      if (k && v && k.value.trim() && v.value.trim()) {
+        specs.push({ key: k.value.trim(), value: v.value.trim() });
+      }
+    });
+    return specs.length > 0 ? specs : undefined;
+  }
+
+  async function analyzeSeo() {
+    if (hintEl) hintEl.innerHTML = 'Đang phân tích... <span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #ccc;border-top-color:#333;border-radius:50%;animation:spin 1s linear infinite;"></span>';
+    
+    const data = {};
+    fieldIds.forEach(id => {
+      if (id === 'faq') {
+        data.faq = getFaqValue();
+      } else if (id === 'specs') {
+        data.specs = getSpecsValue();
+      } else {
+        data[id] = getFieldValue(id);
+      }
+    });
+    
+    try {
+      const res = await fetch('/admin/api/seo/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: entityType, data })
+      });
+      const json = await res.json();
+      
+      if (json.result) {
+        const seo = json.result;
+        
+        if (numberEl) numberEl.textContent = seo.score + '/100';
+        if (hintEl) {
+          const now = new Date();
+          hintEl.textContent = 'Tính toán lúc ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ' ' + String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth()+1).padStart(2, '0') + '/' + now.getFullYear();
+        }
+        
+        if (listEl) {
+          listEl.style.display = seo.checks && seo.checks.length > 0 ? 'block' : 'none';
+          listEl.innerHTML = '';
+          (seo.checks || []).forEach(check => {
+            const li = document.createElement('li');
+            li.className = 'seo-check-' + check.status;
+            
+            const dot = document.createElement('span');
+            dot.className = 'seo-check-dot';
+            
+            const txt = document.createElement('span');
+            txt.textContent = check.message;
+            
+            li.appendChild(dot);
+            li.appendChild(txt);
+            listEl.appendChild(li);
+          });
+        }
+      } else {
+        if (hintEl) hintEl.textContent = 'Lỗi phân tích SEO';
+      }
+    } catch (e) {
+      console.error(e);
+      if (hintEl) hintEl.textContent = 'Lỗi kết nối khi phân tích';
+    }
+  }
+
+  function triggerAnalysis() {
+    if (seoTimeout) clearTimeout(seoTimeout);
+    seoTimeout = setTimeout(() => {
+      analyzeSeo();
+    }, 3000); // 3s debounce
+  }
+
+  // Attach event listeners
+  fieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', triggerAnalysis);
+      el.addEventListener('change', triggerAnalysis);
+      
+      // If it's a rich editor wrapper, we also need to listen to its body
+      if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
+        const editorBody = el.parentNode.querySelector('.rich-editor-body');
+        if (editorBody) {
+          editorBody.addEventListener('input', triggerAnalysis);
+          editorBody.addEventListener('blur', triggerAnalysis);
+        }
+      }
+    }
+  });
+
+  // Watch for tinymce events if it exists
+  if (typeof tinymce !== 'undefined') {
+    tinymce.on('AddEditor', function (e) {
+      e.editor.on('change input keyup', function () {
+        if (fieldIds.includes(e.editor.id)) {
+          triggerAnalysis();
+        }
+      });
+    });
+  }
+  
+  // Custom events for FAQ/Specs if they exist
+  document.addEventListener('faq-changed', triggerAnalysis);
+  document.addEventListener('specs-changed', triggerAnalysis);
+});
+</script>
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>

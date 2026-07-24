@@ -517,4 +517,6 @@ document.addEventListener("DOMContentLoaded", function() {
   
 </style>
 
+{% assign seo_fields = "title,slug,body,excerpt,coverImage,keyword,metaTitle,metaDescription,ogImage,noindex,faq" | split: "," %}
+{% render "components/dynamic-seo-script", entityType: "page", fieldIds: seo_fields %}
 {% endblock %}

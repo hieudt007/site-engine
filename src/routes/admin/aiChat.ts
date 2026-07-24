@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { callAgent, generateImage } from "../../services/aiClient.js";
+import { callAgent, generateImage, webFetch, webSearch } from "../../services/aiClient.js";
 import { InvalidUploadError, saveAiChatImage } from "../../services/mediaStorage.js";
 
 const querySchema = z.object({
@@ -20,6 +20,7 @@ const messageSchema = z.object({
   toolData: z.record(z.any()).optional().nullable(),
   originalMessage: z.string().optional().nullable(),
   nextAgent: z.string().optional().nullable(),
+  layoutMode: z.string().optional().nullable(),
   entityId: z.string().optional().nullable(),
   historyId: z.number().optional().nullable(),
 });
@@ -100,31 +101,69 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
 
       // Luồng 2: Frontend đã gửi dữ liệu form
       if (parsed.data.isToolResponse) {
-        const agentPurpose = parsed.data.nextAgent === "content" ? "content" : "chat";
+        let agentKey = parsed.data.nextAgent === "content" ? "content" : "chat";
+        if (parsed.data.nextAgent === "developer") agentKey = "developer";
+        if (parsed.data.nextAgent === "content_then_developer") agentKey = "content"; // Call content first
+        
         const agent = await prisma.agent.findFirst({
-          where: { isActive: true, purpose: agentPurpose },
+          where: { isActive: true, key: agentKey },
         });
 
         if (!agent) {
-          return reply.code(503).send({ message: `Không tìm thấy AI Agent cho mục đích ${agentPurpose}.` });
+          return reply.code(503).send({ message: `Không tìm thấy AI Agent cho mục đích ${agentKey}.` });
         }
 
-        const systemPrompt = (agent.systemPrompt || `Bạn là một trợ lý AI chuyên về ${agentPurpose}.`) + 
-          "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object with the following format:\n" +
-          `{"action": "fill_form", "data": {"<field_id>": "<field_value>"}, "message": "Nội dung phản hồi cho user"}\n` +
-          "Your response will be used to automatically fill the form on the frontend." +
-          (parsed.data.availableFields && parsed.data.availableFields.length > 0 ? `\n\n- The available HTML element IDs on the current page are: [${parsed.data.availableFields.join(', ')}]. You MUST ONLY select IDs from this list to fill in the data object.\n- SPECIAL FIELD: if you are filling the "faq" field, its value MUST be an array of objects in this format: [{"question": "...", "answer": "..."}].\n- SPECIAL FIELD: if you are filling the "keyword" field, its value MUST be a comma-separated string (e.g. "key1, key2").` : "");
+        let systemPrompt = (agent.systemPrompt || `Bạn là một trợ lý AI chuyên về ${agentKey}.`);
+        if (agentKey === "content") {
+          systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object with the following format:\n" +
+            `{"action": "fill_form", "data": {"<field_id>": "<field_value>"}, "message": "Nội dung phản hồi cho user"}\n` +
+            "Your response will be used to automatically fill the form on the frontend." +
+            (parsed.data.nextAgent === "content_then_developer" ? `\n\n- SPECIAL RULE FOR HTML CONTENT: Because the user wants to generate a custom/landing layout, DO NOT write HTML code in the "body" or "description" field. Instead, write a detailed "Layout Blueprint" (text instructions on structure, sections, colors) in that field. A Developer Agent will read this blueprint and generate the actual HTML later.` : "") +
+            (parsed.data.availableFields && parsed.data.availableFields.length > 0 ? `\n\n- The available HTML element IDs on the current page are: [${parsed.data.availableFields.join(', ')}]. You MUST ONLY select IDs from this list to fill in the data object.\n- SPECIAL FIELD: if you are filling the "faq" field, its value MUST be an array of objects in this format: [{"question": "...", "answer": "..."}].\n- SPECIAL FIELD: if you are filling the "keyword" field, its value MUST be a comma-separated string (e.g. "key1, key2").` : "") +
+            (parsed.data.toolData && parsed.data.toolData.searchResults ? `\n\n- INTERNAL LINKS: You have been provided with search results for related articles/products in the form data (searchResults). Use these URLs to insert anchor tags (e.g., <a href="/url">Title</a>) into the content where appropriate.` : "");
+        } else if (agentKey === "developer") {
+          systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object with the following format:\n" +
+            `{"action": "fill_form", "data": {"body": "<raw_html_code>"}, "message": "Đã code xong giao diện"}\n` +
+            "You MUST output raw HTML/Tailwind in the data.body field (or data.description if body is not available). DO NOT use markdown code blocks for the JSON output itself unless parsed properly, but ensure the string inside JSON is properly escaped.";
+        } else {
+          systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object with the following format:\n" +
+            `{"action": "chat", "message": "Nội dung câu trả lời của bạn"}\n`;
+        }
         
-        const userPrompt = `Yêu cầu của người dùng: ${parsed.data.originalMessage || parsed.data.message}\n` +
-          `Dữ liệu form hiện tại:\n${JSON.stringify(parsed.data.toolData, null, 2)}`;
+        let userPrompt = `Yêu cầu của người dùng: ${parsed.data.originalMessage || parsed.data.message}\n` +
+          `Dữ liệu công cụ/form cung cấp:\n${JSON.stringify(parsed.data.toolData, null, 2)}`;
 
         try {
-          const responseText = await callAgent(agent, systemPrompt, userPrompt, parsed.data.imageUrl, true);
+          const responseText = await callAgent(agent, systemPrompt, userPrompt, parsed.data.imageUrl || undefined, true);
           let responseJson;
           try {
             responseJson = parseAiJson(responseText);
           } catch (e) {
             responseJson = { action: "chat", message: responseText };
+          }
+
+          // CHUỖI AGENT: Nếu là content_then_developer, tiếp tục gọi developer agent
+          if (parsed.data.nextAgent === "content_then_developer" && responseJson.data) {
+            const blueprint = responseJson.data.body || responseJson.data.description || "";
+            if (blueprint) {
+              const devAgent = await prisma.agent.findFirst({ where: { isActive: true, key: "developer" } });
+              if (devAgent) {
+                const devSystemPrompt = (devAgent.systemPrompt || "Bạn là một Frontend Developer.") + 
+                  "\n\nCRITICAL INSTRUCTION: Return a valid JSON object:\n" +
+                  `{"action": "fill_form", "data": {"body": "<raw_html_code>"}}\n`;
+                const devUserPrompt = `Yêu cầu của người dùng: ${parsed.data.originalMessage || parsed.data.message}\n\nHãy viết mã HTML/TailwindCSS nguyên gốc (Raw HTML) dựa trên Blueprint/Cấu trúc sau:\n${blueprint}`;
+                const devResponseText = await callAgent(devAgent, devSystemPrompt, devUserPrompt, undefined, true);
+                try {
+                  const devJson = parseAiJson(devResponseText);
+                  if (devJson.data && devJson.data.body) {
+                    if (responseJson.data.body !== undefined) responseJson.data.body = devJson.data.body;
+                    else if (responseJson.data.description !== undefined) responseJson.data.description = devJson.data.body;
+                  }
+                } catch (e) {
+                  // Ignore parse error, use original blueprint
+                }
+              }
+            }
           }
 
           if (parsed.data.historyId) {
@@ -188,12 +227,20 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
 
       const systemPrompt = (agent.systemPrompt || "Bạn là một trợ lý AI hỗ trợ quản trị viên của hệ thống Site Engine.") + 
         (parsed.data.pageTitle ? `\n\n[Context] User hiện đang ở trang: "${parsed.data.pageTitle}" (URL: ${parsed.data.pageUrl || 'Không rõ'})` : "") + 
+        (parsed.data.layoutMode ? `\n[Context] Giao diện (layoutMode) đang chọn: "${parsed.data.layoutMode}". (Lưu ý: 'custom' hoặc 'landing' nghĩa là nội dung body/description chứa mã HTML nguyên gốc).` : "") +
         "\n\nCRITICAL INSTRUCTION: You MUST act as an orchestrator. If the user asks you to write, generate, or evaluate content/data that requires interacting with the current form, you MUST return a valid JSON object in this format:\n" +
-        `{"action": "request_fields", "fields": ["<field_id_1>", "<field_id_2>"], "nextAgent": "content", "message": "Đang đọc dữ liệu form để phân tích..."}\n` +
+        `{"action": "request_fields", "fields": ["<field_id_1>", "<field_id_2>"], "search_query": "từ khóa (optional)", "nextAgent": "content", "message": "Đang đọc dữ liệu form để phân tích..."}\n` +
         "Where 'fields' is an array of HTML element IDs on the current page that you need to read. ONLY request the specific fields that are absolutely necessary to fulfill the user's request.\n" +
+        "- If the user asks to **tạo mới (create new)** a landing page or custom interface from scratch, you MUST set `nextAgent` to `\"content_then_developer\"`.\n" +
+        "- If the user asks to **chỉnh sửa (edit)** the current design/HTML directly, you MUST set `nextAgent` to `\"developer\"`.\n" +
+        "If you need to find related posts or products to add internal links to the content, you CAN include 'search_query' with a keyword.\n" +
         (parsed.data.availableFields && parsed.data.availableFields.length > 0 ? `- The available HTML element IDs on the current page are: [${parsed.data.availableFields.join(', ')}]. You MUST ONLY select IDs from this list. NOTE: if "faq" or "keyword" is in the list, you can request them.\n` : "") +
         "If the user asks you to generate, create, or draw an image, return JSON in this format:\n" +
         `{"action": "generate_image", "prompt": "Chi tiết mô tả ảnh bằng tiếng Anh", "message": "Đang tạo ảnh..."}\n` +
+        "If you need to fetch content from a URL to answer the user's question, return JSON in this format:\n" +
+        `{"action": "webfetch", "url": "URL cần lấy nội dung", "message": "Đang đọc nội dung trang web..."}\n` +
+        "If you need to search the web for information to answer the user's question, return JSON in this format:\n" +
+        `{"action": "websearch", "query": "Từ khóa tìm kiếm", "message": "Đang tìm kiếm trên mạng..."}\n` +
         "If the user just asks a general question, answer normally by returning JSON in this format:\n" +
         `{"action": "chat", "message": "Câu trả lời của bạn"}\n` +
         contextStr;
@@ -209,7 +256,7 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
       });
 
       try {
-        const responseText = await callAgent(agent, systemPrompt, parsed.data.message, parsed.data.imageUrl, true);
+        const responseText = await callAgent(agent, systemPrompt, parsed.data.message, parsed.data.imageUrl || undefined, true);
         
         let responseJson;
         try {
@@ -219,9 +266,33 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
         }
 
         if (responseJson.action === "request_fields") {
+          if (responseJson.search_query) {
+            const q = responseJson.search_query;
+            const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+            const postPre = (config?.postSlugPrefix && config.postSlugPrefix !== "/") ? config.postSlugPrefix : "p";
+            const productPre = (config?.productSlugPrefix && config.productSlugPrefix !== "/") ? config.productSlugPrefix : "product";
+            
+            const [posts, products] = await Promise.all([
+              prisma.post.findMany({
+                where: { type: "post", title: { contains: q, mode: "insensitive" } },
+                select: { title: true, slug: true },
+                take: 5,
+              }),
+              prisma.productCache.findMany({
+                where: { name: { contains: q, mode: "insensitive" } },
+                select: { name: true, slug: true },
+                take: 5,
+              })
+            ]);
+            
+            responseJson.searchResults = [
+              ...posts.map(p => ({ title: p.title, url: `/${postPre}/${p.slug}` })),
+              ...products.map(p => ({ title: p.name, url: `/${productPre}/${p.slug}` }))
+            ];
+          }
           responseJson.historyId = historyRow.id;
           return responseJson;
-        } else if (responseJson.action === "generate_image") {
+        } else if (responseJson.action === "generate_image" || responseJson.action === "webfetch" || responseJson.action === "websearch") {
           responseJson.historyId = historyRow.id;
           return responseJson;
         } else {
@@ -300,6 +371,68 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
           });
         }
         return reply.code(500).send({ message: error.message || "Lỗi khi sinh ảnh" });
+      }
+    }
+  );
+
+  app.post(
+    "/admin/api/ai-chat/webfetch",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const schema = z.object({
+        url: z.string().url(),
+        key: z.string().optional().default("fetch"),
+      });
+
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ message: "Invalid parameters" });
+      }
+
+      const agent = await prisma.agent.findFirst({
+        where: { isActive: true, key: parsed.data.key },
+      });
+
+      if (!agent) {
+        return reply.code(404).send({ message: `Không tìm thấy AI Agent với key ${parsed.data.key}` });
+      }
+
+      try {
+        const result = await webFetch(agent, parsed.data.url);
+        return reply.send({ result });
+      } catch (error: any) {
+        return reply.code(500).send({ message: error.message || "Lỗi khi gọi Web Fetch API" });
+      }
+    }
+  );
+
+  app.post(
+    "/admin/api/ai-chat/websearch",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const schema = z.object({
+        query: z.string().min(1),
+        key: z.string().optional().default("search"),
+      });
+
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ message: "Invalid parameters" });
+      }
+
+      const agent = await prisma.agent.findFirst({
+        where: { isActive: true, key: parsed.data.key },
+      });
+
+      if (!agent) {
+        return reply.code(404).send({ message: `Không tìm thấy AI Agent với key ${parsed.data.key}` });
+      }
+
+      try {
+        const result = await webSearch(agent, parsed.data.query);
+        return reply.send({ result });
+      } catch (error: any) {
+        return reply.code(500).send({ message: error.message || "Lỗi khi gọi Web Search API" });
       }
     }
   );

@@ -9,3 +9,7 @@
     <div>{{ product.price }}₫</div>
   {% endif %}
 </a>
+<a href="/cart/checkout?add_product_id={{ product.id }}" rel="nofollow" class="global-add-to-cart-btn" data-product-id="{{ product.id }}" style="display:inline-block; margin-top:0.5rem; padding:0.25rem 0.5rem; border:1px solid #ddd; background:#f9f9f9; border-radius:4px; cursor:pointer; text-decoration:none; color:black;">
+  Thêm vào giỏ
+  <span class="add-to-cart-msg" style="color:green; font-size:0.8rem; margin-left:4px;"></span>
+</a>

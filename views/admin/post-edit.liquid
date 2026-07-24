@@ -647,8 +647,11 @@ document.addEventListener("DOMContentLoaded", function() {
     new Sortable(mainCol, opts);
     new Sortable(sidebarCol, opts);
   }
-});
+  });
 </script>
+
+{% assign seo_fields = "title,slug,body,excerpt,coverImage,keyword,metaTitle,metaDescription,ogImage,noindex,faq" | split: "," %}
+{% render "components/dynamic-seo-script", entityType: "post", fieldIds: seo_fields %}
 <style>
   .sortable-ghost { opacity: 0.4; background: #f8fafc; border: 1px dashed #cbd5e1; }
   

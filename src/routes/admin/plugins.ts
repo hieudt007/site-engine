@@ -23,6 +23,18 @@ const importSchema = z.object({
   enabled: z.boolean().default(false),
 });
 
+const agentSchema = z.object({
+  key: z.string().optional().nullable(),
+  name: z.string().min(1),
+  provider: z.string().default("openai"),
+  model: z.string().min(1),
+  systemPrompt: z.string().optional().nullable(),
+  apiKey: z.string().optional().nullable(),
+  baseUrl: z.string().optional().nullable(),
+  endpoint: z.string().default("/chat/completions"),
+  isActive: z.boolean().default(true),
+});
+
 const enabledSchema = z.object({ enabled: z.boolean() });
 const recordSchema = z.object({ data: z.record(z.unknown()) });
 const collectionParamSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,48}$/);
@@ -38,6 +50,62 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 }
 
 export async function registerPluginRoutes(app: FastifyInstance): Promise<void> {
+  app.get<{ Params: { slug: string } }>(
+    "/admin/api/plugins/:slug/agents",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const agents = await prisma.agent.findMany({ where: { pluginSlug: plugin.slug } });
+      return { agents };
+    },
+  );
+
+  app.post<{ Params: { slug: string } }>(
+    "/admin/api/plugins/:slug/agents",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const parsed = agentSchema.safeParse(request.body);
+      if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
+      const agent = await prisma.agent.create({
+        data: { ...parsed.data, pluginSlug: plugin.slug, isSystem: false },
+      });
+      return reply.code(201).send({ agent });
+    },
+  );
+
+  app.put<{ Params: { slug: string; id: string } }>(
+    "/admin/api/plugins/:slug/agents/:id",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const agent = await prisma.agent.findFirst({ where: { id: request.params.id, pluginSlug: plugin.slug } });
+      if (!agent) return reply.code(404).send({ error: "Agent not found" });
+      const parsed = agentSchema.partial().safeParse(request.body);
+      if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
+      const updated = await prisma.agent.update({
+        where: { id: agent.id },
+        data: { ...parsed.data, isSystem: false },
+      });
+      return { agent: updated };
+    },
+  );
+
+  app.delete<{ Params: { slug: string; id: string } }>(
+    "/admin/api/plugins/:slug/agents/:id",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const agent = await prisma.agent.findFirst({ where: { id: request.params.id, pluginSlug: plugin.slug } });
+      if (!agent) return reply.code(404).send({ error: "Agent not found" });
+      await prisma.agent.delete({ where: { id: agent.id } });
+      return { success: true };
+    },
+  );
   app.post<{ Params: { slug: string; action: string } }>("/api/plugins/:slug/actions/:action", async (request, reply) => {
     const plugin = await findEnabledPlugin(request.params.slug);
     if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
@@ -116,15 +184,16 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
 
     const parsed = aiCallSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
-    if (!aiPermission.agents.includes(parsed.data.agentKey)) {
-      return reply.code(403).send({ error: "Plugin cannot call this agent" });
+    const agent = await prisma.agent.findUnique({ where: { key: parsed.data.agentKey } });
+    if (!agent || !agent.isActive) return reply.code(404).send({ error: "Active agent not found" });
+
+    if (agent.pluginSlug !== plugin.slug) {
+      return reply.code(403).send({ error: "Plugin can only call its own agents" });
     }
+
     if (parsed.data.prompt.length > aiPermission.maxPromptLength) {
       return reply.code(422).send({ error: "Prompt is too long" });
     }
-
-    const agent = await prisma.agent.findUnique({ where: { key: parsed.data.agentKey } });
-    if (!agent || !agent.isActive) return reply.code(404).send({ error: "Active agent not found" });
 
     try {
       const text = await callAgent(agent, aiPermission.systemPrompt ?? "You are an assistant used by an admin plugin. Return a concise, useful answer.", parsed.data.prompt);

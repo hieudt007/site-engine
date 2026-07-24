@@ -319,6 +319,7 @@
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/theme" %} active{% endif %}" href="/admin/settings/theme">{% render "components/icon", name: "palette" %}<span>Giao diện</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath == "/admin/plugins" %} active{% endif %}" href="/admin/plugins">{% render "components/icon", name: "plug" %}<span>Plugins</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">{% render "components/icon", name: "bot" %}<span>AI Agent</span></a>{% endif %}
+        <a class="sidebar-link{% if currentPath contains "/admin/forms" %} active{% endif %}" href="/admin/forms">{% render "components/icon", name: "users" %}<span>Lead Form</span></a>
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">{% render "components/icon", name: "users" %}<span>Người dùng</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">{% render "components/icon", name: "settings" %}<span>Cài đặt</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">{% render "components/icon", name: "route" %}<span>Chuyển hướng</span></a>{% endif %}

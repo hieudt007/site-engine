@@ -359,7 +359,6 @@
   </div>
   
   <div id="ai-chat-tooltip">
-    Cần viết nội dung? Mở AI ngay!
   </div>
 
   <button id="ai-chat-button" title="AI Chat">
@@ -436,20 +435,30 @@
     }
   });
 
-  // Hien thi tooltip sau 3s (chi neu chua tung bi an)
-  setTimeout(() => {
-    if (tooltipHidden || win.classList.contains('open')) return;
-    const tooltip = document.getElementById('ai-chat-tooltip');
-    if (tooltip) {
-      tooltip.classList.add('show');
-      
-      // An sau 5s
-      aiTooltipTimeout = setTimeout(() => {
-        tooltip.classList.remove('show');
-        tooltipHidden = true;
-      }, 5000);
-    }
-  }, 3000);
+  // Chỉ hiện tooltip 1 lần trong phiên làm việc
+  const isContentPage = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/);
+  const hasSeenTooltip = sessionStorage.getItem('ai_tooltip_seen');
+  
+  if (!hasSeenTooltip) {
+    setTimeout(() => {
+      if (tooltipHidden || win.classList.contains('open')) return;
+      const tooltip = document.getElementById('ai-chat-tooltip');
+      if (tooltip) {
+        tooltip.textContent = isContentPage 
+          ? "Cần viết nội dung? Mở AI ngay!" 
+          : "Cần hỗ trợ? Hỏi ngay AI!";
+          
+        tooltip.classList.add('show');
+        sessionStorage.setItem('ai_tooltip_seen', 'true');
+        
+        // An sau 5s
+        aiTooltipTimeout = setTimeout(() => {
+          tooltip.classList.remove('show');
+          tooltipHidden = true;
+        }, 5000);
+      }
+    }, 3000);
+  }
   
   close.addEventListener('click', () => {
     win.classList.remove('open');
@@ -669,6 +678,7 @@
           pageTitle: document.title,
           pageUrl: window.location.href,
           availableFields: formElements,
+          layoutMode: document.getElementById('layoutMode') ? document.getElementById('layoutMode').value : null,
           entityId: entityId
         };
         if (pendingImageUrl) payload.imageUrl = pendingImageUrl;
@@ -718,6 +728,10 @@
           });
         }
         
+        if (data.searchResults) {
+          toolData.searchResults = data.searchResults;
+        }
+        
         // Gửi đệ quy
         const secondPayload = {
           message: payload.originalMessage || payload.message,
@@ -758,6 +772,43 @@
           messagesDiv.scrollTop = messagesDiv.scrollHeight;
           isAiLoading = false;
         }
+      } else if (data.action === "webfetch" || data.action === "websearch") {
+        if (loadingEl) {
+          loadingEl.querySelector('span').textContent = data.message || "Đang lấy dữ liệu...";
+        }
+        
+        try {
+          const endpoint = data.action === "webfetch" ? '/admin/api/ai-chat/webfetch' : '/admin/api/ai-chat/websearch';
+          const bodyData = data.action === "webfetch" ? { url: data.url } : { query: data.query };
+          
+          const toolRes = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyData)
+          });
+          const toolDataJson = await toolRes.json();
+          
+          if (!toolRes.ok) throw new Error(toolDataJson.message);
+          
+          // Gửi đệ quy với kết quả
+          const secondPayload = {
+            message: payload.originalMessage || payload.message,
+            isToolResponse: true,
+            toolData: { [data.action]: toolDataJson.result },
+            originalMessage: payload.originalMessage || payload.message,
+            nextAgent: window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/) ? "content" : "chat",
+            imageUrl: payload.imageUrl,
+            entityId: entityId,
+            historyId: data.historyId,
+            availableFields: payload.availableFields
+          };
+          return sendMessage(null, secondPayload);
+        } catch (e) {
+          if (loadingEl) loadingEl.remove();
+          messagesDiv.appendChild(renderMessage('bot', "Lỗi dữ liệu web: " + e.message, 'error'));
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          isAiLoading = false;
+        }
       } 
       else if (data.action === "fill_form") {
         if (loadingEl) loadingEl.remove();
@@ -767,7 +818,7 @@
           for (const [key, val] of Object.entries(data.data)) {
             const el = document.getElementById(key);
             if (el) {
-              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
                 el.value = val;
                 // Đồng bộ cho Rich Editor (nếu có)
                 if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {

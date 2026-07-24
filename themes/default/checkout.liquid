@@ -1,10 +1,10 @@
 {% layout "layout" %}
 {% block content %}
-<h1>Giỏ hàng</h1>
+<h1>Thanh toán</h1>
 
-<div id="cart-items"></div>
+<div id="checkout-items"></div>
 
-<form id="checkout-form" class="hidden">
+<form id="checkout-form">
   <h2>Thông tin nhận hàng</h2>
   <div>
     <input type="text" name="customerName" placeholder="Họ tên" required>
@@ -38,7 +38,7 @@
     <input type="text" name="couponCode" placeholder="Mã giảm giá (nếu có)">
   </div>
 
-  <div id="cart-total"></div>
+  <div id="checkout-total"></div>
   <button type="submit">Đặt hàng</button>
   <div id="checkout-error"></div>
 </form>

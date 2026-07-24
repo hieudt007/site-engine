@@ -12,7 +12,7 @@ const rewriteSchema = z.object({ body: z.string().min(1), instruction: z.string(
 // vi day la 1 tinh nang don, chi can 1 agent dai dien roi. Neu tenant chua cau hinh (hoac xoa mat)
 // thi bao loi ro rang thay vi 500 mo ho.
 async function resolveContentAgent() {
-  return prisma.agent.findFirst({ where: { purpose: "content", isActive: true } });
+  return prisma.agent.findFirst({ where: { key: "content", isActive: true } });
 }
 
 // Sinh/sua noi dung bai viet bang AI - KHONG tu luu, chi tra du lieu ve de admin xem/sua trong

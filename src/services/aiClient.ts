@@ -194,3 +194,110 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
   }
   return url;
 }
+
+export async function webSearch(agent: Agent, query: string): Promise<string> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  // Use endpoint from agent if available, fallback to /search
+  const endpointPath = agent.endpoint || "/search";
+  const endpoint = `${baseUrl}${endpointPath}`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: agent.model,
+      query: query,
+      search_type: "news",
+      max_results: 5,
+      country: "vietnam",
+      language: "vi"
+    }),
+  });
+
+  if (!res.ok) {
+    throw new AiCallError(`Web Search API lỗi ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as any;
+  
+  if (data.results && Array.isArray(data.results)) {
+    const formattedResults = data.results.map((r: any) => ({
+      title: r.title,
+      url: r.url,
+      snippet: r.snippet,
+      published_at: r.published_at,
+    }));
+    return JSON.stringify({
+      query: data.query || query,
+      results: formattedResults
+    });
+  }
+
+  const reply = data.content || data.results || data.text;
+  
+  if (!reply) {
+    return JSON.stringify(data);
+  }
+  return typeof reply === 'object' ? JSON.stringify(reply) : String(reply);
+}
+
+export async function webFetch(agent: Agent, url: string): Promise<string> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const endpointPath = agent.endpoint || "/web/fetch";
+  const endpoint = `${baseUrl}${endpointPath}`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: agent.model,
+      url: url,
+      format: "markdown",
+      max_characters: 0,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new AiCallError(`Web Fetch API lỗi ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as any;
+  const reply = data.content || data.results || data.text;
+  
+  if (!reply) {
+    return JSON.stringify(data);
+  }
+  return typeof reply === 'object' ? JSON.stringify(reply) : String(reply);
+}

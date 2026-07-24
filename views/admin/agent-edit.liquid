@@ -33,6 +33,8 @@
     <option value="/images/generations" {% if agent.endpoint == "/images/generations" %}selected{% endif %}>Tạo ảnh</option>
     <option value="/audio/transcriptions" {% if agent.endpoint == "/audio/transcriptions" %}selected{% endif %}>Nhận diện giọng nói</option>
     <option value="/embeddings" {% if agent.endpoint == "/embeddings" %}selected{% endif %}>Embeddings</option>
+    <option value="/search" {% if agent.endpoint == "/search" %}selected{% endif %}>Tìm kiếm Web (Web Search)</option>
+    <option value="/web/fetch" {% if agent.endpoint == "/web/fetch" %}selected{% endif %}>Đọc nội dung Web (Web Fetch)</option>
   </select>
 
   <div id="base-url-group" style="display:none;">

@@ -1,7 +1,7 @@
 (function () {
   const checkoutForm = document.getElementById("checkout-form");
-  const cartItems = document.getElementById("cart-items");
-  if (!checkoutForm || !cartItems) return;
+  const checkoutItems = document.getElementById("checkout-items");
+  if (!checkoutForm || !checkoutItems) return;
 
   const CART_KEY = "site_engine_cart";
 
@@ -231,5 +231,27 @@
   loadProvinces();
   loadFulfillmentMethods();
   loadPaymentMethods();
+
+  // Fallback Add to Cart via URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const addProductId = urlParams.get("add_product_id");
+  if (addProductId) {
+    const addVariantId = urlParams.get("add_variant_id") || undefined;
+    const addQuantity = parseInt(urlParams.get("quantity") || "1", 10);
+    const cart = readCart();
+    
+    const existing = cart.find((c) => c.productId === addProductId && c.variantId === addVariantId);
+    if (existing) {
+      existing.quantity += addQuantity;
+    } else {
+      cart.push({ productId: addProductId, quantity: addQuantity, variantId: addVariantId });
+    }
+    writeCart(cart);
+    
+    // Clear the URL so refreshing doesn't add it again
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, newUrl);
+  }
+
   render();
 })();

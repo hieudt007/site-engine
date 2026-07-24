@@ -1,0 +1,149 @@
+{% layout "layout" %}
+{% block content %}
+<h1 style="margin:0 0 0.3rem;">Lead Form</h1>
+<p style="color:#777;font-size:0.85rem;margin-bottom:1.2rem;">
+  Danh sách khách hàng đăng ký từ các form (Newsletter, Contact, Landing Page).
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Tên Form</th>
+      <th>Khách hàng</th>
+      <th>Liên hệ</th>
+      <th>Ngày gửi</th>
+      <th>Hành động</th>
+    </tr>
+  </thead>
+  <tbody id="forms-body">
+    <tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>
+  </tbody>
+</table>
+
+<!-- Phân trang cơ bản -->
+<div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:center;" id="pagination-controls">
+  <button id="prev-page" style="padding:0.3rem 0.6rem; border:1px solid #ddd; border-radius:4px; background:#fff; cursor:pointer;" disabled>Trước</button>
+  <span id="page-info" style="align-self:center; font-size:0.9rem; color:#555;">Trang 1</span>
+  <button id="next-page" style="padding:0.3rem 0.6rem; border:1px solid #ddd; border-radius:4px; background:#fff; cursor:pointer;" disabled>Sau</button>
+</div>
+
+<!-- Modal hiển thị payload -->
+<div id="payload-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:8px; width:600px; max-width:90%; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+    <div style="padding:1rem 1.5rem; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:1.1rem; color:#333;">Chi tiết dữ liệu (Payload)</h3>
+      <button onclick="closeModal()" style="background:none; border:none; font-size:1.5rem; line-height:1; cursor:pointer; color:#999;">&times;</button>
+    </div>
+    <div style="padding:1.5rem; overflow-y:auto; flex:1; background:#f9f9fa;">
+      <pre id="payload-content" style="margin:0; font-family:monospace; font-size:0.85rem; white-space:pre-wrap; color:#333;"></pre>
+    </div>
+    <div style="padding:1rem 1.5rem; border-top:1px solid #eee; text-align:right; background:#fff; border-bottom-left-radius:8px; border-bottom-right-radius:8px;">
+      <button onclick="closeModal()" style="padding:0.4rem 1rem; border:1px solid #ddd; border-radius:4px; background:#fff; cursor:pointer; color:#333;">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const tbody = document.getElementById("forms-body");
+  const flash = document.getElementById("flash");
+  let currentPage = 1;
+  const limit = 20;
+
+  function showError(message) {
+    flash.textContent = message;
+    flash.className = "error";
+  }
+  
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  // Gắn object submissions vào window để modal dễ truy xuất
+  window.currentSubmissions = {};
+
+  function rowHtml(item) {
+    window.currentSubmissions[item.id] = item;
+    const customerInfo = item.customerName ? `<b>${escapeHtml(item.customerName)}</b>` : '<i>(Khách)</i>';
+    const contactInfo = [];
+    if (item.customerPhone) contactInfo.push(escapeHtml(item.customerPhone));
+    if (item.customerEmail) contactInfo.push(escapeHtml(item.customerEmail));
+    
+    return `
+      <tr>
+        <td>
+          <span class="status-badge status-published">${escapeHtml(item.formName)}</span>
+          ${item.sourceUrl ? `<div style="font-size:0.75rem; color:#888; margin-top:4px;">Nguồn: <a href="${escapeHtml(item.sourceUrl)}" target="_blank" style="color:#6366f1;">${escapeHtml(item.sourceUrl)}</a></div>` : ''}
+        </td>
+        <td>${customerInfo}</td>
+        <td>${contactInfo.length > 0 ? contactInfo.join('<br>') : '<span style="color:#999">-</span>'}</td>
+        <td>${new Date(item.createdAt).toLocaleString("vi-VN")}</td>
+        <td>
+          <button onclick="openModal('${item.id}')" style="background:none; border:1px solid #ddd; padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer; margin-right:4px;">Xem chi tiết</button>
+          <button onclick="deleteForm('${item.id}')" style="background:none; border:1px solid #fee2e2; color:#ef4444; padding:2px 8px; border-radius:4px; font-size:0.8rem; cursor:pointer;">Xoá</button>
+        </td>
+      </tr>
+    `;
+  }
+
+  async function load(page = 1) {
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#999;">Đang tải...</td></tr>';
+    
+    const res = await fetch(`/admin/api/forms?page=${page}&limit=${limit}`);
+    if (!res.ok) {
+      showError("Không tải được danh sách form");
+      return;
+    }
+    const { data, pagination } = await res.json();
+    
+    window.currentSubmissions = {}; // Xoá cũ
+    
+    tbody.innerHTML = data.length
+      ? data.map(rowHtml).join("")
+      : '<tr><td colspan="5" class="empty-state">Chưa có khách hàng nào đăng ký form.</td></tr>';
+      
+    // Cập nhật UI phân trang
+    document.getElementById("page-info").textContent = `Trang ${pagination.page} / ${pagination.totalPages || 1}`;
+    document.getElementById("prev-page").disabled = pagination.page <= 1;
+    document.getElementById("next-page").disabled = pagination.page >= pagination.totalPages;
+    currentPage = pagination.page;
+  }
+  
+  // Hành động xoá
+  window.deleteForm = async function(id) {
+    if (!confirm("Bạn có chắc chắn muốn xoá bản ghi này?")) return;
+    const res = await fetch(`/admin/api/forms/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      load(currentPage);
+    } else {
+      alert("Xoá thất bại");
+    }
+  };
+
+  // Modal logic
+  window.openModal = function(id) {
+    const item = window.currentSubmissions[id];
+    if (!item) return;
+    
+    let displayData = { ...item };
+    
+    // Format JSON đẹp mắt
+    document.getElementById('payload-content').textContent = JSON.stringify(displayData, null, 2);
+    const modal = document.getElementById('payload-modal');
+    modal.style.display = 'flex';
+  };
+
+  window.closeModal = function() {
+    document.getElementById('payload-modal').style.display = 'none';
+  };
+  
+  // Nút chuyển trang
+  document.getElementById("prev-page").addEventListener("click", () => load(currentPage - 1));
+  document.getElementById("next-page").addEventListener("click", () => load(currentPage + 1));
+
+  load(1);
+})();
+</script>
+{% endblock %}
