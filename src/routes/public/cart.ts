@@ -39,6 +39,7 @@ const checkoutSchema = z
     couponCode: z.string().min(1).optional(),
     // Field tu do khach dien qua form checkout (vd "SDT phu") - xem docblock CartOrder.customFields.
     customFields: customFieldsSchema,
+    turnstileToken: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.fulfillmentMethod === "delivery" && !data.customerProvince) {
@@ -103,7 +104,28 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
 
     // Đảm bảo SiteConfig singleton tồn tại ngay từ đơn hàng ĐẦU TIÊN - orderRetry.ts cần
     // domain của chính instance này để retry, không thể đợi tới lần đầu admin vào Settings.
-    await getOrCreateSiteConfig(request.hostname);
+    const siteConfig = await getOrCreateSiteConfig(request.hostname);
+
+    // Xac thuc Turnstile
+    if (siteConfig.turnstileSecretKey) {
+      const token = parsed.data.turnstileToken;
+      if (!token) {
+        return reply.code(403).send({ error: "Vui lòng xác thực bạn không phải là robot." });
+      }
+      
+      const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          secret: siteConfig.turnstileSecretKey,
+          response: token,
+        }).toString(),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        return reply.code(403).send({ error: "Xác thực Captcha thất bại, vui lòng thử lại." });
+      }
+    }
 
     const productIds = parsed.data.items.map((i) => i.productId);
     const products = await prisma.productCache.findMany({

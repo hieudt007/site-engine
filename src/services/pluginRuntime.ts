@@ -41,7 +41,7 @@ const collectionSchema = z.object({
 
 const publicDataSchema = z
   .object({
-    key: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,48}$/),
+    key: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,48}$/),
     source: z.enum(["collection", "coreModel"]),
     collection: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,48}$/).optional(),
     model: z.enum(PUBLIC_CORE_MODELS).optional(),
@@ -76,7 +76,7 @@ const publicActionSchema = z.object({
 
 const publicBlockSchema = z
   .object({
-    key: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,48}$/),
+    key: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,48}$/),
     title: z.string().min(1).max(120).optional(),
     placement: z
       .enum([
@@ -90,15 +90,15 @@ const publicBlockSchema = z
         "layout_before_footer",
       ])
       .default("home_bottom"),
-    dataKey: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,48}$/).optional(),
-    actionKey: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,48}$/).optional(),
-    variant: z.enum(["list", "grid", "strip", "json", "form"]).default("list"),
+    dataKey: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,48}$/).optional(),
+    actionKey: z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,48}$/).optional(),
+    variant: z.enum(["list", "grid", "strip", "json", "form", "chat"]).default("list"),
   })
   .superRefine((value, ctx) => {
     if (value.variant === "form" && !value.actionKey) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["actionKey"], message: "Action key is required." });
     }
-    if (value.variant !== "form" && !value.dataKey) {
+    if (value.variant !== "form" && value.variant !== "chat" && !value.dataKey) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["dataKey"], message: "Data key is required." });
     }
   });
@@ -115,7 +115,11 @@ export const pluginManifestSchema = z.object({
       ai: z
         .object({
           enabled: z.boolean().default(false),
-          agents: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/)).max(20).default([]),
+          agents: z.array(z.object({
+            key: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/),
+            name: z.string().min(1).max(120),
+            systemPrompt: z.string().max(4000).optional(),
+          })).max(20).default([]),
           maxPromptLength: z.number().int().min(1).max(20000).default(4000),
           systemPrompt: z.string().max(4000).optional(),
         })
@@ -357,7 +361,7 @@ export async function buildPublicPluginContext() {
 
     for (const block of manifest.data.publicBlocks) {
       const action = block.actionKey ? manifest.data.publicActions.find((item) => item.key === block.actionKey && item.enabled) : null;
-      if (block.variant !== "form" && (!block.dataKey || !(block.dataKey in pluginBucket))) continue;
+      if (block.variant !== "form" && block.variant !== "chat" && (!block.dataKey || !(block.dataKey in pluginBucket))) continue;
       if (block.variant === "form" && !action) continue;
       areas[block.placement] ??= [];
       areas[block.placement].push({

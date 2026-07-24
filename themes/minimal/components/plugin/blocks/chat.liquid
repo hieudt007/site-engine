@@ -1,0 +1,35 @@
+<div class="plugin-chat-container" data-plugin-slug="{{ block.pluginSlug | escape }}" data-session-id="{{ chatSessionId | escape }}" data-hmac="{{ chatHmacToken | escape }}">
+  <button class="plugin-chat-toggle" aria-label="Mở khung chat">
+    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
+  </button>
+
+  <div class="plugin-chat-drawer hidden">
+    <div class="plugin-chat-header">
+      <div class="plugin-chat-header-info">
+        <div class="plugin-chat-avatar">🤖</div>
+        <div class="plugin-chat-header-text">
+          <h3>{{ block.title | default: "Hỗ trợ khách hàng" | escape }}</h3>
+          <p>Luôn sẵn sàng hỗ trợ bạn</p>
+        </div>
+      </div>
+      <button class="plugin-chat-close" aria-label="Đóng">&times;</button>
+    </div>
+    <div class="plugin-chat-messages">
+      <!-- Messages load here -->
+    </div>
+    <form class="plugin-chat-form">
+      {% if site.turnstileSiteKey %}
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-size="invisible"></div>
+      {% endif %}
+      <input type="text" class="plugin-chat-input" placeholder="Nhập tin nhắn..." required autocomplete="off">
+      <button type="submit" class="plugin-chat-submit" aria-label="Gửi">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+</div>

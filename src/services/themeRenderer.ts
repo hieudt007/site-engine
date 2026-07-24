@@ -1,6 +1,8 @@
 import path from "node:path";
 import { Liquid } from "liquidjs";
 import { prisma } from "../db.js";
+import crypto from "node:crypto";
+import { config as appConfig } from "../config.js";
 import { buildPublicPluginContext } from "./pluginRuntime.js";
 import { buildOrganizationSchema } from "./schema.js";
 import { pagePrefix, prefixPath, postPrefix, productPrefix } from "./urlPaths.js";
@@ -108,6 +110,10 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const pageUrlPrefix = prefixPath(pagePrefix(urlConfig));
   const productUrlPrefix = prefixPath(productPrefix(urlConfig));
 
+  // Tao token xac thuc cho Chat / Forms
+  const chatSessionId = "sess_" + crypto.randomBytes(8).toString("hex");
+  const chatHmacToken = crypto.createHmac("sha256", appConfig.siteEngineSecret).update(chatSessionId).digest("hex");
+
   const contextData = {
     ...restData,
     site,
@@ -128,6 +134,10 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     // dang active - xem routes/public/themeAssets.ts.
     themeSlug: slug,
     year: new Date().getFullYear(),
+    chatSessionId,
+    chatHmacToken,
+    // Cache buster - doi theo ngay deploy de browser buc tai file CSS/JS moi
+    assetVersion: process.env.ASSET_VERSION || Date.now().toString(36).slice(-6),
   };
 
   // NẾU nội dung có chứa rawHtml (từ các trang Custom/Landing) -> Parse Liquid cho chính rawHtml trước khi đẩy ra layout

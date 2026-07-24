@@ -221,6 +221,26 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
       update: { name: manifest.name, version: manifest.version, manifest, enabled: mode === "create" ? enabled : existing?.enabled ?? enabled },
     });
     await auditLog(userId, mode === "create" ? "plugin.import" : "plugin.update", plugin.slug, { version: plugin.version });
+    
+    if (plugin.enabled) {
+      const agentsToCreate = manifest.permissions.ai?.agents || [];
+      for (const agentDef of agentsToCreate) {
+        const existingAgent = await prisma.agent.findFirst({ where: { key: agentDef.key, pluginSlug: plugin.slug } });
+        if (!existingAgent) {
+          await prisma.agent.create({
+            data: {
+              key: agentDef.key,
+              name: agentDef.name,
+              systemPrompt: agentDef.systemPrompt || null,
+              model: "cx/gpt-5.4-mini",
+              provider: "ai-router",
+              pluginSlug: plugin.slug,
+              isSystem: false,
+            }
+          });
+        }
+      }
+    }
     return reply.code(mode === "create" ? 201 : 200).send({ plugin });
   });
 
@@ -236,6 +256,27 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
 
       const updated = await prisma.plugin.update({ where: { slug: plugin.slug }, data: { enabled: parsed.data.enabled } });
       await auditLog(request.session.get("userId")!, parsed.data.enabled ? "plugin.enable" : "plugin.disable", plugin.slug);
+      
+      if (parsed.data.enabled) {
+        const manifest = manifestOf(plugin);
+        const agentsToCreate = manifest.permissions.ai?.agents || [];
+        for (const agentDef of agentsToCreate) {
+          const existing = await prisma.agent.findFirst({ where: { key: agentDef.key, pluginSlug: plugin.slug } });
+          if (!existing) {
+            await prisma.agent.create({
+              data: {
+                key: agentDef.key,
+                name: agentDef.name,
+                systemPrompt: agentDef.systemPrompt || null,
+                model: "cx/gpt-5.4-mini",
+                provider: "ai-router",
+                pluginSlug: plugin.slug,
+                isSystem: false,
+              }
+            });
+          }
+        }
+      }
       return { plugin: updated };
     },
   );

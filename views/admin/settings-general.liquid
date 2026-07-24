@@ -54,9 +54,10 @@
 
 <div class="settings-layout">
   <div class="tabs-sidebar" id="settings-tabs">
-    <button type="button" class="tab-btn active" data-target="tab-seo">SEO Local</button>
-    <button type="button" class="tab-btn" data-target="tab-paths">Đường dẫn</button>
-    <button type="button" class="tab-btn" data-target="tab-tracking">Tracking</button>
+    <button type="button" class="tab-btn active" data-tab="tab-seo">Cơ bản</button>
+    <button type="button" class="tab-btn" data-tab="tab-paths">Đường dẫn</button>
+    <button type="button" class="tab-btn" data-tab="tab-tracking">Tracking</button>
+    <button type="button" class="tab-btn" data-tab="tab-security">Bảo mật</button>
   </div>
 
   <form id="settings-form" class="card tabs-content">
@@ -150,6 +151,18 @@
       <p class="field-hint">Chèn nguyên văn vào mọi trang public (trước &lt;/head&gt;) — chỉ dán mã từ nguồn bạn tin tưởng.</p>
     </div>
 
+    <div id="tab-security" class="tab-pane">
+      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Chống Bot (Cloudflare Turnstile)</h2>
+
+      <label for="turnstileSiteKey">Site Key</label>
+      <input type="text" id="turnstileSiteKey" name="turnstileSiteKey" placeholder="0x4A...">
+      <p class="field-hint">Site Key lấy từ dashboard Cloudflare Turnstile.</p>
+
+      <label for="turnstileSecretKey">Secret Key</label>
+      <input type="text" id="turnstileSecretKey" name="turnstileSecretKey" placeholder="0x4A...">
+      <p class="field-hint">Dùng để xác thực request ở Backend. Để trống nếu tắt bảo vệ.</p>
+    </div>
+
     <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #eee;">
       <button type="submit" class="btn btn-primary">Lưu cài đặt</button>
     </div>
@@ -168,7 +181,7 @@
       panes.forEach(p => p.classList.remove('active'));
       
       tab.classList.add('active');
-      document.getElementById(tab.dataset.target).classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
     });
   });
 
@@ -202,8 +215,8 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "gscVerificationId"].forEach((key) => {
-      form[key].value = settings[key] ?? "";
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey"].forEach((key) => {
+      if(form[key]) form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
     ["facebook", "zalo", "tiktok", "youtube"].forEach((key) => {
@@ -239,10 +252,12 @@
       contactPhone: form.contactPhone.value || undefined,
       contactAddress: form.contactAddress.value || undefined,
       businessLicense: form.businessLicense.value || undefined,
-      gaId: form.gaId.value || undefined,
-      fbPixelId: form.fbPixelId.value || undefined,
-      customHeadScript: form.customHeadScript.value || undefined,
-      gscVerificationId: form.gscVerificationId.value || undefined,
+      gaId: form.gaId.value.trim(),
+      fbPixelId: form.fbPixelId.value.trim(),
+      customHeadScript: form.customHeadScript.value.trim(),
+      gscVerificationId: form.gscVerificationId.value.trim(),
+      turnstileSiteKey: form.turnstileSiteKey.value.trim(),
+      turnstileSecretKey: form.turnstileSecretKey.value.trim(),
       socialLinks: {
         facebook: form.facebook.value || undefined,
         zalo: form.zalo.value || undefined,

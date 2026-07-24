@@ -33,6 +33,8 @@ const updateSettingsSchema = z
     fbPixelId: z.string().optional(),
     customHeadScript: z.string().optional(),
     gscVerificationId: z.string().optional(),
+    turnstileSiteKey: z.string().optional(),
+    turnstileSecretKey: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const postPrefix = data.postSlugPrefix?.trim();

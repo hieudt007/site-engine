@@ -39,6 +39,14 @@
   </div>
 
   <div id="checkout-total"></div>
+  
+  {% if site.turnstileSiteKey %}
+    <div style="margin: 1rem 0;">
+      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+      <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}"></div>
+    </div>
+  {% endif %}
+
   <button type="submit">Đặt hàng</button>
   <div id="checkout-error"></div>
 </form>

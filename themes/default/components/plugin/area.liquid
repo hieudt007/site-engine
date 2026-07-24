@@ -30,6 +30,8 @@
           </form>
         {% elsif block.variant == "json" %}
           <pre>{{ block.items | json }}</pre>
+        {% elsif block.variant == "chat" %}
+          {% render "components/plugin/blocks/chat", block: block, site: site, chatSessionId: chatSessionId, chatHmacToken: chatHmacToken %}
         {% elsif block.items.size > 0 %}
           <div class="plugin-block__items">
             {% for item in block.items %}

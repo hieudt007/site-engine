@@ -1,4 +1,4 @@
-document.addEventListener("submit",async t=>{const e=t.target.closest(".plugin-action-form");if(!e)return;t.preventDefault();const n=e.querySelector(".plugin-action-form__message"),o=e.querySelector('button[type="submit"]'),a={};new FormData(e).forEach((t,e)=>{a[e]=t}),o&&(o.disabled=!0),n&&(n.textContent="Submitting...");try{const t=await fetch("/api/plugins/"+encodeURIComponent(e.dataset.pluginSlug)+"/actions/"+encodeURIComponent(e.dataset.actionKey),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(a)}),o=await t.json().catch(()=>({}));if(!t.ok)throw new Error(o.error||"Submit failed");e.reset(),n&&(n.textContent=o.message||"Submitted.")}catch(t){n&&(n.textContent=t.message||"Submit failed")}finally{o&&(o.disabled=!1)}});(function() {
+(function() {
   const containers = document.querySelectorAll(".plugin-chat-container");
   if (!containers.length) return;
 
@@ -169,4 +169,3 @@ document.addEventListener("submit",async t=>{const e=t.target.closest(".plugin-a
     });
   });
 })();
-

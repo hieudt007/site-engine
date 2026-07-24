@@ -30,6 +30,8 @@
           </form>
         {% elsif block.variant == "json" %}
           <pre class="text-xs whitespace-pre-wrap bg-stone-100 p-4 overflow-auto">{{ block.items | json }}</pre>
+        {% elsif block.variant == "chat" %}
+          {% render "components/plugin/blocks/chat", block: block, site: site, chatSessionId: chatSessionId, chatHmacToken: chatHmacToken %}
         {% elsif block.items.size > 0 %}
           <div class="plugin-block__items grid gap-4">
             {% for item in block.items %}

@@ -52,6 +52,10 @@ model SiteConfig {
   customHeadScript  String?
   gscVerificationId String?
 
+  // Turnstile Cloudflare keys for anti-spam (e.g. chat plugin, forms)
+  turnstileSiteKey   String?
+  turnstileSecretKey String?
+
   aiProviderKeys    Json?
 
   updatedAt DateTime @updatedAt
@@ -321,6 +325,7 @@ model Agent {
   endpoint     String   @default("/chat/completions")
   isSystem     Boolean  @default(false)
   isActive     Boolean  @default(true)
+  pluginSlug   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

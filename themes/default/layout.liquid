@@ -9,7 +9,7 @@
   {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
   <link rel="alternate" type="application/rss+xml" title="{{ site.siteName }} RSS" href="/feed.xml">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
+  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css?v={{ assetVersion }}">
 </head>
 <body>
   {% render "header", site: site, headerMenu: headerMenu %}
@@ -19,9 +19,9 @@
     {% block content %}{% endblock %}
   </main>
 
-  {% render "components/plugin/area", blocks: pluginAreas.layout_before_footer %}
+  {% render "components/plugin/area", blocks: pluginAreas.layout_before_footer, site: site, chatSessionId: chatSessionId, chatHmacToken: chatHmacToken %}
   {% render "footer", site: site, footerMenu: footerMenu, year: year %}
-  <script src="/theme-assets/{{ themeSlug }}/assets/custom.js" defer></script>
+  <script src="/theme-assets/{{ themeSlug }}/assets/custom.js?v={{ assetVersion }}" defer></script>
   {% render "components/common/cart-drawer" %}
 </body>
 </html>

@@ -3,6 +3,7 @@ import path from "node:path";
 import Fastify from "fastify";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
+import fastifyRateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
 import { registerSession } from "./plugins/session.js";
@@ -45,6 +46,7 @@ import { registerAdminFormsRoutes } from "./routes/admin/forms.js";
 import { registerAdminFormsUiRoutes } from "./routes/admin/formsUi.js";
 import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
 import { registerPluginRoutes } from "./routes/admin/plugins.js";
+import { registerPluginChatRoutes } from "./routes/public/pluginChat.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
 import { registerThemeRoutes } from "./routes/admin/themes.js";
@@ -176,6 +178,7 @@ async function start(): Promise<void> {
   fs.mkdirSync(uploadsDir, { recursive: true }); // @fastify/static doi root ton tai luc dang ky
 
   await app.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
+  await app.register(fastifyRateLimit, { global: false, errorResponseBuilder: (request, context) => ({ error: "Vượt quá giới hạn request, vui lòng thử lại sau." }) });
   await app.register(fastifyStatic, {
     root: uploadsDir,
     prefix: "/uploads/",
@@ -240,6 +243,7 @@ async function start(): Promise<void> {
   await registerAgentsUiRoutes(app);
   await registerAiChatRoutes(app);
   await registerPluginRoutes(app);
+  await registerPluginChatRoutes(app);
   await registerMenuRoutes(app);
   await registerMenusUiRoutes(app);
   await registerThemeRoutes(app);

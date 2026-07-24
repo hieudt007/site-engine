@@ -22,7 +22,7 @@
       },
     };
   </script>
-  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
+  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css?v={{ assetVersion }}">
 </head>
 <body class="font-sans text-stone-800 bg-stone-50 flex flex-col min-h-screen">
   {% render "header", site: site, headerMenu: headerMenu %}
@@ -32,9 +32,9 @@
     {% block content %}{% endblock %}
   </main>
 
-  {% render "components/plugin/area", blocks: pluginAreas.layout_before_footer %}
+  {% render "components/plugin/area", blocks: pluginAreas.layout_before_footer, site: site, chatSessionId: chatSessionId, chatHmacToken: chatHmacToken %}
   {% render "footer", site: site, footerMenu: footerMenu, year: year %}
-  <script src="/theme-assets/{{ themeSlug }}/assets/custom.js" defer></script>
+  <script src="/theme-assets/{{ themeSlug }}/assets/custom.js?v={{ assetVersion }}" defer></script>
   {% render "components/common/cart-drawer" %}
 </body>
 </html>
