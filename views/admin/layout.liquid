@@ -1612,6 +1612,16 @@
   });
   </script>
 
-  {% render "components/ai-chat-widget" %}
+  {% for comp in adminFooterComponents %}
+    {% assign excluded = false %}
+    {% for prefix in comp.excludePathPrefixes %}
+      {% if currentPath contains prefix %}
+        {% assign excluded = true %}
+      {% endif %}
+    {% endfor %}
+    {% unless excluded %}
+      {% render comp.viewPath %}
+    {% endunless %}
+  {% endfor %}
 </body>
 </html>

@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { getPluginDb } from "../../../services/pluginDb.js";
 const pluginDb = getPluginDb("customer-support");
 import { findEnabledPlugin, manifestOf } from "../../../services/pluginRuntime.js";
@@ -107,16 +108,13 @@ export async function register(app: FastifyInstance): Promise<void> {
       }
 
       const take = 5;
-      const historyRecords = await pluginDb.pluginRecord.findMany({
-        where: { 
-          pluginSlug: plugin.slug, 
-          collection: "customer_chat", 
-          data: { path: ["sessionId"], equals: sessionId } 
-        },
-        orderBy: { createdAt: "desc" },
-        take: take + 1,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      });
+      const historyRecords = await pluginDb.$queryRaw<any[]>`
+        SELECT * FROM "PluginCustomerSupportChat"
+        WHERE "sessionId" = ${sessionId}
+        ${cursor ? Prisma.sql`AND "id" < ${parseInt(cursor as string)}` : Prisma.empty}
+        ORDER BY "id" DESC
+        LIMIT ${take + 1}
+      `;
 
       let nextCursor: string | undefined = undefined;
       if (historyRecords.length > take) {
@@ -125,9 +123,9 @@ export async function register(app: FastifyInstance): Promise<void> {
       }
 
       const history = historyRecords.reverse().map((r: any) => {
-        let content = r.data.content;
-        let images = [];
-        if (r.data.role === 'assistant') {
+        let content = r.message;
+        let images = r.images || [];
+        if (r.role === 'assistant') {
           try {
             const parsed = JSON.parse(content);
             if (parsed.messages) content = parsed.messages.join('\n\n');
@@ -136,7 +134,7 @@ export async function register(app: FastifyInstance): Promise<void> {
         }
         return {
           id: r.id,
-          role: r.data.role,
+          role: r.role,
           content,
           images
         };
@@ -185,46 +183,38 @@ export async function register(app: FastifyInstance): Promise<void> {
       // Don rac va chong spam
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      await pluginDb.pluginRecord.deleteMany({
-        where: { pluginSlug: plugin.slug, collection: "customer_chat", createdAt: { lt: sevenDaysAgo } },
-      });
+      await pluginDb.$executeRaw`DELETE FROM "PluginCustomerSupportChat" WHERE "createdAt" < ${sevenDaysAgo}`;
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const userMessagesToday = await pluginDb.pluginRecord.count({
-        where: {
-          pluginSlug: plugin.slug,
-          collection: "customer_chat",
-          createdAt: { gte: today },
-          data: { path: ["sessionId"], equals: sessionId },
-          AND: [{ data: { path: ["role"], equals: "user" } }]
-        }
-      });
+      const [{ count: userMessagesTodayStr }] = await pluginDb.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM "PluginCustomerSupportChat"
+        WHERE "createdAt" >= ${today} AND "sessionId" = ${sessionId} AND "role" = 'user'
+      `;
+      const userMessagesToday = Number(userMessagesTodayStr);
       if (userMessagesToday >= 30) {
         return reply.code(429).send({ error: "Bạn đã vượt quá số lượng tin nhắn cho phép. Vui lòng quay lại sau." });
       }
 
-      const spamRecords = await pluginDb.pluginRecord.count({
-        where: {
-          pluginSlug: plugin.slug,
-          collection: "customer_chat",
-          data: { path: ["sessionId"], equals: sessionId },
-          AND: [{ data: { path: ["isSpam"], equals: true } }]
-        }
-      });
+      const [{ count: spamRecordsStr }] = await pluginDb.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(*) as count FROM "PluginCustomerSupportChat"
+        WHERE "sessionId" = ${sessionId} AND "role" = 'error'
+      `;
+      const spamRecords = Number(spamRecordsStr);
       if (spamRecords > 2) {
         return reply.code(403).send({ error: "Phiên chat của bạn đã bị ngưng phục vụ do phát hiện nhiều nội dung không hợp lệ." });
       }
 
-      const historyRecords = await pluginDb.pluginRecord.findMany({
-        where: { pluginSlug: plugin.slug, collection: "customer_chat", data: { path: ["sessionId"], equals: sessionId } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      });
+      const historyRecords = await pluginDb.$queryRaw<any[]>`
+        SELECT * FROM "PluginCustomerSupportChat"
+        WHERE "sessionId" = ${sessionId}
+        ORDER BY "id" DESC
+        LIMIT 5
+      `;
 
       const history = historyRecords.reverse().map((r: any) => {
-        let content = r.data.content;
-        if (r.data.role === 'assistant') {
+        let content = r.message;
+        if (r.role === 'assistant') {
           try {
             const parsed = JSON.parse(content);
             if (parsed.messages) content = parsed.messages.join('\n');
@@ -232,18 +222,15 @@ export async function register(app: FastifyInstance): Promise<void> {
           } catch(e) {}
         }
         return {
-          role: r.data.role,
+          role: r.role,
           content,
         };
       });
 
-      await pluginDb.pluginRecord.create({
-        data: {
-          pluginSlug: plugin.slug,
-          collection: "customer_chat",
-          data: { sessionId, role: "user", content: message, images: images || [], url, title, productId },
-        },
-      });
+      await pluginDb.$executeRaw`
+        INSERT INTO "PluginCustomerSupportChat" ("sessionId", "agentKey", "role", "message", "images", "url", "title", "productId")
+        VALUES (${sessionId}, ${agentKey}, 'user', ${message}, ${images ? JSON.stringify(images) : '[]'}::jsonb, ${url || null}, ${title || null}, ${productId || null})
+      `;
 
       let systemPrompt = agent.systemPrompt || "Bạn là trợ lý AI.";
       systemPrompt += `\n\n--- NGỮ CẢNH TRANG HIỆN TẠI ---\nURL: ${url || 'Không có'}\nTiêu đề: ${title || 'Không có'}\n`;
@@ -311,13 +298,10 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
                      toolResult = JSON.stringify(orders.map(o => ({ code: o.id, status: o.status, date: o.createdAt })));
                   }
                   else if (call.function.name === "create_lead") {
-                     await pluginDb.pluginRecord.create({
-                       data: {
-                         pluginSlug: plugin.slug,
-                         collection: "leads",
-                         data: { name: args.name, phone: args.phone, notes: args.notes, source: "ai_chat", sessionId, url }
-                       }
-                     });
+                     await pluginDb.$executeRaw`
+                       INSERT INTO "PluginCustomerSupportLead" ("name", "phone", "notes", "sessionId", "url")
+                       VALUES (${args.name || null}, ${args.phone}, ${args.notes || null}, ${sessionId || null}, ${url || null})
+                     `;
                      toolResult = "Đã lưu thông tin khách hàng thành công. Hãy báo cho khách biết.";
                   }
                   else if (call.function.name === "mark_as_spam") {
@@ -353,13 +337,10 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
           parsedData = { messages: [finalResponse], images: [] };
         }
 
-        await pluginDb.pluginRecord.create({
-          data: {
-            pluginSlug: plugin.slug,
-            collection: "customer_chat",
-            data: { sessionId, role: "assistant", content: JSON.stringify(parsedData), isSpam },
-          },
-        });
+        await pluginDb.$executeRaw`
+          INSERT INTO "PluginCustomerSupportChat" ("sessionId", "agentKey", "role", "message")
+          VALUES (${sessionId}, ${agentKey}, 'assistant', ${JSON.stringify(parsedData)})
+        `;
 
         return reply.send({ 
           messages: parsedData.messages || (parsedData.message ? [parsedData.message] : []),
@@ -368,21 +349,14 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
           isSpam 
         });
       } catch (err: any) {
-        await pluginDb.pluginRecord.create({
-          data: {
-            pluginSlug: plugin.slug,
-            collection: "customer_chat",
-            data: { sessionId, role: "error", content: err.message },
-          },
-        });
+        await pluginDb.$executeRaw`
+          INSERT INTO "PluginCustomerSupportChat" ("sessionId", "agentKey", "role", "message")
+          VALUES (${sessionId}, ${agentKey}, 'error', ${err.message})
+        `;
         return reply.code(502).send({ error: "AI Error: " + err.message });
       }
     }
   );
-  await registerLiveChatRoutes(app);
-}
-
-
   app.post<{ Params: { slug: string } }>(
     "/api/plugins/:slug/chat/upload",
     {
@@ -432,6 +406,9 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
     }
   );
 
+  await registerLiveChatRoutes(app);
+}
+
 const sendSchema = z.object({
   sessionId: z.string().min(1),
   message: z.string().min(1),
@@ -445,22 +422,21 @@ async function registerLiveChatRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const pluginSlug = request.params.slug;
 
-      const recentMessages = await pluginDb.pluginRecord.findMany({
-        where: { pluginSlug, collection: "customer_chat" },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      });
+      const recentMessages = await pluginDb.$queryRaw<any[]>`
+        SELECT * FROM "PluginCustomerSupportChat"
+        ORDER BY "id" DESC
+        LIMIT 200
+      `;
 
       const sessionsMap = new Map();
       for (const msg of recentMessages) {
-        const data = msg.data as any;
-        if (!data || !data.sessionId) continue;
+        if (!msg.sessionId) continue;
         
-        if (!sessionsMap.has(data.sessionId)) {
-          sessionsMap.set(data.sessionId, {
-            sessionId: data.sessionId,
-            lastMessage: data.content,
-            lastRole: data.role,
+        if (!sessionsMap.has(msg.sessionId)) {
+          sessionsMap.set(msg.sessionId, {
+            sessionId: msg.sessionId,
+            lastMessage: msg.message,
+            lastRole: msg.role,
             updatedAt: msg.createdAt,
           });
         }
@@ -479,20 +455,17 @@ async function registerLiveChatRoutes(app: FastifyInstance): Promise<void> {
       const pluginSlug = request.params.slug;
       const { sessionId } = request.query;
 
-      const records = await pluginDb.pluginRecord.findMany({
-        where: {
-          pluginSlug,
-          collection: "customer_chat",
-          data: { path: ["sessionId"], equals: sessionId }
-        },
-        orderBy: { createdAt: "asc" },
-        take: 100,
-      });
+      const records = await pluginDb.$queryRaw<any[]>`
+        SELECT * FROM "PluginCustomerSupportChat"
+        WHERE "sessionId" = ${sessionId as string}
+        ORDER BY "id" ASC
+        LIMIT 100
+      `;
 
       const history = records.map(r => ({
         id: r.id,
-        role: (r.data as any).role,
-        content: (r.data as any).content,
+        role: r.role,
+        content: r.message,
         createdAt: r.createdAt
       }));
 

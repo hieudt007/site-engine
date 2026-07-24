@@ -28,6 +28,15 @@ export async function renderAdmin(template: string, data: Record<string, unknown
         menuGroup: page.menuGroup ?? "Plugins",
       }));
   });
+  const adminFooterComponents = enabledPlugins.flatMap((plugin) => {
+    const manifest = plugin.manifest as { adminFooterComponents?: Array<{ view?: string; excludePathPrefixes?: string[] }> };
+    return (manifest.adminFooterComponents ?? [])
+      .filter((comp) => comp.view)
+      .map((comp) => ({
+        viewPath: `${plugin.slug}/views/admin/components/${comp.view}`,
+        excludePathPrefixes: comp.excludePathPrefixes ?? [],
+      }));
+  });
   return engine.renderFile(template, {
     faviconUrl: siteConfig?.faviconUrl ?? null,
     sidebarLogoUrl: siteConfig?.logoUrl ?? null,
@@ -38,6 +47,8 @@ export async function renderAdmin(template: string, data: Record<string, unknown
     pageSlugPrefix: siteConfig?.pageSlugPrefix ?? "page",
     productSlugPrefix: siteConfig?.productSlugPrefix ?? "product",
     pluginAdminPages,
+    adminFooterComponents,
     ...data,
   });
 }
+

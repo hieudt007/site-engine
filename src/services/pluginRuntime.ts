@@ -103,6 +103,12 @@ const publicBlockSchema = z
     }
   });
 
+const adminFooterComponentSchema = z.object({
+  view: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,60}\.liquid$/),
+  // Prefix của currentPath bị loại trừ — vd "/admin/themes/" loại cả "/admin/themes/xyz/edit"
+  excludePathPrefixes: z.array(z.string()).default([]),
+});
+
 export const pluginManifestSchema = z.object({
   name: z.string().min(1).max(120),
   slug: z.string().regex(SLUG_RE),
@@ -127,10 +133,13 @@ export const pluginManifestSchema = z.object({
     })
     .default({ readModels: [] }),
   collections: z.array(collectionSchema).default([]),
+  tables: z.array(z.string()).default([]),
   publicData: z.array(publicDataSchema).default([]),
   publicBlocks: z.array(publicBlockSchema).default([]),
   publicActions: z.array(publicActionSchema).default([]),
+  adminFooterComponents: z.array(adminFooterComponentSchema).default([]),
 });
+
 
 export type ReadableCoreModel = (typeof READABLE_CORE_MODELS)[number];
 type PublicCoreModel = (typeof PUBLIC_CORE_MODELS)[number];

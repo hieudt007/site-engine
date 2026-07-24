@@ -650,9 +650,10 @@ model Plugin {
   version     String
   enabled     Boolean  @default(false)
   manifest    Json
-  source      String   @default("uploaded")
-  installedAt DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  source        String   @default("uploaded")
+  installedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  allowedTables String[] @default([])
 
   records PluginRecord[]
 }

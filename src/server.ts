@@ -44,7 +44,6 @@ import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
 
 import { registerAdminFormsUiRoutes } from "./routes/admin/formsUi.js";
-import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
 import { registerPluginRoutes } from "./routes/admin/plugins.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
@@ -76,7 +75,6 @@ import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js"
 import { registerPublicSearchRoutes } from "./routes/public/search.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
-import { startAiChatCleanupCron } from "./services/aiChatCleanup.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -246,7 +244,6 @@ async function start(): Promise<void> {
   await registerUsersUiRoutes(app);
   await registerAgentRoutes(app);
   await registerAgentsUiRoutes(app);
-  await registerAiChatRoutes(app);
   await registerPluginRoutes(app);
   await registerMenuRoutes(app);
   await registerMenusUiRoutes(app);
@@ -320,7 +317,6 @@ async function start(): Promise<void> {
   if (process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === "0") {
     startOrderRetryCron();
     startPublishScheduler();
-    startAiChatCleanupCron();
     
     // Build & Watch Plugin Assets
     await buildAllPluginAssets();

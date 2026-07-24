@@ -12,6 +12,7 @@
     }
   ],
   "themeContracts": {
-    "layout.liquid": "Plugin Live Chat yêu cầu hiển thị widget ở tất cả các trang. Vui lòng chèn khối mã `{% if activePlugins contains 'customer-support' %} {% render 'customer-support/views/public/live-chat' %} {% endif %}` ngay TRƯỚC thẻ đóng `</body>`. Việc bọc điều kiện if này là TUYỆT ĐỐI BẮT BUỘC để tránh sập toàn bộ trang web khi người dùng tắt (deactivate) Plugin. Bạn không cần tự viết thêm thẻ script CSS nào khác."
-  }
+    "layout.liquid": "Plugin Live Chat yêu cầu hiển thị widget ở tất cả các trang. Vui lòng chèn khối mã `{% if activePlugins contains 'customer-support' %} {% render 'customer-support/views/public/live-chat' %} {% endif %}` ngay TRƯỚC thẻ đóng `</body>`. Việc bọc điều kiện if này là TUYỆT ĐỐI BẮT bắt buộc để tránh sập toàn bộ trang web khi người dùng tắt (deactivate) Plugin. Bạn không cần tự viết thêm thẻ script CSS nào khác."
+  },
+  "tables": ["PluginCustomerSupportChat", "PluginCustomerSupportLead"]
 }

@@ -48,7 +48,7 @@
                   const r = data.history[i];
                   if (!renderedIds.has(r.id)) {
                     renderedIds.add(r.id);
-                    appendMessage(r.content, r.role === 'user', true);
+                    appendMessage(r.content, r.role === 'user', true, r.id);
                     if (r.images && r.images.length > 0) {
                       for (let j = r.images.length - 1; j >= 0; j--) {
                         appendImage(r.images[j], r.role === 'user', true);
@@ -59,13 +59,26 @@
                 messagesEl.scrollTop = messagesEl.scrollHeight - oldScrollHeight;
               } else {
                 let hasNew = false;
+                const localMsgs = Array.from(messagesEl.querySelectorAll('.plugin-chat-message:not([data-id]):not(.loading)'));
                 data.history.forEach(r => {
                   if (!renderedIds.has(r.id)) {
-                    renderedIds.add(r.id);
-                    hasNew = true;
-                    appendMessage(r.content, r.role === 'user');
-                    if (r.images && r.images.length > 0) {
-                      r.images.forEach(img => appendImage(img, r.role === 'user'));
+                    const expectedHtml = r.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    const matchIdx = localMsgs.findIndex(m => 
+                        m.classList.contains(r.role === 'user' ? 'user' : 'assistant') && 
+                        m.innerHTML === expectedHtml
+                    );
+                    
+                    if (matchIdx !== -1) {
+                        localMsgs[matchIdx].setAttribute("data-id", r.id);
+                        localMsgs.splice(matchIdx, 1);
+                        renderedIds.add(r.id);
+                    } else {
+                        renderedIds.add(r.id);
+                        hasNew = true;
+                        appendMessage(r.content, r.role === 'user', false, r.id);
+                        if (r.images && r.images.length > 0) {
+                          r.images.forEach(img => appendImage(img, r.role === 'user'));
+                        }
                     }
                   }
                 });
@@ -139,10 +152,11 @@
     });
 
     // Add message helper (can prepend or append)
-    const appendMessage = (text, isUser, prepend = false) => {
+    const appendMessage = (text, isUser, prepend = false, id = null) => {
       if (!text) return;
       const msg = document.createElement("div");
       msg.className = "plugin-chat-message " + (isUser ? "user" : "assistant");
+      if (id) msg.setAttribute("data-id", id);
       // Handle simple markdown bold for UI
       msg.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
       if (prepend) {
@@ -151,6 +165,7 @@
         messagesEl.appendChild(msg);
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
+      return msg;
     };
 
     const appendImage = (url, isUser, prepend = false) => {

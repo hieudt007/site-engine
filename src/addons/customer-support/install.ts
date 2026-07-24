@@ -19,4 +19,37 @@ export async function setup(prisma: PrismaClient, pluginSlug: string) {
   } else {
     console.log(`[Plugin: ${pluginSlug}] Agent CSKH đã tồn tại, bỏ qua khởi tạo.`);
   }
+
+  // Khởi tạo các bảng động (Dynamic Tables)
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "PluginCustomerSupportChat" (
+      "id" SERIAL PRIMARY KEY,
+      "sessionId" TEXT NOT NULL,
+      "agentKey" TEXT NOT NULL,
+      "role" TEXT NOT NULL,
+      "message" TEXT NOT NULL,
+      "images" JSONB,
+      "url" TEXT,
+      "title" TEXT,
+      "productId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "PluginCustomerSupportChat_sessionId_idx" ON "PluginCustomerSupportChat"("sessionId");
+  `);
+  
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "PluginCustomerSupportLead" (
+      "id" SERIAL PRIMARY KEY,
+      "name" TEXT,
+      "phone" TEXT NOT NULL,
+      "notes" TEXT,
+      "sessionId" TEXT,
+      "url" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'new',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  console.log(`[Plugin: ${pluginSlug}] Đã tạo bảng PluginCustomerSupportChat và PluginCustomerSupportLead thành công.`);
 }

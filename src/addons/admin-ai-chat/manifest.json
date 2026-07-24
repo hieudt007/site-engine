@@ -1,0 +1,18 @@
+{
+  "name": "Admin AI Chat",
+  "slug": "admin-ai-chat",
+  "version": "1.0.0",
+  "description": "Widget chat AI hỗ trợ admin soạn nội dung, tra cứu thông tin và điều phối công việc trên mọi trang quản trị.",
+  "adminPages": [],
+  "permissions": {
+    "readModels": ["Post", "ProductCache", "SiteConfig"]
+  },
+  "collections": [],
+  "tables": ["PluginAdminAiChatHistory"],
+  "adminFooterComponents": [
+    {
+      "view": "ai-chat-widget.liquid",
+      "excludePathPrefixes": ["/admin/themes/"]
+    }
+  ]
+}

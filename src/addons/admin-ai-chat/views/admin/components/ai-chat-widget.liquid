@@ -1,0 +1,887 @@
+<style>
+  #ai-chat-widget {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  
+  #ai-chat-button {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+  }
+  
+  #ai-chat-button:hover {
+    background: #1d4ed8;
+  }
+  
+  #ai-chat-window {
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    width: 380px;
+    height: 560px;
+    max-height: calc(100vh - 100px);
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform-origin: bottom right;
+    transition: transform 0.2s, opacity 0.2s;
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+    border: 1px solid #e5e7eb;
+  }
+  
+  #ai-chat-window.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+  
+  #ai-chat-header {
+    background: #fff;
+    color: #111827;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .ai-chat-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ai-chat-header-icon {
+    width: 32px;
+    height: 32px;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  #ai-chat-close {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  #ai-chat-close:hover {
+    background: #f3f4f6;
+    color: #4b5563;
+  }
+  
+  #ai-chat-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f9fafb;
+  }
+  
+  .ai-msg-container {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ai-msg-container.user {
+    align-items: flex-end;
+  }
+  
+  .ai-msg-container.bot {
+    align-items: flex-start;
+  }
+  
+  .ai-msg-meta {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-bottom: 4px;
+  }
+  
+  .ai-msg-bubble {
+    max-width: 86%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  
+  .ai-msg-user {
+    background: #2563eb;
+    color: #fff;
+  }
+  
+  .ai-msg-bot {
+    background: #fff;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+  }
+  
+  #ai-chat-input-area {
+    padding: 12px 16px;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 8px;
+  }
+  
+  #ai-chat-input {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px 12px;
+    outline: none;
+    font-size: 0.875rem;
+    color: #4b5563;
+  }
+  
+  #ai-chat-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+  }
+  
+  #ai-chat-send {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  #ai-chat-send:hover {
+    background: #2563eb;
+  }
+
+  .ai-chat-empty, .ai-chat-loading, .ai-chat-error {
+    font-size: 0.875rem;
+    color: #6b7280;
+    background: #fff;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+    padding: 16px 12px;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .ai-chat-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #e5e7eb;
+    border-style: solid;
+    padding: 8px 12px;
+    align-self: flex-start;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .lucide-loader-circle {
+    animation: spin 1s linear infinite;
+  }
+  
+  #ai-chat-image-preview-container {
+    display: none;
+    position: relative;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  
+  #ai-chat-image-preview-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+  }
+  
+  #ai-chat-image-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .ai-chat-input-wrapper {
+    display: flex;
+    flex: 1;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ai-chat-btn-secondary {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .ai-chat-btn-secondary:hover {
+    background: #e5e7eb;
+  }
+
+  #ai-chat-tooltip {
+    position: absolute;
+    bottom: 60px;
+    right: 0;
+    background: #fff;
+    color: #1f2937;
+    padding: 10px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid #e5e7eb;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+    z-index: 10000;
+  }
+  
+  #ai-chat-tooltip.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  #ai-chat-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    right: 18px;
+    border-width: 6px 6px 0;
+    border-style: solid;
+    border-color: #fff transparent transparent transparent;
+  }
+  
+  #ai-chat-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: -7px;
+    right: 17px;
+    border-width: 7px 7px 0;
+    border-style: solid;
+    border-color: #e5e7eb transparent transparent transparent;
+  }
+</style>
+
+<div id="ai-chat-widget">
+  <div id="ai-chat-window">
+    <div id="ai-chat-header">
+      <div class="ai-chat-header-left">
+        <div class="ai-chat-header-icon">
+          <svg xmlns="http://www.w3.org/-2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+        </div>
+        <span>AI Chat</span>
+      </div>
+      <button id="ai-chat-close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    
+    <div id="ai-chat-messages">
+      <!-- Messages will be injected here -->
+    </div>
+    
+    <div id="ai-chat-input-area">
+      <div class="ai-chat-input-wrapper">
+        <input type="file" id="ai-chat-image-input" accept="image/*" style="display:none">
+        
+        <button id="ai-chat-image-btn" class="ai-chat-btn-secondary" type="button" title="Đính kèm ảnh">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </button>
+
+        <div id="ai-chat-image-preview-container">
+          <img id="ai-chat-image-preview-thumb" src="" alt="preview">
+          <button id="ai-chat-image-remove" type="button" title="Xóa ảnh">&times;</button>
+        </div>
+
+        <input type="text" id="ai-chat-input" placeholder="Nhập câu hỏi..." autocomplete="off">
+        <button id="ai-chat-send" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="ai-chat-tooltip">
+  </div>
+
+  <button id="ai-chat-button" title="AI Chat">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+  </button>
+</div>
+
+<script>
+(function() {
+  const btn = document.getElementById('ai-chat-button');
+  const win = document.getElementById('ai-chat-window');
+  const close = document.getElementById('ai-chat-close');
+  const input = document.getElementById('ai-chat-input');
+  const send = document.getElementById('ai-chat-send');
+  const messagesDiv = document.getElementById('ai-chat-messages');
+  
+  const imgInput = document.getElementById('ai-chat-image-input');
+  const imgBtn = document.getElementById('ai-chat-image-btn');
+  const imgPreviewContainer = document.getElementById('ai-chat-image-preview-container');
+  const imgPreviewThumb = document.getElementById('ai-chat-image-preview-thumb');
+  const imgRemove = document.getElementById('ai-chat-image-remove');
+  
+  let historyLoaded = false;
+  let loadingOlder = false;
+  let historyLoading = false;
+  let hasMoreHistory = false;
+  let nextBeforeId = null;
+  let isAiLoading = false;
+  let pendingImageUrl = null;
+  let entityId = null;
+  const pathMatch = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/([a-zA-Z0-9-]+)/);
+  if (pathMatch) {
+    const type = pathMatch[1];
+    const id = pathMatch[2];
+    if (id === 'new') {
+      const draftKey = `ai_draft_${type}`;
+      let draftId = sessionStorage.getItem(draftKey);
+      if (!draftId) {
+        draftId = `draft_${Math.random().toString(36).substring(2, 11)}`;
+        sessionStorage.setItem(draftKey, draftId);
+      }
+      entityId = draftId;
+    } else {
+      entityId = id;
+      const draftKey = `ai_draft_${type}`;
+      const draftId = sessionStorage.getItem(draftKey);
+      if (draftId) {
+        fetch('/admin/api/ai-chat/link-draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ draftId, newId: id })
+        }).then(() => {
+          sessionStorage.removeItem(draftKey);
+        }).catch(console.error);
+      }
+    }
+  }
+
+  
+  let aiTooltipTimeout = null;
+  let tooltipHidden = false;
+
+  btn.addEventListener('click', () => {
+    win.classList.add('open');
+    if (!historyLoaded) {
+      loadInitialHistory();
+    }
+    
+    // An tooltip ngay neu mo chat
+    const tooltip = document.getElementById('ai-chat-tooltip');
+    if (tooltip) {
+      tooltip.classList.remove('show');
+      tooltipHidden = true;
+    }
+  });
+
+  // Chỉ hiện tooltip 1 lần trong phiên làm việc
+  const isContentPage = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/);
+  const hasSeenTooltip = sessionStorage.getItem('ai_tooltip_seen');
+  
+  if (!hasSeenTooltip) {
+    setTimeout(() => {
+      if (tooltipHidden || win.classList.contains('open')) return;
+      const tooltip = document.getElementById('ai-chat-tooltip');
+      if (tooltip) {
+        tooltip.textContent = isContentPage 
+          ? "Cần viết nội dung? Mở AI ngay!" 
+          : "Cần hỗ trợ? Hỏi ngay AI!";
+          
+        tooltip.classList.add('show');
+        sessionStorage.setItem('ai_tooltip_seen', 'true');
+        
+        // An sau 5s
+        aiTooltipTimeout = setTimeout(() => {
+          tooltip.classList.remove('show');
+          tooltipHidden = true;
+        }, 5000);
+      }
+    }, 3000);
+  }
+  
+  close.addEventListener('click', () => {
+    win.classList.remove('open');
+  });
+
+  function escapeHtml(unsafe) {
+    return (unsafe||'').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  function renderMessage(role, content, meta, imageUrl) {
+    const container = document.createElement('div');
+    container.className = `ai-msg-container ${role === 'user' ? 'user' : 'bot'}`;
+    
+    let html = '';
+    if (meta) {
+      html += `<div class="ai-msg-meta">${escapeHtml(meta)}</div>`;
+    }
+    
+    let imageHtml = '';
+    if (imageUrl) {
+      imageHtml = `<img src="${escapeHtml(imageUrl)}" style="display:block;max-width:160px;border-radius:6px;margin-bottom:6px;">`;
+    }
+    
+    html += `<div class="ai-msg-bubble ${role === 'user' ? 'ai-msg-user' : 'ai-msg-bot'}">${imageHtml}${escapeHtml(content)}</div>`;
+    
+    container.innerHTML = html;
+    return container;
+  }
+  
+  function renderHistoryItems(items, appendAtEnd = false) {
+    const frag = document.createDocumentFragment();
+    items.forEach(item => {
+      // User message
+      const meta = item.created_at ? new Date(item.created_at).toLocaleString('vi-VN') : '';
+      frag.appendChild(renderMessage('user', item.user_message, meta, item.image_url));
+      
+      // Bot response
+      const botContent = item.assistant_response || (item.error_message ? `Lỗi: ${item.error_message}` : null);
+      if (botContent) {
+        frag.appendChild(renderMessage('bot', botContent, item.status === 'success' ? '' : item.status));
+      }
+    });
+
+    if (appendAtEnd) {
+      messagesDiv.appendChild(frag);
+    } else {
+      messagesDiv.insertBefore(frag, messagesDiv.firstChild);
+    }
+  }
+
+  function showEmptyState() {
+    if (messagesDiv.children.length === 0) {
+      messagesDiv.innerHTML = '<div class="ai-chat-empty">Nhập câu hỏi để gọi Assistant Agent.</div>';
+    }
+  }
+
+  function clearEmptyState() {
+    const empty = messagesDiv.querySelector('.ai-chat-empty');
+    if (empty) empty.remove();
+  }
+
+  async function loadInitialHistory() {
+    historyLoaded = true;
+    historyLoading = true;
+    messagesDiv.innerHTML = '<div class="ai-chat-loading"><svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tải 15 đoạn chat gần nhất...</div>';
+    
+    try {
+      const res = await fetch('/admin/api/ai-chat/history' + (entityId ? '?entityId=' + entityId : ''));
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      
+      messagesDiv.innerHTML = '';
+      if (data.items && data.items.length > 0) {
+        // Items API should return descending by ID, but we want to render oldest first on screen (bottom is newest)
+        // So we reverse them before rendering
+        renderHistoryItems(data.items.slice().reverse(), true);
+        hasMoreHistory = data.has_more;
+        nextBeforeId = data.next_before_id;
+      }
+      showEmptyState();
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    } catch (err) {
+      messagesDiv.innerHTML = '<div class="ai-chat-error">Không tải được lịch sử chat gần nhất.</div>';
+    } finally {
+      historyLoading = false;
+    }
+  }
+  
+  async function loadOlderHistory() {
+    if (loadingOlder || historyLoading || !hasMoreHistory || !nextBeforeId) return;
+    
+    loadingOlder = true;
+    const prevHeight = messagesDiv.scrollHeight;
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'ai-chat-loading';
+    loadingDiv.innerHTML = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tải lịch sử cũ hơn...';
+    messagesDiv.insertBefore(loadingDiv, messagesDiv.firstChild);
+
+    try {
+      const res = await fetch('/admin/api/ai-chat/history?before_id=' + nextBeforeId + (entityId ? '&entityId=' + entityId : ''));
+      if (res.ok) {
+        const data = await res.json();
+        loadingDiv.remove();
+        if (data.items && data.items.length > 0) {
+          renderHistoryItems(data.items.slice().reverse(), false);
+          hasMoreHistory = data.has_more;
+          nextBeforeId = data.next_before_id;
+        }
+        messagesDiv.scrollTop = messagesDiv.scrollHeight - prevHeight;
+      }
+    } finally {
+      if (loadingDiv.parentNode) loadingDiv.remove();
+      loadingOlder = false;
+    }
+  }
+
+  messagesDiv.addEventListener('scroll', () => {
+    if (messagesDiv.scrollTop < 24) {
+      loadOlderHistory();
+    }
+  });
+  
+  function clearPendingImage() {
+    pendingImageUrl = null;
+    imgInput.value = "";
+    imgPreviewContainer.style.display = "none";
+    imgBtn.style.display = "flex";
+  }
+
+  imgBtn.addEventListener('click', () => imgInput.click());
+  imgRemove.addEventListener('click', clearPendingImage);
+
+  async function handleImageUpload(file) {
+    if (!file) return;
+    imgBtn.disabled = true;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/admin/api/ai-chat/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        alert("Tải ảnh lên thất bại");
+        imgInput.value = "";
+        return;
+      }
+      const { url } = await res.json();
+      pendingImageUrl = window.location.origin + url;
+      imgPreviewThumb.src = url;
+      imgBtn.style.display = "none";
+      imgPreviewContainer.style.display = "block";
+    } catch (e) {
+      alert("Lỗi tải ảnh");
+    } finally {
+      imgBtn.disabled = false;
+    }
+  }
+
+  imgInput.addEventListener('change', () => {
+    handleImageUpload(imgInput.files[0]);
+  });
+
+  input.addEventListener('paste', (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+      const item = items[index];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        handleImageUpload(blob);
+        break;
+      }
+    }
+  });
+
+  async function sendMessage(hiddenText = null, hiddenPayload = null) {
+    const text = hiddenText || input.value.trim();
+    if (!text && !hiddenPayload) return;
+    if (isAiLoading && !hiddenPayload) return;
+    
+    if (!hiddenPayload) {
+      const sentImageUrl = pendingImageUrl;
+      clearEmptyState();
+      messagesDiv.appendChild(renderMessage('user', text, '', sentImageUrl));
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      
+      input.value = '';
+      clearPendingImage();
+      isAiLoading = true;
+      
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = 'ai-loading-indicator';
+      loadingDiv.className = 'ai-chat-loading';
+      loadingDiv.innerHTML = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> <span>AI đang trả lời...</span>';
+      messagesDiv.appendChild(loadingDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    try {
+      let payload;
+      if (hiddenPayload) {
+        payload = hiddenPayload;
+      } else {
+        const isContentEditPage = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/);
+        let formElements = [];
+        
+        if (isContentEditPage) {
+          formElements = Array.from(document.querySelectorAll('input, textarea, select'))
+            .map(el => el.id)
+            .filter(id => id && !id.startsWith('ai-') && id !== 'flash' && id !== 'sidebar-toggle');
+          if (document.getElementById('faq-rows')) {
+            formElements.push('faq');
+          }
+        }
+
+        payload = { 
+          message: text,
+          pageTitle: document.title,
+          pageUrl: window.location.href,
+          availableFields: formElements,
+          layoutMode: document.getElementById('layoutMode') ? document.getElementById('layoutMode').value : null,
+          entityId: entityId
+        };
+        if (pendingImageUrl) payload.imageUrl = pendingImageUrl;
+      }
+
+      const res = await fetch('/admin/api/ai-chat/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      const loadingEl = document.getElementById('ai-loading-indicator');
+      
+      if (!res.ok) {
+        if (loadingEl) loadingEl.remove();
+        messagesDiv.appendChild(renderMessage('bot', data.message || "Lỗi: Không thể gọi AI.", 'error'));
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        isAiLoading = false;
+        return;
+      }
+
+      // Luồng xử lý JSON Action
+      if (data.action === "request_fields") {
+        if (loadingEl) {
+          loadingEl.querySelector('span').textContent = data.message || "Đang thu thập dữ liệu...";
+        }
+        
+        // Thu thập dữ liệu form
+        const toolData = {};
+        if (Array.isArray(data.fields)) {
+          data.fields.forEach(fieldId => {
+            const el = document.getElementById(fieldId);
+            if (el) {
+              // Xử lý riêng biệt cho rich-text body nếu cần
+              toolData[fieldId] = el.value !== undefined ? el.value : el.innerText;
+            } else if (fieldId === 'faq') {
+              const faqRows = document.getElementById('faq-rows');
+              if (faqRows) {
+                const faqs = [...faqRows.querySelectorAll('.faq-row')].map(row => ({
+                  question: row.querySelector('.faq-q').value.trim(),
+                  answer: row.querySelector('.faq-a').value.trim()
+                }));
+                toolData['faq'] = JSON.stringify(faqs);
+              }
+            }
+          });
+        }
+        
+        if (data.searchResults) {
+          toolData.searchResults = data.searchResults;
+        }
+        
+        // Gửi đệ quy
+        const secondPayload = {
+          message: payload.originalMessage || payload.message,
+          isToolResponse: true,
+          toolData: toolData,
+          originalMessage: payload.originalMessage || payload.message,
+          nextAgent: data.nextAgent || "content",
+          imageUrl: payload.imageUrl,
+          entityId: entityId,
+          historyId: data.historyId,
+          availableFields: payload.availableFields
+        };
+        return sendMessage(null, secondPayload);
+      } else if (data.action === "generate_image") {
+        if (loadingEl) {
+          loadingEl.querySelector('span').textContent = data.message || "Đang tạo ảnh...";
+        }
+        
+        try {
+          const imgRes = await fetch('/admin/api/ai-chat/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: data.prompt, key: "image", historyId: data.historyId })
+          });
+          const imgData = await imgRes.json();
+          
+          if (!imgRes.ok) throw new Error(imgData.message);
+          
+          if (loadingEl) loadingEl.remove();
+          
+          const markdownImg = `![Tạo ảnh](${imgData.url})\n\n[Link ảnh](${imgData.url})`;
+          messagesDiv.appendChild(renderMessage('bot', markdownImg));
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          isAiLoading = false;
+        } catch (e) {
+          if (loadingEl) loadingEl.remove();
+          messagesDiv.appendChild(renderMessage('bot', "Lỗi tạo ảnh: " + e.message, 'error'));
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          isAiLoading = false;
+        }
+      } else if (data.action === "webfetch" || data.action === "websearch") {
+        if (loadingEl) {
+          loadingEl.querySelector('span').textContent = data.message || "Đang lấy dữ liệu...";
+        }
+        
+        try {
+          const endpoint = data.action === "webfetch" ? '/admin/api/ai-chat/webfetch' : '/admin/api/ai-chat/websearch';
+          const bodyData = data.action === "webfetch" ? { url: data.url } : { query: data.query };
+          
+          const toolRes = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyData)
+          });
+          const toolDataJson = await toolRes.json();
+          
+          if (!toolRes.ok) throw new Error(toolDataJson.message);
+          
+          // Gửi đệ quy với kết quả
+          const secondPayload = {
+            message: payload.originalMessage || payload.message,
+            isToolResponse: true,
+            toolData: { [data.action]: toolDataJson.result },
+            originalMessage: payload.originalMessage || payload.message,
+            nextAgent: window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/) ? "content" : "chat",
+            imageUrl: payload.imageUrl,
+            entityId: entityId,
+            historyId: data.historyId,
+            availableFields: payload.availableFields
+          };
+          return sendMessage(null, secondPayload);
+        } catch (e) {
+          if (loadingEl) loadingEl.remove();
+          messagesDiv.appendChild(renderMessage('bot', "Lỗi dữ liệu web: " + e.message, 'error'));
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          isAiLoading = false;
+        }
+      } 
+      else if (data.action === "fill_form") {
+        if (loadingEl) loadingEl.remove();
+        
+        // Cập nhật DOM
+        if (data.data && typeof data.data === 'object') {
+          for (const [key, val] of Object.entries(data.data)) {
+            const el = document.getElementById(key);
+            if (el) {
+              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                el.value = val;
+                // Đồng bộ cho Rich Editor (nếu có)
+                if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
+                  const editorBody = el.parentNode.querySelector('.rich-editor-body');
+                  if (editorBody) {
+                    editorBody.innerHTML = val;
+                    editorBody.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                }
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              } else {
+                el.innerHTML = val;
+              }
+            } else if (key === 'faq') {
+              const faqRows = document.getElementById('faq-rows');
+              if (faqRows) {
+                let parsedVal = val;
+                if (typeof val === 'string') {
+                  try {
+                    parsedVal = JSON.parse(val);
+                  } catch(e) { parsedVal = []; }
+                }
+                
+                if (Array.isArray(parsedVal)) {
+                  faqRows.innerHTML = '';
+                  parsedVal.forEach(item => {
+                    if (typeof window.appendFaqRow === 'function') {
+                      window.appendFaqRow(item.question, item.answer);
+                    } else {
+                      const evt = new CustomEvent('ai-fill-faq', { detail: { question: item.question, answer: item.answer } });
+                      document.dispatchEvent(evt);
+                    }
+                  });
+                }
+              }
+            }
+          }
+        }
+        
+        messagesDiv.appendChild(renderMessage('bot', data.message || "Đã điền dữ liệu xong.", ''));
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        isAiLoading = false;
+      }
+      else {
+        // Chat bình thường
+        if (loadingEl) loadingEl.remove();
+        messagesDiv.appendChild(renderMessage('bot', data.message || "Đã xử lý xong.", ''));
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        isAiLoading = false;
+      }
+      
+    } catch (e) {
+      const loadingEl = document.getElementById('ai-loading-indicator');
+      if (loadingEl) loadingEl.remove();
+      messagesDiv.appendChild(renderMessage('bot', "Không kết nối được server.", 'error'));
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      isAiLoading = false;
+    }
+  }
+  
+  send.addEventListener('click', () => sendMessage());
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+})();
+</script>

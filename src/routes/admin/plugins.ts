@@ -265,6 +265,46 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
       
       if (parsed.data.enabled) {
         const manifest = manifestOf(plugin);
+
+        // 1. Execute install.ts
+        const addonsDir = path.join(process.cwd(), "src", "addons");
+        const installPath = path.join(addonsDir, plugin.slug, "install.ts");
+        if (fs.existsSync(installPath)) {
+          try {
+            const installModule = await import("file://" + installPath.replace(/\\/g, "/"));
+            if (installModule.setup) {
+              await installModule.setup(prisma, plugin.slug);
+            }
+          } catch (err) {
+            request.log.error({ err }, `[Plugin: ${plugin.slug}] Error running install.ts`);
+          }
+        }
+
+        // 2. Validate and Update allowedTables
+        const validTables: string[] = [];
+        const coreModels = Prisma.dmmf.datamodel.models.map(m => m.dbName || m.name);
+        
+        for (const tableName of manifest.tables || []) {
+           if (coreModels.includes(tableName)) continue;
+
+           const result = await prisma.$queryRaw<any[]>`
+             SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE  table_schema = 'public'
+                AND    table_name   = ${tableName}
+              );
+           `;
+           if (result && result[0] && result[0].exists) {
+              validTables.push(tableName);
+           }
+        }
+
+        await prisma.plugin.update({
+          where: { slug: plugin.slug },
+          data: { allowedTables: validTables }
+        });
+
+        // 3. Create Agents if needed
         const agentsToCreate = manifest.permissions.ai?.agents || [];
         for (const agentDef of agentsToCreate) {
           const existing = await prisma.agent.findFirst({ where: { key: agentDef.key, pluginSlug: plugin.slug } });
