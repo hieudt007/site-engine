@@ -78,11 +78,12 @@ export const THEME_FILE_CONTRACTS: ThemeFileContract[] = [
   {
     file: "blog-post.liquid",
     description: "Chi tiet 1 bai viet.",
-    requiredSubstrings: [...WRAPPER, "post.title", "post.body", "post.customFields"],
+    requiredSubstrings: [...WRAPPER, "post.title", "post.body", "post.customFields", '{% render "components/blog/related"'],
     requiredIds: [],
     notes:
       "post.body la HTML DA SANITIZE, PHAI render RAW (khong escape). PHAI giu " +
-      '{% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat).',
+      '{% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat). ' +
+      'PHAI goi {% render "components/blog/related", relatedPosts: relatedPosts %} o duoi bai viet.',
   },
   {
     file: "blog-category.liquid",

@@ -1,6 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { THEME_FILE_CONTRACTS } from "./themeContract.js";
+import { prisma } from "../db.js";
+
+const ADDONS_ROOT = path.join(process.cwd(), "src", "addons");
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 
@@ -22,7 +25,7 @@ function themeMdPath(slug: string): string {
 
 // Liet ke gon 18 file .liquid (khong liet ke het 36 file nguon CSS/JS tuong ung - se qua dai,
 // ton token moi lan gui vao prompt classify). Mo hinh cap file nguon chi giai thich 1 lan.
-function buildDirectoryTree(): string {
+async function buildDirectoryTree(): Promise<string> {
   const lines = [
     ...THEME_FILE_CONTRACTS.map((c) => `- ${c.file} — ${c.description}`),
     "",
@@ -41,15 +44,16 @@ function buildDirectoryTree(): string {
     "assets/custom.css và assets/custom.js là file BUILD tự động (gộp + nén từ toàn bộ file nguồn " +
       "CSS/JS) — KHÔNG được chọn 2 file này để sửa trực tiếp.",
   ];
+
   return lines.join("\n");
 }
 
-function initialThemeMd(): string {
+async function initialThemeMd(): Promise<string> {
   return [
     "# Trí nhớ theme (đọc bởi AI editor mỗi lượt chat — xem services/themeMemory.ts)",
     "",
     SECTION_TREE,
-    buildDirectoryTree(),
+    await buildDirectoryTree(),
     "",
     SECTION_INTENT,
     "(chưa có)",
@@ -62,17 +66,19 @@ function initialThemeMd(): string {
 
 // Tao THEME.md neu chua co (theme cu tao truoc khi co tinh nang chat, hoac theme moi tu ai-customize
 // chua duoc wire tao san) — idempotent, khong ghi de neu da ton tai.
-export async function ensureThemeMd(slug: string): Promise<string> {
-  const filePath = themeMdPath(slug);
-  const existing = await fs.readFile(filePath, "utf-8").catch(() => null);
-  if (existing !== null) return existing;
-  const content = initialThemeMd();
-  await fs.writeFile(filePath, content, "utf-8");
-  return content;
+export async function ensureThemeMd(slug: string): Promise<void> {
+  const mdPath = themeMdPath(slug);
+  try {
+    await fs.access(mdPath);
+  } catch {
+    await fs.mkdir(path.dirname(mdPath), { recursive: true });
+    await fs.writeFile(mdPath, await initialThemeMd(), "utf-8");
+  }
 }
 
 export async function readThemeMd(slug: string): Promise<string> {
-  return ensureThemeMd(slug);
+  await ensureThemeMd(slug);
+  return await fs.readFile(themeMdPath(slug), "utf-8");
 }
 
 const KNOWN_HEADINGS = [SECTION_TREE, SECTION_INTENT, SECTION_APPLIED];
@@ -109,7 +115,8 @@ function extractSection(content: string, heading: string): string {
 // cuoc thao luan voi user, khong luu lai o day vi day la code khong phai noi).
 async function replaceSection(slug: string, heading: string, newBody: string): Promise<void> {
   const filePath = themeMdPath(slug);
-  const current = await ensureThemeMd(slug);
+  await ensureThemeMd(slug);
+  const current = await fs.readFile(filePath, "utf-8");
   const trimmedBody = newBody.trim() || "(chưa có)";
 
   const lines = current.split("\n");

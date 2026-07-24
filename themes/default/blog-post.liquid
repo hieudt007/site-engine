@@ -26,6 +26,8 @@
       </dl>
     </div>
   {% endif %}
+  
+  {% render "components/blog/related", relatedPosts: relatedPosts %}
 </article>
 {% render "components/plugin/area", blocks: pluginAreas.blog_post_after_content %}
 {% endblock %}

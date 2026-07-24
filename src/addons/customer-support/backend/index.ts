@@ -1,11 +1,16 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { prisma } from "../../db.js";
-import { findEnabledPlugin, manifestOf } from "../../services/pluginRuntime.js";
-import { callAgentWithTools, AiMessage, AiTool } from "../../services/aiClient.js";
+import { getPluginDb } from "../../../services/pluginDb.js";
+const pluginDb = getPluginDb("customer-support");
+import { findEnabledPlugin, manifestOf } from "../../../services/pluginRuntime.js";
+import { callAgentWithTools, AiMessage, AiTool } from "../../../services/aiClient.js";
 import crypto from "node:crypto";
-import { config as appConfig } from "../../config.js";
-import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
+import { config as appConfig } from "../../../config.js";
+import { getOrCreateSiteConfig } from "../../../services/siteConfig.js";
+
+import { requireRole } from "../../../plugins/requireRole.js";
+import { renderAdmin } from "../../../services/adminView.js";
+import { saveAiChatImage } from "../../../services/mediaStorage.js";
 
 const chatSchema = z.object({
   agentKey: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/),
@@ -16,6 +21,7 @@ const chatSchema = z.object({
   url: z.string().optional(),
   title: z.string().optional(),
   productId: z.string().optional(),
+  images: z.array(z.string()).optional(),
 });
 
 const tools: AiTool[] = [
@@ -85,7 +91,7 @@ const tools: AiTool[] = [
   }
 ];
 
-export async function registerPluginChatRoutes(app: FastifyInstance): Promise<void> {
+export async function register(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { slug: string }; Querystring: { sessionId: string; hmacToken: string; cursor?: string } }>(
     "/api/plugins/:slug/chat",
     async (request, reply) => {
@@ -101,7 +107,7 @@ export async function registerPluginChatRoutes(app: FastifyInstance): Promise<vo
       }
 
       const take = 5;
-      const historyRecords = await prisma.pluginRecord.findMany({
+      const historyRecords = await pluginDb.pluginRecord.findMany({
         where: { 
           pluginSlug: plugin.slug, 
           collection: "customer_chat", 
@@ -154,14 +160,14 @@ export async function registerPluginChatRoutes(app: FastifyInstance): Promise<vo
       const parsed = chatSchema.safeParse(request.body);
       if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
 
-      const { agentKey, sessionId, message, hmacToken, turnstileToken, url, title, productId } = parsed.data;
+      const { agentKey, sessionId, message, hmacToken, turnstileToken, url, title, productId, images } = parsed.data;
 
       const expectedHmac = crypto.createHmac("sha256", appConfig.siteEngineSecret).update(sessionId).digest("hex");
       if (expectedHmac !== hmacToken) {
         return reply.code(403).send({ error: "Xác thực Session thất bại. Yêu cầu tải lại trang." });
       }
 
-      const siteConfig = await getOrCreateSiteConfig();
+      const siteConfig = await getOrCreateSiteConfig(request.hostname);
       if (siteConfig.turnstileSecretKey) {
         if (!turnstileToken) return reply.code(403).send({ error: "Vui lòng xác thực bạn không phải là robot." });
         const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
@@ -169,23 +175,23 @@ export async function registerPluginChatRoutes(app: FastifyInstance): Promise<vo
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ secret: siteConfig.turnstileSecretKey, response: turnstileToken }).toString(),
         });
-        const verifyData = await verifyRes.json();
+        const verifyData = (await verifyRes.json()) as any;
         if (!verifyData.success) return reply.code(403).send({ error: "Xác thực Captcha thất bại, vui lòng thử lại." });
       }
 
-      const agent = await prisma.agent.findFirst({ where: { key: agentKey, pluginSlug: plugin.slug, isActive: true } });
+      const agent = await pluginDb.agent.findFirst({ where: { key: agentKey, pluginSlug: plugin.slug, isActive: true } });
       if (!agent) return reply.code(404).send({ error: "Active agent not found for this plugin" });
 
       // Don rac va chong spam
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      await prisma.pluginRecord.deleteMany({
+      await pluginDb.pluginRecord.deleteMany({
         where: { pluginSlug: plugin.slug, collection: "customer_chat", createdAt: { lt: sevenDaysAgo } },
       });
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const userMessagesToday = await prisma.pluginRecord.count({
+      const userMessagesToday = await pluginDb.pluginRecord.count({
         where: {
           pluginSlug: plugin.slug,
           collection: "customer_chat",
@@ -198,7 +204,7 @@ export async function registerPluginChatRoutes(app: FastifyInstance): Promise<vo
         return reply.code(429).send({ error: "Bạn đã vượt quá số lượng tin nhắn cho phép. Vui lòng quay lại sau." });
       }
 
-      const spamRecords = await prisma.pluginRecord.count({
+      const spamRecords = await pluginDb.pluginRecord.count({
         where: {
           pluginSlug: plugin.slug,
           collection: "customer_chat",
@@ -210,7 +216,7 @@ export async function registerPluginChatRoutes(app: FastifyInstance): Promise<vo
         return reply.code(403).send({ error: "Phiên chat của bạn đã bị ngưng phục vụ do phát hiện nhiều nội dung không hợp lệ." });
       }
 
-      const historyRecords = await prisma.pluginRecord.findMany({
+      const historyRecords = await pluginDb.pluginRecord.findMany({
         where: { pluginSlug: plugin.slug, collection: "customer_chat", data: { path: ["sessionId"], equals: sessionId } },
         orderBy: { createdAt: "desc" },
         take: 5,
@@ -231,11 +237,11 @@ export async function registerPluginChatRoutes(app: FastifyInstance): Promise<vo
         };
       });
 
-      await prisma.pluginRecord.create({
+      await pluginDb.pluginRecord.create({
         data: {
           pluginSlug: plugin.slug,
           collection: "customer_chat",
-          data: { sessionId, role: "user", content: message },
+          data: { sessionId, role: "user", content: message, images: images || [], url, title, productId },
         },
       });
 
@@ -285,27 +291,27 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
                 
                 try {
                   if (call.function.name === "search_product") {
-                     const products = await prisma.productCache.findMany({
+                     const products = await pluginDb.productCache.findMany({
                        where: { name: { contains: args.query, mode: 'insensitive' } },
                        take: 5
                      });
                      toolResult = JSON.stringify(products.map(p => ({ id: p.id, name: p.name, price: p.price, salePrice: p.salePrice, imageUrl: p.imageUrls?.[0] })));
                   }
                   else if (call.function.name === "get_product") {
-                     const product = await prisma.productCache.findUnique({
+                     const product = await pluginDb.productCache.findUnique({
                        where: { id: args.productId }
                      });
                      toolResult = product ? JSON.stringify({ name: product.name, price: product.price, salePrice: product.salePrice, inStock: product.stock, imageUrls: product.imageUrls }) : "Not found";
                   }
                   else if (call.function.name === "check_order") {
-                     const orders = await prisma.cartOrder.findMany({
-                       where: { OR: [{ customerPhone: args.phoneOrCode }, { shortCode: args.phoneOrCode }] },
+                     const orders = await pluginDb.cartOrder.findMany({
+                       where: { OR: [{ customerPhone: args.phoneOrCode }, { id: args.phoneOrCode }] },
                        orderBy: { createdAt: 'desc' }, take: 3
                      });
-                     toolResult = JSON.stringify(orders.map(o => ({ code: o.shortCode, status: o.status, date: o.createdAt })));
+                     toolResult = JSON.stringify(orders.map(o => ({ code: o.id, status: o.status, date: o.createdAt })));
                   }
                   else if (call.function.name === "create_lead") {
-                     await prisma.pluginRecord.create({
+                     await pluginDb.pluginRecord.create({
                        data: {
                          pluginSlug: plugin.slug,
                          collection: "leads",
@@ -347,7 +353,7 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
           parsedData = { messages: [finalResponse], images: [] };
         }
 
-        await prisma.pluginRecord.create({
+        await pluginDb.pluginRecord.create({
           data: {
             pluginSlug: plugin.slug,
             collection: "customer_chat",
@@ -362,7 +368,7 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
           isSpam 
         });
       } catch (err: any) {
-        await prisma.pluginRecord.create({
+        await pluginDb.pluginRecord.create({
           data: {
             pluginSlug: plugin.slug,
             collection: "customer_chat",
@@ -373,4 +379,148 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
       }
     }
   );
+  await registerLiveChatRoutes(app);
 }
+
+
+  app.post<{ Params: { slug: string } }>(
+    "/api/plugins/:slug/chat/upload",
+    {
+      config: {
+        rateLimit: { max: 5, timeWindow: "1 minute" },
+      },
+    },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+
+      if (!request.isMultipart()) return reply.code(400).send({ error: "Request is not multipart" });
+      
+      const parts = request.parts();
+      let sessionId = "";
+      let hmacToken = "";
+      let uploadedFile: { url: string; filename: string } | null = null;
+      let partBuffer: Buffer | null = null;
+      let partMime = "";
+
+      for await (const part of parts) {
+        if (part.type === 'file') {
+          partBuffer = await part.toBuffer();
+          partMime = part.mimetype;
+        } else if (part.type === 'field') {
+          if (part.fieldname === 'sessionId') sessionId = part.value as string;
+          if (part.fieldname === 'hmacToken') hmacToken = part.value as string;
+        }
+      }
+
+      if (!sessionId || !hmacToken) return reply.code(400).send({ error: "Missing session tokens" });
+
+      const expectedHmac = crypto.createHmac("sha256", appConfig.siteEngineSecret).update(sessionId).digest("hex");
+      if (expectedHmac !== hmacToken) {
+        return reply.code(403).send({ error: "Xác thực Session thất bại." });
+      }
+
+      if (!partBuffer) return reply.code(400).send({ error: "No file uploaded" });
+
+      try {
+        uploadedFile = await saveAiChatImage(partBuffer, partMime);
+      } catch (e: any) {
+        return reply.code(400).send({ error: e.message || "Lỗi upload file" });
+      }
+
+      return { url: uploadedFile.url };
+    }
+  );
+
+const sendSchema = z.object({
+  sessionId: z.string().min(1),
+  message: z.string().min(1),
+});
+
+async function registerLiveChatRoutes(app: FastifyInstance): Promise<void> {
+  // API lay danh sach Sessions
+  app.get<{ Params: { slug: string } }>(
+    "/admin/api/plugins/:slug/live-chat/sessions",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const pluginSlug = request.params.slug;
+
+      const recentMessages = await pluginDb.pluginRecord.findMany({
+        where: { pluginSlug, collection: "customer_chat" },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+
+      const sessionsMap = new Map();
+      for (const msg of recentMessages) {
+        const data = msg.data as any;
+        if (!data || !data.sessionId) continue;
+        
+        if (!sessionsMap.has(data.sessionId)) {
+          sessionsMap.set(data.sessionId, {
+            sessionId: data.sessionId,
+            lastMessage: data.content,
+            lastRole: data.role,
+            updatedAt: msg.createdAt,
+          });
+        }
+      }
+
+      const sessions = Array.from(sessionsMap.values());
+      return { sessions };
+    }
+  );
+
+  // API lay tin nhan cua 1 session
+  app.get<{ Params: { slug: string }; Querystring: { sessionId: string } }>(
+    "/admin/api/plugins/:slug/live-chat/history",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const pluginSlug = request.params.slug;
+      const { sessionId } = request.query;
+
+      const records = await pluginDb.pluginRecord.findMany({
+        where: {
+          pluginSlug,
+          collection: "customer_chat",
+          data: { path: ["sessionId"], equals: sessionId }
+        },
+        orderBy: { createdAt: "asc" },
+        take: 100,
+      });
+
+      const history = records.map(r => ({
+        id: r.id,
+        role: (r.data as any).role,
+        content: (r.data as any).content,
+        createdAt: r.createdAt
+      }));
+
+      return { history };
+    }
+  );
+
+  // API Admin gui tin nhan
+  app.post<{ Params: { slug: string } }>(
+    "/admin/api/plugins/:slug/live-chat/send",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const pluginSlug = request.params.slug;
+      const parsed = sendSchema.safeParse(request.body);
+      if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
+
+      const { sessionId, message } = parsed.data;
+
+      const record = await pluginDb.pluginRecord.create({
+        data: {
+          pluginSlug,
+          collection: "customer_chat",
+          data: { sessionId, role: "admin", content: message },
+        }
+      });
+
+      return { success: true, record };
+    }
+  );
+}
+

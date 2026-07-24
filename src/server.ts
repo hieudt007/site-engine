@@ -42,11 +42,10 @@ import { registerUserRoutes } from "./routes/admin/users.js";
 import { registerUsersUiRoutes } from "./routes/admin/usersUi.js";
 import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
-import { registerAdminFormsRoutes } from "./routes/admin/forms.js";
+
 import { registerAdminFormsUiRoutes } from "./routes/admin/formsUi.js";
 import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
 import { registerPluginRoutes } from "./routes/admin/plugins.js";
-import { registerPluginChatRoutes } from "./routes/public/pluginChat.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
 import { registerThemeRoutes } from "./routes/admin/themes.js";
@@ -59,13 +58,14 @@ import { registerAdminSeoRoutes } from "./routes/admin/seo.js";
 import { registerThemeInlineEditRoutes } from "./routes/admin/themeInlineEdit.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
+import { buildAllPluginAssets, watchPluginAssets } from "./services/pluginAssetBundler.js";
 import { registerHomeRoutes } from "./routes/public/home.js";
 import { registerThemeAssetsRoutes } from "./routes/public/themeAssets.js";
 import { renderNotFound } from "./services/notFoundPage.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
 import { registerPagesPublicRoutes } from "./routes/public/pages.js";
 import { registerCartRoutes } from "./routes/public/cart.js";
-import { registerFormsRoutes } from "./routes/public/forms.js";
+
 import { registerVnpayRoutes } from "./routes/public/vnpay.js";
 import { registerProvincesRoutes } from "./routes/public/provinces.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
@@ -184,6 +184,11 @@ async function start(): Promise<void> {
     prefix: "/uploads/",
     decorateReply: false,
   });
+  await app.register(fastifyStatic, {
+    root: path.join(process.cwd(), "src", "addons"),
+    prefix: "/addon-assets/",
+    decorateReply: false,
+  });
 
   await registerSession(app);
 
@@ -243,7 +248,6 @@ async function start(): Promise<void> {
   await registerAgentsUiRoutes(app);
   await registerAiChatRoutes(app);
   await registerPluginRoutes(app);
-  await registerPluginChatRoutes(app);
   await registerMenuRoutes(app);
   await registerMenusUiRoutes(app);
   await registerThemeRoutes(app);
@@ -253,7 +257,7 @@ async function start(): Promise<void> {
   await registerThemeEditorUiRoutes(app);
   await registerThemePreviewRoutes(app);
   await registerThemeInlineEditRoutes(app);
-  await registerAdminFormsRoutes(app);
+
   await registerAdminFormsUiRoutes(app);
   await registerAdminSeoRoutes(app);
   await registerSearchRoutes(app);
@@ -268,23 +272,66 @@ async function start(): Promise<void> {
   await registerProductsSyncRoutes(app);
   await registerReviewRoutes(app);
   await registerCartRoutes(app);
-  await registerFormsRoutes(app);
+
   await registerVnpayRoutes(app);
   await registerProvincesRoutes(app);
   await registerSeoRoutes(app);
+
+  // Load Plugins Dynamically
+  const addonsDir = path.join(process.cwd(), "src", "addons");
+  if (fs.existsSync(addonsDir)) {
+    const addons = fs.readdirSync(addonsDir, { withFileTypes: true });
+    for (const addon of addons) {
+      if (addon.isDirectory()) {
+        const slug = addon.name;
+        const pluginRecord = await prisma.plugin.findUnique({ where: { slug } });
+        
+        if (pluginRecord && pluginRecord.enabled) {
+          const installPath = path.join(addonsDir, slug, "install.ts");
+          if (fs.existsSync(installPath)) {
+            try {
+              const installModule = await import("file://" + installPath.replace(/\\/g, "/"));
+              if (installModule.setup) {
+                await installModule.setup(prisma, slug);
+              }
+            } catch (err) {
+              app.log.error({ err }, `[Plugin: ${slug}] Error running install.ts:`);
+            }
+          }
+
+          const backendPath = path.join(addonsDir, slug, "backend", "index.ts");
+          if (fs.existsSync(backendPath)) {
+            try {
+              const backendModule = await import("file://" + backendPath.replace(/\\/g, "/"));
+              if (backendModule.register) {
+                await backendModule.register(app);
+                app.log.info(`[Plugin: ${slug}] Registered backend routes.`);
+              }
+            } catch (err) {
+              app.log.error({ err }, `[Plugin: ${slug}] Error registering backend:`);
+            }
+          }
+        }
+      }
+    }
+  }
 
   // Cron jobs (chỉ chay tren main worker neu pm2, hoac chay local doc lap)
   if (process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === "0") {
     startOrderRetryCron();
     startPublishScheduler();
     startAiChatCleanupCron();
+    
+    // Build & Watch Plugin Assets
+    await buildAllPluginAssets();
+    watchPluginAssets();
   }
 
   await app.listen({ port: config.port, host: "0.0.0.0" });
 }
 
 start().catch((err) => {
-  app.log.error(err);
+  app.log.error(err as Error);
   process.exit(1);
 });
 

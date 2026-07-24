@@ -93,6 +93,17 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
       { name: post.title, url: postUrl },
     ];
     const schemas = [buildArticleSchema(post, site, postUrl), buildBreadcrumbSchema(breadcrumbItems)];
+
+    let relatedPosts: any[] = [];
+    if (post.categories.length > 0) {
+      relatedPosts = await prisma.post.findMany({
+        where: { type: "post", status: "published", id: { not: post.id }, categories: { some: { slug: { in: post.categories.map(c => c.slug) } } } },
+        orderBy: { publishedAt: "desc" },
+        take: 3,
+        include: { categories: { select: { name: true, slug: true } } }
+      });
+    }
+
     html = await renderPublic("blog-post", {
       ...pageData,
       breadcrumbs: [
@@ -103,6 +114,7 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
       ],
       breadcrumbVariant: "blog",
       post,
+      relatedPosts,
       schemas,
     });
   }

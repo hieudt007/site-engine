@@ -121,7 +121,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
           response: token,
         }).toString(),
       });
-      const verifyData = await verifyRes.json();
+      const verifyData = (await verifyRes.json()) as any;
       if (!verifyData.success) {
         return reply.code(403).send({ error: "Xác thực Captcha thất bại, vui lòng thử lại." });
       }

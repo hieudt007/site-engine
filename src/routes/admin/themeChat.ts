@@ -58,7 +58,8 @@ async function withHeartbeat<T>(reply: import("fastify").FastifyReply, task: Pro
 // KHONG qua lai AI phan loai - validFiles/message da co san tu tin nhan de xuat truoc do.
 function expandFilesWithPairedAssets(files: string[]): string[] {
   const groupKeys = new Set(files.map((file) => pageGroupKey(file)));
-  return [...SELECTABLE_FILES].filter((file) => groupKeys.has(pageGroupKey(file)));
+  const addonFiles = files.filter(f => f.startsWith("addons/"));
+  return [...[...SELECTABLE_FILES].filter((file) => groupKeys.has(pageGroupKey(file))), ...addonFiles];
 }
 
 function groupFilesByPage(files: string[]): Array<[string, string[]]> {
@@ -107,7 +108,8 @@ async function runFileEditPipeline(
     try {
       const fileContents: Record<string, string> = {};
       for (const file of groupFiles) {
-        const filePath = path.join(THEMES_ROOT, slug, file);
+        const isAddon = file.startsWith("addons/");
+        const filePath = isAddon ? path.join(process.cwd(), "src", file) : path.join(THEMES_ROOT, slug, file);
         const content = await fs.readFile(filePath, "utf-8").catch(() => "");
         fileContents[file] = content; // rong neu file nguon CSS/JS chua tung duoc tao - van hop le
       }
@@ -131,10 +133,12 @@ async function runFileEditPipeline(
         allResults.push(result);
         if (result.skipped) continue;
         if (result.ok && result.content !== undefined) {
-          const filePath = path.join(THEMES_ROOT, slug, result.file);
+          const isAddon = result.file.startsWith("addons/");
+          const filePath = isAddon ? path.join(process.cwd(), "src", result.file) : path.join(THEMES_ROOT, slug, result.file);
           await fs.mkdir(path.dirname(filePath), { recursive: true }); // assets/sources/ co the chua ton tai
           await fs.writeFile(filePath, result.content, "utf-8");
-          if (result.file.startsWith("assets/sources/")) assetsChanged = true;
+          if (!isAddon && result.file.startsWith("assets/sources/")) assetsChanged = true;
+          if (isAddon && result.file.includes("/assets/")) assetsChanged = true;
         }
         sseWrite(reply, { step: "validating", file: result.file, ok: result.ok, errors: result.errors });
       }
@@ -155,7 +159,7 @@ async function runFileEditPipeline(
             errors: [`AI cần mở thêm file nhưng đã vượt giới hạn ${MAX_EXTRA_FILE_REQUESTS} lần.`],
           });
         } else {
-          const validExtraFiles = groupResult.needsMoreFiles.files.filter((file) => SELECTABLE_FILES.has(file));
+          const validExtraFiles = groupResult.needsMoreFiles.files.filter((file) => SELECTABLE_FILES.has(file) || file.startsWith("addons/"));
           const expandedExtraFiles = expandFilesWithPairedAssets(validExtraFiles);
           const newGroups = groupFilesByPage(expandedExtraFiles).filter(([extraGroupKey]) => !queuedGroups.has(extraGroupKey));
 
@@ -298,7 +302,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
           });
         }
       }
-      const themeMd = await ensureThemeMd(request.params.slug);
+      const themeMd = await readThemeMd(request.params.slug);
       return { messages, themeMd };
     },
   );
@@ -350,7 +354,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         if (m.assistantResponse) history.push({ role: "assistant", content: m.assistantResponse });
       }
 
-      const themeMd = await ensureThemeMd(slug);
+      const themeMd = await readThemeMd(slug);
 
       sseWrite(reply, { step: "classify", label: "Đang phân tích yêu cầu..." });
       const classified = await withHeartbeat(reply, classifyChatMessage(agent, themeMd, history, message, imageUrl));
@@ -383,7 +387,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       }
 
       const isRedesign = classified.mode === "redesign";
-      const validFiles = isRedesign ? [...SELECTABLE_FILES] : classified.files.filter((f) => SELECTABLE_FILES.has(f));
+      const validFiles = isRedesign ? [...SELECTABLE_FILES] : classified.files.filter((f) => SELECTABLE_FILES.has(f) || f.startsWith("addons/"));
       if (!validFiles.length) {
         const fallback = "Xin lỗi, tôi chưa xác định được cần sửa file nào — bạn nói rõ hơn giúp tôi nhé.";
         await prisma.adminChatHistory.update({ where: { id: chatRow.id }, data: { assistantResponse: fallback, status: "error" } });
@@ -458,7 +462,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         const confirmRow = await prisma.adminChatHistory.create({
           data: { userId: (request as any).user.id, entityId: slug, userMessage: confirmMessage, status: "pending" }
         });
-        const themeMd = await ensureThemeMd(slug);
+        const themeMd = await readThemeMd(slug);
         const designSystemBlock = meta.styleQuery ? formatDesignSystem(resolveDesignSystem(meta.styleQuery)) : undefined;
         await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], meta.redesignBrief, confirmMessage, undefined, designSystemBlock, confirmRow.id);
       } catch (err) {

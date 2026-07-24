@@ -11,11 +11,20 @@
     const messagesEl = container.querySelector(".plugin-chat-messages");
     const pluginSlug = container.getAttribute("data-plugin-slug");
 
+    const attachBtn = container.querySelector("#plugin-chat-attach");
+    const fileInput = container.querySelector("#plugin-chat-file");
+    const previewContainer = container.querySelector("#plugin-chat-preview");
+    const previewImg = container.querySelector("#plugin-chat-preview-img");
+    const previewName = container.querySelector("#plugin-chat-preview-name");
+    const previewClose = container.querySelector("#plugin-chat-preview-close");
+
+    let pendingImageFile = null;
     let historyLoaded = false;
     let nextCursor = null;
     let isLoadingHistory = false;
+    const renderedIds = new Set();
 
-    const fetchHistory = async (cursor = null) => {
+    const fetchHistory = async (cursor = null, isPolling = false) => {
       if (isLoadingHistory) return;
       isLoadingHistory = true;
 
@@ -29,40 +38,46 @@
           
           if (res.ok) {
             const data = await res.json();
-            nextCursor = data.nextCursor;
+            if (!isPolling) nextCursor = data.nextCursor;
 
             if (data.history && data.history.length > 0) {
               const oldScrollHeight = messagesEl.scrollHeight;
               
-              if (!cursor) messagesEl.innerHTML = ''; // Initial load, clear default
-              
-              // To prepend correctly without reversing the DOM sequence, we prepend them in reverse chronological order
-              // Wait, the API returns chronological order [oldest, ..., newest].
-              // If we prepend 'newest' first, then 'oldest', it will be: oldest, ..., newest, existing.
               if (cursor) {
-                // If we are prepending (loading older messages), we iterate backwards so they stack correctly at the top
                 for (let i = data.history.length - 1; i >= 0; i--) {
                   const r = data.history[i];
-                  appendMessage(r.content, r.role === 'user', true);
-                  if (r.images && r.images.length > 0) {
-                    // Prepend images in reverse too
-                    for (let j = r.images.length - 1; j >= 0; j--) {
-                      appendImage(r.images[j], r.role === 'user', true);
+                  if (!renderedIds.has(r.id)) {
+                    renderedIds.add(r.id);
+                    appendMessage(r.content, r.role === 'user', true);
+                    if (r.images && r.images.length > 0) {
+                      for (let j = r.images.length - 1; j >= 0; j--) {
+                        appendImage(r.images[j], r.role === 'user', true);
+                      }
                     }
                   }
                 }
-                // Keep the scroll position
                 messagesEl.scrollTop = messagesEl.scrollHeight - oldScrollHeight;
               } else {
-                // Initial load, just append
+                let hasNew = false;
                 data.history.forEach(r => {
-                  appendMessage(r.content, r.role === 'user');
-                  if (r.images && r.images.length > 0) {
-                    r.images.forEach(img => appendImage(img, r.role === 'user'));
+                  if (!renderedIds.has(r.id)) {
+                    renderedIds.add(r.id);
+                    hasNew = true;
+                    appendMessage(r.content, r.role === 'user');
+                    if (r.images && r.images.length > 0) {
+                      r.images.forEach(img => appendImage(img, r.role === 'user'));
+                    }
                   }
                 });
+                
+                if (hasNew && !isPolling) {
+                  messagesEl.scrollTop = messagesEl.scrollHeight;
+                }
               }
             }
+                
+                // Kiem tra xem co pause khong (khi poll data se co isPaused flag tra ve neu backend ho tro,
+                // nhung backend API /chat GET hien chua tra ve isPaused, nen chi don gian la fetch message thoi)
           }
         } catch (e) {
           console.error("Failed to load chat history", e);
@@ -151,17 +166,79 @@
       }
     };
 
+    const clearPreview = () => {
+      pendingImageFile = null;
+      if (fileInput) fileInput.value = "";
+      if (previewContainer) previewContainer.classList.add("hidden");
+      if (previewImg) previewImg.src = "";
+    };
+
+    const handleFileSelection = (file) => {
+      if (!file || !file.type.startsWith("image/")) {
+        alert("Vui lòng chọn một tệp hình ảnh hợp lệ.");
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        alert("Hình ảnh không được vượt quá 8MB.");
+        return;
+      }
+      pendingImageFile = file;
+      if (previewName) previewName.textContent = file.name;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (previewImg) previewImg.src = e.target.result;
+        if (previewContainer) previewContainer.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    };
+
+    if (attachBtn) {
+      attachBtn.addEventListener("click", () => fileInput && fileInput.click());
+    }
+    
+    if (fileInput) {
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFileSelection(e.target.files[0]);
+        }
+      });
+    }
+
+    if (previewClose) {
+      previewClose.addEventListener("click", clearPreview);
+    }
+
+    if (input) {
+      input.addEventListener("paste", (e) => {
+        if (e.clipboardData && e.clipboardData.items) {
+          for (const item of e.clipboardData.items) {
+            if (item.type.indexOf("image") !== -1) {
+              e.preventDefault();
+              const file = item.getAsFile();
+              handleFileSelection(file);
+              break;
+            }
+          }
+        }
+      });
+    }
+
     // Form submit
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const text = input.value.trim();
-      if (!text) return;
+      if (!text && !pendingImageFile) return;
 
       input.value = "";
       input.disabled = true;
-      const submitBtn = form.querySelector('.plugin-chat-submit');
+      if (attachBtn) attachBtn.disabled = true;
+
+      const submitBtn = form.querySelector('button[type="submit"]');
       if (submitBtn) submitBtn.disabled = true;
-      appendMessage(text, true);
+      
+      if (text) appendMessage(text, true);
+      if (pendingImageFile && previewImg) appendImage(previewImg.src, true);
 
       // Loading state — dots via CSS ::after
       const loading = document.createElement("div");
@@ -189,6 +266,24 @@
       const productId = productArticle ? productArticle.getAttribute('data-product-id') : undefined;
 
       try {
+        let uploadedImages = [];
+        const fileToUpload = pendingImageFile;
+        clearPreview();
+
+        if (fileToUpload) {
+          const formData = new FormData();
+          formData.append("file", fileToUpload);
+          formData.append("sessionId", sessionId);
+          formData.append("hmacToken", hmacToken);
+          const upRes = await fetch(`/api/plugins/${pluginSlug}/chat/upload`, {
+            method: "POST",
+            body: formData
+          });
+          if (!upRes.ok) throw new Error("Lỗi upload ảnh");
+          const upData = await upRes.json();
+          if (upData.url) uploadedImages.push(upData.url);
+        }
+
         const res = await fetch(`/api/plugins/${pluginSlug}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -197,10 +292,11 @@
             sessionId: sessionId,
             hmacToken: hmacToken,
             turnstileToken: turnstileToken,
-            message: text,
+            message: text || "[Đã gửi một hình ảnh]",
             url: window.location.href,
             title: document.title,
-            productId: productId
+            productId: productId,
+            images: uploadedImages
           })
         });
         
@@ -229,12 +325,21 @@
         }
       } catch (err) {
         loading.remove();
-        appendMessage("Lỗi kết nối mạng.", false);
+        appendMessage("Lỗi kết nối mạng hoặc upload thất bại.", false);
       } finally {
         input.disabled = false;
+        if (attachBtn) attachBtn.disabled = false;
         if (submitBtn) submitBtn.disabled = false;
         input.focus();
       }
     });
+
+    // Polling 5s de cap nhat tin nhan moi
+    setInterval(() => {
+      if (!drawer.classList.contains("hidden") && historyLoaded && !isLoadingHistory) {
+        // fetchHistory(null, true) returns the latest 20 messages, we can just call it to append new ones
+        fetchHistory(null, true);
+      }
+    }, 5000);
   });
 })();

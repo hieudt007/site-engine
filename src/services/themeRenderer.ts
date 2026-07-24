@@ -78,8 +78,13 @@ function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string 
 export async function renderPublic(template: string, data: RenderData, themeSlugOverride?: string): Promise<string> {
   const slug = themeSlugOverride ?? (await activeThemeSlug());
   const engine = new Liquid({ 
-    root: [path.join(THEMES_ROOT, slug), path.join(THEMES_ROOT, "default")], 
-    extname: ".liquid" 
+    root: [
+      path.join(THEMES_ROOT, slug), 
+      path.join(THEMES_ROOT, "default"),
+      path.join(process.cwd(), "src", "addons")
+    ], 
+    extname: ".liquid",
+    cache: process.env.NODE_ENV === "production"
   });
 
   const [siteConfig, headerMenu, footerMenu, pluginContext] = await Promise.all([
@@ -114,6 +119,9 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const chatSessionId = "sess_" + crypto.randomBytes(8).toString("hex");
   const chatHmacToken = crypto.createHmac("sha256", appConfig.siteEngineSecret).update(chatSessionId).digest("hex");
 
+  const activePluginsRecords = await prisma.plugin.findMany({ where: { enabled: true }, select: { slug: true } });
+  const activePlugins = activePluginsRecords.map(p => p.slug);
+
   const contextData = {
     ...restData,
     site,
@@ -136,14 +144,15 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     year: new Date().getFullYear(),
     chatSessionId,
     chatHmacToken,
+    activePlugins,
     // Cache buster - doi theo ngay deploy de browser buc tai file CSS/JS moi
     assetVersion: process.env.ASSET_VERSION || Date.now().toString(36).slice(-6),
   };
 
   // NẾU nội dung có chứa rawHtml (từ các trang Custom/Landing) -> Parse Liquid cho chính rawHtml trước khi đẩy ra layout
-  if (typeof contextData.rawHtml === "string" && contextData.rawHtml.includes("{")) {
+  if (typeof (contextData as any).rawHtml === "string" && (contextData as any).rawHtml.includes("{")) {
     try {
-      contextData.rawHtml = await engine.parseAndRender(contextData.rawHtml, contextData);
+      (contextData as any).rawHtml = await engine.parseAndRender((contextData as any).rawHtml, contextData);
     } catch (e) {
       // Bỏ qua lỗi parse Liquid nếu cú pháp bị sai (để tránh sập trang), giữ nguyên html tĩnh
       console.error("Error parsing Liquid in rawHtml:", e);

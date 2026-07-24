@@ -1,0 +1,25 @@
+{% if relatedPosts and relatedPosts.size > 0 %}
+<div class="mt-12 pt-8 border-t border-gray-200">
+  <h3 class="text-2xl font-bold mb-6 text-gray-900">Bài viết liên quan</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {% for related in relatedPosts %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
+      {% if related.coverImage %}
+      <a href="/blog/{{ related.slug }}" class="block aspect-video overflow-hidden">
+        <img src="{{ related.coverImage }}" alt="{{ related.title | escape }}" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+      </a>
+      {% endif %}
+      <div class="p-4">
+        {% if related.categories.size > 0 %}
+        <span class="text-xs font-medium text-blue-600 mb-2 block">{{ related.categories[0].name }}</span>
+        {% endif %}
+        <h4 class="font-bold text-gray-900 mb-2 line-clamp-2">
+          <a href="/blog/{{ related.slug }}" class="hover:text-blue-600 transition">{{ related.title }}</a>
+        </h4>
+        <p class="text-sm text-gray-500 line-clamp-2">{{ related.excerpt }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}

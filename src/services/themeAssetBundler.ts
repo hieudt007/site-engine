@@ -3,6 +3,7 @@ import path from "node:path";
 import CleanCSS from "clean-css";
 import { minify as minifyJs } from "terser";
 import { THEME_FILE_CONTRACTS } from "./themeContract.js";
+import { prisma } from "../db.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 
@@ -25,6 +26,8 @@ export async function rebuildThemeAssets(slug: string): Promise<void> {
     if (css.trim()) cssParts.push(css);
     if (js.trim()) jsParts.push(js);
   }
+
+
 
   const combinedCss = cssParts.join("\n");
   const minifiedCss = combinedCss.trim() ? new CleanCSS({}).minify(combinedCss).styles : "";

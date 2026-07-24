@@ -1,0 +1,241 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+  <div>
+    <h1 style="margin:0;">{{ pageTitle | escape }}</h1>
+    <p style="color:#777;margin:0.4rem 0 0;">Quản lý phiên chat tự động của AI & Hỗ trợ trực tiếp</p>
+  </div>
+  <a class="btn" href="/admin/plugins">{% render "components/icon", name: "arrow-left" %}<span>Quay lại</span></a>
+</div>
+
+<div class="card" style="display:flex;height:calc(100vh - 200px);padding:0;overflow:hidden;">
+  <!-- Cột danh sách Sessions -->
+  <div style="width:300px;border-right:1px solid var(--color-border);display:flex;flex-direction:column;background:#fafafa;">
+    <div style="padding:1rem;border-bottom:1px solid var(--color-border);font-weight:600;">
+      Các phiên chat gần đây
+    </div>
+    <div id="livechat-sessions" style="flex:1;overflow-y:auto;padding:0.5rem;">
+      <div style="padding:1rem;text-align:center;color:#777;">Đang tải...</div>
+    </div>
+  </div>
+  
+  <!-- Cột nội dung Chat -->
+  <div style="flex:1;display:flex;flex-direction:column;background:#fff;">
+    <div id="livechat-header" style="padding:1rem;border-bottom:1px solid var(--color-border);font-weight:600;display:flex;align-items:center;gap:0.5rem;">
+      <span>Chưa chọn phiên chat</span>
+    </div>
+    
+    <div id="livechat-messages" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.5rem;">
+      <div style="text-align:center;color:#777;margin-top:2rem;">Chọn một phiên chat bên trái để xem</div>
+    </div>
+    
+    <div style="padding:1rem;border-top:1px solid var(--color-border);background:#fafafa;">
+      <form id="livechat-form" style="display:flex;gap:0.5rem;">
+        <input type="text" id="livechat-input" placeholder="Nhập tin nhắn để trả lời khách (AI sẽ tự động nhường quyền)..." style="flex:1;padding:0.6rem;border-radius:4px;border:1px solid var(--color-border);" disabled>
+        <button type="submit" class="btn btn-primary" id="livechat-submit" disabled>Gửi</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.session-item {
+  padding: 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s;
+  border: 1px solid transparent;
+}
+.session-item:hover {
+  background: #f1f5f9;
+}
+.session-item.active {
+  background: #e0e7ff;
+  border-color: #c7d2fe;
+}
+.session-id {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-preview {
+  font-size: 0.8rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.msg {
+  max-width: 75%;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.msg.user {
+  align-self: flex-end;
+  background: #4f46e5;
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+.msg.assistant {
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #1f2937;
+  border-bottom-left-radius: 2px;
+}
+.msg.admin {
+  align-self: flex-start;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-bottom-left-radius: 2px;
+}
+.msg-time {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-top: 0.2rem;
+}
+</style>
+
+<script>
+const pluginSlug = "{{ plugin.slug }}";
+let activeSessionId = null;
+let pollingInterval = null;
+const sessionsContainer = document.getElementById("livechat-sessions");
+const messagesContainer = document.getElementById("livechat-messages");
+const headerEl = document.getElementById("livechat-header");
+const form = document.getElementById("livechat-form");
+const input = document.getElementById("livechat-input");
+const submitBtn = document.getElementById("livechat-submit");
+
+async function loadSessions() {
+  try {
+    const res = await fetch(`/admin/api/plugins/${pluginSlug}/live-chat/sessions`);
+    const data = await res.json();
+    
+    if (data.sessions.length === 0) {
+      sessionsContainer.innerHTML = '<div style="padding:1rem;text-align:center;color:#777;">Chưa có phiên chat nào</div>';
+      return;
+    }
+    
+    sessionsContainer.innerHTML = '';
+    data.sessions.forEach(s => {
+      const el = document.createElement("div");
+      el.className = `session-item ${s.sessionId === activeSessionId ? 'active' : ''}`;
+      el.onclick = () => selectSession(s.sessionId);
+      
+      let preview = s.lastMessage;
+      try { 
+        const p = JSON.parse(preview); 
+        if(p.messages) preview = p.messages.join(' ');
+      } catch(e) {}
+      
+      el.innerHTML = `
+        <div class="session-id">Khách: ${s.sessionId.substring(0,8)}...</div>
+        <div class="session-preview">${s.lastRole === 'user' ? 'Khách' : s.lastRole === 'admin' ? 'Bạn' : 'AI'}: ${preview}</div>
+      `;
+      sessionsContainer.appendChild(el);
+    });
+  } catch(e) {}
+}
+
+async function loadMessages(forceScroll = false) {
+  if (!activeSessionId) return;
+  try {
+    const res = await fetch(`/admin/api/plugins/${pluginSlug}/live-chat/history?sessionId=${encodeURIComponent(activeSessionId)}`);
+    const data = await res.json();
+    
+    const wasScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 50;
+    
+    messagesContainer.innerHTML = '';
+    if (data.history.length === 0) {
+      messagesContainer.innerHTML = '<div style="text-align:center;color:#777;margin-top:2rem;">Chưa có tin nhắn</div>';
+      return;
+    }
+    
+    let hasAdmin = false;
+    
+    data.history.forEach(m => {
+      if (m.role === 'admin') hasAdmin = true;
+      let text = m.content;
+      try {
+        const p = JSON.parse(text);
+        if (p.messages) text = p.messages.join('<br>');
+      } catch(e) {}
+      
+      const el = document.createElement("div");
+      el.className = `msg ${m.role}`;
+      el.innerHTML = `
+        <div>${text}</div>
+        <div class="msg-time">${new Date(m.createdAt).toLocaleTimeString()} ${m.role === 'admin' ? '(Admin)' : m.role === 'assistant' ? '(AI)' : ''}</div>
+      `;
+      messagesContainer.appendChild(el);
+    });
+    
+    if (forceScroll || wasScrolledToBottom) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    if (hasAdmin) {
+      headerEl.innerHTML = `<span>Khách: ${activeSessionId} <span style="background:#10b981;color:#fff;font-size:0.7rem;padding:2px 6px;border-radius:4px;margin-left:0.5rem;">Admin đã Takeover (AI tạm ngưng)</span></span>`;
+    }
+    
+  } catch(e) {}
+}
+
+function selectSession(id) {
+  activeSessionId = id;
+  headerEl.innerHTML = `<span>Khách: ${id}</span>`;
+  messagesContainer.innerHTML = '<div style="text-align:center;color:#777;margin-top:2rem;">Đang tải...</div>';
+  input.disabled = false;
+  submitBtn.disabled = false;
+  input.focus();
+  
+  loadSessions(); // re-render to highlight active
+  loadMessages(true);
+}
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  if (!activeSessionId || !input.value.trim()) return;
+  
+  const text = input.value.trim();
+  input.value = "";
+  input.disabled = true;
+  submitBtn.disabled = true;
+  
+  try {
+    await fetch(`/admin/api/plugins/${pluginSlug}/live-chat/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: activeSessionId, message: text })
+    });
+    await loadMessages(true);
+    await loadSessions();
+  } catch (e) {
+    alert("Lỗi khi gửi tin nhắn");
+  } finally {
+    input.disabled = false;
+    submitBtn.disabled = false;
+    input.focus();
+  }
+};
+
+// Polling loop
+setInterval(() => {
+  loadSessions();
+  if (activeSessionId) {
+    loadMessages();
+  }
+}, 3000);
+
+// Init
+loadSessions();
+</script>
+{% endblock %}

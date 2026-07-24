@@ -10,26 +10,26 @@ import { prisma } from "./db.js";
 // hardcode/seed san key that vao code.
 const DEFAULT_MODEL = "cx/gpt-5.4-mini"; // model 9router re, du dung cho ca 2 muc dich mac dinh
 
-const DEFAULT_AGENTS: { name: string; purpose: "content" | "design"; systemPrompt: string }[] = [
+const DEFAULT_AGENTS: { name: string; key: "content" | "design"; systemPrompt: string }[] = [
   {
     name: "Content Agent",
-    purpose: "content",
+    key: "content",
     systemPrompt:
       "Bạn là trợ lý viết nội dung tiếng Việt cho blog/website bán hàng. Viết tự nhiên, đúng ngữ pháp, " +
       "không lan man, không bịa số liệu/cam kết cụ thể không được cung cấp.",
   },
   {
     name: "Developer Agent",
-    purpose: "design",
+    key: "design",
     systemPrompt: "Bạn là chuyên gia thiết kế giao diện web, viết Liquid + Tailwind CSS.",
   },
 ];
 
 async function main() {
   for (const def of DEFAULT_AGENTS) {
-    const existing = await prisma.agent.findFirst({ where: { purpose: def.purpose } });
+    const existing = await prisma.agent.findFirst({ where: { key: def.key } });
     if (existing) {
-      console.log(`[seedAgents] Agent purpose="${def.purpose}" đã tồn tại (${existing.name}), bỏ qua.`);
+      console.log(`[seedAgents] Agent key="${def.key}" đã tồn tại (${existing.name}), bỏ qua.`);
       continue;
     }
 
@@ -38,14 +38,14 @@ async function main() {
         name: def.name,
         provider: "ai-router",
         model: DEFAULT_MODEL,
-        purpose: def.purpose,
+        key: def.key,
         systemPrompt: def.systemPrompt,
         apiKey: null,
         baseUrl: null,
         isActive: true,
       },
     });
-    console.log(`[seedAgents] Đã tạo agent "${agent.name}" (purpose=${def.purpose}).`);
+    console.log(`[seedAgents] Đã tạo agent "${agent.name}" (key=${def.key}).`);
   }
 }
 

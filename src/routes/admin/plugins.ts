@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import fs from "node:fs";
+import path from "node:path";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { AiCallError, callAgent } from "../../services/aiClient.js";
@@ -155,7 +157,11 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
         })),
       );
 
-      const html = await renderAdmin("plugin-page", {
+      const ADDONS_ROOT = path.join(process.cwd(), "src", "addons");
+      const customViewPath = path.join(ADDONS_ROOT, plugin.slug, "views", "admin", `${page.path}.liquid`);
+      const viewName = fs.existsSync(customViewPath) ? `${plugin.slug}/views/admin/${page.path}` : "plugin-page";
+
+      const html = await renderAdmin(viewName, {
         pageTitle: page.title,
         userName: request.session.get("name"),
         role: request.session.get("role"),

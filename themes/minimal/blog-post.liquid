@@ -14,6 +14,7 @@
     {{ post.body }}
   </div>
   {% render "custom-fields", fields: post.customFields %}
+  {% render "components/blog/related", relatedPosts: relatedPosts %}
 </article>
 {% render "components/plugin/area", blocks: pluginAreas.blog_post_after_content %}
 {% endblock %}

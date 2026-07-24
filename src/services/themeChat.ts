@@ -1,4 +1,7 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Agent } from "@prisma/client";
+import { prisma } from "../db.js";
 import { callAgent } from "./aiClient.js";
 import { getContract, THEME_ASSET_FILES } from "./themeContract.js";
 import { validateThemeFile } from "./themeValidator.js";
@@ -235,7 +238,32 @@ function stripCodeFence(text: string): string {
   return fenceMatch ? fenceMatch[1] : trimmed;
 }
 
-function buildEditSystemPrompt(files: string[], isLastGroup: boolean): string {
+async function buildEditSystemPrompt(files: string[], isLastGroup: boolean): Promise<string> {
+  const pluginContractLines: string[] = [];
+  try {
+    const activePlugins = await prisma.plugin.findMany({ where: { enabled: true } });
+    for (const plugin of activePlugins) {
+      const manifestPath = path.join(process.cwd(), "src", "addons", plugin.slug, "manifest.json");
+      try {
+        const manifestContent = await fs.readFile(manifestPath, "utf-8");
+        const manifest = JSON.parse(manifestContent);
+        if (manifest.themeContracts) {
+          for (const file of files) {
+            // Tra cứu nếu hợp đồng có quy định cho file hiện tại (kể cả file addon vd: addons/customer-support/...)
+            if (manifest.themeContracts[file]) {
+              pluginContractLines.push(`[Plugin: ${manifest.name} - Yêu cầu đối với file ${file}]:`);
+              pluginContractLines.push(manifest.themeContracts[file]);
+            }
+          }
+        }
+      } catch (err) {
+        // Bo qua
+      }
+    }
+  } catch (err) {
+    console.error("Loi doc plugin contracts:", err);
+  }
+
   const contractNotes = files
     .map((file) => {
       const contract = getContract(file);
@@ -262,6 +290,7 @@ function buildEditSystemPrompt(files: string[], isLastGroup: boolean): string {
     "",
     "CRITICAL INSTRUCTION: Các mục trong hợp đồng trên là những CẤU TRÚC NÊN CÓ để hệ thống hoạt động. Tuy nhiên, YÊU CẦU CỦA NGƯỜI DÙNG (User) VẪN LÀ TIÊN QUYẾT. Bạn PHẢI thiết kế giao diện và thêm các chức năng nâng cao theo đúng yêu cầu, sở thích của người dùng, kết hợp với các cấu trúc nên có trên.",
     "",
+    ...(pluginContractLines.length > 0 ? ["Hợp đồng Plugin (BẮT BUỘC tuân thủ để tính năng plugin hoạt động đúng):", ...pluginContractLines, ""] : []),
     "Lưu ý CHUNG cho CHANGE_NOTE/SUMMARY/MEMORY_UPDATE bên dưới: chỉ mô tả những gì VỪA THỰC SỰ code xong (xem file ở trên) — " +
       "'Quy ước & gu thẩm mỹ chung' trong THEME.md là mục tiêu dài hạn, có thể CHƯA làm xong, KHÔNG được lấy nội dung từ đó.",
     "",
@@ -407,7 +436,7 @@ export async function editThemeFiles(
   const requestedFiles = Object.keys(fileContents);
   const raw = await callAgent(
     agent,
-    buildEditSystemPrompt(requestedFiles, isLastGroup),
+    await buildEditSystemPrompt(requestedFiles, isLastGroup),
     buildEditUserPrompt(themeMd, message, classifiedReply, fileContents, priorChangeNotes, Boolean(imageUrl), designSystemBlock),
     imageUrl,
   );

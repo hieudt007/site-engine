@@ -36,5 +36,8 @@
   {% render "footer", site: site, footerMenu: footerMenu, year: year %}
   <script src="/theme-assets/{{ themeSlug }}/assets/custom.js?v={{ assetVersion }}" defer></script>
   {% render "components/common/cart-drawer" %}
+  {% if activePlugins contains 'customer-support' %}
+    {% render 'customer-support/views/public/live-chat' %}
+  {% endif %}
 </body>
 </html>

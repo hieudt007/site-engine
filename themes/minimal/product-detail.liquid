@@ -54,7 +54,7 @@
   </form>
 
   {% if product.description %}
-    <div class="font-serif leading-relaxed text-left">{{ product.description | escape | newline_to_br }}</div>
+    <div class="font-serif leading-relaxed text-left">{{ product.description }}</div>
   {% endif %}
 
   {% render "custom-fields", fields: product.customFields %}
