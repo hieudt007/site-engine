@@ -42,14 +42,24 @@
               if (cursor) {
                 // If we are prepending (loading older messages), we iterate backwards so they stack correctly at the top
                 for (let i = data.history.length - 1; i >= 0; i--) {
-                  appendMessage(data.history[i].content, data.history[i].role === 'user', true);
+                  const r = data.history[i];
+                  appendMessage(r.content, r.role === 'user', true);
+                  if (r.images && r.images.length > 0) {
+                    // Prepend images in reverse too
+                    for (let j = r.images.length - 1; j >= 0; j--) {
+                      appendImage(r.images[j], r.role === 'user', true);
+                    }
+                  }
                 }
                 // Keep the scroll position
                 messagesEl.scrollTop = messagesEl.scrollHeight - oldScrollHeight;
               } else {
                 // Initial load, just append
-                data.history.forEach(msg => {
-                  appendMessage(msg.content, msg.role === 'user');
+                data.history.forEach(r => {
+                  appendMessage(r.content, r.role === 'user');
+                  if (r.images && r.images.length > 0) {
+                    r.images.forEach(img => appendImage(img, r.role === 'user'));
+                  }
                 });
               }
             }
@@ -68,10 +78,40 @@
       }
     });
     
+    // Tooltip logic
+    const tooltip = container.querySelector(".plugin-chat-tooltip");
+    const tooltipClose = container.querySelector(".plugin-chat-tooltip-close");
+    let tooltipTimeout, tooltipHideTimeout;
+
+    if (tooltip) {
+      tooltipTimeout = setTimeout(() => {
+        if (drawer.classList.contains("hidden")) {
+          tooltip.classList.remove("hidden");
+          tooltipHideTimeout = setTimeout(() => {
+            tooltip.classList.add("hidden");
+          }, 5000);
+        }
+      }, 10000);
+      
+      if (tooltipClose) {
+        tooltipClose.addEventListener("click", (e) => {
+          e.stopPropagation();
+          tooltip.classList.add("hidden");
+          clearTimeout(tooltipHideTimeout);
+        });
+      }
+    }
+
     // Toggle drawer
     toggleBtn.addEventListener("click", async () => {
       drawer.classList.remove("hidden");
       input.focus();
+      
+      if (tooltip) {
+        tooltip.classList.add("hidden");
+        clearTimeout(tooltipTimeout);
+        clearTimeout(tooltipHideTimeout);
+      }
 
       if (!historyLoaded) {
         historyLoaded = true;
@@ -85,13 +125,28 @@
 
     // Add message helper (can prepend or append)
     const appendMessage = (text, isUser, prepend = false) => {
+      if (!text) return;
       const msg = document.createElement("div");
       msg.className = "plugin-chat-message " + (isUser ? "user" : "assistant");
-      msg.textContent = text;
+      // Handle simple markdown bold for UI
+      msg.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
       if (prepend) {
         messagesEl.insertBefore(msg, messagesEl.firstChild);
       } else {
         messagesEl.appendChild(msg);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    };
+
+    const appendImage = (url, isUser, prepend = false) => {
+      if (!url) return;
+      const img = document.createElement("img");
+      img.src = url;
+      img.className = "plugin-chat-image " + (isUser ? "user" : "assistant");
+      if (prepend) {
+        messagesEl.insertBefore(img, messagesEl.firstChild);
+      } else {
+        messagesEl.appendChild(img);
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
     };
@@ -130,6 +185,9 @@
       const turnstileInput = container.querySelector("[name='cf-turnstile-response']");
       const turnstileToken = turnstileInput ? turnstileInput.value : undefined;
 
+      const productArticle = document.querySelector('article[data-product-id]');
+      const productId = productArticle ? productArticle.getAttribute('data-product-id') : undefined;
+
       try {
         const res = await fetch(`/api/plugins/${pluginSlug}/chat`, {
           method: "POST",
@@ -139,7 +197,10 @@
             sessionId: sessionId,
             hmacToken: hmacToken,
             turnstileToken: turnstileToken,
-            message: text
+            message: text,
+            url: window.location.href,
+            title: document.title,
+            productId: productId
           })
         });
         
@@ -157,7 +218,15 @@
         }
 
         const data = await res.json();
-        appendMessage(data.text, false);
+        if (data.messages && data.messages.length > 0) {
+          data.messages.forEach(msg => appendMessage(msg, false));
+        } else if (data.text) {
+          appendMessage(data.text, false);
+        }
+        
+        if (data.images && data.images.length > 0) {
+          data.images.forEach(img => appendImage(img, false));
+        }
       } catch (err) {
         loading.remove();
         appendMessage("Lỗi kết nối mạng.", false);

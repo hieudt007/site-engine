@@ -195,6 +195,92 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
   return url;
 }
 
+export interface AiTool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: any;
+  };
+}
+
+export interface AiMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content?: string | null;
+  name?: string;
+  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
+  tool_call_id?: string;
+}
+
+export interface AiToolCallResponse {
+  type: "text" | "tool_calls";
+  text?: string;
+  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
+  rawMessage?: any;
+}
+
+export async function callAgentWithTools(agent: Agent, messages: AiMessage[], tools: AiTool[]): Promise<AiToolCallResponse> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  if (agent.provider === "anthropic") {
+    throw new AiCallError("Tool Calling hiện chưa hỗ trợ kết nối Anthropic native, vui lòng sử dụng API tương thích OpenAI.");
+  }
+
+  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: agent.model,
+      messages: messages,
+      tools: tools,
+      tool_choice: "auto",
+      temperature: 0.7,
+      stream: false,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new AiCallError(`API lỗi ${res.status}: ${await res.text()}`);
+  }
+  
+  const data = (await res.json()) as any;
+  const message = data.choices?.[0]?.message;
+  
+  if (!message) {
+    throw new AiCallError("AI API trả về rỗng");
+  }
+
+  if (message.tool_calls && message.tool_calls.length > 0) {
+    return {
+      type: "tool_calls",
+      tool_calls: message.tool_calls,
+      rawMessage: message
+    };
+  }
+
+  return {
+    type: "text",
+    text: message.content || "",
+    rawMessage: message
+  };
+}
+
 export async function webSearch(agent: Agent, query: string): Promise<string> {
   if (!agent.isActive) {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
