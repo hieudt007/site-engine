@@ -1,3 +1,9 @@
+{% comment %}
+@description: Trang phan loai bai viet (danh muc hoac chu de).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, category.name, posts, category.customFields, categoryPath
+@required_ids: 
+@notes: Dung chung cho /danh-muc/:slug va /chu-de/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <section>

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import CleanCSS from "clean-css";
 import { minify as minifyJs } from "terser";
-import { THEME_FILE_CONTRACTS } from "./themeContract.js";
+import { getAllContracts } from "./themeContract.js";
 import { prisma } from "../db.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
@@ -19,7 +19,8 @@ export async function rebuildThemeAssets(slug: string): Promise<void> {
   const cssParts: string[] = [];
   const jsParts: string[] = [];
 
-  for (const contract of THEME_FILE_CONTRACTS) {
+  const contracts = await getAllContracts(slug);
+  for (const contract of contracts) {
     const base = contract.file.replace(/\.liquid$/, "");
     const css = await fs.readFile(path.join(sourcesDir, `${base}.css`), "utf-8").catch(() => "");
     const js = await fs.readFile(path.join(sourcesDir, `${base}.js`), "utf-8").catch(() => "");

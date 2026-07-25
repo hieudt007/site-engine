@@ -1,3 +1,9 @@
+{% comment %}
+@description: Danh sach san pham, co phan trang.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, products, product.id, hasNext, hasPrev
+@required_ids: 
+@notes: products[] co id/name/imageUrls/price/salePrice. NÊN CÓ thêm: Sidebar hoặc Dropdown bộ lọc (Filter) cơ bản và Sắp xếp (Sort: giá, mới nhất).
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <section>

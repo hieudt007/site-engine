@@ -1,3 +1,9 @@
+{% comment %}
+@description: Trang tim kiem public cho bai viet, trang tinh va san pham.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, q, hasQuery, posts, pages, products, totalResults
+@required_ids: 
+@notes: Nhan q, hasQuery, totalResults, posts[], pages[], products[]. Nen dung components/post/card.liquid va components/product/card.liquid de hien ket qua, khong copy lai HTML card dai trong file search.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <main class="min-h-screen bg-[#F9F9F7] text-emerald-950 overflow-hidden pt-28 pb-20 relative">

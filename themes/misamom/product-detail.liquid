@@ -1,3 +1,9 @@
+{% comment %}
+@description: Chi tiet 1 san pham — file chinh quyet dinh layout va render cac block chuc nang.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, data-product-id="{{ product.id }}", {% render "components/product/media", {% render "components/product/info", {% render "components/product/purchase", {% render "components/product/content"
+@required_ids: 
+@notes: File nay giu layout tong the cua trang san pham. Cac ID JS bat buoc nam trong components/product/purchase.liquid va components/product/content.liquid. Chi sua file nay khi can doi vi tri/sap xep cac khoi lon. Neu sua ben trong anh/ten/gia/mua hang/mo ta/review/related thi sua component tuong ung.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <main class="bg-[#ECFDF5]/30 min-h-screen pt-32 pb-24 overflow-hidden relative font-sans">

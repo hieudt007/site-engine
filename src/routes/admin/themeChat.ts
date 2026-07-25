@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { Agent } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_FILE_CONTRACTS, THEME_ASSET_FILES, THEME_BUNDLE_OUTPUTS, pageGroupKey } from "../../services/themeContract.js";
+import { THEME_BUNDLE_OUTPUTS, pageGroupKey, getSelectableFiles, getViewableFiles } from "../../services/themeContract.js";
 import { ensureThemeMd, readThemeMd, updateIntentSection, updateAppliedSection, buildEditThemeMemory } from "../../services/themeMemory.js";
 import { classifyChatMessage, editThemeFiles, ChatHistoryItem, EditFileResult } from "../../services/themeChat.js";
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
@@ -14,12 +14,6 @@ import { resolveDesignSystem, formatDesignSystem } from "../../services/uiuxSear
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 const HISTORY_LIMIT = 3;
 const MAX_EXTRA_FILE_REQUESTS = 2;
-// Classify duoc tu chon BAT KY file nao trong 54 file (18 .liquid + 18 css + 18 js rieng tung
-// trang) - khong con bat buoc theo cap, AI tu quyet dinh dung file can dong den.
-const SELECTABLE_FILES = new Set([...THEME_FILE_CONTRACTS.map((c) => c.file), ...THEME_ASSET_FILES.map((a) => a.file)]);
-// Xem file (GET /file, chi de hien thi) duoc phep xem them ca 2 file build output (read-only -
-// khong the chon sua truc tiep qua chat).
-const VIEWABLE_FILES = new Set([...Array.from(SELECTABLE_FILES), ...THEME_BUNDLE_OUTPUTS]);
 
 const chatSchema = z.object({
   message: z.string().min(1),
@@ -56,10 +50,11 @@ async function withHeartbeat<T>(reply: import("fastify").FastifyReply, task: Pro
 // (validFiles = AI tu chon) hoac MODE=redesign (validFiles = TOAN BO 54 file, message = brief da
 // tong hop), (2) nut "Xac nhan" bam thang tu de xuat redesign (routes /chat/confirm-redesign),
 // KHONG qua lai AI phan loai - validFiles/message da co san tu tin nhan de xuat truoc do.
-function expandFilesWithPairedAssets(files: string[]): string[] {
+async function expandFilesWithPairedAssets(slug: string, files: string[]): Promise<string[]> {
+  const SELECTABLE_FILES = await getSelectableFiles(slug);
   const groupKeys = new Set(files.map((file) => pageGroupKey(file)));
   const addonFiles = files.filter(f => f.startsWith("addons/"));
-  return [...Array.from(SELECTABLE_FILES).filter((file) => groupKeys.has(pageGroupKey(file))), ...addonFiles];
+  return [...Array.from(SELECTABLE_FILES).filter((file) => groupKeys.has(pageGroupKey(file as string))), ...addonFiles] as string[];
 }
 
 function groupFilesByPage(files: string[]): Array<[string, string[]]> {
@@ -85,7 +80,7 @@ async function runFileEditPipeline(
   designSystemBlock?: string,
   historyId?: number
 ): Promise<void> {
-  const editableFiles = expandFilesWithPairedAssets(validFiles);
+  const editableFiles = await expandFilesWithPairedAssets(slug, validFiles);
   const groupEntries = groupFilesByPage(editableFiles).map(([groupKey, files]) => ({ groupKey, files, task: message }));
   const queuedGroups = new Set(groupEntries.map((entry) => entry.groupKey));
   let extraFileRequests = 0;
@@ -117,6 +112,7 @@ async function runFileEditPipeline(
       const groupResult = await withHeartbeat(
         reply,
         editThemeFiles(
+          slug,
           agent,
           buildEditThemeMemory(currentThemeMd),
           task,
@@ -159,8 +155,9 @@ async function runFileEditPipeline(
             errors: [`AI cần mở thêm file nhưng đã vượt giới hạn ${MAX_EXTRA_FILE_REQUESTS} lần.`],
           });
         } else {
+          const SELECTABLE_FILES = await getSelectableFiles(slug);
           const validExtraFiles = groupResult.needsMoreFiles.files.filter((file) => SELECTABLE_FILES.has(file) || file.startsWith("addons/"));
-          const expandedExtraFiles = expandFilesWithPairedAssets(validExtraFiles);
+          const expandedExtraFiles = await expandFilesWithPairedAssets(slug, validExtraFiles);
           const newGroups = groupFilesByPage(expandedExtraFiles).filter(([extraGroupKey]) => !queuedGroups.has(extraGroupKey));
 
           if (!validExtraFiles.length || !newGroups.length) {
@@ -202,6 +199,7 @@ async function runFileEditPipeline(
           extraFileRequests++;
           const query = groupResult.searchFileQuery.query.toLowerCase();
           const matchedFiles: string[] = [];
+          const SELECTABLE_FILES = await getSelectableFiles(slug);
           for (const f of SELECTABLE_FILES) {
             try {
               const content = await fs.readFile(path.join(THEMES_ROOT, slug, f), "utf-8");
@@ -297,7 +295,8 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
     { preHandler: requireRole("admin") },
     async (request, reply) => {
       const file = request.query.file;
-      if (!file || !VIEWABLE_FILES.has(file)) {
+      const viewableFiles = await getViewableFiles(request.params.slug);
+      if (!file || !viewableFiles.has(file)) {
         return reply.code(400).send({ error: "Tên file không hợp lệ" });
       }
       const content = await fs.readFile(path.join(THEMES_ROOT, request.params.slug, file), "utf-8").catch(() => null);
@@ -426,6 +425,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       }
 
       const isRedesign = classified.mode === "redesign";
+      const SELECTABLE_FILES = await getSelectableFiles(slug);
       const validFiles = isRedesign ? Array.from(SELECTABLE_FILES) : classified.files.filter((f) => SELECTABLE_FILES.has(f) || f.startsWith("addons/"));
       if (!validFiles.length) {
         const fallback = "Xin lỗi, tôi chưa xác định được cần sửa file nào — bạn nói rõ hơn giúp tôi nhé.";
@@ -503,6 +503,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
         });
         const themeMd = await readThemeMd(slug);
         const designSystemBlock = meta.styleQuery ? formatDesignSystem(resolveDesignSystem(meta.styleQuery)) : undefined;
+        const SELECTABLE_FILES = await getSelectableFiles(slug);
         await runFileEditPipeline(reply, agent, slug, themeMd, Array.from(SELECTABLE_FILES), meta.redesignBrief, confirmMessage, undefined, designSystemBlock, confirmRow.id);
       } catch (err) {
         sseWrite(reply, { step: "error", label: (err as Error).message });

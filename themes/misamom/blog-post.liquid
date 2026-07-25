@@ -1,3 +1,9 @@
+{% comment %}
+@description: Chi tiet 1 bai viet.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, post.title, post.body, post.customFields, {% render "components/blog/related"
+@required_ids: 
+@notes: post.body la HTML DA SANITIZE, PHAI render RAW (khong escape). PHAI giu {% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat). PHAI goi {% render "components/blog/related", relatedPosts: relatedPosts %} o duoi bai viet.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <div class="bg-emerald-50/30 min-h-screen pt-28 pb-16 relative overflow-hidden">

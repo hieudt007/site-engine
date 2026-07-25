@@ -5,7 +5,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_ASSET_FILES, THEME_BUNDLE_OUTPUTS, THEME_FILE_CONTRACTS } from "../../services/themeContract.js";
+import { THEME_BUNDLE_OUTPUTS, CORE_THEME_FILES, getAllContracts } from "../../services/themeContract.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
 import { ensureThemeMd } from "../../services/themeMemory.js";
@@ -55,8 +55,8 @@ function normalizeThemePath(file: string): string | null {
 
 function allowedImportFiles(): Set<string> {
   return new Set([
-    ...THEME_FILE_CONTRACTS.map((c) => c.file),
-    ...THEME_ASSET_FILES.map((a) => a.file),
+    ...CORE_THEME_FILES,
+    
     "THEME.md",
     "theme.json",
     "screenshot.png",
@@ -79,16 +79,16 @@ async function copyDir(src: string, dest: string): Promise<void> {
 
 async function validateImportedThemeDir(themeDir: string): Promise<string[]> {
   const errors: string[] = [];
-  for (const contract of THEME_FILE_CONTRACTS) {
-    const filePath = path.join(themeDir, contract.file);
+  for (const file of CORE_THEME_FILES) {
+    const filePath = path.join(themeDir, file);
     const source = await fsp.readFile(filePath, "utf-8").catch(() => null);
     if (source === null) {
-      errors.push(`Thiếu file bắt buộc: ${contract.file}`);
+      errors.push(`Thiếu file bắt buộc: ${file}`);
       continue;
     }
-    const result = await validateThemeFile(contract.file, source);
+    const result = await validateThemeFile(path.basename(themeDir), file, source);
     if (!result.ok) {
-      errors.push(...result.errors.map((error) => `${contract.file}: ${error}`));
+      errors.push(...result.errors.map((error) => `${file}: ${error}`));
     }
   }
   return errors;

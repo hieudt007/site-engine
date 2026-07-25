@@ -1,3 +1,9 @@
+{% comment %}
+@description: Trang xac nhan sau khi dat hang thanh cong.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, order.id, order.items, order.total, order.customFields
+@required_ids: 
+@notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <section>

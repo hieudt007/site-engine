@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
 import { renderAdmin } from "../../services/adminView.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_FILE_CONTRACTS, THEME_ASSET_FILES } from "../../services/themeContract.js";
+import { getAllContracts, getAllThemeAssetFiles } from "../../services/themeContract.js";
 
 // Trang editor toan man hinh cho 1 CustomTheme (agent-generated) - 3 cot: cay file / xem noi dung /
 // chat AI. Thay the panel nhung truoc day trong settings-theme.liquid (xem lich su thiet ke: ban
@@ -14,9 +14,12 @@ export async function registerThemeEditorUiRoutes(app: FastifyInstance): Promise
       return reply.code(404).type("text/html").send("<h1>404 - Không tìm thấy theme</h1>");
     }
 
+    const contracts = await getAllContracts(request.params.slug);
+    const assets = await getAllThemeAssetFiles(request.params.slug);
+
     const files = [
-      ...THEME_FILE_CONTRACTS.map((c) => ({ file: c.file, description: c.description })),
-      ...THEME_ASSET_FILES.map((a) => ({ file: a.file, description: a.contentType.toUpperCase() + " tùy chỉnh" })),
+      ...contracts.map((c) => ({ file: c.file, description: c.description })),
+      ...assets.map((a) => ({ file: a.file, description: a.contentType.toUpperCase() + " tùy chỉnh" })),
     ];
 
     const html = await renderAdmin("theme-editor", {

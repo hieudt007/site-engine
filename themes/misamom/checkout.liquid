@@ -1,3 +1,9 @@
+{% comment %}
+@description: Trang thanh toán don hang (checkout).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}
+@required_ids: checkout-items, checkout-form, checkout-total, checkout-error
+@notes: JS (giu nguyen) doc localStorage, bom danh sach sp tom tat vao #checkout-items, form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #checkout-total, loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd <input name="secondaryPhone">) - JS tu dong gop moi input NGOAI cac field chuan thanh customFields.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <div class="min-h-screen bg-[#F8FAFC] relative overflow-hidden pt-32 pb-20">

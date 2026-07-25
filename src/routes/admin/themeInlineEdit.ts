@@ -4,12 +4,11 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_FILE_CONTRACTS, pairedSourceFiles } from "../../services/themeContract.js";
+import { getAllContracts, pairedSourceFiles } from "../../services/themeContract.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
-const LIQUID_FILES = new Set(THEME_FILE_CONTRACTS.map((c) => c.file));
 
 // Sua truc tiep tren khung xem truoc (click-to-edit, giong kieu leadbase lam voi landing page) -
 // CHI cho 5 viec don gian: doi text/anh CO DINH trong file .liquid (tim-thay CHINH XAC 1 lan
@@ -104,7 +103,8 @@ export async function registerThemeInlineEditRoutes(app: FastifyInstance): Promi
       }
       const { slug } = request.params;
       const { file, text } = parsed.data;
-      if (!LIQUID_FILES.has(file)) {
+      const contracts = await getAllContracts(slug);
+      if (!contracts.find(c => c.file === file)) {
         return reply.code(400).send({ error: "File không hợp lệ" });
       }
       const filePath = path.join(THEMES_ROOT, slug, file);
@@ -127,7 +127,8 @@ export async function registerThemeInlineEditRoutes(app: FastifyInstance): Promi
       const { slug } = request.params;
       const { file, oldText, newText } = parsed.data;
 
-      if (!LIQUID_FILES.has(file)) {
+      const contracts = await getAllContracts(slug);
+      if (!contracts.find(c => c.file === file)) {
         return reply.code(400).send({ error: "File không hợp lệ" });
       }
       const customTheme = await prisma.customTheme.findUnique({ where: { slug } });
@@ -153,7 +154,7 @@ export async function registerThemeInlineEditRoutes(app: FastifyInstance): Promi
       }
 
       const newContent = content.slice(0, match.index) + newText + content.slice(match.index + match.length);
-      const validation = await validateThemeFile(file, newContent);
+      const validation = await validateThemeFile(slug, file, newContent);
       if (!validation.ok) {
         return reply.code(422).send({ error: "Sửa xong file sẽ lỗi cấu trúc bắt buộc: " + validation.errors.join("; ") });
       }
@@ -174,7 +175,8 @@ export async function registerThemeInlineEditRoutes(app: FastifyInstance): Promi
       const { slug } = request.params;
       const { file, selector, declarations } = parsed.data;
 
-      if (!LIQUID_FILES.has(file)) {
+      const contracts = await getAllContracts(slug);
+      if (!contracts.find(c => c.file === file)) {
         return reply.code(400).send({ error: "File không hợp lệ" });
       }
       const entries = Object.entries(declarations).filter(([prop]) => ALLOWED_CSS_PROPS.has(prop));

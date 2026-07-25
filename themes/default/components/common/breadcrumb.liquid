@@ -1,3 +1,9 @@
+{% comment %}
+@description: Breadcrumb dung chung toan site, style theo breadcrumbVariant.
+@required_substrings: breadcrumbs, breadcrumbVariant, item.name, item.url
+@required_ids: 
+@notes: Nhan breadcrumbs[] moi item co name/url va breadcrumbVariant ('blog'|'product'|'default'). PHAI tu an khi breadcrumbs rong/null. Co the doi style rieng theo variant, nhung khong bo aria-label Breadcrumb va khong bo aria-current tren item cuoi.
+{% endcomment %}
 {% if breadcrumbs and breadcrumbs.size > 0 %}
 <nav aria-label="Breadcrumb" class="variant-{{ breadcrumbVariant }}">
     ...

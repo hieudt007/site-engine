@@ -1,3 +1,9 @@
+{% comment %}
+@description: Trang phan loai san pham (danh muc hoac thuong hieu).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, category.name, products, category.customFields, categoryPath
+@required_ids: 
+@notes: Dung chung cho /products/danh-muc/:slug va /products/thuong-hieu/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <section>

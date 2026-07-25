@@ -1,3 +1,9 @@
+{% comment %}
+@description: Trang tinh (Gioi thieu, Lien he...).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, page.title, page.body
+@required_ids: 
+@notes: page.body la HTML da sanitize, render RAW.
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <article>

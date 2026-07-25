@@ -1,3 +1,9 @@
+{% comment %}
+@description: Danh sach bai viet, co phan trang.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, posts, post.slug, post.title, hasNext, hasPrev
+@required_ids: 
+@notes: posts[] tung phan tu co slug/title/excerpt/coverImage/publishedAt/categories[]. hasPrev/hasNext/prevPage/nextPage cho phan trang. NÊN CÓ thêm: Ô tìm kiếm bài viết và Danh sách các chuyên mục/tag phổ biến (Category pills).
+{% endcomment %}
 {% layout "layout" %}
 {% block content %}
 <main class="pt-24 pb-20 bg-[#ECFDF5] min-h-screen font-sans text-[#064E3B]">

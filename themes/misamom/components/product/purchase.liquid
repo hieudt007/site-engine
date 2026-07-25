@@ -1,3 +1,9 @@
+{% comment %}
+@description: Khoi mua hang, gia, bien the, them gio va mua ngay.
+@required_substrings: product.price, variantsJson
+@required_ids: add-to-cart, variant-picker, variant-price, variant-stock, variants-data, buy-now-btn, buy-now-form, buy-now-cancel, buy-now-error
+@notes: Sua gia, bien the, ton kho, them gio, mua ngay va form mua ngay o day. JS phia client doc cac ID nay. #add-to-cart can data-id khi khong co bien the; khi co bien the JS tu gan data-variant-id. #variants-data phai chua {{ variantsJson }} khi product.hasVariants. #buy-now-form phai co input customerName/customerPhone/customerAddress.
+{% endcomment %}
 <div class="space-y-8 animate-fade-up" style="animation-delay: 200ms;">
   <!-- Price & Stock -->
   <div class="flex flex-col gap-3">

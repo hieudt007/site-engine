@@ -1,3 +1,9 @@
+{% comment %}
+@description: Pagination dung chung cho cac trang danh sach trong theme.
+@required_substrings: basePath, hasPrev, hasNext, prevPage, nextPage
+@required_ids: 
+@notes: Nhan basePath, hasPrev, hasNext, prevPage, nextPage. PHAI tu an khi khong co hasPrev/hasNext. Template danh sach/danh muc nen render partial nay thay vi copy HTML phan trang rieng.
+{% endcomment %}
 {% if hasPrev or hasNext %}
 <nav>
     ...

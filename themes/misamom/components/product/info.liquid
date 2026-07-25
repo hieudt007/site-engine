@@ -1,3 +1,9 @@
+{% comment %}
+@description: Khoi thong tin dinh danh san pham.
+@required_substrings: product.name, product.categories
+@required_ids: 
+@notes: Nhan product va productCategoryPathPrefix. Sua ten, danh muc, thong tin nhan dien/ngan o day; khong ap dat vi tri layout.
+{% endcomment %}
 <div class="product-info-header flex flex-col gap-3 md:gap-4 mb-6 relative z-10">
     {% if product.categories and product.categories.size > 0 %}
         <nav class="product-categories flex flex-wrap items-center gap-2 text-xs font-body uppercase tracking-[0.15em] text-emerald-600/80">

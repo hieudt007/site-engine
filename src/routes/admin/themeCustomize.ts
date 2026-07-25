@@ -4,7 +4,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_FILE_CONTRACTS } from "../../services/themeContract.js";
+import { getAllContracts } from "../../services/themeContract.js";
 import { ensureThemeMd } from "../../services/themeMemory.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
@@ -90,7 +90,7 @@ export async function registerThemeCustomizeRoutes(app: FastifyInstance): Promis
       // Sidebar chi hien 18 trang .liquid - file CSS/JS rieng cua tung trang (assets/sources/) va
       // 2 file build (assets/custom.css/js) la plumbing tu dong, khong can bam chon thu cong.
       return {
-        files: THEME_FILE_CONTRACTS.map((c) => ({ file: c.file, description: c.description })),
+        files: (await getAllContracts(request.params.slug)).map((c) => ({ file: c.file, description: c.description })),
       };
     },
   );

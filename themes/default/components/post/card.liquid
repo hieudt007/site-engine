@@ -1,3 +1,9 @@
+{% comment %}
+@description: Card bai viet dung chung cho home, blog list va blog category/topic.
+@required_substrings: post, postUrlPrefix, variant, post.title
+@required_ids: 
+@notes: Nhan post, postUrlPrefix, postCategoryPathPrefix va variant. Variant co the la 'home', 'list', 'category', 'related'. Duoc phep doi layout/style theo variant, nhung phai link den postUrlPrefix + slug va hien title/ngay/excerpt neu co.
+{% endcomment %}
 <article class="variant-{{ variant }}">
     ...
     <a href="{{ postUrlPrefix }}/{{ post.slug }}">{{ post.title }}</a>

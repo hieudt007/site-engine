@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { THEME_FILE_CONTRACTS } from "./themeContract.js";
+import { getAllContracts } from "./themeContract.js";
 import { prisma } from "../db.js";
 
 const ADDONS_ROOT = path.join(process.cwd(), "src", "addons");
@@ -13,7 +13,7 @@ const THEMES_ROOT = path.join(process.cwd(), "themes");
 // copy/export, va admin doc/sua tay truc tiep duoc neu muon.
 const SECTION_TREE = "## Cây thư mục";
 // Doi ten tu "Định hướng mong muốn" - ten cu de bi AI nham voi "Đã áp dụng" (ca 2 doc len giong
-// nhau vi cung mo ta mau sac/hanh vi cu the), gay ra tinh trang AI lay noi dung muc nay tra loi
+// nhau vi cung mo ta mau sac/hanh vi cu cu the), gay ra tinh trang AI lay noi dung muc nay tra loi
 // nhu the la viec VUA lam xong. Ten moi + pham vi thu hep (chi quy uoc TOAN SITE, khong hanh vi
 // rieng 1 trang/tinh nang) o buoc phan loai (buildClassifySystemPrompt) giup tach bach ro hon.
 const SECTION_INTENT = "## Quy ước & gu thẩm mỹ chung";
@@ -23,11 +23,10 @@ function themeMdPath(slug: string): string {
   return path.join(THEMES_ROOT, slug, "THEME.md");
 }
 
-// Liet ke gon 18 file .liquid (khong liet ke het 36 file nguon CSS/JS tuong ung - se qua dai,
-// ton token moi lan gui vao prompt classify). Mo hinh cap file nguon chi giai thich 1 lan.
-async function buildDirectoryTree(): Promise<string> {
+export async function buildDirectoryTree(themeSlug: string): Promise<string> {
+  const contracts = await getAllContracts(themeSlug);
   const lines = [
-    ...THEME_FILE_CONTRACTS.map((c) => `- ${c.file} — ${c.description}`),
+    ...contracts.map((c) => `- ${c.file} — ${c.description}`),
     "",
     "Mỗi file .liquid ở trên có 1 cặp file CSS/JS riêng đi kèm (assets/sources/{tên}.css và .js, " +
       "{tên} = tên file .liquid bỏ đuôi) — chỉ ảnh hưởng đúng trang/component đó. Khi phân loại, chọn file chính liên quan nhất; " +
@@ -48,12 +47,12 @@ async function buildDirectoryTree(): Promise<string> {
   return lines.join("\n");
 }
 
-async function initialThemeMd(): Promise<string> {
+async function initialThemeMd(themeSlug: string): Promise<string> {
   return [
     "# Trí nhớ theme (đọc bởi AI editor mỗi lượt chat — xem services/themeMemory.ts)",
     "",
     SECTION_TREE,
-    await buildDirectoryTree(),
+    await buildDirectoryTree(themeSlug),
     "",
     SECTION_INTENT,
     "(chưa có)",
@@ -72,7 +71,7 @@ export async function ensureThemeMd(slug: string): Promise<void> {
     await fs.access(mdPath);
   } catch {
     await fs.mkdir(path.dirname(mdPath), { recursive: true });
-    await fs.writeFile(mdPath, await initialThemeMd(), "utf-8");
+    await fs.writeFile(mdPath, await initialThemeMd(slug), "utf-8");
   }
 }
 

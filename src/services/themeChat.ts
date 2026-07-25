@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Agent } from "@prisma/client";
 import { prisma } from "../db.js";
 import { callAgent } from "./aiClient.js";
-import { getContract, THEME_ASSET_FILES } from "./themeContract.js";
+import { getAllThemeAssetFiles, getSelectableFiles, getContractFromDisk } from "./themeContract.js";
 import { validateThemeFile } from "./themeValidator.js";
 
 const RECENT_HISTORY_LIMIT = 3;
@@ -186,8 +186,8 @@ export async function classifyChatMessage(
   return parseClassify(raw);
 }
 
-function buildRetrySystemPrompt(file: string): string {
-  const contract = getContract(file);
+async function buildRetrySystemPrompt(slug: string, file: string): Promise<string> {
+  const contract = await getContractFromDisk(slug, file);
   const intro = "Bạn là chuyên gia Liquid + Tailwind CSS/JS, đang sửa lại 1 file bị lỗi.";
   if (!contract) {
     return [intro, "Trả về TOÀN BỘ nội dung file mới đã sửa đúng lỗi, không giải thích, không markdown code fence."].join("\n");
@@ -195,8 +195,8 @@ function buildRetrySystemPrompt(file: string): string {
   return [
     intro,
     `File "${file}" (${contract.description}) đang vi phạm hợp đồng bắt buộc — sửa ĐÚNG các lỗi được liệt kê, giữ nguyên phần còn lại:`,
-    ...contract.requiredSubstrings.map((s) => `- Phải giữ nguyên văn chuỗi/thẻ: ${s}`),
-    ...contract.requiredIds.map((id) => `- Phải có phần tử HTML với id="${id}"`),
+    ...contract.requiredSubstrings.map((s: string) => `- Phải giữ nguyên văn chuỗi/thẻ: ${s}`),
+    ...contract.requiredIds.map((id: string) => `- Phải có phần tử HTML với id="${id}"`),
     "Trả về TOÀN BỘ nội dung file mới đã sửa đúng lỗi, không giải thích, không markdown code fence.",
   ].join("\n");
 }
@@ -214,14 +214,14 @@ function buildRetryUserPrompt(currentContent: string, errors: string[]): string 
 // Thu lai TOI DA MAX_ATTEMPTS lan neu file khong qua validate - gui dung loi cu the lan truoc de
 // AI sua tiep (khong phai doan lai tu dau). Dung som neu 2 lan lien tiep tra ve DUNG Y HET 1 loi
 // (AI bi ket, thu them cung vo ich).
-async function retryUntilValid(agent: Agent, file: string, firstContent: string, firstErrors: string[]): Promise<EditFileResult> {
+async function retryUntilValid(slug: string, agent: Agent, file: string, firstContent: string, firstErrors: string[]): Promise<EditFileResult> {
   let currentContent = firstContent;
   let currentErrors = firstErrors;
 
   for (let attempt = 2; attempt <= MAX_ATTEMPTS; attempt++) {
-    const raw = await callAgent(agent, buildRetrySystemPrompt(file), buildRetryUserPrompt(currentContent, currentErrors));
+    const raw = await callAgent(agent, await buildRetrySystemPrompt(slug, file), buildRetryUserPrompt(currentContent, currentErrors));
     const newContent = stripCodeFence(raw);
-    const validation = await validateThemeFile(file, newContent);
+    const validation = await validateThemeFile(slug, file, newContent);
 
     if (validation.ok) {
       return { file, ok: true, content: newContent, errors: [], attempts: attempt };
@@ -242,7 +242,7 @@ function stripCodeFence(text: string): string {
   return fenceMatch ? fenceMatch[1] : trimmed;
 }
 
-async function buildEditSystemPrompt(files: string[], isLastGroup: boolean): Promise<string> {
+async function buildEditSystemPrompt(slug: string, files: string[], isLastGroup: boolean): Promise<string> {
   const pluginContractLines: string[] = [];
   try {
     const activePlugins = await prisma.plugin.findMany({ where: { enabled: true } });
@@ -268,22 +268,24 @@ async function buildEditSystemPrompt(files: string[], isLastGroup: boolean): Pro
     console.error("Loi doc plugin contracts:", err);
   }
 
-  const contractNotes = files
-    .map((file) => {
-      const contract = getContract(file);
+    const assets = await getAllThemeAssetFiles(slug);
+  const contractNotesArr = await Promise.all(
+    files.map(async (file) => {
+      const contract = await getContractFromDisk(slug, file);
       if (!contract) {
-        const asset = THEME_ASSET_FILES.find((a) => a.file === file);
-        if (asset) return `File "${file}": ${asset.notes}`;
+        const asset = assets.find((a) => (a as any).file === file);
+        if (asset) return `File "${file}": ${(asset as any).notes}`;
         return `File "${file}": không có hợp đồng ràng buộc riêng.`;
       }
       return [
         `File "${file}" (${contract.description}):`,
-        ...contract.requiredSubstrings.map((s) => `  - Phải giữ nguyên văn chuỗi/thẻ: ${s}`),
-        ...contract.requiredIds.map((id) => `  - Phải có phần tử HTML với id="${id}"`),
+        ...contract.requiredSubstrings.map((s: string) => `  - Phải giữ nguyên văn chuỗi/thẻ: ${s}`),
+        ...contract.requiredIds.map((id: string) => `  - Phải có phần tử HTML với id="${id}"`),
         `  - Ghi chú: ${contract.notes}`,
       ].join("\n");
     })
-    .join("\n\n");
+  );
+  const contractNotes = contractNotesArr.join("\n\n");
 
   return [
     "Bạn là chuyên gia Liquid (LiquidJS) + Tailwind, sửa đúng các file dưới đây theo yêu cầu admin, giữ nguyên phần không liên quan.",
@@ -437,6 +439,7 @@ function parseEditResponse(
 // qua themeValidator.ts — file loi thi GIU BAN GOC (khong ghi de), dam bao theme luon la 1 bo
 // hoan chinh, khong bao gio nua vari du 1 vai file AI sua that bai.
 export async function editThemeFiles(
+  slug: string,
   agent: Agent,
   themeMd: string,
   message: string,
@@ -450,7 +453,7 @@ export async function editThemeFiles(
   const requestedFiles = Object.keys(fileContents);
   const raw = await callAgent(
     agent,
-    await buildEditSystemPrompt(requestedFiles, isLastGroup),
+    await buildEditSystemPrompt(slug, requestedFiles, isLastGroup),
     buildEditUserPrompt(themeMd, message, classifiedReply, fileContents, priorChangeNotes, Boolean(imageUrl), designSystemBlock),
     imageUrl,
   );
@@ -465,18 +468,18 @@ export async function editThemeFiles(
       results.push({ file, ok: true, skipped: true, errors: [] });
       continue;
     }
-    const contract = getContract(file);
+    const contract = await getContractFromDisk(slug, file);
     if (!contract) {
       // Asset CSS/JS - khong co hop dong Liquid de validate, chap nhan thang.
       results.push({ file, ok: true, content: newContent, errors: [] });
       continue;
     }
-    const validation = await validateThemeFile(file, newContent);
+    const validation = await validateThemeFile(slug, file, newContent);
     if (validation.ok) {
       results.push({ file, ok: true, content: newContent, errors: [], attempts: 1 });
       continue;
     }
-    results.push(await retryUntilValid(agent, file, newContent, validation.errors));
+    results.push(await retryUntilValid(slug, agent, file, newContent, validation.errors));
   }
 
   const hasRealChange = results.some((r) => r.ok && !r.skipped);

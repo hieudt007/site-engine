@@ -1,3 +1,9 @@
+{% comment %}
+@description: Khoi anh san pham.
+@required_substrings: product.imageUrls, product.name
+@required_ids: 
+@notes: Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua. NÊN CÓ thêm: Image Gallery có ảnh chính lớn và danh sách ảnh thumbnail nhỏ bên dưới (hỗ trợ click đổi ảnh chính).
+{% endcomment %}
 <div>
     ...
     <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}">

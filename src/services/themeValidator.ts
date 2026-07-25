@@ -1,5 +1,5 @@
 import { Liquid } from "liquidjs";
-import { getContract } from "./themeContract.js";
+import { getContractFromDisk } from "./themeContract.js";
 
 export interface ValidationResult {
   ok: boolean;
@@ -10,7 +10,7 @@ export interface ValidationResult {
 // se render no (bat loi cu phap Liquid), (2) doi chieu hop dong (services/themeContract.ts) bang
 // so chuoi con + grep id="...". KHONG parse AST bieu thuc Liquid (xem ghi chu trong themeContract.ts)
 // nen chi bat duoc thieu-hoan-toan, khong bat duoc dung sai vi tri/logic tinh vi.
-export async function validateThemeFile(file: string, source: string): Promise<ValidationResult> {
+export async function validateThemeFile(themeSlug: string, file: string, source: string): Promise<ValidationResult> {
   const errors: string[] = [];
 
   const engine = new Liquid();
@@ -20,7 +20,7 @@ export async function validateThemeFile(file: string, source: string): Promise<V
     return { ok: false, errors: [`Lỗi cú pháp Liquid: ${(err as Error).message}`] };
   }
 
-  const contract = getContract(file);
+  const contract = await getContractFromDisk(themeSlug, file);
   if (!contract) {
     return { ok: true, errors: [] };
   }

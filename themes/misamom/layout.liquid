@@ -1,3 +1,9 @@
+{% comment %}
+@description: Khung bao ngoai moi trang — <head>, goi header/footer, cho block content chen vao giua.
+@required_substrings: {% block content %}{% endblock %}, cdn.tailwindcss.com, {% render "header", {% render "footer", {% render "components/common/breadcrumb", {% render "components/common/cart-drawer", /theme-assets/{{ themeSlug }}/assets/custom.css, /theme-assets/{{ themeSlug }}/assets/custom.js
+@required_ids: 
+@notes: PHAI giu nguyen script Tailwind CDN (co the doi query plugin), PHAI giu {% block content %}{% endblock %} de noi dung tung trang chen vao, PHAI goi {% render "header", site: site, headerMenu: headerMenu %} va {% render "footer", site: site, footerMenu: footerMenu, year: year %}, PHAI giu {% render "components/common/breadcrumb", ... %} o trong layout de breadcrumb hien toan site khi route truyen breadcrumbs, PHAI goi {% render "components/common/cart-drawer" %} ngay truoc the dong body, PHAI giu the <link> toi /theme-assets/{{ themeSlug }}/assets/custom.css va <script> toi .../custom.js (CSS/JS tuy bien rieng cua theme, sinh/sua o buoc khac). Duoc tu do doi font (Google Fonts link), tailwind.config (mau sac, fontFamily), bo cuc <body> ngoai cac phan bat buoc tren.
+{% endcomment %}
 <!DOCTYPE html>
 <html lang="vi" class="scroll-smooth">
 <head>

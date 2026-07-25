@@ -1,3 +1,9 @@
+{% comment %}
+@description: Thanh dieu huong dau trang.
+@required_substrings: site.siteName, headerMenu
+@required_ids: cart-icon
+@notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
+{% endcomment %}
 <!-- Announcement Bar -->
 <div class="bg-emerald-700 text-white text-[10px] sm:text-xs text-center py-2.5 uppercase tracking-[0.2em] font-body font-medium">
     Miễn phí vận chuyển cho đơn hàng từ 1.000.000đ
