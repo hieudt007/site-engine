@@ -1,0 +1,158 @@
+/* Base typography and utilities for Liquid Glass luxury feel */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reusable Glass Effect Utility */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 24px;
+}
+
+/* Organic shapes */
+.shape-blob {
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+}
+
+/* Smooth reveal animation */
+.fade-in-up {
+    animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Fly to cart animation element */
+.fly-to-cart {
+    position: fixed;
+    z-index: 99999;
+    background-color: #059669; /* Primary Green */
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    font-family: 'Jost', sans-serif;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+    transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* =========================================================
+   LIVE CHAT PLUGIN OVERRIDES (ORGANIC BIOPHILIC THEME)
+   ========================================================= */
+/* Global Chat Font */
+[id*="chat-widget"], [class*="chat-widget"], [class*="live-chat"] {
+    font-family: 'Jost', sans-serif !important;
+}
+
+/* Toggle Button (Floating Icon) */
+[id*="chat-toggle"], [class*="chat-btn"], [class*="chat-toggle"] {
+    background-color: #059669 !important; /* Primary Green */
+    box-shadow: 0 8px 32px 0 rgba(5, 150, 105, 0.25) !important;
+    border: none !important;
+    border-radius: 24px !important; /* Organic */
+    transition: all 0.3s ease !important;
+}
+[id*="chat-toggle"]:hover, [class*="chat-btn"]:hover, [class*="chat-toggle"]:hover {
+    background-color: #064E3B !important; /* Dark Green */
+    transform: scale(1.05) translateY(-2px) !important;
+}
+[id*="chat-toggle"] svg, [class*="chat-btn"] svg, [class*="chat-toggle"] svg {
+    fill: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+}
+
+/* Chat Window / Popup Panel */
+[id*="chat-window"], [class*="chat-panel"], [class*="chat-window"] {
+    border-radius: 24px !important;
+    border: 1px solid rgba(5, 150, 105, 0.15) !important;
+    box-shadow: 0 12px 40px 0 rgba(6, 78, 59, 0.12) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    overflow: hidden !important;
+}
+
+/* Chat Header */
+[id*="chat-header"], [class*="chat-header"] {
+    background-color: #064E3B !important;
+    color: #FFFFFF !important;
+    font-family: '"Bodoni Moda"', serif !important;
+    border-bottom: none !important;
+    padding: 20px !important;
+}
+[id*="chat-header"] *, [class*="chat-header"] * {
+    color: #FFFFFF !important;
+}
+
+/* Chat Messages Area */
+[id*="chat-messages"], [class*="chat-messages"], [class*="chat-body"] {
+    background-color: transparent !important;
+}
+
+/* User Message Bubble */
+.user-msg, .msg-user, [class*="message--user"] > div, [class*="message-user"] {
+    background-color: #059669 !important;
+    color: #FFFFFF !important;
+    border-radius: 20px 20px 4px 20px !important;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.1) !important;
+}
+
+/* Admin/Agent Message Bubble */
+.admin-msg, .msg-admin, [class*="message--agent"] > div, [class*="message-agent"], [class*="message--admin"] > div {
+    background-color: #ECFDF5 !important;
+    color: #064E3B !important;
+    border-radius: 20px 20px 20px 4px !important;
+    border: 1px solid rgba(5, 150, 105, 0.1) !important;
+}
+
+/* Input Area Container */
+[id*="chat-input-container"], [class*="chat-input-wrapper"], [class*="chat-footer"] {
+    border-top: 1px solid rgba(5, 150, 105, 0.1) !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    padding: 16px !important;
+}
+
+/* Input Field */
+input[id*="chat-input"], textarea[id*="chat-input"], [class*="chat-input"] {
+    border-radius: 24px !important;
+    border: 1px solid rgba(5, 150, 105, 0.2) !important;
+    background-color: #F8FAFC !important;
+    color: #064E3B !important;
+    padding: 12px 20px !important;
+}
+input[id*="chat-input"]:focus, textarea[id*="chat-input"]:focus, [class*="chat-input"]:focus {
+    outline: none !important;
+    border-color: #059669 !important;
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15) !important;
+}
+
+/* Send Button */
+[id*="chat-send"], [class*="chat-send"] {
+    background-color: #059669 !important;
+    color: #FFFFFF !important;
+    border-radius: 50% !important;
+    border: none !important;
+    transition: background-color 0.2s ease !important;
+}
+[id*="chat-send"]:hover, [class*="chat-send"]:hover {
+    background-color: #064E3B !important;
+}
+[id*="chat-send"] svg, [class*="chat-send"] svg {
+    fill: #FFFFFF !important;
+}

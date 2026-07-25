@@ -1,20 +1,18 @@
 <header>
-  <a href="/">
-    {% if site.logoUrl %}<img src="{{ site.logoUrl }}" alt="{{ site.siteName }}">{% endif %}
-    {{ site.siteName }}
-  </a>
-  {% if site.tagline %}<div>{{ site.tagline }}</div>{% endif %}
-  <nav>
-    {% if headerMenu and headerMenu.items.size > 0 %}
-      {% for item in headerMenu.items %}<a href="{{ item.url }}">{{ item.label | escape }}</a>{% endfor %}
-    {% else %}
-      {% if site.siteType != "blog" %}
-        <a href="/products">Sản phẩm</a>
-      {% endif %}
-      <a href="/blog">Blog</a>
-      {% if site.siteType != "blog" %}
-        <a href="#" id="cart-icon">Giỏ hàng</a>
-      {% endif %}
-    {% endif %}
-  </nav>
+    <nav>
+        <a href="/">{{ site.siteName }}</a>
+        <button id="cart-icon">Cart</button>
+        <ul>
+            {% if headerMenu and headerMenu.items.size > 0 %}
+                {% for item in headerMenu.items %}
+                    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
+                {% endfor %}
+            {% else %}
+                <li><a href="/products">Products</a></li>
+                <li><a href="/blog">Blog</a></li>
+                <li><a href="/cart">Cart</a></li>
+            {% endif %}
+        </ul>
+        ...
+    </nav>
 </header>

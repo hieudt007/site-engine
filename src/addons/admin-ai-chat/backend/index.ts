@@ -187,9 +187,7 @@ export async function register(app: FastifyInstance): Promise<void> {
             (parsed.data.availableFields && parsed.data.availableFields.length > 0 ? `\n\n- The available HTML element IDs on the current page are: [${parsed.data.availableFields.join(', ')}]. You MUST ONLY select IDs from this list to fill in the data object.\n- SPECIAL FIELD: if you are filling the "faq" field, its value MUST be an array of objects in this format: [{"question": "...", "answer": "..."}].\n- SPECIAL FIELD: if you are filling the "keyword" field, its value MUST be a comma-separated string (e.g. "key1, key2").` : "") +
             (parsed.data.toolData && parsed.data.toolData.searchResults ? `\n\n- INTERNAL LINKS: You have been provided with search results for related articles/products in the form data (searchResults). Use these URLs to insert anchor tags (e.g., <a href="/url">Title</a>) into the content where appropriate.` : "");
         } else if (agentKey === "developer") {
-          systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object with the following format:\n" +
-            `{"action": "fill_form", "data": {"body": "<raw_html_code>"}, "message": "Đã code xong giao diện"}\n` +
-            "You MUST output raw HTML/Tailwind in the data.body field (or data.description if body is not available). DO NOT use markdown code blocks for the JSON output itself unless parsed properly, but ensure the string inside JSON is properly escaped.";
+          systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return RAW HTML/Tailwind code ONLY. Do NOT wrap in JSON. Do NOT use markdown code blocks. Just output the pure HTML code for the design.";
         } else {
           systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object with the following format:\n" +
             `{"action": "chat", "message": "Nội dung câu trả lời của bạn"}\n`;
@@ -199,9 +197,18 @@ export async function register(app: FastifyInstance): Promise<void> {
           `Dữ liệu công cụ/form cung cấp:\n${JSON.stringify(parsed.data.toolData, null, 2)}`;
 
         try {
-          const responseText = await callAgent(agent, systemPrompt, userPrompt, parsed.data.imageUrl || undefined, true);
+          const forceJson = agentKey !== "developer";
+          const responseText = await callAgent(agent, systemPrompt, userPrompt, parsed.data.imageUrl || undefined, forceJson);
           let responseJson: any;
-          try { responseJson = parseAiJson(responseText); } catch { responseJson = { action: "chat", message: responseText }; }
+          if (agentKey === "developer") {
+            responseJson = {
+              action: "fill_form",
+              data: { body: responseText.replace(/^```[a-z]*\n/i, "").replace(/```$/, "").trim() },
+              message: "Đã tạo xong giao diện HTML."
+            };
+          } else {
+            try { responseJson = parseAiJson(responseText); } catch { responseJson = { action: "chat", message: responseText }; }
+          }
 
           // Chuỗi agent: content_then_developer
           if (parsed.data.nextAgent === "content_then_developer" && responseJson.data) {
@@ -210,15 +217,14 @@ export async function register(app: FastifyInstance): Promise<void> {
               const devAgent = await prisma.agent.findFirst({ where: { isActive: true, key: "developer" } });
               if (devAgent) {
                 const devSystemPrompt = (devAgent.systemPrompt || "Bạn là một Frontend Developer.") +
-                  "\n\nCRITICAL INSTRUCTION: Return a valid JSON object:\n" +
-                  `{"action": "fill_form", "data": {"body": "<raw_html_code>"}}\n`;
+                  "\n\nCRITICAL INSTRUCTION: Return RAW HTML/Tailwind code ONLY. Do NOT wrap in JSON. Do NOT use markdown code blocks. Just output the pure HTML code for the design.";
                 const devUserPrompt = `Yêu cầu của người dùng: ${parsed.data.originalMessage || parsed.data.message}\n\nHãy viết mã HTML/TailwindCSS nguyên gốc (Raw HTML) dựa trên Blueprint/Cấu trúc sau:\n${blueprint}`;
-                const devResponseText = await callAgent(devAgent, devSystemPrompt, devUserPrompt, undefined, true);
+                const devResponseText = await callAgent(devAgent, devSystemPrompt, devUserPrompt, undefined, false);
                 try {
-                  const devJson = parseAiJson(devResponseText);
-                  if (devJson.data?.body) {
-                    if (responseJson.data.body !== undefined) responseJson.data.body = devJson.data.body;
-                    else if (responseJson.data.description !== undefined) responseJson.data.description = devJson.data.body;
+                  const rawBody = devResponseText.replace(/^```[a-z]*\n/i, "").replace(/```$/, "").trim();
+                  if (rawBody) {
+                    if (responseJson.data.body !== undefined) responseJson.data.body = rawBody;
+                    else if (responseJson.data.description !== undefined) responseJson.data.description = rawBody;
                   }
                 } catch { /* ignore */ }
               }

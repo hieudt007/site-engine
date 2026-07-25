@@ -1,0 +1,33 @@
+<div class="product-info-header flex flex-col gap-3 md:gap-4 mb-6 relative z-10">
+    {% if product.categories and product.categories.size > 0 %}
+        <nav class="product-categories flex flex-wrap items-center gap-2 text-xs font-body uppercase tracking-[0.15em] text-emerald-600/80">
+            {% for category in product.categories %}
+                <a href="{{ productCategoryPathPrefix }}{{ category.slug }}" class="hover:text-emerald-800 transition-colors duration-300 ease-out">
+                    {{ category.name }}
+                </a>
+                {% unless forloop.last %}
+                    <span class="text-emerald-200 select-none">/</span>
+                {% endunless %}
+            {% endfor %}
+        </nav>
+    {% endif %}
+
+    <h1 class="product-title font-heading text-3xl md:text-4xl lg:text-5xl font-medium leading-[1.1] text-emerald-950 tracking-tight">
+        {{ product.name }}
+    </h1>
+
+    <div class="product-badges flex flex-wrap gap-2 mt-2">
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[10px] font-body uppercase tracking-widest border border-emerald-200 text-emerald-700 rounded-full bg-emerald-50/80 backdrop-blur-sm shadow-sm">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            Premium Quality
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[10px] font-body uppercase tracking-widest border border-green-200 text-green-700 rounded-full bg-green-50/80 backdrop-blur-sm shadow-sm">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            100% Organic
+        </span>
+    </div>
+</div>

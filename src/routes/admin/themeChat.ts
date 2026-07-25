@@ -19,7 +19,7 @@ const MAX_EXTRA_FILE_REQUESTS = 2;
 const SELECTABLE_FILES = new Set([...THEME_FILE_CONTRACTS.map((c) => c.file), ...THEME_ASSET_FILES.map((a) => a.file)]);
 // Xem file (GET /file, chi de hien thi) duoc phep xem them ca 2 file build output (read-only -
 // khong the chon sua truc tiep qua chat).
-const VIEWABLE_FILES = new Set([...SELECTABLE_FILES, ...THEME_BUNDLE_OUTPUTS]);
+const VIEWABLE_FILES = new Set([...Array.from(SELECTABLE_FILES), ...THEME_BUNDLE_OUTPUTS]);
 
 const chatSchema = z.object({
   message: z.string().min(1),
@@ -59,7 +59,7 @@ async function withHeartbeat<T>(reply: import("fastify").FastifyReply, task: Pro
 function expandFilesWithPairedAssets(files: string[]): string[] {
   const groupKeys = new Set(files.map((file) => pageGroupKey(file)));
   const addonFiles = files.filter(f => f.startsWith("addons/"));
-  return [...[...SELECTABLE_FILES].filter((file) => groupKeys.has(pageGroupKey(file))), ...addonFiles];
+  return [...Array.from(SELECTABLE_FILES).filter((file) => groupKeys.has(pageGroupKey(file))), ...addonFiles];
 }
 
 function groupFilesByPage(files: string[]): Array<[string, string[]]> {
@@ -191,7 +191,46 @@ async function runFileEditPipeline(
             sseWrite(reply, { step: "plan", tasks: groupEntries.map(({ groupKey }) => groupKey) });
           }
         }
+      if (groupResult.searchFileQuery) {
+        if (extraFileRequests >= MAX_EXTRA_FILE_REQUESTS) {
+          allResults.push({
+            file: groupKey,
+            ok: false,
+            errors: [`AI cần tìm kiếm file nhưng đã vượt giới hạn ${MAX_EXTRA_FILE_REQUESTS} lần.`],
+          });
+        } else {
+          extraFileRequests++;
+          const query = groupResult.searchFileQuery.query.toLowerCase();
+          const matchedFiles: string[] = [];
+          for (const f of SELECTABLE_FILES) {
+            try {
+              const content = await fs.readFile(path.join(THEMES_ROOT, slug, f), "utf-8");
+              if (content.toLowerCase().includes(query)) {
+                matchedFiles.push(f);
+              }
+            } catch (err) {}
+          }
+          const searchResultText = matchedFiles.length > 0
+            ? `[KẾT QUẢ TÌM KIẾM CHO "${groupResult.searchFileQuery.query}"]: Tìm thấy trong các file: ${matchedFiles.join(", ")}.`
+            : `[KẾT QUẢ TÌM KIẾM CHO "${groupResult.searchFileQuery.query}"]: Không tìm thấy trong bất kỳ file nào.`;
+          
+          sseWrite(reply, {
+            step: "need_more_files", // Reusing this step for UI simplicity, or we can use search_file
+            group: groupKey,
+            files: [],
+            reason: `Tìm kiếm: ${groupResult.searchFileQuery.reason}`,
+            task: `Đã tìm thấy ${matchedFiles.length} file.`,
+            remaining: MAX_EXTRA_FILE_REQUESTS - extraFileRequests,
+          });
+
+          groupEntries.splice(i + 1, 0, {
+            groupKey,
+            files: groupFiles,
+            task: task + `\n\n${searchResultText}\n(Hãy tiếp tục hoàn thành task ban đầu, nếu cần thiết hãy dùng NEED_MORE_FILES để mở file vừa tìm được).`
+          });
+        }
       }
+    }
 
       const groupFailed = groupResult.files.some((r) => !r.ok);
       sseWrite(reply, { step: "group_done", group: groupKey, index: i, ok: !groupFailed });
@@ -334,7 +373,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
     try {
       const chatRow = await prisma.adminChatHistory.create({
         data: {
-          userId: (request as any).user.id,
+          userId: request.session.get("userId") as number,
           entityId: slug,
           userMessage: message,
           imageUrl,
@@ -387,7 +426,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       }
 
       const isRedesign = classified.mode === "redesign";
-      const validFiles = isRedesign ? [...SELECTABLE_FILES] : classified.files.filter((f) => SELECTABLE_FILES.has(f) || f.startsWith("addons/"));
+      const validFiles = isRedesign ? Array.from(SELECTABLE_FILES) : classified.files.filter((f) => SELECTABLE_FILES.has(f) || f.startsWith("addons/"));
       if (!validFiles.length) {
         const fallback = "Xin lỗi, tôi chưa xác định được cần sửa file nào — bạn nói rõ hơn giúp tôi nhé.";
         await prisma.adminChatHistory.update({ where: { id: chatRow.id }, data: { assistantResponse: fallback, status: "error" } });
@@ -418,7 +457,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       // nhom, cap nhat ngay THEME.md ("Da ap dung") roi doc lai truoc khi sang nhom tiep theo, de
       // nhom sau biet nhom truoc vua doi gi (tranh MEMORY_UPDATE cua nhom sau ghi de mat thong tin
       // nhom truoc).
-      await runFileEditPipeline(reply, agent, slug, themeMd, validFiles, effectiveMessage, classified.reply, imageUrl, designSystemBlock);
+      await runFileEditPipeline(reply, agent, slug, themeMd, validFiles, effectiveMessage, classified.reply, imageUrl, designSystemBlock, chatRow.id);
     } catch (err) {
       sseWrite(reply, { step: "error", label: (err as Error).message });
       reply.raw.end();
@@ -460,11 +499,11 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
       try {
         const confirmMessage = "✅ Đã bấm xác nhận — tiến hành thiết kế lại toàn bộ theo kế hoạch trên.";
         const confirmRow = await prisma.adminChatHistory.create({
-          data: { userId: (request as any).user.id, entityId: slug, userMessage: confirmMessage, status: "pending" }
+          data: { userId: request.session.get("userId") as number, entityId: slug, userMessage: confirmMessage, status: "pending" }
         });
         const themeMd = await readThemeMd(slug);
         const designSystemBlock = meta.styleQuery ? formatDesignSystem(resolveDesignSystem(meta.styleQuery)) : undefined;
-        await runFileEditPipeline(reply, agent, slug, themeMd, [...SELECTABLE_FILES], meta.redesignBrief, confirmMessage, undefined, designSystemBlock, confirmRow.id);
+        await runFileEditPipeline(reply, agent, slug, themeMd, Array.from(SELECTABLE_FILES), meta.redesignBrief, confirmMessage, undefined, designSystemBlock, confirmRow.id);
       } catch (err) {
         sseWrite(reply, { step: "error", label: (err as Error).message });
         reply.raw.end();

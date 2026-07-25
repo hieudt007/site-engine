@@ -1,54 +1,16 @@
 {% layout "layout" %}
 {% block content %}
-<h1>Thanh toán</h1>
-
-<div id="checkout-items"></div>
-
-<form id="checkout-form">
-  <h2>Thông tin nhận hàng</h2>
-  <div>
-    <input type="text" name="customerName" placeholder="Họ tên" required>
-    <input type="text" name="customerPhone" placeholder="Số điện thoại" required>
-  </div>
-
-  <div id="fulfillment-methods">
-    <h3>Hình thức nhận hàng</h3>
-    <div id="fulfillment-methods-list">Đang tải...</div>
-  </div>
-
-  <div id="delivery-fields">
-    <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng">
-    <select name="customerProvince">
-      <option value="">-- Chọn tỉnh/thành --</option>
-    </select>
-  </div>
-
-  <div id="pickup-fields" class="hidden">
-    <select name="storeId">
-      <option value="">-- Chọn cửa hàng --</option>
-    </select>
-  </div>
-
-  <div id="payment-methods">
-    <h3>Phương thức thanh toán</h3>
-    <div id="payment-methods-list">Đang tải...</div>
-  </div>
-
-  <div>
-    <input type="text" name="couponCode" placeholder="Mã giảm giá (nếu có)">
-  </div>
-
-  <div id="checkout-total"></div>
-  
-  {% if site.turnstileSiteKey %}
-    <div style="margin: 1rem 0;">
-      <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-      <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}"></div>
-    </div>
-  {% endif %}
-
-  <button type="submit">Đặt hàng</button>
-  <div id="checkout-error"></div>
-</form>
-
+<section>
+    <h1>...</h1>
+    <div id="checkout-items"></div>
+    <div id="checkout-total"></div>
+    
+    <form id="checkout-form">
+        <input name="customerName">
+        <input name="customerPhone">
+        <input name="customerAddress">
+        <button type="submit">Order</button>
+        <div id="checkout-error"></div>
+    </form>
+</section>
 {% endblock %}

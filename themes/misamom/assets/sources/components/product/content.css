@@ -1,0 +1,60 @@
+/* Custom styling for elements injected by rich text editor (product.description) */
+.product-description-content img {
+    border-radius: 24px;
+    margin: 2.5rem 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+}
+
+.product-description-content blockquote {
+    border-left: 3px solid #059669; /* brand emerald color */
+    background: rgba(5, 150, 105, 0.03);
+    padding: 1.5rem;
+    border-radius: 0 16px 16px 0;
+    margin: 2.5rem 0;
+    font-style: italic;
+    color: rgba(28, 25, 23, 0.7);
+}
+
+/* Custom Fields styling adjustment to fit the organic theme */
+.custom-fields-wrapper .custom-field-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px dashed rgba(5, 150, 105, 0.2);
+}
+.custom-fields-wrapper .custom-field-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+.custom-fields-wrapper .custom-field-label {
+    color: rgba(28, 25, 23, 0.6);
+}
+.custom-fields-wrapper .custom-field-value {
+    font-weight: 500;
+    color: rgba(28, 25, 23, 0.9);
+    text-align: right;
+}
+
+/* Review Message States (handled by core JS, styled here) */
+#review-msg:not(:empty) {
+    display: block;
+}
+#review-msg.success {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+#review-msg.error {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Hide scrollbar for tabs on mobile */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

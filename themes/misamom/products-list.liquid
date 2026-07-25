@@ -1,0 +1,217 @@
+{% layout "layout" %}
+{% block content %}
+<div class="bg-[#ECFDF5] min-h-screen pb-24 font-sans text-[#064E3B]">
+    <!-- Page Header with Organic Wave -->
+    <header class="relative bg-emerald-900 text-white pt-28 pb-36 text-center overflow-hidden">
+        <!-- Organic background blobs -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute -top-24 -left-24 w-96 h-96 bg-emerald-800 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+            <div class="absolute top-12 -right-12 w-80 h-80 bg-emerald-700 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+        </div>
+        
+        <div class="relative z-10 max-w-3xl mx-auto px-4">
+            <h1 class="font-serif text-4xl md:text-5xl lg:text-6xl mb-6 font-medium tracking-tight pl-fade-up">Bộ Sưu Tập</h1>
+            <p class="text-[#A7F3D0] text-lg md:text-xl font-light pl-fade-up pl-delay-100 max-w-2xl mx-auto leading-relaxed">
+                Khám phá tinh hoa mỹ phẩm thiên nhiên, mang đến vẻ đẹp thuần khiết và rạng rỡ cho làn da của bạn.
+            </p>
+        </div>
+
+        <!-- Bottom Wave -->
+        <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
+            <svg class="relative block w-full h-[60px] md:h-[100px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118,130.98,131.1,201.39,114.7,243.68,104.91,283.47,81.42,321.39,56.44Z" fill="#ECFDF5"></path>
+            </svg>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-20">
+        <div class="flex flex-col lg:flex-row gap-8 lg:gap-12">
+
+            <!-- Mobile Filter Overlay & Drawer -->
+            <div id="pl-mobile-filter-overlay" class="fixed inset-0 bg-[#064E3B]/40 backdrop-blur-sm z-40 hidden lg:hidden transition-opacity opacity-0 duration-300"></div>
+            
+            <aside id="pl-filter-sidebar" class="fixed inset-y-0 left-0 z-50 w-full max-w-[300px] bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(5,150,105,0.1)] transform -translate-x-full transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] lg:static lg:translate-x-0 lg:w-1/4 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:z-auto overflow-y-auto lg:overflow-visible flex flex-col h-full lg:h-auto rounded-r-[24px] lg:rounded-none">
+                
+                <!-- Filter Header (Mobile) -->
+                <div class="flex items-center justify-between p-6 lg:hidden border-b border-[#A7F3D0]/30 bg-white/50 sticky top-0 z-10 rounded-tr-[24px]">
+                    <h2 class="font-serif text-2xl text-[#064E3B]">Bộ lọc</h2>
+                    <button id="pl-close-filter-btn" class="p-2 -mr-2 text-[#10B981] hover:text-[#059669] transition-colors rounded-full hover:bg-[#ECFDF5]">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Filter Content -->
+                <div class="p-6 lg:p-0 flex-1 lg:sticky lg:top-28 space-y-10">
+                    <!-- Category Filter -->
+                    <div class="pl-filter-group bg-white lg:bg-transparent p-0 lg:p-0 rounded-[24px]">
+                        <h3 class="font-serif text-lg text-[#064E3B] mb-5 font-medium">Danh mục</h3>
+                        <ul class="space-y-4 text-[#064E3B]/80">
+                            <li>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#A7F3D0] rounded-md group-hover:border-[#059669] transition-colors bg-white">
+                                        <input type="checkbox" class="peer sr-only">
+                                        <svg class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity absolute inset-0 m-auto z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                        <div class="absolute inset-0 bg-[#059669] scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center rounded-sm"></div>
+                                    </div>
+                                    <span class="group-hover:text-[#059669] transition-colors text-sm font-medium">Chăm sóc da mặt</span>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#A7F3D0] rounded-md group-hover:border-[#059669] transition-colors bg-white">
+                                        <input type="checkbox" class="peer sr-only">
+                                        <svg class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity absolute inset-0 m-auto z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                        <div class="absolute inset-0 bg-[#059669] scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center rounded-sm"></div>
+                                    </div>
+                                    <span class="group-hover:text-[#059669] transition-colors text-sm font-medium">Chăm sóc cơ thể</span>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#A7F3D0] rounded-md group-hover:border-[#059669] transition-colors bg-white">
+                                        <input type="checkbox" class="peer sr-only">
+                                        <svg class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity absolute inset-0 m-auto z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                                        <div class="absolute inset-0 bg-[#059669] scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center rounded-sm"></div>
+                                    </div>
+                                    <span class="group-hover:text-[#059669] transition-colors text-sm font-medium">Trang điểm</span>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Price Filter -->
+                    <div class="pl-filter-group pt-8 border-t border-[#A7F3D0]/50">
+                        <h3 class="font-serif text-lg text-[#064E3B] mb-5 font-medium">Mức giá</h3>
+                        <ul class="space-y-4 text-[#064E3B]/80">
+                            <li>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#A7F3D0] rounded-full group-hover:border-[#059669] transition-colors bg-white">
+                                        <input type="radio" name="price" class="peer sr-only">
+                                        <div class="w-2.5 h-2.5 bg-[#059669] rounded-full scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center"></div>
+                                    </div>
+                                    <span class="group-hover:text-[#059669] transition-colors text-sm font-medium">Dưới 500.000₫</span>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#A7F3D0] rounded-full group-hover:border-[#059669] transition-colors bg-white">
+                                        <input type="radio" name="price" class="peer sr-only">
+                                        <div class="w-2.5 h-2.5 bg-[#059669] rounded-full scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center"></div>
+                                    </div>
+                                    <span class="group-hover:text-[#059669] transition-colors text-sm font-medium">500.000₫ - 1.000.000₫</span>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#A7F3D0] rounded-full group-hover:border-[#059669] transition-colors bg-white">
+                                        <input type="radio" name="price" class="peer sr-only">
+                                        <div class="w-2.5 h-2.5 bg-[#059669] rounded-full scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center"></div>
+                                    </div>
+                                    <span class="group-hover:text-[#059669] transition-colors text-sm font-medium">Trên 1.000.000₫</span>
+                                </label>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Filter Footer (Mobile) -->
+                <div class="p-6 border-t border-[#A7F3D0]/30 lg:hidden bg-white/90 backdrop-blur-md sticky bottom-0 z-10 rounded-br-[24px]">
+                    <button class="w-full bg-[#059669] text-white font-medium py-4 rounded-[24px] hover:bg-[#047857] transition-colors shadow-lg shadow-[#059669]/20 text-sm">Áp dụng bộ lọc</button>
+                </div>
+            </aside>
+
+            <!-- Product List Area -->
+            <div class="w-full lg:w-3/4">
+                <!-- Toolbar -->
+                <div class="flex flex-wrap items-center justify-between mb-8 pb-6 border-b border-[#A7F3D0]/50 gap-4">
+                    <button id="pl-open-filter-btn" class="lg:hidden flex items-center gap-2 text-[#064E3B] hover:text-[#059669] transition-colors bg-white shadow-sm px-5 py-2.5 rounded-[24px] text-sm font-medium border border-[#A7F3D0]/50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        <span>Lọc & Sắp xếp</span>
+                    </button>
+                    
+                    <div class="hidden lg:block text-[#064E3B]/70 text-sm font-medium">
+                        Hiển thị <span class="text-[#059669] font-bold">{{ products.size }}</span> sản phẩm
+                    </div>
+                    
+                    <div class="flex items-center gap-3 ml-auto lg:ml-0 bg-white px-4 py-2 rounded-[24px] shadow-sm border border-[#A7F3D0]/50">
+                        <label for="pl-sort-by" class="hidden sm:block text-sm text-[#064E3B]/70 font-medium">Sắp xếp:</label>
+                        <div class="relative group">
+                            <select id="pl-sort-by" class="appearance-none bg-transparent border-none text-[#064E3B] font-medium py-1 pl-2 pr-8 cursor-pointer focus:ring-0 focus:outline-none text-sm group-hover:text-[#059669] transition-colors">
+                                <option value="manual">Mặc định</option>
+                                <option value="price-asc">Giá: Thấp đến cao</option>
+                                <option value="price-desc">Giá: Cao đến thấp</option>
+                                <option value="created-desc">Mới nhất</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center text-[#059669]">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 lg:gap-10">
+                    {% if products and products.size > 0 %}
+                        {% for product in products %}
+                            <article class="pl-product-card group relative bg-white rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.04)] hover:shadow-[0_16px_48px_rgba(5,150,105,0.12)] transition-all duration-500 overflow-hidden flex flex-col pl-fade-up border border-white hover:border-[#A7F3D0]/50">
+                                <!-- Image -->
+                                <a href="/products/{{ product.id }}" class="relative block overflow-hidden aspect-[4/5] isolate bg-[#F8FAFC]">
+                                    {% if product.imageUrls[0] %}
+                                        <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="w-full h-full object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-110" loading="lazy">
+                                    {% else %}
+                                        <div class="w-full h-full flex items-center justify-center text-[#10B981]/50 text-sm">Chưa có ảnh</div>
+                                    {% endif %}
+                                    
+                                    <!-- Soft Overlay on Hover -->
+                                    <div class="absolute inset-0 bg-[#064E3B]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none mix-blend-overlay"></div>
+                                    
+                                    <!-- Badges -->
+                                    {% if product.salePrice and product.salePrice < product.price %}
+                                        <div class="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-[#059669] text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full z-20 shadow-sm">Giảm giá</div>
+                                    {% endif %}
+                                </a>
+
+                                <!-- Info -->
+                                <div class="p-5 md:p-6 flex flex-col flex-1 text-center">
+                                    <h2 class="font-serif text-base md:text-lg text-[#064E3B] mb-2 leading-snug line-clamp-2 group-hover:text-[#059669] transition-colors">
+                                        <a href="/products/{{ product.id }}">{{ product.name }}</a>
+                                    </h2>
+                                    <div class="mt-auto pt-2 flex flex-wrap items-center justify-center gap-2.5 text-sm md:text-base">
+                                        {% if product.salePrice and product.salePrice < product.price %}
+                                            <span class="text-[#DC2626] font-bold">{{ product.salePrice }}₫</span>
+                                            <span class="text-[#064E3B]/40 line-through text-xs md:text-sm font-medium">{{ product.price }}₫</span>
+                                        {% else %}
+                                            <span class="text-[#059669] font-bold">{{ product.price }}₫</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Quick Add Button with Animation Trigger -->
+                                    <button class="pl-add-to-cart-btn mt-5 w-full bg-[#ECFDF5] text-[#059669] hover:bg-[#059669] hover:text-white rounded-[24px] py-3 transition-colors duration-300 font-medium text-sm flex items-center justify-center gap-2 group/btn" data-image="{{ product.imageUrls[0] }}">
+                                        <svg class="w-5 h-5 transform group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                                        Thêm vào giỏ
+                                    </button>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-span-full py-24 text-center flex flex-col items-center justify-center bg-white rounded-[24px] shadow-sm border border-[#A7F3D0]/30">
+                            <div class="w-20 h-20 bg-[#ECFDF5] rounded-full flex items-center justify-center mb-6 text-[#10B981]">
+                                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            </div>
+                            <h3 class="font-serif text-2xl text-[#064E3B] mb-3">Không tìm thấy sản phẩm</h3>
+                            <p class="text-[#064E3B]/60 text-sm max-w-md">Vui lòng thử thay đổi điều kiện lọc hoặc từ khóa tìm kiếm để khám phá thêm các sản phẩm thiên nhiên của chúng tôi.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Pagination -->
+                {% if hasPrev or hasNext %}
+                    <div class="mt-20 flex justify-center">
+                        {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

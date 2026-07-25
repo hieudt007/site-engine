@@ -1,0 +1,49 @@
+{% layout "layout" %}
+{% block content %}
+<section class="min-h-[75vh] flex items-center justify-center relative overflow-hidden bg-emerald-50/30 py-20 px-4 font-sans">
+    <!-- Background Organic Shapes -->
+    <div class="absolute top-0 left-0 w-80 h-80 bg-emerald-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+    <div class="absolute top-0 right-0 w-72 h-72 bg-emerald-300/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+    <div class="absolute -bottom-10 left-1/2 transform -translate-x-1/2 w-96 h-96 bg-emerald-100/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+
+    <!-- Locked Card -->
+    <div class="locked-card relative bg-white/90 backdrop-blur-xl border border-emerald-50 shadow-[0_8px_32px_rgba(5,150,105,0.08)] rounded-[24px] p-8 md:p-12 max-w-lg w-full z-10">
+        <div class="flex justify-center mb-8">
+            <div class="w-20 h-20 bg-emerald-50 rounded-[24px] flex items-center justify-center text-emerald-700 shadow-inner rotate-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 -rotate-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+        </div>
+
+        <h1 class="font-serif text-3xl md:text-4xl text-emerald-950 text-center mb-4">{{ pageTitle }}</h1>
+        <p class="text-emerald-800/70 text-center mb-8 leading-relaxed">
+            Nội dung này được bảo mật và dành riêng cho khách hàng có quyền truy cập. Vui lòng nhập mật khẩu để tiếp tục khám phá.
+        </p>
+
+        <form id="unlock-form" class="space-y-6">
+            <div class="relative group">
+                <label for="password" class="sr-only">Mật khẩu</label>
+                <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors duration-300 group-focus-within:text-emerald-600">
+                    <svg class="h-5 w-5 text-emerald-300 group-focus-within:text-emerald-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <input type="password" id="password" name="password" placeholder="Nhập mật khẩu..." required
+                    class="block w-full pl-12 pr-4 py-4 border border-emerald-100 rounded-2xl leading-5 bg-emerald-50/30 placeholder-emerald-400 text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 sm:text-sm transition-all duration-300 backdrop-blur-sm shadow-sm">
+            </div>
+
+            <button type="submit" id="unlock-submit"
+                class="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-2xl shadow-md text-sm font-medium text-white bg-emerald-700 hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5">
+                <span id="submit-text" class="tracking-wide uppercase">Mở khóa bài viết</span>
+                <svg id="submit-spinner" class="animate-spin ml-2 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+
+            <div id="unlock-error" class="hidden bg-red-50/80 backdrop-blur-sm text-red-600 text-sm text-center py-3 px-4 rounded-2xl border border-red-100 mt-4 animate-fade-in"></div>
+        </form>
+    </div>
+</section>
+{% endblock %}

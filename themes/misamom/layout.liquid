@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ site.siteName }}</title>
+    
+    <!-- Fonts: Bodoni Moda (Luxury Serif) & Jost (Modern Sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Jost:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#064E3B', /* Deep Forest Green for text/headings */
+                            DEFAULT: '#059669', /* Primary Emerald Green for buttons/accents */
+                            light: '#ECFDF5', /* Soft Green for subtle backgrounds */
+                            secondary: '#10B981', /* Secondary vibrant green */
+                            sand: '#F5F5DC', /* Natural Beige */
+                            earth: '#8B4513', /* Earth Brown */
+                            sky: '#87CEEB', /* Sky Blue */
+                            gold: '#B89947', /* Accent color for luxury touches */
+                            gray: '#64748B'
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['"Bodoni Moda"', 'serif'],
+                        sans: ['Jost', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(5, 150, 105, 0.08)',
+                        'organic': '0 8px 32px rgba(0,0,0,0.08)'
+                    },
+                    borderRadius: {
+                        'organic': '24px',
+                        'blob': '40% 60% 70% 30% / 40% 50% 60% 50%',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
+</head>
+<body class="font-sans text-brand-dark bg-[#FDFBF7] min-h-screen flex flex-col antialiased selection:bg-brand selection:text-white">
+    
+    {% render "header", site: site, headerMenu: headerMenu %}
+    
+    {% render "components/common/breadcrumb", breadcrumbs: breadcrumbs, breadcrumbVariant: "default" %}
+    
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+    
+    {% render "components/common/cart-drawer" %}
+    
+    {% render "footer", site: site, footerMenu: footerMenu, year: year %}
+    
+    <!-- Live Chat Plugin -->
+    {% if activePlugins contains 'customer-support' %}
+        {% render 'customer-support/views/public/live-chat' %}
+    {% endif %}
+    
+    <!-- Custom JS -->
+    <script src="/theme-assets/{{ themeSlug }}/assets/custom.js"></script>
+</body>
+</html>

@@ -1,30 +1,20 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% if pageTitle %}{{ pageTitle }} — {% endif %}{{ site.siteName }}</title>
-  {% if metaDescription %}<meta name="description" content="{{ metaDescription }}">{% endif %}
-  {% if noindex %}<meta name="robots" content="noindex">{% endif %}
-  {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
-  <link rel="alternate" type="application/rss+xml" title="{{ site.siteName }} RSS" href="/feed.xml">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css?v={{ assetVersion }}">
+    <meta charset="utf-8">
+    <title>{{ site.siteName }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
+    ...
 </head>
 <body>
-  {% render "header", site: site, headerMenu: headerMenu %}
-
-  <main style="max-width:1200px;margin:0 auto;">
-    {% render "components/common/breadcrumb", breadcrumbs: breadcrumbs, breadcrumbVariant: breadcrumbVariant %}
-    {% block content %}{% endblock %}
-  </main>
-
-
-  {% render "footer", site: site, footerMenu: footerMenu, year: year %}
-  <script src="/theme-assets/{{ themeSlug }}/assets/custom.js?v={{ assetVersion }}" defer></script>
-  {% render "components/common/cart-drawer" %}
-  {% if activePlugins contains 'customer-support' %}
-    {% render 'customer-support/views/public/live-chat' %}
-  {% endif %}
+    {% render "header", site: site, headerMenu: headerMenu %}
+    {% render "components/common/breadcrumb", breadcrumbs: breadcrumbs, breadcrumbVariant: "default" %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    {% render "components/common/cart-drawer" %}
+    {% render "footer", site: site, footerMenu: footerMenu, year: year %}
+    <script src="/theme-assets/{{ themeSlug }}/assets/custom.js"></script>
 </body>
 </html>

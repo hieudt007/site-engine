@@ -1,16 +1,10 @@
 {% layout "layout" %}
 {% block content %}
-<a href="/products">← Tất cả sản phẩm</a>
-
 <article data-product-id="{{ product.id }}">
-  {% render "components/product/media", product: product %}
-  {% render "components/product/info", product: product, productCategoryPathPrefix: productCategoryPathPrefix %}
-  {% render "components/product/purchase", product: product, variantsJson: variantsJson %}
-  {% render "components/plugin/area", blocks: pluginAreas.product_detail_sidebar %}
-  {% render "components/product/content", product: product, reviews: reviews, avgRating: avgRating %}
-  {% render "components/plugin/area", blocks: pluginAreas.product_detail_after_content %}
+    ...
+    {% render "components/product/media", product: product %}
+    {% render "components/product/info", product: product, productCategoryPathPrefix: productCategoryPathPrefix %}
+    {% render "components/product/purchase", product: product, variantsJson: variantsJson %}
+    {% render "components/product/content", product: product, reviews: reviews, avgRating: avgRating %}
 </article>
-
-{% render "components/product/related", title: "Có thể bạn sẽ thích (Nâng cấp)", products: upsellProducts, productUrlPrefix: productUrlPrefix %}
-{% render "components/product/related", title: "Thường được mua cùng", products: crossSellProducts, productUrlPrefix: productUrlPrefix %}
 {% endblock %}

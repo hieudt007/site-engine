@@ -584,6 +584,8 @@
   });
 
   // --- Chat (phai) ---
+  const chatInput = document.getElementById("chat-input");
+
   function chatMessageHtml(role, content, imageUrl) {
     const isUser = role === "user";
     const imageHtml = imageUrl

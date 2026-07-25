@@ -1,0 +1,108 @@
+<div class="space-y-8 animate-fade-up" style="animation-delay: 200ms;">
+  <!-- Price & Stock -->
+  <div class="flex flex-col gap-3">
+    <div class="flex items-baseline gap-4">
+      <p id="variant-price" class="text-3xl font-serif text-emerald-950 tracking-tight">{{ product.price }}</p>
+      {% if product.compareAtPrice %}
+        <p class="text-lg text-emerald-900/40 line-through decoration-1">{{ product.compareAtPrice }}</p>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="relative flex h-3 w-3">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-40"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+      </span>
+      <p id="variant-stock" class="text-sm font-medium text-emerald-800 uppercase tracking-wider">In Stock</p>
+    </div>
+  </div>
+
+  <!-- Variants -->
+  {% if product.hasVariants %}
+    <div class="space-y-4 border-t border-emerald-50 pt-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-medium text-emerald-800/60 uppercase tracking-widest">Select Variant</h3>
+      </div>
+      <!-- Hidden elements required by contract -->
+      <div id="variants-data" style="display: none;">{{ variantsJson }}</div>
+      <select id="variant-picker" class="hidden">
+        {% for variant in product.variants %}
+          <option value="{{ variant.id }}">{{ variant.title }}</option>
+        {% endfor %}
+      </select>
+      
+      <!-- Custom visual variant picker built by JS -->
+      <div id="custom-variant-container" class="flex flex-wrap gap-3">
+        <!-- JS will populate this -->
+      </div>
+    </div>
+  {% else %}
+    <div id="variants-data" style="display: none;"></div>
+    <select id="variant-picker" class="hidden"></select>
+  {% endif %}
+
+  <!-- Action Buttons -->
+  <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-emerald-50">
+    <button id="add-to-cart" {% unless product.hasVariants %}data-id="{{ product.id }}"{% endunless %} class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-all duration-300 relative overflow-hidden group min-h-[56px] shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40">
+      <span class="relative z-10 flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+        Add to Cart
+      </span>
+      <div class="absolute inset-0 bg-emerald-800 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+    </button>
+    
+    <button id="buy-now-trigger" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 px-8 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-all duration-300 border border-emerald-200 hover:border-emerald-300 min-h-[56px]">
+      Buy It Now
+    </button>
+  </div>
+
+  <!-- Additional Info (Trust badges) -->
+  <div class="grid grid-cols-2 gap-4 pt-6 text-center">
+    <div class="flex flex-col items-center gap-2 p-4 bg-emerald-50/50 rounded-[24px]">
+      <svg class="w-6 h-6 text-emerald-600/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      <span class="text-xs text-emerald-800/60 uppercase tracking-wider">Fast Delivery</span>
+    </div>
+    <div class="flex flex-col items-center gap-2 p-4 bg-emerald-50/50 rounded-[24px]">
+      <svg class="w-6 h-6 text-emerald-600/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+      <span class="text-xs text-emerald-800/60 uppercase tracking-wider">Secure Payment</span>
+    </div>
+  </div>
+
+  <!-- Buy Now Form Modal -->
+  <div id="buy-now-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-emerald-950/40 backdrop-blur-sm transition-opacity" id="buy-now-overlay"></div>
+    <div class="bg-white/95 backdrop-blur-xl p-8 w-full max-w-md relative z-10 shadow-2xl border border-emerald-100 rounded-[24px]">
+      <div class="mb-6 flex justify-between items-center">
+        <h3 class="text-2xl font-serif text-emerald-950">Express Checkout</h3>
+        <button type="button" id="buy-now-close" class="text-emerald-900/40 hover:text-emerald-900 transition-colors bg-emerald-50 p-2 rounded-full">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <form id="buy-now-form" class="space-y-5">
+        <div>
+          <label class="block text-xs font-medium text-emerald-800/60 uppercase tracking-widest mb-2">Full Name</label>
+          <input type="text" name="customerName" required class="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all placeholder-emerald-900/20 text-emerald-950" placeholder="Jane Doe">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-emerald-800/60 uppercase tracking-widest mb-2">Phone Number</label>
+          <input type="tel" name="customerPhone" required class="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all placeholder-emerald-900/20 text-emerald-950" placeholder="+1 (555) 000-0000">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-emerald-800/60 uppercase tracking-widest mb-2">Delivery Address</label>
+          <input type="text" name="customerAddress" required class="w-full bg-emerald-50/50 border border-emerald-100 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all placeholder-emerald-900/20 text-emerald-950" placeholder="123 Luxury Ave, Suite 100...">
+        </div>
+        
+        <div id="buy-now-error" class="hidden p-4 bg-red-50 text-red-600 text-sm border border-red-100 rounded-xl"></div>
+        
+        <div class="pt-4 flex flex-col gap-3">
+          <button id="buy-now-btn" type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-colors relative overflow-hidden group min-h-[56px] shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40">
+            <span class="relative z-10">Confirm Order</span>
+            <div class="absolute inset-0 bg-emerald-800 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+          </button>
+          <button id="buy-now-cancel" type="button" class="w-full px-6 py-3 text-emerald-800/60 hover:text-emerald-900 uppercase tracking-widest text-xs font-medium transition-colors rounded-[24px] hover:bg-emerald-50">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

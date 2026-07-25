@@ -1,16 +1,19 @@
 {% layout "layout" %}
 {% block content %}
-<h1>{{ pageTitle }}</h1>
-
-{% if products.size == 0 %}
-  <p>Chưa có sản phẩm nào.</p>
-{% else %}
-  <div>
-    {% for product in products %}
-      {% render "components/product/card", product: product, variant: "list", productUrlPrefix: productUrlPrefix %}
-    {% endfor %}
-  </div>
-
-  {% render "components/common/pagination", basePath: "/products", currentPage: currentPage, totalPages: totalPages %}
-{% endif %}
+<section>
+    <h1>...</h1>
+    <div>
+        {% if products and products.size > 0 %}
+            {% for product in products %}
+                <article>
+                    <h2><a href="/products/{{ product.id }}">{{ product.name }}</a></h2>
+                    ...
+                </article>
+            {% endfor %}
+        {% endif %}
+    </div>
+    {% if hasPrev or hasNext %}
+        {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+    {% endif %}
+</section>
 {% endblock %}

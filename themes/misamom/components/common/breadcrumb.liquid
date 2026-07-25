@@ -1,0 +1,18 @@
+{% if breadcrumbs and breadcrumbs.size > 0 %}
+<nav aria-label="Breadcrumb" class="breadcrumb-container variant-{{ breadcrumbVariant }} py-3 px-4 md:px-6 w-full bg-emerald-50/40 rounded-[24px] border border-emerald-100/50 shadow-sm shadow-emerald-900/5">
+    <ol class="flex items-center gap-2 text-xs md:text-sm font-sans tracking-wide overflow-x-auto hide-scrollbar">
+    {% for item in breadcrumbs %}
+        <li class="flex items-center gap-2 shrink-0" {% if forloop.last %}aria-current="page"{% endif %}>
+            {% if forloop.last %}
+                <span class="text-emerald-900 font-medium truncate max-w-[180px] sm:max-w-[250px] md:max-w-md" title="{{ item.name }}">{{ item.name }}</span>
+            {% else %}
+                <a href="{{ item.url }}" class="breadcrumb-link text-emerald-600/80 hover:text-emerald-800 transition-colors duration-300 ease-in-out">{{ item.name }}</a>
+                <svg class="w-3.5 h-3.5 text-emerald-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path>
+                </svg>
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ol>
+</nav>
+{% endif %}

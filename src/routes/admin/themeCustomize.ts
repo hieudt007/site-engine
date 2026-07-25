@@ -70,7 +70,8 @@ export async function registerThemeCustomizeRoutes(app: FastifyInstance): Promis
             "1) Bạn muốn giao diện trông như thế nào (ngành hàng, màu sắc, phong cách)?\n" +
             "2) Có tính năng đặc biệt nào cần chú ý không?"
           : "Bạn muốn mình sửa phần giao diện nào, trang nào, hay tính năng gì?";
-      await prisma.adminChatHistory.create({ data: { entityId: newSlug, userMessage: "Tạo theme mới", assistantResponse: welcomeMessage, userId: (request as any).user.id } });
+      const userId = request.session.get("userId") as number;
+      await prisma.adminChatHistory.create({ data: { entityId: newSlug, userMessage: "Tạo theme mới", assistantResponse: welcomeMessage, userId } });
       return reply.code(201).send({ theme });
     } catch (err) {
       await fs.rm(newDir, { recursive: true, force: true }).catch(() => {});

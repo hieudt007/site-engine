@@ -1,0 +1,27 @@
+/* Expanding Search Input Animation */
+.search-expand-input {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-form:hover .search-expand-input,
+.search-expand-input:focus {
+    width: 12rem;
+    padding-left: 1rem;
+    padding-right: 0.5rem;
+    opacity: 1;
+    border-color: #d1fae5; /* emerald-100 */
+}
+
+/* Header Scroll Glass Effect Enhancements */
+#main-header {
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#main-header.scrolled {
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 20px -2px rgba(5, 150, 105, 0.05); /* soft organic shadow */
+}

@@ -1,16 +1,19 @@
 {% layout "layout" %}
 {% block content %}
-<h1>{{ pageTitle }}</h1>
-
-{% if posts.size == 0 %}
-  <p>Chưa có bài viết nào.</p>
-{% else %}
-  <div>
-    {% for post in posts %}
-      {% render "components/post/card", post: post, variant: "list", postUrlPrefix: postUrlPrefix, postCategoryPathPrefix: postCategoryPathPrefix %}
-    {% endfor %}
-  </div>
-
-  {% render "components/common/pagination", basePath: "/blog", currentPage: currentPage, totalPages: totalPages %}
-{% endif %}
+<section>
+    <h1>...</h1>
+    <div>
+        {% if posts and posts.size > 0 %}
+            {% for post in posts %}
+                <article>
+                    <h2><a href="/blog/{{ post.slug }}">{{ post.title }}</a></h2>
+                    ...
+                </article>
+            {% endfor %}
+        {% endif %}
+    </div>
+    {% if hasPrev or hasNext %}
+        {% render "components/common/pagination", basePath: "/blog", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+    {% endif %}
+</section>
 {% endblock %}

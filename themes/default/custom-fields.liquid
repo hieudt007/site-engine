@@ -1,11 +1,10 @@
-{% if fields.size > 0 %}
+{% if fields %}
 <div>
-  <h3>Thông tin thêm</h3>
-  <dl>
-    {% for pair in fields %}
-      <dt>{{ pair[0] | escape }}</dt>
-      <dd>{{ pair[1] | escape }}</dd>
+    ...
+    <ul>
+    {% for field in fields %}
+        <li>{{ field[0] }}: {{ field[1] }}</li>
     {% endfor %}
-  </dl>
+    </ul>
 </div>
 {% endif %}

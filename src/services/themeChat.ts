@@ -49,6 +49,10 @@ export interface EditResult {
     task: string;
     reason: string | null;
   } | null;
+  searchFileQuery: {
+    query: string;
+    reason: string;
+  } | null;
   // Cau ngan, khong thuat ngu, mo ta NHOM NAY vua doi gi - null neu khong co gi thuc su thay doi
   // (moi file skipped/that bai). Dung de nhom sau (hoac nhom cuoi tong hop SUMMARY) biet nhom nay
   // da lam gi ma khong can doc lai toan bo noi dung file.
@@ -308,6 +312,11 @@ async function buildEditSystemPrompt(files: string[], isLastGroup: boolean): Pro
     "TASK: <task cụ thể cho lần gọi tiếp theo, bám sát yêu cầu admin và nói rõ cần tìm/sửa gì trong file mới>",
     "(Chỉ dùng NEED_MORE_FILES khi thật sự không thể hoàn thành với nhóm file hiện tại. Server chỉ cho tối đa 2 lần mở thêm file trong một lượt chat.)",
     "",
+    "### SEARCH_FILE:",
+    "QUERY: <từ khóa, tên class, id, hoặc tên file cần tìm kiếm trong toàn bộ thư mục theme>",
+    "REASON: <lý do tìm kiếm, vd: Tìm icon giỏ hàng>",
+    "(Chỉ dùng SEARCH_FILE khi bạn chưa biết chính xác file nào chứa tính năng cần sửa. Server sẽ tìm kiếm và trả về danh sách file chứa từ khóa, sau đó bạn có thể dùng NEED_MORE_FILES để mở.)",
+    "",
     ...(isLastGroup
       ? [
           "Đây là NHÓM CUỐI của lượt chat. Thêm:",
@@ -371,6 +380,7 @@ function parseEditResponse(
   changeNote: string | null;
   summary: string | null;
   needsMoreFiles: { files: string[]; task: string; reason: string | null } | null;
+  searchFileQuery: { query: string; reason: string } | null;
 } {
   const fileContents: Record<string, string> = {};
   const fileBlockRegex = /### FILE:\s*(.+?)\n([\s\S]*?)(?=\n### FILE:|\n### CHANGE_NOTE:|\n### NEED_MORE_FILES:|\n### SUMMARY:|\n### MEMORY_UPDATE:|$)/g;
@@ -406,6 +416,9 @@ function parseEditResponse(
     }
   }
 
+  const searchMatch = raw.match(/### SEARCH_FILE:\s*\nQUERY:\s*(.*?)\nREASON:\s*(.*?)(?=\n###|$)/s);
+  const searchFileQuery = searchMatch ? { query: searchMatch[1].trim(), reason: searchMatch[2].trim() } : null;
+
   const summaryMatch = raw.match(/### SUMMARY:\s*([\s\S]*?)(?=\n### MEMORY_UPDATE:|$)/);
   const summary = summaryMatch ? summaryMatch[1].trim() : null;
 
@@ -415,6 +428,7 @@ function parseEditResponse(
     changeNote: changeNote && changeNote.length ? changeNote : null,
     summary: summary && summary.length ? summary : null,
     needsMoreFiles,
+    searchFileQuery,
   };
 }
 
@@ -440,7 +454,7 @@ export async function editThemeFiles(
     buildEditUserPrompt(themeMd, message, classifiedReply, fileContents, priorChangeNotes, Boolean(imageUrl), designSystemBlock),
     imageUrl,
   );
-  const { fileContents: newContents, memoryUpdate, changeNote, summary, needsMoreFiles } = parseEditResponse(raw, requestedFiles);
+  const { fileContents: newContents, memoryUpdate, changeNote, summary, needsMoreFiles, searchFileQuery } = parseEditResponse(raw, requestedFiles);
 
   const results: EditFileResult[] = [];
   for (const file of requestedFiles) {
@@ -472,5 +486,6 @@ export async function editThemeFiles(
     needsMoreFiles,
     changeNote: hasRealChange ? changeNote : null,
     summary: isLastGroup ? summary : null,
+    searchFileQuery,
   };
 }
