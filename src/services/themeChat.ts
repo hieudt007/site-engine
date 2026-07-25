@@ -300,7 +300,12 @@ async function buildEditSystemPrompt(slug: string, files: string[], isLastGroup:
     "Lưu ý CHUNG cho CHANGE_NOTE/SUMMARY/MEMORY_UPDATE bên dưới: chỉ mô tả những gì VỪA THỰC SỰ code xong (xem file ở trên) — " +
       "'Quy ước & gu thẩm mỹ chung' trong THEME.md là mục tiêu dài hạn, có thể CHƯA làm xong, KHÔNG được lấy nội dung từ đó.",
     "",
-    "Trả lời ĐÚNG định dạng, không giải thích, không code fence:",
+    "Trả lời ĐÚNG định dạng sau (BẮT BUỘC phải có khối THOUGHT đầu tiên):",
+    "### THOUGHT:",
+    "1. Admin muốn sửa gì? Mình đang có file nào trong tay?",
+    "2. Nếu KHÔNG THẤY CHỖ CẦN SỬA: Bắt buộc dùng SEARCH_FILE hoặc NEED_MORE_FILES. KẾT THÚC, không sửa file.",
+    "3. Nếu ĐÃ ĐỦ DỮ KIỆN: Bắt đầu trả về khối FILE bên dưới.",
+    "",
     "### FILE: <tên file>",
     "<toàn bộ nội dung mới>",
     "(lặp lại cho từng file THỰC SỰ SỬA — file nào không cần đổi thì bỏ qua hẳn, không trả khối FILE)",
