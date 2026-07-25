@@ -97,7 +97,29 @@ async function runAgentLoop(
         case "LIST_FILES": {
           sseWrite(reply, { step: "tool", label: `Đang lấy danh sách file...` });
           const SELECTABLE_FILES = await getSelectableFiles(slug);
-          stepObservations.push(`LIST_FILES:\n${Array.from(SELECTABLE_FILES).join("\n")}`);
+          const lines = Array.from(SELECTABLE_FILES);
+          try {
+            const activePlugins = await prisma.plugin.findMany({ where: { enabled: true } });
+            for (const plugin of activePlugins) {
+              const addonViewsDir = path.join(process.cwd(), "src", "addons", plugin.slug, "views");
+              const scanAddonDir = async (dir: string, base: string) => {
+                try {
+                  const entries = await fs.readdir(dir, { withFileTypes: true });
+                  for (const entry of entries) {
+                    const fullPath = path.join(dir, entry.name);
+                    const relPath = base ? `${base}/${entry.name}` : entry.name;
+                    if (entry.isDirectory()) {
+                      await scanAddonDir(fullPath, relPath);
+                    } else if (/\.(liquid|css|js)$/.test(entry.name)) {
+                      lines.push(`addons/${plugin.slug}/views/${relPath}`);
+                    }
+                  }
+                } catch (e) {}
+              };
+              await scanAddonDir(addonViewsDir, "");
+            }
+          } catch (e) {}
+          stepObservations.push(`LIST_FILES:\n${lines.join("\n")}`);
           break;
         }
         case "READ_FILES": {
@@ -140,7 +162,8 @@ async function runAgentLoop(
           const file = action.payload.file;
           sseWrite(reply, { step: "tool", label: `Đang sửa file: ${file}` });
           
-          if (file.includes("..") || !/\.(liquid|css|js)$/.test(file)) {
+          const SELECTABLE_FILES = await getSelectableFiles(slug);
+          if (file.includes("..") || !/\.(liquid|css|js)$/.test(file) || (!SELECTABLE_FILES.has(file) && !file.startsWith("addons/"))) {
             stepObservations.push(`REPLACE_CODE: Lỗi bảo mật, file "${file}" không hợp lệ.`);
             continue;
           }
@@ -150,10 +173,29 @@ async function runAgentLoop(
             continue;
           }
 
-          const { success, newContent, errors } = applyReplacements(contextFiles[file], action.payload.blocks);
+          // Extract original comment block and update @notes
+          let updatedCommentBlock = "";
+          const commentMatch = contextFiles[file].match(/^\{%\s*comment\s*%\}([\s\S]*?)\{%\s*endcomment\s*%}\n*/i);
+          if (commentMatch) {
+            let inner = commentMatch[1];
+            if (action.payload.aiNotes) {
+              if (inner.includes('@notes:')) {
+                inner = inner.replace(/@notes:\s*(.*)/, `@notes: ${action.payload.aiNotes}`);
+              } else {
+                inner = inner.trimEnd() + `\n@notes: ${action.payload.aiNotes}\n`;
+              }
+            }
+            updatedCommentBlock = `{% comment %}${inner}{% endcomment %}\n`;
+          }
+
+          let { success, newContent, errors } = applyReplacements(contextFiles[file], action.payload.blocks);
           if (!success) {
             stepObservations.push(`REPLACE_CODE cho "${file}" THẤT BẠI: ${errors.join("; ")}`);
             continue;
+          }
+
+          if (updatedCommentBlock && file.endsWith('.liquid')) {
+            newContent = newContent.replace(/^\{%\s*comment\s*%\}([\s\S]*?)\{%\s*endcomment\s*%}\n*/i, updatedCommentBlock);
           }
 
           const validation = await validateThemeFile(slug, file, newContent);
@@ -177,6 +219,64 @@ async function runAgentLoop(
           if (isAddon && file.includes("/assets/")) assetsChanged = true;
 
           stepObservations.push(`REPLACE_CODE cho "${file}" THÀNH CÔNG.`);
+          break;
+        }
+        case "OVERWRITE_FILE": {
+          const file = action.payload.file;
+          let newContent = action.payload.content;
+          sseWrite(reply, { step: "tool", label: `Đang ghi đè file: ${file}` });
+          
+          const SELECTABLE_FILES = await getSelectableFiles(slug);
+          if (file.includes("..") || !/\.(liquid|css|js)$/.test(file) || (!SELECTABLE_FILES.has(file) && !file.startsWith("addons/"))) {
+            stepObservations.push(`OVERWRITE_FILE: Lỗi bảo mật, file "${file}" không hợp lệ.`);
+            continue;
+          }
+
+          // Extract original comment block and update @notes
+          let updatedCommentBlock = "";
+          if (contextFiles[file]) {
+             const commentMatch = contextFiles[file].match(/^\{%\s*comment\s*%\}([\s\S]*?)\{%\s*endcomment\s*%}\n*/i);
+             if (commentMatch) {
+               let inner = commentMatch[1];
+               if (action.payload.aiNotes) {
+                 if (inner.includes('@notes:')) {
+                   inner = inner.replace(/@notes:\s*(.*)/, `@notes: ${action.payload.aiNotes}`);
+                 } else {
+                   inner = inner.trimEnd() + `\n@notes: ${action.payload.aiNotes}\n`;
+                 }
+               }
+               updatedCommentBlock = `{% comment %}${inner}{% endcomment %}\n`;
+             }
+          }
+
+          if (updatedCommentBlock && file.endsWith('.liquid')) {
+            // Because AI is instructed not to return the comment block for OVERWRITE_FILE
+            // We just prepend it. However, if AI mistakenly returned one, strip it first to prevent duplicates.
+            newContent = newContent.replace(/^\{%\s*comment\s*%\}([\s\S]*?)\{%\s*endcomment\s*%}\n*/i, '');
+            newContent = updatedCommentBlock + newContent;
+          }
+
+          const validation = await validateThemeFile(slug, file, newContent);
+          if (!validation.ok) {
+            sseWrite(reply, { step: "tool", label: `Validation lỗi ở ${file}, đang cho AI tự sửa lại...` });
+            const retryResult = await withHeartbeat(reply, retryUntilValid(slug, agent, file, newContent, validation.errors));
+            if (!retryResult.ok) {
+              stepObservations.push(`OVERWRITE_FILE cho "${file}" LỖI VALIDATION NGHIÊM TRỌNG: ${retryResult.errors.join("; ")}. Cập nhật BỊ HỦY BỎ.`);
+              continue;
+            }
+            contextFiles[file] = retryResult.content!;
+          } else {
+            contextFiles[file] = newContent;
+          }
+
+          const isAddon = file.startsWith("addons/");
+          const filePath = isAddon ? path.join(process.cwd(), "src", file) : path.join(THEMES_ROOT, slug, file);
+          await fs.mkdir(path.dirname(filePath), { recursive: true });
+          await fs.writeFile(filePath, contextFiles[file], "utf-8");
+          if (!isAddon && file.startsWith("assets/sources/")) assetsChanged = true;
+          if (isAddon && file.includes("/assets/")) assetsChanged = true;
+
+          stepObservations.push(`OVERWRITE_FILE cho "${file}" THÀNH CÔNG.`);
           break;
         }
         case "UPDATE_THEME_MEMORY": {

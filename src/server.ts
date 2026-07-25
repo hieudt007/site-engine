@@ -51,6 +51,7 @@ import { registerThemeRoutes } from "./routes/admin/themes.js";
 import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
 import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
+import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
 import { registerThemeEditorUiRoutes } from "./routes/admin/themeEditorUi.js";
 import { registerThemePreviewRoutes } from "./routes/admin/themePreview.js";
 import { registerAdminSeoRoutes } from "./routes/admin/seo.js";
@@ -251,6 +252,7 @@ async function start(): Promise<void> {
   await registerThemesUiRoutes(app);
   await registerThemeCustomizeRoutes(app);
   await registerThemeChatRoutes(app);
+  await registerAiChatRoutes(app);
   await registerThemeEditorUiRoutes(app);
   await registerThemePreviewRoutes(app);
   await registerThemeInlineEditRoutes(app);

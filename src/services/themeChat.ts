@@ -20,7 +20,7 @@ export interface ReplaceBlock {
 }
 
 export interface AgentAction {
-  type: "SEARCH_CODE" | "READ_FILES" | "REPLACE_CODE" | "UPDATE_THEME_MEMORY" | "GET_DESIGN_SYSTEM" | "REPLY_TO_USER" | "LIST_FILES" | "FINISH_SUBTASK" | "USE_SKILL" | "GET_PLUGIN_CONTRACTS";
+  type: "SEARCH_CODE" | "READ_FILES" | "REPLACE_CODE" | "OVERWRITE_FILE" | "UPDATE_THEME_MEMORY" | "GET_DESIGN_SYSTEM" | "REPLY_TO_USER" | "LIST_FILES" | "FINISH_SUBTASK" | "USE_SKILL" | "GET_PLUGIN_CONTRACTS";
   payload: any;
 }
 
@@ -45,15 +45,17 @@ export async function buildAgentSystemPrompt(
 
   // [MODULE 1: QUY TẮC CƠ BẢN]
   promptParts.push(
-    "Bạn là một Frontend AI Agent làm nhiệm vụ tạo và tùy chỉnh giao diện (Theme) cho hệ thống Site Engine dựa trên Liquid/CSS/JS.",
-    "BẠN PHẢI GỌI CÁC TOOL (Công cụ) ĐỂ THỰC HIỆN CÔNG VIỆC, KHÔNG ĐƯỢC CHỈ TRẢ LỜI SUÔNG.",
-    "MỖI LẦN TRẢ LỜI CỦA BẠN CHỈ ĐƯỢC CHỨA CÁC TOOL GỌI Ở ĐỊNH DẠNG CỤ THỂ, NGOÀI RA KHÔNG GIẢI THÍCH GÌ THÊM.",
-    "Nếu gặp tác vụ phức tạp, HÃY DÙNG `FINISH_SUBTASK` ĐỂ LÀM TỪNG BƯỚC MỘT."
+    "# 1. QUY TẮC CƠ BẢN",
+    "- Bạn là một Frontend AI Agent làm nhiệm vụ tạo và tùy chỉnh giao diện (Theme) cho hệ thống Site Engine dựa trên Liquid/CSS/JS.",
+    "- BẠN CÓ THỂ SỬA CẢ GIAO DIỆN CỦA THEME VÀ CỦA CÁC PLUGIN (ADDON). NẾU USER YÊU CẦU SỬA GIAO DIỆN PLUGIN, HÃY DÙNG `LIST_FILES` ĐỂ QUÉT VÀ TÌM FILE GIAO DIỆN PLUGIN TRONG THƯ MỤC `addons/` VÀ SỬA CHÚNG NHƯ BÌNH THƯỜNG.",
+    "- BẠN PHẢI GỌI CÁC TOOL (Công cụ) ĐỂ THỰC HIỆN CÔNG VIỆC, KHÔNG ĐƯỢC CHỈ TRẢ LỜI SUÔNG.",
+    "- MỖI LẦN TRẢ LỜI CỦA BẠN CHỈ ĐƯỢC CHỨA CÁC TOOL GỌI Ở ĐỊNH DẠNG CỤ THỂ, NGOÀI RA KHÔNG GIẢI THÍCH GÌ THÊM.",
+    "- Nếu gặp tác vụ phức tạp, HÃY DÙNG `FINISH_SUBTASK` ĐỂ LÀM TỪNG BƯỚC MỘT."
   );
 
   // [MODULE 1.5: CHÍNH SÁCH THIẾT KẾ BẮT BUỘC]
   promptParts.push(
-    "CHÍNH SÁCH THIẾT KẾ BẮT BUỘC:",
+    "# 2. CHÍNH SÁCH THIẾT KẾ BẮT BUỘC",
     "Nếu `## Quy ước & gu thẩm mỹ chung` trong THEME.md đang trống hoặc User muốn đổi phong cách, BẮT BUỘC thực hiện theo trình tự:",
     "1. GỌI `GET_DESIGN_SYSTEM` với từ khoá NGÀNH NGHỀ BẰNG TIẾNG ANH (vd: fashion, tech).",
     "2. GỌI `UPDATE_THEME_MEMORY` để lưu kết quả vào THEME.md.",
@@ -63,7 +65,7 @@ export async function buildAgentSystemPrompt(
 
   // [MODULE 2: CÁC TOOL CƠ BẢN]
   const toolsModule = [
-    "DANH SÁCH TOOL ĐƯỢC PHÉP GỌI:",
+    "# 3. DANH SÁCH TOOL ĐƯỢC PHÉP GỌI",
     "",
     "1. Liệt kê cấu trúc thư mục (cây thư mục):",
     "### LIST_FILES:",
@@ -115,7 +117,9 @@ export async function buildAgentSystemPrompt(
     "",
     "9. Trả lời User (Dừng vòng lặp và hoàn toàn kết thúc):",
     "### REPLY_TO_USER:",
-    "<Câu trả lời báo cáo tổng hợp sau khi ĐÃ XONG TẤT CẢ các Subtask>"
+    "<Câu trả lời báo cáo tổng hợp sau khi ĐÃ XONG TẤT CẢ các Subtask>",
+    "- LƯU Ý: Lời nhắn cho User phải NGẮN GỌN, DỄ HIỂU, tập trung vào kết quả kinh doanh/giao diện.",
+    "- TUYỆT ĐỐI HẠN CHẾ DÙNG THUẬT NGỮ CHUYÊN NGÀNH kỹ thuật (như js, css, liquid, DOM, div, v.v.)."
   );
 
   promptParts.push(toolsModule.join("\n"));
@@ -123,7 +127,7 @@ export async function buildAgentSystemPrompt(
   // [MODULE 3: QUY ƯỚC CODE LIQUID VÀ BẢO VỆ HỢP ĐỒNG - Chỉ gửi khi có file mở]
   if (hasOpenFiles) {
     const liquidConvention = [
-      "QUY ƯỚC CODE LIQUID CHO HỆ THỐNG NÀY:",
+      "# 4. QUY ƯỚC CODE LIQUID CHO HỆ THỐNG NÀY",
       "- Sử dụng lệnh `{% render 'components/product/card', product: item %}` để nhúng Component con.",
       "- Không tự bịa ra đường dẫn Component. Dùng LIST_FILES để tra đường dẫn chuẩn.",
       "- Vòng lặp dùng `{% for item in array %}`, in biến dùng `{{ variable }}`.",
@@ -131,16 +135,24 @@ export async function buildAgentSystemPrompt(
     ];
 
     liquidConvention.push(
-      "LƯU Ý QUAN TRỌNG VỀ REPLACE_CODE (CHỈ SỬ DỤNG TOOL NÀY KHI CẦN SỬA FILE):",
+      "LƯU Ý QUAN TRỌNG VỀ REPLACE_CODE VÀ OVERWRITE_FILE (CHỈ SỬ DỤNG KHI CẦN SỬA FILE):",
       "### REPLACE_CODE: <tên file>",
+      "AI_NOTES: <Tóm tắt thay đổi hoặc lưu ý cho lần sửa sau để AI khác hiểu, ghi 1 dòng ngắn gọn>",
       "<<<< ORIGINAL",
       "<đoạn code gốc cần thay thế, PHẢI CHÍNH XÁC TỪNG KÝ TỰ, KHOẢNG TRẮNG, XUỐNG DÒNG>",
       "====",
       "<đoạn code mới>",
       ">>>>",
       "- CÓ THỂ ĐỊNH NGHĨA NHIỀU CẶP <<<< ORIGINAL ... >>>> LIÊN TIẾP NẾU MUỐN SỬA NHIỀU ĐOẠN KHÁC NHAU.",
-      "- KHÔNG THAY THẾ KHỐI {% comment %} Ở ĐẦU FILE .liquid. KHỐI ĐÓ LÀ HỢP ĐỒNG, PHẢI GIỮ NGUYÊN.",
-      "- Không output REPLACE_CODE vào trong khối `### THOUGHT`."
+      "",
+      "NẾU MUỐN GHI ĐÈ TOÀN BỘ FILE (thay vì tìm và thay thế), SỬ DỤNG TOOL SAU:",
+      "### OVERWRITE_FILE: <tên file>",
+      "AI_NOTES: <Tóm tắt thay đổi hoặc lưu ý cho lần sửa sau để AI khác hiểu, ghi 1 dòng ngắn gọn>",
+      "====",
+      "<toàn bộ nội dung mới của file>",
+      "====",
+      "- BẠN KHÔNG ĐƯỢC TRẢ VỀ KHỐI {% comment %} Ở ĐẦU FILE TRONG MÃ NGUỒN LIQUID. Hệ thống sẽ tự động cập nhật AI_NOTES vào khối comment đó.",
+      "- Không output REPLACE_CODE hay OVERWRITE_FILE vào trong khối `### THOUGHT`."
     );
 
     promptParts.push(liquidConvention.join("\n"));
@@ -149,11 +161,11 @@ export async function buildAgentSystemPrompt(
   // [MODULE 4: LUẬT REDESIGN - Chỉ gửi khi ở chế độ Redesign]
   if (isRedesign) {
     promptParts.push(
-      "CẢNH BÁO REDESIGN MODE (THIẾT KẾ LẠI TOÀN BỘ):",
+      "# 5. CẢNH BÁO REDESIGN MODE (THIẾT KẾ LẠI TOÀN BỘ)",
       "- BẮT BUỘC tuân thủ 4 bước của CHÍNH SÁCH THIẾT KẾ ở trên.",
       "- NẾU ĐÃ ĐƯỢC DUYỆT PHONG CÁCH, bắt đầu code:",
-      "  - File .liquid đọc vào chỉ còn khối {% comment %}, .css/.js bị làm trống.",
-      "  - Dùng REPLACE_CODE thay dòng chú thích cuối cùng thành TOÀN BỘ CODE MỚI của bạn.",
+      "  - File .liquid hiện tại sẽ tự động được hệ thống quản lý khối {% comment %} bảo vệ hợp đồng.",
+      "  - Dùng REPLACE_CODE hoặc OVERWRITE_FILE thay toàn bộ code thành TOÀN BỘ CODE MỚI của bạn (không bao gồm {% comment %} hợp đồng).",
       "- Viết HTML/CSS/JS thật đầy đủ, chi tiết, thẩm mỹ cao."
     );
   }
@@ -161,7 +173,7 @@ export async function buildAgentSystemPrompt(
   // [MODULE 5: FORMAT OUTPUT]
   promptParts.push(
     "===========================================================",
-    "FORMAT OUTPUT DUY NHẤT HỢP LỆ CHO BẠN TRONG MỌI HOÀN CẢNH:",
+    "# 6. FORMAT OUTPUT DUY NHẤT HỢP LỆ CHO BẠN TRONG MỌI HOÀN CẢNH:",
     "### THOUGHT:",
     "Tôi cần đọc file layout.liquid để xem nội dung.",
     "### READ_FILES:",
@@ -217,11 +229,12 @@ export function buildAgentUserPrompt(
 export function parseAgentResponse(raw: string): AgentAction[] {
   const actions: AgentAction[] = [];
 
-  const replaceRegex = /### REPLACE_CODE:\s*(.+?)\n([\s\S]*?)(?=\n### |$)/g;
+  const replaceRegex = /### REPLACE_CODE:\s*(.+?)\n(?:AI_NOTES:\s*(.+?)\n)?([\s\S]*?)(?=\n### |$)/g;
   let replaceMatch;
   while ((replaceMatch = replaceRegex.exec(raw)) !== null) {
     const file = replaceMatch[1].trim();
-    const blocksStr = replaceMatch[2];
+    const aiNotes = replaceMatch[2] ? replaceMatch[2].trim() : undefined;
+    const blocksStr = replaceMatch[3];
     const blocks: ReplaceBlock[] = [];
     const blockRegex = /<<<< ORIGINAL\n([\s\S]*?)\n====\n([\s\S]*?)\n>>>>/g;
     let bMatch;
@@ -229,8 +242,17 @@ export function parseAgentResponse(raw: string): AgentAction[] {
       blocks.push({ original: bMatch[1], replacement: bMatch[2] });
     }
     if (blocks.length > 0) {
-      actions.push({ type: "REPLACE_CODE", payload: { file, blocks } });
+      actions.push({ type: "REPLACE_CODE", payload: { file, blocks, aiNotes } });
     }
+  }
+
+  const overwriteRegex = /### OVERWRITE_FILE:\s*(.+?)\n(?:AI_NOTES:\s*(.+?)\n)?====\n([\s\S]*?)(?=\n====|\n### |$)/g;
+  let overwriteMatch;
+  while ((overwriteMatch = overwriteRegex.exec(raw)) !== null) {
+    const file = overwriteMatch[1].trim();
+    const aiNotes = overwriteMatch[2] ? overwriteMatch[2].trim() : undefined;
+    const content = overwriteMatch[3];
+    actions.push({ type: "OVERWRITE_FILE", payload: { file, content, aiNotes } });
   }
 
   const searchMatch = raw.match(/### SEARCH_CODE:\s*\nQUERY:\s*(.*?)\nREASON:\s*(.*?)(?=\n###|$)/s);

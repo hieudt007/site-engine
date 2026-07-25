@@ -1412,6 +1412,30 @@
     }
   });
 
+  // Tự đóng #flash sau vài giây - áp dụng chung cho MỌI trang admin (mỗi trang tự showFlash/
+  // showError/showSuccess bằng cách set class "success"/"error" lên #flash, phần lớn trước đây
+  // KHÔNG tự ẩn lại nên thông báo lỗi (và cả thành công, trừ vài trang tự reload) đứng mãi trên
+  // màn hình). Theo dõi 1 lần duy nhất ở đây thay vì sửa lặp lại từng file view.
+  document.addEventListener("DOMContentLoaded", function() {
+    const flashEl = document.getElementById('flash');
+    if (flashEl) {
+      let hideTimer = null;
+      const flashObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.attributeName !== 'class') return;
+          clearTimeout(hideTimer);
+          if (flashEl.classList.contains('success') || flashEl.classList.contains('error')) {
+            hideTimer = setTimeout(() => {
+              flashEl.className = '';
+              flashEl.textContent = '';
+            }, 3000);
+          }
+        });
+      });
+      flashObserver.observe(flashEl, { attributes: true });
+    }
+  });
+
   // Warn on unsaved changes
   document.addEventListener("DOMContentLoaded", function() {
     let isDirty = false;
@@ -1419,7 +1443,7 @@
     if (form) {
       form.addEventListener('input', () => { isDirty = true; });
       form.addEventListener('change', () => { isDirty = true; });
-      
+
       const flashEl = document.getElementById('flash');
       if (flashEl) {
         const observer = new MutationObserver((mutations) => {
@@ -1431,7 +1455,7 @@
         });
         observer.observe(flashEl, { attributes: true });
       }
-      
+
       window.addEventListener('beforeunload', function(e) {
         if (isDirty) {
           e.preventDefault();
@@ -1624,5 +1648,7 @@
       {% render comp.viewPath %}
     {% endunless %}
   {% endfor %}
+
+  {% render 'components/ai-chat-widget', user: user %}
 </body>
 </html>

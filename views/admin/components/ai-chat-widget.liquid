@@ -389,9 +389,9 @@
   let isAiLoading = false;
   let pendingImageUrl = null;
   let entityId = null;
-  const pathMatch = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/([a-zA-Z0-9-]+)/);
+  const pathMatch = window.location.pathname.match(/^\/admin\/(posts|pages|products|settings\/theme)\/([a-zA-Z0-9-_]+)/);
   if (pathMatch) {
-    const type = pathMatch[1];
+    const type = pathMatch[1].replace("/", "_");
     const id = pathMatch[2];
     if (id === 'new') {
       const draftKey = `ai_draft_${type}`;
@@ -438,10 +438,16 @@
   // Chỉ hiện tooltip 1 lần trong phiên làm việc
   const isContentPage = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/);
   const hasSeenTooltip = sessionStorage.getItem('ai_tooltip_seen');
-  
-  if (!hasSeenTooltip) {
+  const isThemeEditPage = !!window.location.pathname.match(/^\/admin\/settings\/theme\//);
+  if (isThemeEditPage) {
+    win.classList.add('open');
+    sessionStorage.setItem('ai_tooltip_seen', 'true');
+  }
+
+  // Khôi phục tooltip nếu chưa thấy (và không ở trang theme)
+  if (!isThemeEditPage && !sessionStorage.getItem('ai_tooltip_seen')) {
     setTimeout(() => {
-      if (tooltipHidden || win.classList.contains('open')) return;
+      if (win.classList.contains('open') || tooltipHidden) return;
       const tooltip = document.getElementById('ai-chat-tooltip');
       if (tooltip) {
         tooltip.textContent = isContentPage 
@@ -689,191 +695,215 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
       
       const loadingEl = document.getElementById('ai-loading-indicator');
       
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         if (loadingEl) loadingEl.remove();
-        messagesDiv.appendChild(renderMessage('bot', data.message || "Lỗi: Không thể gọi AI.", 'error'));
+        messagesDiv.appendChild(renderMessage('bot', "Lỗi: Không thể gọi AI.", 'error'));
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
         isAiLoading = false;
         return;
       }
 
-      // Luồng xử lý JSON Action
-      if (data.action === "request_fields") {
-        if (loadingEl) {
-          loadingEl.querySelector('span').textContent = data.message || "Đang thu thập dữ liệu...";
-        }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop();
         
-        // Thu thập dữ liệu form
-        const toolData = {};
-        if (Array.isArray(data.fields)) {
-          data.fields.forEach(fieldId => {
-            const el = document.getElementById(fieldId);
-            if (el) {
-              // Xử lý riêng biệt cho rich-text body nếu cần
-              toolData[fieldId] = el.value !== undefined ? el.value : el.innerText;
-            } else if (fieldId === 'faq') {
-              const faqRows = document.getElementById('faq-rows');
-              if (faqRows) {
-                const faqs = [...faqRows.querySelectorAll('.faq-row')].map(row => ({
-                  question: row.querySelector('.faq-q').value.trim(),
-                  answer: row.querySelector('.faq-a').value.trim()
-                }));
-                toolData['faq'] = JSON.stringify(faqs);
-              }
-            }
-          });
-        }
-        
-        if (data.searchResults) {
-          toolData.searchResults = data.searchResults;
-        }
-        
-        // Gửi đệ quy
-        const secondPayload = {
-          message: payload.originalMessage || payload.message,
-          isToolResponse: true,
-          toolData: toolData,
-          originalMessage: payload.originalMessage || payload.message,
-          nextAgent: data.nextAgent || "content",
-          imageUrl: payload.imageUrl,
-          entityId: entityId,
-          historyId: data.historyId,
-          availableFields: payload.availableFields
-        };
-        return sendMessage(null, secondPayload);
-      } else if (data.action === "generate_image") {
-        if (loadingEl) {
-          loadingEl.querySelector('span').textContent = data.message || "Đang tạo ảnh...";
-        }
-        
-        try {
-          const imgRes = await fetch('/admin/api/ai-chat/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: data.prompt, key: "image", historyId: data.historyId })
-          });
-          const imgData = await imgRes.json();
-          
-          if (!imgRes.ok) throw new Error(imgData.message);
-          
-          if (loadingEl) loadingEl.remove();
-          
-          const markdownImg = `![Tạo ảnh](${imgData.url})\n\n[Link ảnh](${imgData.url})`;
-          messagesDiv.appendChild(renderMessage('bot', markdownImg));
-          messagesDiv.scrollTop = messagesDiv.scrollHeight;
-          isAiLoading = false;
-        } catch (e) {
-          if (loadingEl) loadingEl.remove();
-          messagesDiv.appendChild(renderMessage('bot', "Lỗi tạo ảnh: " + e.message, 'error'));
-          messagesDiv.scrollTop = messagesDiv.scrollHeight;
-          isAiLoading = false;
-        }
-      } else if (data.action === "webfetch" || data.action === "websearch") {
-        if (loadingEl) {
-          loadingEl.querySelector('span').textContent = data.message || "Đang lấy dữ liệu...";
-        }
-        
-        try {
-          const endpoint = data.action === "webfetch" ? '/admin/api/ai-chat/webfetch' : '/admin/api/ai-chat/websearch';
-          const bodyData = data.action === "webfetch" ? { url: data.url } : { query: data.query };
-          
-          const toolRes = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyData)
-          });
-          const toolDataJson = await toolRes.json();
-          
-          if (!toolRes.ok) throw new Error(toolDataJson.message);
-          
-          // Gửi đệ quy với kết quả
-          const secondPayload = {
-            message: payload.originalMessage || payload.message,
-            isToolResponse: true,
-            toolData: { [data.action]: toolDataJson.result },
-            originalMessage: payload.originalMessage || payload.message,
-            nextAgent: window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/) ? "content" : "chat",
-            imageUrl: payload.imageUrl,
-            entityId: entityId,
-            historyId: data.historyId,
-            availableFields: payload.availableFields
-          };
-          return sendMessage(null, secondPayload);
-        } catch (e) {
-          if (loadingEl) loadingEl.remove();
-          messagesDiv.appendChild(renderMessage('bot', "Lỗi dữ liệu web: " + e.message, 'error'));
-          messagesDiv.scrollTop = messagesDiv.scrollHeight;
-          isAiLoading = false;
-        }
-      } 
-      else if (data.action === "fill_form") {
-        if (loadingEl) loadingEl.remove();
-        
-        // Cập nhật DOM
-        if (data.data && typeof data.data === 'object') {
-          for (const [key, val] of Object.entries(data.data)) {
-            const el = document.getElementById(key);
-            if (el) {
-              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                el.value = val;
-                // Đồng bộ cho Rich Editor (nếu có)
-                if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
-                  const editorBody = el.parentNode.querySelector('.rich-editor-body');
-                  if (editorBody) {
-                    editorBody.innerHTML = val;
-                    editorBody.dispatchEvent(new Event('input', { bubbles: true }));
-                  }
-                }
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-              } else {
-                el.innerHTML = val;
-              }
-            } else if (key === 'faq') {
-              const faqRows = document.getElementById('faq-rows');
-              if (faqRows) {
-                let parsedVal = val;
-                if (typeof val === 'string') {
-                  try {
-                    parsedVal = JSON.parse(val);
-                  } catch(e) { parsedVal = []; }
-                }
-                
-                if (Array.isArray(parsedVal)) {
-                  faqRows.innerHTML = '';
-                  parsedVal.forEach(item => {
-                    if (typeof window.appendFaqRow === 'function') {
-                      window.appendFaqRow(item.question, item.answer);
-                    } else {
-                      const evt = new CustomEvent('ai-fill-faq', { detail: { question: item.question, answer: item.answer } });
-                      document.dispatchEvent(evt);
-                    }
-                  });
-                }
-              }
-            }
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+          let event;
+          try {
+            event = JSON.parse(line.slice(5).trim());
+          } catch(e) { continue; }
+
+          if (event.step === "thinking" || event.step === "tool") {
+             if (loadingEl) loadingEl.querySelector('span').textContent = event.label;
+          } else if (event.step === "error") {
+             if (loadingEl) loadingEl.remove();
+             messagesDiv.appendChild(renderMessage('bot', event.label, 'error'));
+             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+             isAiLoading = false;
+             return;
+          } else if (event.step === "tool_request") {
+             // Handle request_fields recursively
+             const data = event.payload;
+             if (loadingEl) {
+               loadingEl.querySelector('span').textContent = data.message || "Đang thu thập dữ liệu...";
+             }
+             
+             // Thu thập dữ liệu form
+             const toolData = {};
+             if (Array.isArray(data.fields)) {
+               data.fields.forEach(fieldId => {
+                 const el = document.getElementById(fieldId);
+                 if (el) {
+                   toolData[fieldId] = el.value !== undefined ? el.value : el.innerText;
+                 } else if (fieldId === 'faq') {
+                   const faqRows = document.getElementById('faq-rows');
+                   if (faqRows) {
+                     const faqs = [...faqRows.querySelectorAll('.faq-row')].map(row => ({
+                       question: row.querySelector('.faq-q').value.trim(),
+                       answer: row.querySelector('.faq-a').value.trim()
+                     }));
+                     toolData['faq'] = JSON.stringify(faqs);
+                   }
+                 }
+               });
+             }
+             
+             if (data.searchResults) toolData.searchResults = data.searchResults;
+             
+             const secondPayload = {
+               message: payload.originalMessage || payload.message,
+               isToolResponse: true,
+               toolData: toolData,
+               originalMessage: payload.originalMessage || payload.message,
+               nextAgent: data.nextAgent || "content",
+               imageUrl: payload.imageUrl,
+               entityId: entityId,
+               historyId: data.historyId,
+               availableFields: payload.availableFields
+             };
+             return sendMessage(null, secondPayload);
+          } else if (event.step === "done") {
+             const data = event.payload || {};
+             
+             if (data.action === "generate_image") {
+               if (loadingEl) loadingEl.querySelector('span').textContent = data.message || "Đang tạo ảnh...";
+               try {
+                 const imgRes = await fetch('/admin/api/ai-chat/generate-image', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ prompt: data.prompt, key: "image", historyId: data.historyId })
+                 });
+                 const imgData = await imgRes.json();
+                 if (!imgRes.ok) throw new Error(imgData.message);
+                 if (loadingEl) loadingEl.remove();
+                 const markdownImg = `![Tạo ảnh](${imgData.url})\n\n[Link ảnh](${imgData.url})`;
+                 messagesDiv.appendChild(renderMessage('bot', markdownImg));
+               } catch (e) {
+                 if (loadingEl) loadingEl.remove();
+                 messagesDiv.appendChild(renderMessage('bot', "Lỗi tạo ảnh: " + e.message, 'error'));
+               }
+               messagesDiv.scrollTop = messagesDiv.scrollHeight;
+               isAiLoading = false;
+               return;
+             } 
+             
+             if (data.action === "webfetch" || data.action === "websearch") {
+               if (loadingEl) loadingEl.querySelector('span').textContent = data.message || "Đang lấy dữ liệu...";
+               try {
+                 const endpoint = data.action === "webfetch" ? '/admin/api/ai-chat/webfetch' : '/admin/api/ai-chat/websearch';
+                 const bodyData = data.action === "webfetch" ? { url: data.url } : { query: data.query };
+                 const toolRes = await fetch(endpoint, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify(bodyData)
+                 });
+                 const toolDataJson = await toolRes.json();
+                 if (!toolRes.ok) throw new Error(toolDataJson.message);
+                 
+                 const secondPayload = {
+                   message: payload.originalMessage || payload.message,
+                   isToolResponse: true,
+                   toolData: { [data.action]: toolDataJson.result },
+                   originalMessage: payload.originalMessage || payload.message,
+                   nextAgent: window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/) ? "content" : "chat",
+                   imageUrl: payload.imageUrl,
+                   entityId: entityId,
+                   historyId: data.historyId,
+                   availableFields: payload.availableFields
+                 };
+                 return sendMessage(null, secondPayload);
+               } catch (e) {
+                 if (loadingEl) loadingEl.remove();
+                 messagesDiv.appendChild(renderMessage('bot', "Lỗi dữ liệu web: " + e.message, 'error'));
+                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                 isAiLoading = false;
+                 return;
+               }
+             }
+              
+             if (data.action === "fill_form") {
+               if (loadingEl) loadingEl.remove();
+               
+               // Cập nhật DOM
+               if (data.data && typeof data.data === 'object') {
+                 for (const [key, val] of Object.entries(data.data)) {
+                   const el = document.getElementById(key);
+                   if (el) {
+                     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                       el.value = val;
+                       if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
+                         const editorBody = el.parentNode.querySelector('.rich-editor-body');
+                         if (editorBody) {
+                           editorBody.innerHTML = val;
+                           editorBody.dispatchEvent(new Event('input', { bubbles: true }));
+                         }
+                       }
+                       el.dispatchEvent(new Event('change', { bubbles: true }));
+                     } else {
+                       el.innerHTML = val;
+                     }
+                   } else if (key === 'faq') {
+                     const faqRows = document.getElementById('faq-rows');
+                     if (faqRows) {
+                       let parsedVal = val;
+                       if (typeof val === 'string') {
+                         try { parsedVal = JSON.parse(val); } catch(e) { parsedVal = []; }
+                       }
+                       
+                       if (Array.isArray(parsedVal)) {
+                         faqRows.innerHTML = '';
+                         parsedVal.forEach(item => {
+                           if (typeof window.appendFaqRow === 'function') {
+                             window.appendFaqRow(item.question, item.answer);
+                           } else {
+                             faqRows.insertAdjacentHTML('beforeend', `<div class="faq-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" class="input faq-q" value="${escapeHtml(item.question)}" style="flex:1;"><input type="text" class="input faq-a" value="${escapeHtml(item.answer)}" style="flex:2;"><button type="button" class="btn btn-danger btn-icon remove-faq-btn" tabindex="-1">✕</button></div>`);
+                           }
+                         });
+                         faqRows.dispatchEvent(new Event('change', { bubbles: true }));
+                       }
+                     }
+                   } else if (key === 'keyword') {
+                     if (typeof window.addTag === 'function') {
+                       const tags = val.split(',').map(s => s.trim()).filter(Boolean);
+                       tags.forEach(t => window.addTag(t));
+                     }
+                   }
+                 }
+                 messagesDiv.appendChild(renderMessage('bot', data.message || "Đã điền dữ liệu vào form."));
+               } else {
+                 messagesDiv.appendChild(renderMessage('bot', "Không có dữ liệu để điền.", "error"));
+               }
+               messagesDiv.scrollTop = messagesDiv.scrollHeight;
+               isAiLoading = false;
+               return;
+             } 
+             
+             // Mặc định là action: "chat"
+             if (loadingEl) loadingEl.remove();
+             messagesDiv.appendChild(renderMessage('bot', data.message || data.reply || "Đã xử lý xong."));
+             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+             isAiLoading = false;
+             return;
           }
         }
-        
-        messagesDiv.appendChild(renderMessage('bot', data.message || "Đã điền dữ liệu xong.", ''));
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        isAiLoading = false;
       }
-      else {
-        // Chat bình thường
-        if (loadingEl) loadingEl.remove();
-        messagesDiv.appendChild(renderMessage('bot', data.message || "Đã xử lý xong.", ''));
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        isAiLoading = false;
-      }
-      
     } catch (e) {
       const loadingEl = document.getElementById('ai-loading-indicator');
       if (loadingEl) loadingEl.remove();
-      messagesDiv.appendChild(renderMessage('bot', "Không kết nối được server.", 'error'));
+      messagesDiv.appendChild(renderMessage('bot', "Lỗi kết nối: " + e.message, 'error'));
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
       isAiLoading = false;
     }
