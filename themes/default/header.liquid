@@ -1,24 +1,11 @@
 {% comment %}
 @description: Thanh dieu huong dau trang.
+@context_vars: shop, global_settings
+@responsibilities: Hiển thị đầu trang: Logo, Menu chính, Nút tìm kiếm, Nút giỏ hàng
+@structure_rules: Thẻ <header> bọc ngoài, dính (sticky) ở trên cùng
 @required_substrings: site.siteName, headerMenu
 @required_ids: cart-icon
 @notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
 {% endcomment %}
-<header>
-    <nav>
-        <a href="/">{{ site.siteName }}</a>
-        <button id="cart-icon">Cart</button>
-        <ul>
-            {% if headerMenu and headerMenu.items.size > 0 %}
-                {% for item in headerMenu.items %}
-                    <li><a href="{{ item.url }}">{{ item.label }}</a></li>
-                {% endfor %}
-            {% else %}
-                <li><a href="/products">Products</a></li>
-                <li><a href="/blog">Blog</a></li>
-                <li><a href="/cart">Cart</a></li>
-            {% endif %}
-        </ul>
-        ...
-    </nav>
-</header>
+
+<!-- Giao diện trống -->

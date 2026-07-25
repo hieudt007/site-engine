@@ -28,7 +28,7 @@ async function loadHomeData() {
 // route se tu fallback ve trang chu kem 1 cau ghi chu, KHONG bia du lieu gia (dung lai chinh
 // field-select cua tung routes/public/*.ts that de dam bao dung hinh dang bien Liquid can, tranh
 // doan sai gay loi render).
-const LOADERS: Record<string, () => Promise<{ template: string; data: Record<string, unknown> } | null>> = {
+export const PREVIEW_LOADERS: Record<string, () => Promise<{ template: string; data: Record<string, unknown> } | null>> = {
   home: loadHomeData,
 
   "blog-list": async () => {
@@ -138,7 +138,7 @@ export async function registerThemePreviewRoutes(app: FastifyInstance): Promise<
       }
 
       const key = request.query.page ?? "home";
-      const loader = LOADERS[key] ?? loadHomeData;
+      const loader = PREVIEW_LOADERS[key] ?? loadHomeData;
       const result = (await loader()) ?? (await loadHomeData());
 
       const html = await renderPublic(result.template, result.data, request.params.slug);

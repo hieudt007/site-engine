@@ -1,11 +1,11 @@
 {% comment %}
 @description: Card san pham dung chung cho home, product list, product category va cac khu san pham lien quan.
+@context_vars: product (Object)
+@responsibilities: Thẻ sản phẩm thu gọn (Ảnh, Tên, Giá, Nút thêm giỏ)
+@structure_rules: Thẻ <div> card tiêu chuẩn
 @required_substrings: product, productUrlPrefix, variant, product.name
 @required_ids: 
 @notes: Nhan product, productUrlPrefix va variant. Sua card san pham o home/list/category/search/related o day. Variant co the la 'home', 'list', 'category', 'related', 'upsell', 'cross-sell'. Duoc phep doi layout/style theo variant, nhung phai link den productUrlPrefix + slug/id va hien ten/gia san pham. NÊN CÓ: Nút 'Thêm vào giỏ' dùng thẻ <a class='global-add-to-cart-btn' rel='nofollow' href='/cart/checkout?add_product_id={{ product.id }}' data-product-id='{{ product.id }}'>. Lõi JS đã tự bắt sự kiện này để giỏ hàng trượt ra, nếu JS hỏng sẽ tự fallback về trang thanh toán.
 {% endcomment %}
-<article class="variant-{{ variant }}">
-    ...
-    <a href="{{ productUrlPrefix }}/{{ product.slug | default: product.id }}">{{ product.name }}</a>
-    <a class="global-add-to-cart-btn" rel="nofollow" href="/cart/checkout?add_product_id={{ product.id }}" data-product-id="{{ product.id }}">Add</a>
-</article>
+
+<!-- Giao diện trống -->

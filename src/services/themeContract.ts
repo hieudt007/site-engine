@@ -4,6 +4,9 @@ import path from "node:path";
 export interface ThemeFileContract {
   file: string;
   description: string;
+  contextVars: string;
+  responsibilities: string;
+  structureRules: string;
   requiredSubstrings: string[];
   requiredIds: string[];
   notes: string;
@@ -29,6 +32,9 @@ export function parseContractFromLiquid(content: string, filename: string): Them
   const comment = commentMatch[1];
   
   const descMatch = comment.match(/@description:\s*(.*)/);
+  const contextVarsMatch = comment.match(/@context_vars:\s*(.*)/);
+  const respMatch = comment.match(/@responsibilities:\s*(.*)/);
+  const structMatch = comment.match(/@structure_rules:\s*(.*)/);
   const subsMatch = comment.match(/@required_substrings:\s*(.*)/);
   const idsMatch = comment.match(/@required_ids:\s*(.*)/);
   const notesMatch = comment.match(/@notes:\s*(.*)/);
@@ -38,6 +44,9 @@ export function parseContractFromLiquid(content: string, filename: string): Them
   return {
     file: filename,
     description: descMatch[1].trim(),
+    contextVars: contextVarsMatch && contextVarsMatch[1].trim() ? contextVarsMatch[1].trim() : "",
+    responsibilities: respMatch && respMatch[1].trim() ? respMatch[1].trim() : "",
+    structureRules: structMatch && structMatch[1].trim() ? structMatch[1].trim() : "",
     requiredSubstrings: subsMatch && subsMatch[1].trim() ? subsMatch[1].split(',').map(s => s.trim()).filter(Boolean) : [],
     requiredIds: idsMatch && idsMatch[1].trim() ? idsMatch[1].split(',').map(s => s.trim()).filter(Boolean) : [],
     notes: notesMatch && notesMatch[1].trim() ? notesMatch[1].trim() : ""
@@ -82,6 +91,9 @@ export async function getAllContracts(themeSlug: string): Promise<ThemeFileContr
           contracts.push({
             file: normalizedPath,
             description: "File tùy chỉnh",
+            contextVars: "",
+            responsibilities: "",
+            structureRules: "",
             requiredSubstrings: [],
             requiredIds: [],
             notes: ""

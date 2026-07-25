@@ -1,18 +1,11 @@
 {% comment %}
 @description: Breadcrumb dung chung toan site, style theo breadcrumbVariant.
+@context_vars: breadcrumbs (Array)
+@responsibilities: Đường dẫn phân cấp (Breadcrumb)
+@structure_rules: Thẻ <nav>
 @required_substrings: breadcrumbs, breadcrumbVariant, item.name, item.url
 @required_ids: 
 @notes: Nhan breadcrumbs[] moi item co name/url va breadcrumbVariant ('blog'|'product'|'default'). PHAI tu an khi breadcrumbs rong/null. Co the doi style rieng theo variant, nhung khong bo aria-label Breadcrumb va khong bo aria-current tren item cuoi.
 {% endcomment %}
-{% if breadcrumbs and breadcrumbs.size > 0 %}
-<nav aria-label="Breadcrumb" class="variant-{{ breadcrumbVariant }}">
-    ...
-    <ol>
-    {% for item in breadcrumbs %}
-        <li {% if forloop.last %}aria-current="page"{% endif %}>
-            <a href="{{ item.url }}">{{ item.name }}</a>
-        </li>
-    {% endfor %}
-    </ol>
-</nav>
-{% endif %}
+
+<!-- Giao diện trống -->

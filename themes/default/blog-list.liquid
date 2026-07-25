@@ -1,25 +1,11 @@
 {% comment %}
 @description: Danh sach bai viet, co phan trang.
+@context_vars: posts (Array), shop, global_settings
+@responsibilities: Hiển thị danh sách tất cả bài viết blog
+@structure_rules: Sử dụng Grid/Flex layout
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, posts, post.slug, post.title, hasNext, hasPrev
 @required_ids: 
 @notes: posts[] tung phan tu co slug/title/excerpt/coverImage/publishedAt/categories[]. hasPrev/hasNext/prevPage/nextPage cho phan trang. NÊN CÓ thêm: Ô tìm kiếm bài viết và Danh sách các chuyên mục/tag phổ biến (Category pills).
 {% endcomment %}
-{% layout "layout" %}
-{% block content %}
-<section>
-    <h1>...</h1>
-    <div>
-        {% if posts and posts.size > 0 %}
-            {% for post in posts %}
-                <article>
-                    <h2><a href="/blog/{{ post.slug }}">{{ post.title }}</a></h2>
-                    ...
-                </article>
-            {% endfor %}
-        {% endif %}
-    </div>
-    {% if hasPrev or hasNext %}
-        {% render "components/common/pagination", basePath: "/blog", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
-    {% endif %}
-</section>
-{% endblock %}
+
+<!-- Giao diện trống -->

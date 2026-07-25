@@ -1,16 +1,11 @@
 {% comment %}
 @description: Partial hien bang key-value cho truong tuy bien admin tu dat.
+@context_vars: product (Object), page (Object)
+@responsibilities: Hiển thị các trường dữ liệu tùy chỉnh (custom fields)
+@structure_rules: Tùy biến theo data
 @required_substrings: fields
 @required_ids: 
 @notes: Nhan fields (object string->string, co the null/rong — PHAI tu an neu rong). Loop qua tung cap [key,value].
 {% endcomment %}
-{% if fields %}
-<div>
-    ...
-    <ul>
-    {% for field in fields %}
-        <li>{{ field[0] }}: {{ field[1] }}</li>
-    {% endfor %}
-    </ul>
-</div>
-{% endif %}
+
+<!-- Giao diện trống -->

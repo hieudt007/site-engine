@@ -1,22 +1,11 @@
 {% comment %}
 @description: Trang phan loai san pham (danh muc hoac thuong hieu).
+@context_vars: category (Object), products (Array), shop
+@responsibilities: Hiển thị tên danh mục, bộ lọc cơ bản, danh sách sản phẩm
+@structure_rules: Container có Sidebar bên trái và Grid sản phẩm bên phải
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, category.name, products, category.customFields, categoryPath
 @required_ids: 
 @notes: Dung chung cho /products/danh-muc/:slug va /products/thuong-hieu/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}.
 {% endcomment %}
-{% layout "layout" %}
-{% block content %}
-<section>
-    <h1>{{ category.name }}</h1>
-    ...
-    <div>
-        {% if products and products.size > 0 %}
-            {% for product in products %}
-                ...
-            {% endfor %}
-        {% endif %}
-    </div>
-    {% render "custom-fields", fields: category.customFields %}
-    {% render "components/common/pagination", basePath: categoryPath, hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
-</section>
-{% endblock %}
+
+<!-- Giao diện trống -->

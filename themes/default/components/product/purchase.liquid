@@ -1,23 +1,11 @@
 {% comment %}
 @description: Khoi mua hang, gia, bien the, them gio va mua ngay.
+@context_vars: product (Object)
+@responsibilities: Khối mua hàng (Giá, Chọn phân loại Variant, Số lượng, Nút Mua ngay / Thêm giỏ)
+@structure_rules: Bọc trong một khối nền khác màu để làm nổi bật
 @required_substrings: product.price, variantsJson
 @required_ids: add-to-cart, variant-picker, variant-price, variant-stock, variants-data, buy-now-btn, buy-now-form, buy-now-cancel, buy-now-error
 @notes: Sua gia, bien the, ton kho, them gio, mua ngay va form mua ngay o day. JS phia client doc cac ID nay. #add-to-cart can data-id khi khong co bien the; khi co bien the JS tu gan data-variant-id. #variants-data phai chua {{ variantsJson }} khi product.hasVariants. #buy-now-form phai co input customerName/customerPhone/customerAddress.
 {% endcomment %}
-<div>
-    <p id="variant-price">{{ product.price }}</p>
-    <p id="variant-stock">...</p>
-    <div id="variants-data" style="display: none;">{{ variantsJson }}</div>
-    <select id="variant-picker">...</select>
-    <button id="add-to-cart">Add to cart</button>
-    
-    <form id="buy-now-form">
-        <input type="text" name="customerName">
-        <input type="text" name="customerPhone">
-        <input type="text" name="customerAddress">
-        <button id="buy-now-btn" type="submit">Buy Now</button>
-        <button id="buy-now-cancel" type="button">Cancel</button>
-        <div id="buy-now-error"></div>
-    </form>
-    ...
-</div>
+
+<!-- Giao diện trống -->

@@ -1,13 +1,11 @@
 {% comment %}
 @description: Khoi thong tin dinh danh san pham.
+@context_vars: product (Object)
+@responsibilities: Khối thông tin định danh (Tên, Category, Đánh giá, Mô tả ngắn)
+@structure_rules: Không thiết lập layout tĩnh, chỉ chứa nội dung text
 @required_substrings: product.name, product.categories
 @required_ids: 
 @notes: Nhan product va productCategoryPathPrefix. Sua ten, danh muc, thong tin nhan dien/ngan o day; khong ap dat vi tri layout.
 {% endcomment %}
-<div>
-    <h1>{{ product.name }}</h1>
-    ...
-    {% if product.categories %}
-       ...
-    {% endif %}
-</div>
+
+<!-- Giao diện trống -->

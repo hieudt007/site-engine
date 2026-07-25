@@ -1,21 +1,11 @@
 {% comment %}
 @description: Trang xac nhan sau khi dat hang thanh cong.
+@context_vars: order (Object), shop
+@responsibilities: Hiển thị lời cảm ơn, mã đơn hàng, thông tin đã đặt
+@structure_rules: Căn giữa trang, nổi bật lời cảm ơn
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, order.id, order.items, order.total, order.customFields
 @required_ids: 
 @notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).
 {% endcomment %}
-{% layout "layout" %}
-{% block content %}
-<section>
-    <h1>...</h1>
-    <p>Order ID: {{ order.id }}</p>
-    <p>Total: {{ order.total }}</p>
-    <ul>
-        {% for item in order.items %}
-            <li>{{ item.name }} - {{ item.quantity }} - {{ item.price }}</li>
-        {% endfor %}
-    </ul>
-    ...
-    {% render "custom-fields", fields: order.customFields %}
-</section>
-{% endblock %}
+
+<!-- Giao diện trống -->

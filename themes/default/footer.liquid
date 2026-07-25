@@ -1,17 +1,11 @@
 {% comment %}
 @description: Chan trang.
+@context_vars: shop, global_settings
+@responsibilities: Hiển thị chân trang: link điều hướng, thông tin liên hệ, copyright
+@structure_rules: Thẻ <footer> bọc ngoài, chia cột lưới thông tin
 @required_substrings: site.siteName, footerMenu
 @required_ids: 
 @notes: Nhan bien site va footerMenu (giong header.liquid), hien nam ban quyen + ten site. NÊN CÓ thêm: Cột nhập email đăng ký nhận bản tin (Newsletter subscription) và các icon mạng xã hội.
 {% endcomment %}
-<footer>
-    <p>&copy; {{ year }} {{ site.siteName }}.</p>
-    <ul>
-        {% if footerMenu and footerMenu.items.size > 0 %}
-            {% for item in footerMenu.items %}
-                <li><a href="{{ item.url }}">{{ item.label }}</a></li>
-            {% endfor %}
-        {% endif %}
-    </ul>
-    ...
-</footer>
+
+<!-- Giao diện trống -->

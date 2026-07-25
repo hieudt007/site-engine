@@ -1,18 +1,11 @@
 {% comment %}
 @description: Man hinh nhap mat khau xem bai viet bi khoa.
+@context_vars: post (Object), shop
+@responsibilities: Hiển thị form nhập mật khẩu để xem bài viết
+@structure_rules: Bọc form trong thẻ <div> căn giữa
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, pageTitle
 @required_ids: unlock-form, password, unlock-error
 @notes: JS co san doc form#unlock-form, input#password, hien loi vao #unlock-error. KHONG duoc doi id 3 cai nay hoac form se khong hoat dong — chi duoc doi style/layout.
 {% endcomment %}
-{% layout "layout" %}
-{% block content %}
-<section>
-    <h1>{{ pageTitle }}</h1>
-    ...
-    <form id="unlock-form">
-        <input type="password" id="password" name="password">
-        <button type="submit">...</button>
-        <div id="unlock-error"></div>
-    </form>
-</section>
-{% endblock %}
+
+<!-- Giao diện trống -->

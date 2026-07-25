@@ -1,12 +1,11 @@
 {% comment %}
 @description: Khoi san pham lien quan dung cho upsell/cross-sell.
+@context_vars: product (Object)
+@responsibilities: Khối sản phẩm liên quan trong trang chi tiết
+@structure_rules: Nằm dưới cùng của trang chi tiết
 @required_substrings: products, title
 @required_ids: 
 @notes: Nhan title, products[], productUrlPrefix. Sua block upsell/cross-sell/related trong trang chi tiet o day. Tu an khi products rong/null. Co the dung product-card neu phu hop.
 {% endcomment %}
-{% if products and products.size > 0 %}
-<section>
-    <h2>{{ title }}</h2>
-    ...
-</section>
-{% endif %}
+
+<!-- Giao diện trống -->

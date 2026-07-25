@@ -1,13 +1,11 @@
 {% comment %}
 @description: Mini cart hien thi dang drawer hoac popup.
+@context_vars: cart (Object)
+@responsibilities: Giỏ hàng trượt từ bên phải (Drawer). Có danh sách SP, tổng tiền, nút Checkout
+@structure_rules: Fixed position, trượt ra từ cạnh phải
 @required_substrings: 
 @required_ids: cart-drawer, cart-drawer-items, cart-drawer-total, cart-drawer-close
 @notes: Giao dien giỏ hàng nhỏ gọn trượt từ cạnh bên hoac popup. JS se dung #cart-drawer de hien/an, render html danh sach vao #cart-drawer-items, hien tong tien vao #cart-drawer-total. Nút close dùng #cart-drawer-close. Phải có link tới /checkout.
 {% endcomment %}
-<div id="cart-drawer" style="display: none;">
-    ...
-    <div id="cart-drawer-items"></div>
-    <div id="cart-drawer-total"></div>
-    <button id="cart-drawer-close">Close</button>
-    <a href="/cart/checkout">Checkout</a>
-</div>
+
+<!-- Giao diện trống -->

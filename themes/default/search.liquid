@@ -1,25 +1,11 @@
 {% comment %}
 @description: Trang tim kiem public cho bai viet, trang tinh va san pham.
+@context_vars: search (Object), products (Array), posts (Array)
+@responsibilities: Hiển thị kết quả tìm kiếm
+@structure_rules: Trang kết quả dạng Grid
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, q, hasQuery, posts, pages, products, totalResults
 @required_ids: 
 @notes: Nhan q, hasQuery, totalResults, posts[], pages[], products[]. Nen dung components/post/card.liquid va components/product/card.liquid de hien ket qua, khong copy lai HTML card dai trong file search.
 {% endcomment %}
-{% layout "layout" %}
-{% block content %}
-<section>
-    <h1>...</h1>
-    <form action="/search" method="GET">
-        <input type="text" name="q" value="{{ q | escape }}">
-        <button type="submit">...</button>
-    </form>
-    ...
-    {% if hasQuery %}
-        <p>Total: {{ totalResults }}</p>
-        <div>
-            {% for post in posts %}...{% endfor %}
-            {% for page in pages %}...{% endfor %}
-            {% for product in products %}...{% endfor %}
-        </div>
-    {% endif %}
-</section>
-{% endblock %}
+
+<!-- Giao diện trống -->

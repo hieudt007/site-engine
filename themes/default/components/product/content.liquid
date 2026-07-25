@@ -1,24 +1,11 @@
 {% comment %}
 @description: Khoi noi dung dai, thong so, FAQ, custom fields va danh gia cua san pham.
+@context_vars: product (Object)
+@responsibilities: Nội dung mô tả dài của sản phẩm (HTML)
+@structure_rules: Rộng (Full width) bên dưới khối chính
 @required_substrings: product.description, product.customFields, {% render "custom-fields", reviews, avgRating
 @required_ids: review-form, review-msg
 @notes: Nhan product, reviews va avgRating. Sua mo ta dai, thong so, FAQ, custom fields va danh gia/review o day. PHAI giu {% render "custom-fields", fields: product.customFields %}. JS gui danh gia doc form#review-form va #review-msg. Form can customerName, rating va comment. NÊN CÓ thêm: UI dạng Tabs hoặc Accordion để chứa gọn gàng phần mô tả, thông số và đánh giá.
 {% endcomment %}
-<div>
-    <div>
-        {{ product.description }}
-    </div>
-    {% render "custom-fields", fields: product.customFields %}
-    
-    <div>
-        <p>Rating: {{ avgRating }} ({{ reviews.size }} reviews)</p>
-        <form id="review-form">
-            <input name="customerName">
-            <input name="rating">
-            <textarea name="comment"></textarea>
-            <button type="submit">Submit</button>
-        </form>
-        <div id="review-msg"></div>
-    </div>
-    ...
-</div>
+
+<!-- Giao diện trống -->

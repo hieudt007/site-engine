@@ -780,6 +780,74 @@
         setTab("preview");
         reloadPreview();
       }
+    } else if (event.step === "test_request") {
+      setTab("preview");
+      const iframe = document.getElementById("preview-iframe");
+      const page = (event.payload && event.payload.page) || "home";
+      
+      const testErrors = [];
+      const messageListener = (e) => {
+        if (e.data && e.data.type === 'TEST_ERROR') {
+          testErrors.push(e.data.message);
+        }
+      };
+      window.addEventListener("message", messageListener);
+
+      fetch(`/admin/themes/${slug}/preview?page=${page}`)
+        .then(res => res.text())
+        .then(html => {
+           const script = `<script>
+             window.onerror = function(msg, url, line) { window.parent.postMessage({ type: 'TEST_ERROR', message: msg + ' at line ' + line }, '*'); };
+             const oldError = console.error;
+             console.error = function(...args) { window.parent.postMessage({ type: 'TEST_ERROR', message: args.join(' ') }, '*'); oldError.apply(console, args); };
+           </scr` + `ipt>`;
+           
+           iframe.onload = async () => {
+             try {
+               const innerDoc = iframe.contentDocument || iframe.contentWindow.document;
+               
+               let screenshotBase64 = null;
+               try {
+                 // Wait a tiny bit for fonts/images to settle
+                 await new Promise(r => setTimeout(r, 500));
+                 const canvas = await html2canvas(innerDoc.body, { 
+                   windowWidth: 1280, 
+                   windowHeight: innerDoc.body.scrollHeight || 1080,
+                   useCORS: true,
+                   logging: false
+                 });
+                 screenshotBase64 = canvas.toDataURL("image/jpeg", 0.7); // nén JPEG để tiết kiệm băng thông/token
+               } catch (e) {
+                 console.error("Screenshot failed:", e);
+               }
+               
+               await fetch(`/admin/api/themes/${slug}/chat/test-result`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ html: "", errors: testErrors, screenshot: screenshotBase64 })
+               });
+             } catch (err) {
+               console.error("Test Request Error:", err);
+             } finally {
+               window.removeEventListener("message", messageListener);
+               iframe.onload = null;
+             }
+           };
+           
+           if (html.includes('<head>')) {
+             iframe.srcdoc = html.replace('<head>', '<head>' + script);
+           } else {
+             iframe.srcdoc = script + html;
+           }
+        })
+        .catch(err => {
+           window.removeEventListener("message", messageListener);
+           fetch(`/admin/api/themes/${slug}/chat/test-result`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ html: "", errors: ["Failed to fetch preview: " + err] })
+           });
+        });
     } else if (event.step === "validating") {
       const text = event.ok ? "Đã sửa " + event.file : "Lỗi " + event.file;
       if (timelineMode) setStepMessage(activeStepIndex, text);

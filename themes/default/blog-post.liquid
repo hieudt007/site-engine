@@ -1,18 +1,11 @@
 {% comment %}
 @description: Chi tiet 1 bai viet.
+@context_vars: post (Object), shop, global_settings
+@responsibilities: Hiển thị chi tiết bài viết: tiêu đề, ngày đăng, tác giả, nội dung HTML
+@structure_rules: Bọc trong container đọc sách (max-width nhỏ)
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, post.title, post.body, post.customFields, {% render "components/blog/related"
 @required_ids: 
 @notes: post.body la HTML DA SANITIZE, PHAI render RAW (khong escape). PHAI giu {% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat). PHAI goi {% render "components/blog/related", relatedPosts: relatedPosts %} o duoi bai viet.
 {% endcomment %}
-{% layout "layout" %}
-{% block content %}
-<article>
-    <h1>{{ post.title }}</h1>
-    <div>
-        {{ post.body }}
-    </div>
-    ...
-    {% render "custom-fields", fields: post.customFields %}
-</article>
-{% render "components/blog/related", relatedPosts: relatedPosts %}
-{% endblock %}
+
+<!-- Giao diện trống -->
