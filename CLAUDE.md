@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `site-engine` is a standalone CMS + e-commerce app for a single LeadBase tenant website (blog, products, cart/checkout, shipping, AI-editable themes). It is provisioned and managed by a separate Laravel app, `lead-base` — **not part of this repo**. Every website tenant runs its own instance (own DB, own `/admin`), authenticated via LeadBase OAuth. Full design docs live in `docs/` (`PRD.md`, `architecture.md`, `system_design.md`, `tech_doc.md`, `task_list.md`) — read `docs/tech_doc.md` first for stack rationale and directory layout; note the docs describe the original design and some shipped features (payment/shipping/coupons, blog site-type, tracking pixels, single-device login) may not be fully reflected there.
 
+## HARD RULE: never discard uncommitted work without explicit permission
+
+**Never run `git checkout -- <file>`, `git restore`, `git reset --hard`, `git clean`, or any other command that discards uncommitted changes — for ANY file, for ANY reason — without the user explicitly approving that specific action first.** This applies even if a file looks broken, half-finished, or like "leftover debris" from a previous edit. Uncommitted local changes are not recoverable from git once discarded, and a file that looks like a mistake may actually be deliberate in-progress work the user has not committed yet.
+
+If a file appears broken and you suspect reverting would fix it: **stop and ask** ("this file looks broken — do you want me to revert it to the last commit, or fix it in place?"). Fixing forward (editing the file to correct the actual problem) is almost always the safer default over reverting. Only revert after the user has confirmed that's what they want, and confirm exactly which file(s) and to which commit.
+
 ## Commands
 
 ```bash
@@ -44,7 +50,7 @@ Roles are hierarchical (`edit` < `manager` < `admin`, `ROLE_RANK` in `src/plugin
 
 Both the public site and the admin UI are server-rendered LiquidJS (`@fastify/view` for admin, a dedicated engine in `src/services/themeRenderer.ts` for public) — deliberately not React/Vite, so AI chat and the inline click-to-edit tool can change a theme file and see the result immediately with no compile step. Liquid was chosen specifically because AI/agent-generated themes need real logic (loops/conditionals) but must never execute server-side code — unlike EJS. Built-in themes live in `themes/{slug}/` (sibling of `dist/`, not compiled by `tsc`, copied verbatim into the release zip); `ThemeConfig.activeTheme` picks which one is live. `themeRenderer.ts`'s `renderPublic()` is the single place that assembles render context (site config, menus, plugin data/blocks, URL prefixes, analytics scripts, JSON-LD schemas) for every public template.
 
-Theme editing has three related surfaces: `themeChat.ts`/`services/themeChat.ts` (AI chat that redesigns a whole theme, using `services/uiuxSearch.ts` to look up color/font/style conventions per industry — shared UI/UX dataset with LeadBase's landing-page AI), `themeInlineEdit.ts` (click-to-edit static content), and `themeContract.ts`/`themeValidator.ts`/`themeTester.ts` (validating AI-generated theme output against contracts before it goes live).
+Theme editing currently has one working surface: `themeInlineEdit.ts` (click-to-edit static content directly in the live preview). There used to also be a full AI chat agent that redesigned themes wholesale (multi-step tool-calling loop with file read/write, a tester+reviewer QA gate, live-iframe error/screenshot capture) — that UI and its backend (`services/themeChat.ts`, `services/themeTester.ts`, `services/uiuxSearch.ts`, `services/themeSkills.ts`, `src/agents/tester.md`/`reviewer.md`) were removed as dead code; only the file-read endpoint survives in `themeChat.ts` (`GET /admin/api/themes/:slug/file`, used by the theme editor's file tree). `themeContract.ts`/`themeValidator.ts` remain — they still validate AI-generated theme output for the plugin/addon rendering paths and `themeInlineEdit.ts`. If AI-driven theme redesign gets rebuilt, it's expected to go through the shared `ai-chat-widget` rather than a page-specific chat drawer.
 
 ### Plugin system: dynamically loaded, sandboxed against core tables
 
@@ -54,7 +60,7 @@ Plugins get a restricted Prisma client (`getPluginDb()` in `src/services/pluginD
 
 ### Two "AI" surfaces — don't conflate them
 
-- **In-product AI agents** (`Agent` Prisma model, `src/services/aiClient.ts`, `src/agents/*.md`, `src/services/AGENT_MANUAL.md`): AI features the app itself ships to admins/customers — theme chat, admin chat widget (`src/addons/admin-ai-chat/`), customer support chat (`src/addons/customer-support/`), content generation (`src/services/contentGenerator.ts`). These are configured/seeded per plugin and stored in the DB, not hardcoded.
+- **In-product AI agents** (`Agent` Prisma model, `src/services/aiClient.ts`, `assets/data/AGENT_MANUAL.md`): AI features the app itself ships to admins/customers — the admin chat widget (`src/routes/admin/aiChat.ts`, `views/admin/components/ai-chat-widget.liquid`, backing plugin `src/addons/admin-ai-chat/`), customer support chat (`src/addons/customer-support/`), content generation (`src/services/contentGenerator.ts`). `assets/data/AGENT_MANUAL.md` is a lookup doc the chat agent can fetch by heading (`read_manual` tool) — one heading per admin sidebar page. These agents are configured/seeded per plugin and stored in the DB, not hardcoded.
 - **Claude Code** (you, working in this repo) — unrelated to the above; this file is your guidance, not theirs.
 
 ### Order flow crosses a trust boundary via HMAC

@@ -23,6 +23,7 @@ import {
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
 import { resolveDesignSystem, formatDesignSystem } from "../../services/uiuxSearch.js";
 import { callTestAgent, callReviewAgent } from "../../services/themeTester.js";
+import { saveAiChatImage } from "../../services/mediaStorage.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 const HISTORY_LIMIT = 5;
@@ -320,7 +321,8 @@ async function runAgentLoop(
           break;
         }
         case "REPLY_TO_USER": {
-          sseWrite(reply, { step: "test_request", payload: { page: "home" } });
+          const testPage = action.payload.page || "home";
+          sseWrite(reply, { step: "test_request", payload: { page: testPage } });
           const testPayload: any = await new Promise((resolve) => {
              themeTestEmitter.once(`test-result-${slug}`, resolve);
           });
@@ -570,9 +572,25 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
     async (request, reply) => {
       const { slug } = request.params;
       const { html, errors, screenshot } = request.body;
-      
-      themeTestEmitter.emit(`test-result-${slug}`, { html, errors, screenshot });
-      
+
+      // Upload anh chup (base64 tu html2canvas) thanh file that + URL tuyet doi truoc khi dua
+      // cho callReviewAgent - KHONG gui thang chuoi base64 (AI provider mong doi 1 URL fetch
+      // duoc, khong phai data URI nhet vao field "url").
+      let screenshotUrl: string | null = null;
+      if (screenshot) {
+        const match = screenshot.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+        if (match) {
+          try {
+            const { url } = await saveAiChatImage(Buffer.from(match[2], "base64"), match[1]);
+            screenshotUrl = `${request.protocol}://${request.hostname}${url}`;
+          } catch (err) {
+            // Anh loi thi bo qua, van tiep tuc voi loi console (khong chan luong test).
+          }
+        }
+      }
+
+      themeTestEmitter.emit(`test-result-${slug}`, { html, errors, screenshot: screenshotUrl });
+
       return reply.send({ success: true });
     }
   );

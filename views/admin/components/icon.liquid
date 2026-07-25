@@ -52,6 +52,16 @@
     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path>
   {% when "eye" %}
     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle>
+  {% when "monitor" %}
+    <rect width="20" height="14" x="2" y="3" rx="2"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line>
+  {% when "tablet" %}
+    <rect width="16" height="20" x="4" y="2" rx="2"></rect><line x1="12" x2="12.01" y1="18" y2="18"></line>
+  {% when "smartphone" %}
+    <rect width="14" height="20" x="5" y="2" rx="2"></rect><path d="M12 18h.01"></path>
+  {% when "pencil" %}
+    <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+  {% when "x" %}
+    <path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>
   {% else %}
     <circle cx="12" cy="12" r="9"></circle><path d="M12 8v4l3 2"></path>
   {% endcase %}

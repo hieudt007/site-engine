@@ -39,10 +39,10 @@
       <div id="file-view-title" style="font-weight:600;font-size:0.85rem;">Chọn 1 file để xem</div>
       <div style="display:flex;gap:0.3rem;align-items:center;">
         <div id="preview-size-toolbar" style="display:none;gap:0.25rem;margin-right:0.4rem;">
-          <button type="button" class="btn" data-size="desktop" title="Desktop" style="padding:0.25rem 0.5rem;font-size:0.8rem;">🖥️</button>
-          <button type="button" class="btn" data-size="tablet" title="iPad" style="padding:0.25rem 0.5rem;font-size:0.8rem;">📱</button>
-          <button type="button" class="btn" data-size="mobile" title="Mobile" style="padding:0.25rem 0.5rem;font-size:0.8rem;">📲</button>
-          <button type="button" class="btn" id="inline-edit-toggle" title="Sửa trực tiếp trên xem trước" style="padding:0.25rem 0.5rem;font-size:0.8rem;">🖊️</button>
+          <button type="button" class="btn btn-icon" data-size="desktop" title="Desktop">{% render "components/icon", name: "monitor" %}</button>
+          <button type="button" class="btn btn-icon" data-size="tablet" title="iPad">{% render "components/icon", name: "tablet" %}</button>
+          <button type="button" class="btn btn-icon" data-size="mobile" title="Mobile">{% render "components/icon", name: "smartphone" %}</button>
+          <button type="button" class="btn btn-icon" id="inline-edit-toggle" title="Sửa trực tiếp trên xem trước">{% render "components/icon", name: "pencil" %}</button>
         </div>
         <button type="button" class="btn" id="tab-preview" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Xem trước</button>
         <button type="button" class="btn" id="tab-code" style="display:none;padding:0.3rem 0.7rem;font-size:0.78rem;">Code</button>
@@ -53,8 +53,6 @@
       <iframe id="preview-frame" style="border:1px solid #ccc;border-radius:6px;background:#fff;display:block;margin:0 auto;width:100%;height:100%;transition:width 0.2s;"></iframe>
     </div>
   </div>
-
-
 </div>
 
 <script>
@@ -181,6 +179,12 @@
   tabCodeBtn.addEventListener("click", () => setTab("code"));
   tabPreviewBtn.addEventListener("click", () => setTab("preview"));
   setTab("preview");
+
+  // Expose cho ai-chat-widget.liquid (script rieng, IIFE khac) goi duoc khi xu ly SSE event
+  // "done"/"test_request" tu backend theme-chat - vd tu chuyen sang tab Xem truoc + tai lai khi
+  // AI vua sua xong file.
+  window.setTab = setTab;
+  window.reloadPreview = reloadPreview;
 
   // --- Sua truc tiep tren khung xem truoc (click-to-edit) - CHI cho text/anh CO DINH (tim thay
   // CHINH XAC 1 lan trong file .liquid), mau/font-size/kich thuoc anh (luon ghi thang vao CSS
@@ -320,7 +324,7 @@
     }
     html +=
       '<div style="display:flex;gap:0.3rem;"><button type="button" class="btn btn-primary" data-action="apply" style="font-size:0.75rem;flex:1;">Áp dụng</button>' +
-      '<button type="button" class="btn" data-action="close" style="font-size:0.75rem;">✕</button></div>';
+      '<button type="button" class="btn btn-icon" data-action="close"><svg class="admin-icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div>';
     if (!isImg) html += '<div style="font-size:0.68rem;color:#999;">Nhấp đúp để sửa chữ trực tiếp</div>';
     html += '<div data-action="status" style="font-size:0.7rem;"></div>';
     popup.innerHTML = html;
@@ -566,158 +570,6 @@
     window.location.href = "/admin/settings/theme";
   });
 
-  // --- Chat (phai) ---
-  const chatInput = document.getElementById("chat-input");
-
-  function chatMessageHtml(role, content, imageUrl) {
-    const isUser = role === "user";
-    const imageHtml = imageUrl
-      ? '<img src="' + escapeHtml(imageUrl) + '" style="display:block;max-width:160px;border-radius:6px;margin-bottom:0.3rem;">'
-      : "";
-    return (
-      '<div style="margin-bottom:0.5rem;text-align:' + (isUser ? "right" : "left") + ';">' +
-      '<div style="display:inline-block;max-width:90%;padding:0.4rem 0.6rem;border-radius:6px;background:' +
-      (isUser ? "#2563eb;color:#fff" : "#f3f4f6;color:#111") + ';white-space:pre-wrap;">' +
-      imageHtml + escapeHtml(content) + "</div></div>"
-    );
-  }
-
-  // --- Dinh kem anh tham khao cho AI (upload truoc qua thu vien Media dung chung, giong
-  // media-list.liquid) - luu URL TUYET DOI (window.location.origin + Media.url tuong doi) vi
-  // server goi AI qua API can URL truy cap duoc tu ben ngoai, khong phai duong dan noi bo.
-  const chatImageInput = document.getElementById("chat-image-input");
-  const chatImageBtn = document.getElementById("chat-image-btn");
-  const chatImagePreview = document.getElementById("chat-image-preview");
-  const chatImagePreviewThumb = document.getElementById("chat-image-preview-thumb");
-  const chatImageRemove = document.getElementById("chat-image-remove");
-  let pendingImageUrl = null;
-
-  function clearPendingImage() {
-    pendingImageUrl = null;
-    chatImageInput.value = "";
-    chatImagePreview.style.display = "none";
-  }
-
-  chatImageBtn.addEventListener("click", () => chatImageInput.click());
-  chatImageRemove.addEventListener("click", clearPendingImage);
-
-  async function handleChatImageUpload(file) {
-    if (!file) return;
-    chatImageBtn.disabled = true;
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/admin/api/ai-chat/upload", { method: "POST", body: formData });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        showFlash(typeof body.error === "string" ? body.error : "Tải ảnh lên thất bại", false);
-        chatImageInput.value = "";
-        return;
-      }
-      const { url } = await res.json();
-      pendingImageUrl = window.location.origin + url;
-      chatImagePreviewThumb.src = url;
-      chatImagePreview.style.display = "flex";
-    } finally {
-      chatImageBtn.disabled = false;
-    }
-  }
-
-  chatImageInput.addEventListener("change", () => {
-    handleChatImageUpload(chatImageInput.files[0]);
-  });
-
-  chatInput.addEventListener('paste', (e) => {
-    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    for (let index in items) {
-      const item = items[index];
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        e.preventDefault();
-        const blob = item.getAsFile();
-        handleChatImageUpload(blob);
-        break;
-      }
-    }
-  });
-
-  // Nut "Xac nhan" (kieu Plan Mode) - chi hien khi tin nhan MOI NHAT la de xuat thiet ke lai toan
-  // site dang cho xac nhan (redesignBrief != null). Bam vao goi thang /chat/confirm-redesign,
-  // KHONG qua lai AI phan loai - dam bao chay dung ke hoach da de xuat, khong bi AI doan sai.
-  function renderConfirmButton(box) {
-    const wrap = document.createElement("div");
-    wrap.style.marginBottom = "0.5rem";
-    wrap.innerHTML =
-      '<button type="button" class="btn btn-primary" id="confirm-redesign-btn">✅ Xác nhận thiết kế lại toàn bộ</button>';
-    box.appendChild(wrap);
-    box.scrollTop = box.scrollHeight;
-    document.getElementById("confirm-redesign-btn").addEventListener("click", handleConfirmRedesign);
-  }
-
-  async function loadChatHistory() {
-    const box = document.getElementById("chat-messages");
-    const res = await fetch("/admin/api/themes/" + slug + "/chat/history");
-    if (!res.ok) {
-      box.innerHTML = '<p style="color:#999;">Không tải được lịch sử chat</p>';
-      return;
-    }
-    const { messages } = await res.json();
-    box.innerHTML = messages.length
-      ? messages.map((m) => chatMessageHtml(m.role, m.content, m.imageUrl)).join("")
-      : '<p style="color:#999;">Chưa có tin nhắn nào — hỏi AI để bắt đầu chỉnh sửa theme này.</p>';
-    box.scrollTop = box.scrollHeight;
-
-    const last = messages[messages.length - 1];
-    if (last && last.role === "assistant" && last.redesignBrief) renderConfirmButton(box);
-  }
-
-  // Duoi 3 buoc (nhom file): chi 1 dong trang thai GHI DE lien tuc (khong xep chong) - it buoc
-  // thi xem lai lich su tung dong khong can thiet, ghi de gon hon. Tu 3 buoc tro len: hien timeline
-  // tung buoc (dang/xong/loi) giong kieu timeline tao landing page ben leadbase.
-  function renderProgressLine(progress, text) {
-    progress.innerHTML = "";
-    const line = document.createElement("div");
-    line.textContent = text;
-    progress.appendChild(line);
-  }
-
-  const TL_ICON = { pending: "", active: "", done: "✓", failed: "✕" };
-  let timelineMode = false;
-  let timelineSteps = [];
-  let activeStepIndex = -1;
-
-  function renderTimeline(progress, tasks) {
-    progress.innerHTML = '<ol class="tl-list"></ol><div class="tl-note"></div>';
-    const list = progress.querySelector(".tl-list");
-    timelineSteps = tasks.map((group, i) => {
-      const li = document.createElement("li");
-      li.className = "tl-item";
-      li.innerHTML =
-        '<div class="tl-dotcol"><span class="tl-dot tl-dot-pending"></span>' +
-        (i < tasks.length - 1 ? '<span class="tl-line"></span>' : "") +
-        '</div><div class="tl-body"><div class="tl-label">' + escapeHtml(group) + '</div><div class="tl-msg"></div></div>';
-      list.appendChild(li);
-      return {
-        dotEl: li.querySelector(".tl-dot"),
-        lineEl: li.querySelector(".tl-line"),
-        labelEl: li.querySelector(".tl-label"),
-        msgEl: li.querySelector(".tl-msg"),
-      };
-    });
-  }
-
-  function setStepState(index, state) {
-    const step = timelineSteps[index];
-    if (!step) return;
-    step.dotEl.className = "tl-dot tl-dot-" + state;
-    step.dotEl.textContent = TL_ICON[state];
-    step.labelEl.className = "tl-label tl-label-" + state;
-    if (state === "done" && step.lineEl) step.lineEl.className = "tl-line tl-line-done";
-  }
-
-  function setStepMessage(index, text) {
-    const step = timelineSteps[index];
-    if (step) step.msgEl.textContent = text;
-  }
-
+})();
 </script>
 {% endblock %}

@@ -115,11 +115,14 @@ export async function buildAgentSystemPrompt(
     "### GET_PLUGIN_CONTRACTS:",
     "(Không cần tham số, trả về danh sách các thẻ {% render %} mà Plugin yêu cầu chèn vào Theme. Gọi tool này khi User yêu cầu chèn code Plugin hoặc sửa giao diện Plugin)",
     "",
-    "9. Trả lời User (Dừng vòng lặp và hoàn toàn kết thúc):",
+    "9. Trả lời User (Dừng vòng lặp, hệ thống sẽ tự mở trình duyệt thật kiểm tra lỗi trước khi kết thúc):",
     "### REPLY_TO_USER:",
+    "PAGE: <tuỳ chọn — loại trang CẦN kiểm tra kỹ nhất ứng với file bạn vừa sửa, xem danh sách bên dưới. Không ghi dòng này thì hệ thống mặc định test trang chủ (home)>",
     "<Câu trả lời báo cáo tổng hợp sau khi ĐÃ XONG TẤT CẢ các Subtask>",
     "- LƯU Ý: Lời nhắn cho User phải NGẮN GỌN, DỄ HIỂU, tập trung vào kết quả kinh doanh/giao diện.",
-    "- TUYỆT ĐỐI HẠN CHẾ DÙNG THUẬT NGỮ CHUYÊN NGÀNH kỹ thuật (như js, css, liquid, DOM, div, v.v.)."
+    "- TUYỆT ĐỐI HẠN CHẾ DÙNG THUẬT NGỮ CHUYÊN NGÀNH kỹ thuật (như js, css, liquid, DOM, div, v.v.).",
+    "- QUAN TRỌNG: LUÔN khai báo đúng PAGE khớp với file bạn vừa sửa (vd sửa product-detail.liquid hoặc components/product/* thì PAGE: product-detail) — nếu để mặc định home, lỗi ở các trang khác sẽ KHÔNG được trình duyệt phát hiện.",
+    "  Danh sách PAGE hợp lệ: home, blog-list, blog-post, blog-category, page, products-list, product-category, product-detail, cart, order-confirmation, 404."
   );
 
   promptParts.push(toolsModule.join("\n"));
@@ -288,7 +291,14 @@ export function parseAgentResponse(raw: string): AgentAction[] {
 
   const replyMatch = raw.match(/### REPLY_TO_USER:\s*([\s\S]*?)(?=\n###|$)/);
   if (replyMatch) {
-    actions.push({ type: "REPLY_TO_USER", payload: { message: replyMatch[1].trim() } });
+    let replyBody = replyMatch[1].trim();
+    let page: string | undefined;
+    const pageMatch = replyBody.match(/^PAGE:\s*(.+?)\n([\s\S]*)$/);
+    if (pageMatch) {
+      page = pageMatch[1].trim();
+      replyBody = pageMatch[2].trim();
+    }
+    actions.push({ type: "REPLY_TO_USER", payload: { message: replyBody, page } });
   }
   
   const memoryMatch = raw.match(/### UPDATE_THEME_MEMORY:\s*([\s\S]*?)(?=\n###|$)/);

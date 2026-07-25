@@ -1,9 +1,20 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { EventEmitter } from "node:events";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { callAgent, generateImage, webFetch, webSearch } from "../../services/aiClient.js";
 import { InvalidUploadError, saveAiChatImage } from "../../services/mediaStorage.js";
+
+// Dung cho tool "check_preview": server gui yeu cau mo URL preview len frontend qua SSE
+// (step: "tool_open_preview"), roi CHO frontend mo iframe that, bat loi console/runtime, gui
+// ket qua ve qua POST /admin/api/ai-chat/preview-result - route do emit vao day de danh thuc
+// Promise dang cho trong vong lap chinh. Key theo historyRow.id (moi luot chat 1 id rieng).
+const previewCheckEmitter = new EventEmitter();
+// KHONG dung "^" - pageUrl frontend gui len la URL TUYET DOI (window.location.href, vd
+// "http://host/admin/themes/xyz/edit"), khong phai chi pathname, nen khong the anchor tu dau
+// chuoi duoc.
+const THEME_EDIT_PAGE_RE = /\/admin\/themes\/([^/]+)\/edit/;
 
 const querySchema = z.object({
   before_id: z.coerce.number().optional().nullable(),
@@ -80,7 +91,7 @@ async function readManualSection(heading: string): Promise<string> {
   const { readFile } = await import("node:fs/promises");
   const { join } = await import("node:path");
   try {
-    const content = await readFile(join(process.cwd(), "src", "services", "AGENT_MANUAL.md"), "utf-8");
+    const content = await readFile(join(process.cwd(), "assets", "data", "AGENT_MANUAL.md"), "utf-8");
     const lines = content.split("\n");
     let section = "";
     let capturing = false;
@@ -99,23 +110,28 @@ async function readManualSection(heading: string): Promise<string> {
 
 // ─── Gọi sub-agent và trả về phản hồi ────────────────────────────────────────
 // chat agent gọi hàm này với:
-//   agentKey  = key của sub-agent trong DB (content / developer / design)
+//   agentKey  = key của sub-agent trong DB (content / developer / design / tester)
 //   query     = yêu cầu cụ thể chat agent muốn sub-agent làm
 //   pageUrl   = URL hiện tại của user (để check developer guard)
 //   toolData  = dữ liệu form đã đọc từ frontend (nếu có)
+//   imageUrl  = URL TUYỆT ĐỐI ảnh đính kèm (nếu có) - dùng cho tester xem ảnh chụp preview
 async function invokeSubAgent(
   agentKey: string,
   query: string,
   pageUrl: string | null | undefined,
-  toolData: Record<string, any> | null | undefined
+  toolData: Record<string, any> | null | undefined,
+  imageUrl?: string | null
 ): Promise<Record<string, any>> {
 
-  // Guard: developer chỉ hoạt động khi user đang ở trang Theme Editor
-  if (agentKey === "developer") {
-    if (!pageUrl?.match(/\/admin\/settings\/theme\//)) {
+  // Guard: "design" (Liquid + TailwindCSS cho theme) chỉ hoạt động khi user đang ở trang Theme
+  // Editor - dung chung THEME_EDIT_PAGE_RE (khong anchor "^", vi pageUrl la URL tuyet doi).
+  // LUU Y: "developer" la agent KHAC (sinh raw HTML cho landing page/custom content trong
+  // post-edit.liquid/page-edit.liquid/product-edit.liquid), KHONG lien quan Theme Editor.
+  if (agentKey === "design") {
+    if (!pageUrl?.match(THEME_EDIT_PAGE_RE)) {
       return {
         action: "chat",
-        message: `Tính năng chỉnh sửa code chỉ dùng được ở trang Theme Editor. <a href="/admin/settings/theme">Đến trang Quản lý Giao diện</a>`,
+        message: `Tính năng chỉnh sửa giao diện theme chỉ dùng được ở trang Theme Editor. <a href="/admin/settings/theme">Đến trang Quản lý Giao diện</a>`,
       };
     }
   }
@@ -167,8 +183,16 @@ async function invokeSubAgent(
     ? `${query}\n\n--- Dữ liệu form hiện tại ---\n${JSON.stringify(toolData, null, 2)}`
     : query;
 
-  const raw = await callAgent(subAgent, systemPrompt, userMessage, undefined, true);
-  return parseAgentResponse(raw);
+  // Fallback graceful neu API AI loi (rate limit/timeout/mang/...) - KHONG de loi bay thang ra
+  // ngoai route SSE dang mo, vi luc do header da gui roi nen khong tra ve loi HTTP tu te duoc
+  // nua, ket noi se treo/vo. Tra ve dang "chat" voi thong bao loi de vong lap chinh van tiep tuc
+  // duoc (agent nay coi nhu bo qua, khong chan ca luong).
+  try {
+    const raw = await callAgent(subAgent, systemPrompt, userMessage, imageUrl || undefined, true);
+    return parseAgentResponse(raw);
+  } catch (err: any) {
+    return { action: "chat", message: `Agent "${agentKey}" gặp lỗi khi gọi AI (${err?.message || "không rõ nguyên nhân"}), đã bỏ qua bước này.` };
+  }
 }
 
 export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> {
@@ -243,7 +267,7 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
       try {
         const { readFile } = await import("node:fs/promises");
         const { join } = await import("node:path");
-        const content = await readFile(join(process.cwd(), "src", "services", "AGENT_MANUAL.md"), "utf-8");
+        const content = await readFile(join(process.cwd(), "assets", "data", "AGENT_MANUAL.md"), "utf-8");
         manualHeadings = content.split("\n")
           .filter(l => l.startsWith("## ") || l.startsWith("### "))
           .map(l => l.replace(/^#+\s*/, "").trim());
@@ -252,13 +276,13 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
       // ── Danh sách sub-agents ───────────────────────────────────────────────
       const subAgentList = [
         { key: "content",   desc: "Viết/chỉnh nội dung bài viết, mô tả sản phẩm, landing page" },
-        { key: "developer", desc: "Sửa code HTML/CSS giao diện (chỉ dùng được ở trang Theme Editor)" },
-        { key: "design",    desc: "Viết code Liquid + TailwindCSS cho giao diện theme (layout, component, section)" },
+        { key: "developer", desc: "Viết raw HTML/TailwindCSS cho landing page/custom content (trang bài viết/trang tĩnh/sản phẩm ở chế độ layout tự do)" },
+        { key: "design",    desc: "Viết code Liquid + TailwindCSS cho giao diện theme (layout, component, section) - chỉ dùng được ở trang Theme Editor" },
       ];
 
       // ── System prompt gửi cho Chat Agent ──────────────────────────────────
       const systemPrompt = [
-        agent.systemPrompt || "Bạn là trợ lý AI của hệ thống Site Engine.",
+        chatAgent.systemPrompt || "Bạn là trợ lý AI của hệ thống Site Engine.",
         parsed.data.pageTitle
           ? `\n[Context] Trang hiện tại: "${parsed.data.pageTitle}" (${parsed.data.pageUrl || ""})`
           : "",
@@ -283,7 +307,12 @@ ${manualHeadings.map(h => `     • ${h}`).join("\n")}
    - read_fields   : Yêu cầu frontend gửi giá trị các field. QUERY = danh sách field IDs cách nhau bởi dấu phẩy
    - webfetch      : Tải và đọc nội dung từ URL. QUERY = URL
    - websearch     : Tìm kiếm thông tin trên web. QUERY = câu tìm kiếm
-   - generate_image: Tạo ảnh AI. QUERY = mô tả ảnh bằng tiếng Anh
+   - generate_image: Tạo ảnh AI. QUERY = mô tả ảnh bằng tiếng Anh${
+     THEME_EDIT_PAGE_RE.test(parsed.data.pageUrl || "")
+       ? `
+   - check_preview : CHỈ dùng ở trang Theme Editor. Mở trang xem trước thật trong trình duyệt, tự bắt lỗi JS/console + chụp ảnh giao diện, gửi lỗi cho Tester Agent (kỹ thuật) và ảnh cho Reviewer Agent (thẩm mỹ/UX) chấm riêng, trả về nhận xét của cả hai. QUERY = loại trang cần kiểm tra, một trong: home, blog-list, blog-post, blog-category, page, products-list, product-category, product-detail, cart, order-confirmation, 404. Dùng NGAY SAU KHI vừa sửa code giao diện xong để xác nhận không có lỗi trước khi báo cáo cho user.`
+       : ""
+   }
 
 2. GỌI SUB-AGENT — dùng khi cần chuyên gia xử lý:
 AGENT: <key>
@@ -345,6 +374,34 @@ NOTE: Chỉ dùng AGENT khi cần xử lý chuyên sâu. Với câu hỏi đơn 
               status: "pending",
             },
           });
+
+      // ── Mặc định gọi Sub-Agent (bỏ qua orchestrator) nếu được frontend chỉ định ──
+      if (parsed.data.nextAgent && parsed.data.nextAgent !== "chat") {
+        sseWrite({ step: "thinking", label: `Agent ${parsed.data.nextAgent} đang xử lý...` });
+        try {
+          const subResp = await invokeSubAgent(parsed.data.nextAgent, userPrompt, parsed.data.pageUrl, parsed.data.toolData);
+          
+          await prisma.adminChatHistory.update({
+            where: { id: historyRow.id },
+            data: { 
+              assistantResponse: subResp.message, 
+              status: "success" 
+            },
+          });
+          
+          sseWrite({ step: "done", payload: subResp });
+          reply.raw.end();
+          return reply;
+        } catch (e: any) {
+          await prisma.adminChatHistory.update({
+            where: { id: historyRow.id },
+            data: { status: "error", errorMessage: e.message },
+          });
+          sseWrite({ step: "error", label: "Lỗi AI: " + e.message });
+          reply.raw.end();
+          return reply;
+        }
+      }
 
       // ── Vòng lặp chính ─────────────────────────────────────────────────────
       const MAX_LOOPS = 5;
@@ -426,6 +483,60 @@ NOTE: Chỉ dùng AGENT khi cần xử lý chuyên sâu. Với câu hỏi đơn 
             }
             reply.raw.end();
             return reply;
+          }
+
+          if (tool === "check_preview") {
+            const pageMatch = parsed.data.pageUrl?.match(THEME_EDIT_PAGE_RE);
+            if (!pageMatch) {
+              userPrompt += `\n\n[CHECK_PREVIEW lỗi]: Tool này chỉ dùng được ở trang Theme Editor.`;
+              continue;
+            }
+            const slug = pageMatch[1];
+            const page = query || "home";
+
+            sseWrite({ step: "tool_open_preview", payload: { page, slug, historyId: historyRow.id } });
+
+            // Cho frontend toi da 30s de mo iframe that + bat loi + chup anh + POST ve
+            // /admin/api/ai-chat/preview-result, tranh treo vinh vien neu frontend loi/dong tab.
+            const previewResult: { errors: string[]; screenshotUrl: string | null } = await new Promise((resolve) => {
+              const timer = setTimeout(
+                () => resolve({ errors: ["(Hết thời gian chờ trình duyệt phản hồi sau 30s)"], screenshotUrl: null }),
+                30000
+              );
+              previewCheckEmitter.once(`preview-result-${historyRow.id}`, (result: { errors: string[]; screenshotUrl: string | null }) => {
+                clearTimeout(timer);
+                resolve(result);
+              });
+            });
+
+            const errorSummary = previewResult.errors.length > 0 ? previewResult.errors.join("\n") : "Không có lỗi nào.";
+
+            // Dung 2 agent CHUYEN TRACH RIENG, giong dung thiet ke goc: "tester" chi cham loi
+            // JS/console (van ban), "reviewer" chi cham thẩm mỹ/UX qua ANH CHỤP (multimodal) -
+            // khong gop chung 1 agent, de moi agent tap trung dung the manh cua no.
+            const testerResult = await invokeSubAgent(
+              "tester",
+              `Trang vừa test: ${page}. Lỗi JS/console bắt được khi mở trang thật trong trình duyệt:\n${errorSummary}`,
+              parsed.data.pageUrl,
+              null
+            );
+
+            let reviewerMessage = "(không có ảnh để chấm)";
+            if (previewResult.screenshotUrl) {
+              const reviewerResult = await invokeSubAgent(
+                "reviewer",
+                `Đây là ảnh chụp giao diện thật của trang "${page}" sau khi vừa sửa. Hãy chấm thẩm mỹ/UX (màu sắc, spacing, typography, bố cục có bị lỗi/đè lên nhau không).`,
+                parsed.data.pageUrl,
+                null,
+                previewResult.screenshotUrl
+              );
+              reviewerMessage = reviewerResult.message || "(không có nhận xét)";
+            }
+
+            userPrompt += `\n\n[Kết quả CHECK_PREVIEW trang "${page}"]:\n${errorSummary}` +
+              `\n\n[Nhận xét từ Tester Agent (lỗi kỹ thuật)]:\n${testerResult.message || "(không có nhận xét)"}` +
+              `\n\n[Nhận xét từ Reviewer Agent (thẩm mỹ/UX)]:\n${reviewerMessage}`;
+            continue;
           }
 
           // Tool không xác định
@@ -599,6 +710,43 @@ NOTE: Chỉ dùng AGENT khi cần xử lý chuyên sâu. Với câu hỏi đơn 
       } catch (error: any) {
         return reply.code(500).send({ message: error.message || "Lỗi khi gọi Web Search API" });
       }
+    }
+  );
+
+  // Frontend (ai-chat-widget.liquid, o trang Theme Editor) goi route nay sau khi mo thu trang
+  // preview that trong iframe va bat duoc loi console/runtime (hoac khong co loi nao) - danh
+  // thuc Promise dang cho trong tool "check_preview" cua vong lap /admin/api/ai-chat/messages.
+  app.post(
+    "/admin/api/ai-chat/preview-result",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const schema = z.object({
+        historyId: z.number(),
+        errors: z.array(z.string()).default([]),
+        // data URL JPEG tu html2canvas (frontend), vd "data:image/jpeg;base64,...."
+        screenshot: z.string().optional().nullable(),
+      });
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ message: "Invalid parameters" });
+      }
+
+      let screenshotUrl: string | null = null;
+      if (parsed.data.screenshot) {
+        const match = parsed.data.screenshot.match(/^data:(image\/[a-z]+);base64,(.+)$/);
+        if (match) {
+          try {
+            const { url } = await saveAiChatImage(Buffer.from(match[2], "base64"), match[1]);
+            screenshotUrl = `${request.protocol}://${request.hostname}${url}`;
+          } catch (err) {
+            // Anh loi thi bo qua, van tiep tuc voi loi console (khong block luong test) -
+            // xem services/mediaStorage.ts (vd qua 8MB, sai dinh dang).
+          }
+        }
+      }
+
+      previewCheckEmitter.emit(`preview-result-${parsed.data.historyId}`, { errors: parsed.data.errors, screenshotUrl });
+      return reply.send({ success: true });
     }
   );
 }

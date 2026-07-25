@@ -438,7 +438,16 @@
   // Chỉ hiện tooltip 1 lần trong phiên làm việc
   const isContentPage = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/);
   const hasSeenTooltip = sessionStorage.getItem('ai_tooltip_seen');
-  const isThemeEditPage = !!window.location.pathname.match(/^\/admin\/settings\/theme\//);
+  // FIX: URL that su cua trang edit theme la /admin/themes/:slug/edit (themeEditorUi.ts), khong
+  // phai /admin/settings/theme/ (do la trang danh sach/chuyen theme, settings-theme.liquid).
+  const isThemeEditPage = !!window.location.pathname.match(/^\/admin\/themes\/[^/]+\/edit/);
+  // slug theme dang sua (chi co gia tri khi isThemeEditPage true) - dung de goi dung backend
+  // theme-chat rieng (/admin/api/themes/:slug/chat*) thay vi orchestrator chung
+  // (/admin/api/ai-chat/messages), vi day la 2 he thong khac nhau: theme-chat co day du tool
+  // LIST_FILES/READ_FILES/REPLACE_CODE/... de thuc su doc/sua file Liquid, orchestrator chung
+  // thi khong co cac tool nay.
+  const themeSlugMatch = window.location.pathname.match(/^\/admin\/themes\/([^/]+)\/edit/);
+  const themeSlug = themeSlugMatch ? themeSlugMatch[1] : null;
   if (isThemeEditPage) {
     win.classList.add('open');
     sessionStorage.setItem('ai_tooltip_seen', 'true');
@@ -487,8 +496,14 @@
     if (imageUrl) {
       imageHtml = `<img src="${escapeHtml(imageUrl)}" style="display:block;max-width:160px;border-radius:6px;margin-bottom:6px;">`;
     }
-    
-    html += `<div class="ai-msg-bubble ${role === 'user' ? 'ai-msg-user' : 'ai-msg-bot'}">${imageHtml}${escapeHtml(content)}</div>`;
+
+    // Tin nhan cua USER la text nguoi go tay -> luon escape (khong danh cho render HTML).
+    // Tin nhan cua BOT (backend/AI) co the chua HTML that su (vd link <a href>...</a> tu thong
+    // bao loi, hoac AI tra ve markdown/HTML) -> render truc tiep de hien thi dung dinh dang,
+    // khong hien lai the HTML tho nhu van ban. Day la widget CHI ADMIN dung (requireRole admin),
+    // rui ro XSS o day chi anh huong den chinh admin dang chat, khong anh huong nguoi khac.
+    const bodyContent = role === 'user' ? escapeHtml(content) : content;
+    html += `<div class="ai-msg-bubble ${role === 'user' ? 'ai-msg-user' : 'ai-msg-bot'}">${imageHtml}${bodyContent}</div>`;
     
     container.innerHTML = html;
     return container;
@@ -526,7 +541,225 @@
     if (empty) empty.remove();
   }
 
+  // Lich su chat cua theme-chat KHONG dung chung API/hinh dang voi lich su chat thuong (dung
+  // entityId = theme slug, tra ve { messages: [{role, content, imageUrl}], themeMd } - khong
+  // phan trang, toi da 100 tin gan nhat). Xem GET /admin/api/themes/:slug/chat/history.
+  async function loadThemeChatHistory() {
+    historyLoaded = true;
+    historyLoading = true;
+    messagesDiv.innerHTML = '<div class="ai-chat-loading"><svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tải lịch sử chat...</div>';
+    try {
+      const res = await fetch(`/admin/api/themes/${themeSlug}/chat/history`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      messagesDiv.innerHTML = '';
+      (data.messages || []).forEach((m) => {
+        messagesDiv.appendChild(renderMessage(m.role, m.content, '', m.imageUrl));
+      });
+      showEmptyState();
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    } catch (err) {
+      messagesDiv.innerHTML = '<div class="ai-chat-error">Không tải được lịch sử chat gần nhất.</div>';
+    } finally {
+      historyLoading = false;
+    }
+  }
+
+  // --- Theme-chat: goi rieng /admin/api/themes/:slug/chat* (khac han protocol cua
+  // /admin/api/ai-chat/messages) - dung chung UI (messagesDiv/renderMessage/loadingEl) cua
+  // widget noi, chi khac ham goi backend + xu ly SSE. Xem src/routes/admin/themeChat.ts.
+
+  function renderThemeConfirmButton() {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = '<button type="button" class="btn btn-primary" id="theme-confirm-redesign-btn" style="margin-top:4px;">✅ Xác nhận thiết kế lại toàn bộ</button>';
+    messagesDiv.appendChild(wrap);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    document.getElementById('theme-confirm-redesign-btn').addEventListener('click', handleConfirmRedesign);
+  }
+
+  // Tin nhan "reply" (luc AI phan loai) chi la tin TAM THOI - server KHONG luu vao DB, phai tu
+  // xoa khoi khung chat ngay khi tin tom tat cuoi (done) ve toi.
+  let themeTempReplyEl = null;
+
+  async function handleThemeChatEvent(event, loadingEl) {
+    const statusEl = loadingEl ? loadingEl.querySelector('span') : null;
+
+    if (event.step === 'reply') {
+      if (themeTempReplyEl) themeTempReplyEl.remove();
+      themeTempReplyEl = renderMessage('bot', event.reply);
+      messagesDiv.appendChild(themeTempReplyEl);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    } else if (event.step === 'group_start') {
+      if (statusEl) statusEl.textContent = event.label || 'Đang xử lý...';
+    } else if (event.step === 'validating') {
+      if (statusEl) statusEl.textContent = event.ok ? 'Đã sửa ' + event.file : 'Lỗi ' + event.file + ' — giữ bản cũ';
+    } else if (event.step === 'done') {
+      if (themeTempReplyEl) { themeTempReplyEl.remove(); themeTempReplyEl = null; }
+      messagesDiv.appendChild(renderMessage('bot', event.reply));
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      if (event.needsRedesignConfirm) renderThemeConfirmButton();
+      // Co file theme thuc su doi thi tu chuyen tab Xem truoc + tai lai ngay (neu ham co san
+      // tren trang, chi ton tai o theme-editor.liquid).
+      if (event.files && event.files.some((f) => f.ok && !f.skipped)) {
+        if (typeof window.setTab === 'function') window.setTab('preview');
+        if (typeof window.reloadPreview === 'function') window.reloadPreview();
+      }
+    } else if (event.step === 'test_request') {
+      if (typeof window.setTab === 'function') window.setTab('preview');
+      const previewFrame = document.getElementById('preview-frame');
+      const page = (event.payload && event.payload.page) || 'home';
+      const testErrors = [];
+
+      if (!previewFrame) {
+        await fetch(`/admin/api/themes/${themeSlug}/chat/test-result`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: '', errors: ['(Không tìm thấy khung xem trước trên trang này)'] })
+        });
+        return;
+      }
+
+      const messageListener = (e) => {
+        if (e.data && e.data.type === 'AI_PREVIEW_ERROR') testErrors.push(e.data.message);
+      };
+      window.addEventListener('message', messageListener);
+
+      try {
+        const previewRes = await fetch(`/admin/themes/${themeSlug}/preview?page=${page}`);
+        const previewHtml = await previewRes.text();
+        const errorScript = `<script>
+          window.onerror = function(msg, url, line) { window.parent.postMessage({ type: 'AI_PREVIEW_ERROR', message: msg + ' at line ' + line }, '*'); };
+          const oldConsoleError = console.error;
+          console.error = function(...args) { window.parent.postMessage({ type: 'AI_PREVIEW_ERROR', message: args.join(' ') }, '*'); oldConsoleError.apply(console, args); };
+        </scr` + `ipt>`;
+
+        let screenshot = null;
+        await new Promise((resolve) => {
+          previewFrame.onload = async () => {
+            await new Promise((r) => setTimeout(r, 500));
+            if (typeof html2canvas === 'function') {
+              try {
+                const innerDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+                const canvas = await html2canvas(innerDoc.body, {
+                  windowWidth: 1280,
+                  windowHeight: innerDoc.body.scrollHeight || 1080,
+                  useCORS: true,
+                  logging: false,
+                });
+                screenshot = canvas.toDataURL('image/jpeg', 0.7);
+              } catch (e) {
+                console.error('Chụp ảnh preview thất bại:', e);
+              }
+            }
+            resolve();
+          };
+          previewFrame.srcdoc = previewHtml.includes('<head>')
+            ? previewHtml.replace('<head>', '<head>' + errorScript)
+            : errorScript + previewHtml;
+        });
+
+        await fetch(`/admin/api/themes/${themeSlug}/chat/test-result`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: '', errors: testErrors, screenshot })
+        });
+      } catch (err) {
+        await fetch(`/admin/api/themes/${themeSlug}/chat/test-result`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ html: '', errors: ['Lỗi khi tải trang xem trước: ' + err.message] })
+        });
+      } finally {
+        window.removeEventListener('message', messageListener);
+        previewFrame.onload = null;
+      }
+    } else if (event.step === 'error') {
+      if (themeTempReplyEl) { themeTempReplyEl.remove(); themeTempReplyEl = null; }
+      messagesDiv.appendChild(renderMessage('bot', 'Lỗi AI: ' + event.label, 'error'));
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    } else if (event.step === 'intent_updated' || event.step === 'files' || event.step === 'plan' || event.step === 'group_done') {
+      // Khong can hien rieng - chi la thong tin phu, tin tom tat cuoi (done) da du.
+    } else if (event.label && statusEl) {
+      statusEl.textContent = event.label;
+    }
+  }
+
+  // Dung chung cho ca gui chat thuong (POST /chat) lan bam nut xac nhan (POST /chat/confirm-redesign).
+  async function streamThemeChatRequest(url, body, loadingEl) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok || !res.body) {
+        if (loadingEl) loadingEl.remove();
+        const errBody = await res.json().catch(() => ({}));
+        messagesDiv.appendChild(renderMessage('bot', typeof errBody.error === 'string' ? errBody.error : 'Gửi chat thất bại', 'error'));
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          let event;
+          try { event = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+          await handleThemeChatEvent(event, loadingEl);
+        }
+      }
+    } catch (err) {
+      if (loadingEl) loadingEl.remove();
+      messagesDiv.appendChild(renderMessage('bot', 'Lỗi kết nối khi chat với AI: ' + (err && err.message ? err.message : String(err)), 'error'));
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    } finally {
+      const el = document.getElementById('ai-loading-indicator');
+      if (el) el.remove();
+    }
+  }
+
+  async function sendThemeMessage(text, imageUrl, loadingEl) {
+    await streamThemeChatRequest(
+      `/admin/api/themes/${themeSlug}/chat`,
+      imageUrl ? { message: text, imageUrl } : { message: text },
+      loadingEl
+    );
+  }
+
+  async function handleConfirmRedesign() {
+    const btn = document.getElementById('theme-confirm-redesign-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Đang tiến hành...';
+    }
+    isAiLoading = true;
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'ai-loading-indicator';
+    loadingDiv.className = 'ai-chat-loading';
+    loadingDiv.innerHTML = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> <span>Đang thiết kế lại...</span>';
+    messagesDiv.appendChild(loadingDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    try {
+      await streamThemeChatRequest(`/admin/api/themes/${themeSlug}/chat/confirm-redesign`, {}, loadingDiv);
+    } finally {
+      isAiLoading = false;
+    }
+  }
+
   async function loadInitialHistory() {
+    if (isThemeEditPage && themeSlug) return loadThemeChatHistory();
+
     historyLoaded = true;
     historyLoading = true;
     messagesDiv.innerHTML = '<div class="ai-chat-loading"><svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Đang tải 15 đoạn chat gần nhất...</div>';
@@ -643,9 +876,13 @@
     const text = hiddenText || input.value.trim();
     if (!text && !hiddenPayload) return;
     if (isAiLoading && !hiddenPayload) return;
-    
+    // Chup lai pendingImageUrl NGAY TU DAU - clearPendingImage() ben duoi se xoa no ve null,
+    // cac nhanh xu ly phia sau (ke ca nhanh theme-chat) can dung dung anh nguoi dung vua dinh
+    // kem, khong phai doc lai bien da bi xoa.
+    const capturedImageUrl = pendingImageUrl;
+
     if (!hiddenPayload) {
-      const sentImageUrl = pendingImageUrl;
+      const sentImageUrl = capturedImageUrl;
       clearEmptyState();
       messagesDiv.appendChild(renderMessage('user', text, '', sentImageUrl));
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -679,7 +916,7 @@
           }
         }
 
-        payload = { 
+        payload = {
           message: text,
           pageTitle: document.title,
           pageUrl: window.location.href,
@@ -687,7 +924,22 @@
           layoutMode: document.getElementById('layoutMode') ? document.getElementById('layoutMode').value : null,
           entityId: entityId
         };
+
         if (pendingImageUrl) payload.imageUrl = pendingImageUrl;
+      }
+
+      // Trang edit theme dung HAN 1 he thong backend RIENG (/admin/api/themes/:slug/chat*, co
+      // day du tool LIST_FILES/READ_FILES/REPLACE_CODE de thuc su sua file Liquid) - KHONG di qua
+      // orchestrator chung (/admin/api/ai-chat/messages, chi biet FILL_FORM 1 field, khong doc/
+      // ghi file duoc). UI van dung chung 1 nut/khung chat noi - chi khac backend goi toi.
+      if (isThemeEditPage && themeSlug && !hiddenPayload) {
+        const loadingEl = document.getElementById('ai-loading-indicator');
+        try {
+          await sendThemeMessage(text, capturedImageUrl, loadingEl);
+        } finally {
+          isAiLoading = false;
+        }
+        return;
       }
 
       const res = await fetch('/admin/api/ai-chat/messages', {
@@ -775,6 +1027,71 @@
                availableFields: payload.availableFields
              };
              return sendMessage(null, secondPayload);
+          } else if (event.step === "tool_open_preview") {
+             // Backend (tool "check_preview") dang CHO frontend mo thu trang preview that, bat
+             // loi console/runtime, roi POST ve /admin/api/ai-chat/preview-result de server tiep
+             // tuc vong lap (xem routes/admin/aiChat.ts). Chi hoat dong o trang Theme Editor -
+             // noi co san #preview-frame (theme-editor.liquid).
+             const { page, slug, historyId } = event.payload;
+             if (loadingEl) loadingEl.querySelector('span').textContent = "Đang mở trang xem trước để kiểm tra lỗi...";
+             const tabPreviewBtn = document.getElementById('tab-preview');
+             if (tabPreviewBtn) tabPreviewBtn.click();
+             const previewFrame = document.getElementById('preview-frame');
+             const previewErrors = [];
+             let previewScreenshot = null;
+             if (!previewFrame) {
+               previewErrors.push("(Không tìm thấy khung xem trước trên trang này)");
+             } else {
+               try {
+                 const previewRes = await fetch(`/admin/themes/${slug}/preview?page=${page}`);
+                 const previewHtml = await previewRes.text();
+                 const errorScript = `<script>
+                   window.onerror = function(msg, url, line) { window.parent.postMessage({ type: 'AI_PREVIEW_ERROR', message: msg + ' at line ' + line }, '*'); };
+                   const oldConsoleError = console.error;
+                   console.error = function(...args) { window.parent.postMessage({ type: 'AI_PREVIEW_ERROR', message: args.join(' ') }, '*'); oldConsoleError.apply(console, args); };
+                 </scr` + `ipt>`;
+                 const messageListener = (e) => {
+                   if (e.data && e.data.type === 'AI_PREVIEW_ERROR') previewErrors.push(e.data.message);
+                 };
+                 window.addEventListener("message", messageListener);
+                 await new Promise((resolve) => {
+                   previewFrame.onload = () => setTimeout(resolve, 500);
+                   previewFrame.srcdoc = previewHtml.includes('<head>')
+                     ? previewHtml.replace('<head>', '<head>' + errorScript)
+                     : errorScript + previewHtml;
+                 });
+                 window.removeEventListener("message", messageListener);
+
+                 // Chup anh giao dien that (html2canvas load global san o layout.liquid) de gui
+                 // kem cho Tester Agent - JPEG nen 70% de tiet kiem bang thong/token, giong dung
+                 // cach he thong chat theme cu lam truoc day.
+                 if (typeof html2canvas === "function") {
+                   try {
+                     const innerDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+                     const canvas = await html2canvas(innerDoc.body, {
+                       windowWidth: 1280,
+                       windowHeight: innerDoc.body.scrollHeight || 1080,
+                       useCORS: true,
+                       logging: false,
+                     });
+                     previewScreenshot = canvas.toDataURL("image/jpeg", 0.7);
+                   } catch (e) {
+                     console.error("Chụp ảnh preview thất bại:", e);
+                   }
+                 }
+               } catch (e) {
+                 previewErrors.push("Lỗi khi tải trang xem trước: " + e.message);
+               }
+             }
+             try {
+               await fetch('/admin/api/ai-chat/preview-result', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ historyId, errors: previewErrors, screenshot: previewScreenshot })
+               });
+             } catch (e) {}
+             // Khong return - vong doc SSE ben ngoai (while true) tiep tuc doc phan con lai cua
+             // stream, server se ghi tiep sau khi nhan duoc POST o tren.
           } else if (event.step === "done") {
              const data = event.payload || {};
              
@@ -913,5 +1230,6 @@
   input.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
   });
+
 })();
 </script>

@@ -28,9 +28,9 @@
   }
 
   function rowHtml(agent) {
-    const statusToggle = '<label class="toggle-switch" title="Bật/Tắt agent">' +
+    const statusToggle = '<div style="display:flex;align-items:center;gap:0.5rem;"><label class="toggle-switch" title="Bật/Tắt agent">' +
       '<input type="checkbox" class="agent-toggle" data-id="' + agent.id + '" ' + (agent.isActive ? 'checked' : '') + '>' +
-      '<span class="slider"></span></label>';
+      '<span class="slider"></span></label><span style="font-size:0.85rem;color:#6b7280;" class="toggle-label">' + (agent.isActive ? 'Bật' : 'Tắt') + '</span></div>';
     const keyBadge = agent.key
       ? '<span class="status-badge" style="background:#e0e7ff;color:#3730a3;">' + escapeHtml(agent.key) + '</span>'
       : '<span style="color:#999;">—</span>';
@@ -100,6 +100,9 @@
     if (!toggle) return;
 
     const isActive = toggle.checked;
+    const labelSpan = toggle.closest('div').querySelector('.toggle-label');
+    if (labelSpan) labelSpan.textContent = isActive ? 'Bật' : 'Tắt';
+
     const res = await fetch("/admin/api/agents/" + toggle.dataset.id, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -109,6 +112,7 @@
     if (!res.ok) {
       showError("Cập nhật trạng thái thất bại");
       toggle.checked = !isActive; // revert
+      if (labelSpan) labelSpan.textContent = !isActive ? 'Bật' : 'Tắt';
     }
   });
 
