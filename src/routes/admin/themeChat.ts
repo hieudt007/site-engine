@@ -11,17 +11,18 @@ import { requireRole } from "../../plugins/requireRole.js";
 import { THEME_BUNDLE_OUTPUTS, getSelectableFiles, getViewableFiles } from "../../services/themeContract.js";
 import { readThemeMd, updateAppliedSection } from "../../services/themeMemory.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
-import { 
-  ChatHistoryItem, 
-  buildAgentSystemPrompt, 
-  buildAgentUserPrompt, 
+import {
+  ChatHistoryItem,
+  buildAgentSystemPrompt,
+  buildAgentUserPrompt,
   parseAgentResponse,
   applyReplacements,
   retryUntilValid,
   callAiAgent
 } from "../../services/themeChat.js";
+import { getAgentSkillContent } from "../../services/themeSkills.js";
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
-import { resolveDesignSystem, formatDesignSystem } from "../../services/uiuxSearch.js";
+import { resolveDesignSystem, formatDesignSystem } from "../../agents/tools/uiuxSearch.js";
 import { callTestAgent, callReviewAgent } from "../../services/themeTester.js";
 import { saveAiChatImage } from "../../services/mediaStorage.js";
 
@@ -65,7 +66,7 @@ async function runAgentLoop(
   let assetsChanged = false;
   let finalReply = "";
   
-  const systemPrompt = await buildAgentSystemPrompt(slug);
+  const systemPrompt = await buildAgentSystemPrompt(slug, agent.allowedSkills);
 
   for (let step = 1; step <= MAX_AGENT_STEPS; step++) {
     sseWrite(reply, { step: "thinking", label: `Agent đang suy nghĩ (Bước ${step}/${MAX_AGENT_STEPS})...` });
@@ -311,6 +312,17 @@ async function runAgentLoop(
           } else {
             stepObservations.push(`GET_PLUGIN_CONTRACTS: Hiện không có Plugin nào yêu cầu chèn giao diện (không có hợp đồng).`);
           }
+          break;
+        }
+        case "USE_SKILL": {
+          const skillKey = action.payload.skill;
+          sseWrite(reply, { step: "tool", label: `Đang tra cứu skill: ${skillKey}` });
+          const skillContent = await getAgentSkillContent(skillKey);
+          stepObservations.push(
+            skillContent
+              ? `USE_SKILL [${skillKey}]:\n${skillContent}`
+              : `USE_SKILL [${skillKey}]: Không tìm thấy skill này hoặc agent không được phép dùng.`
+          );
           break;
         }
         case "GET_DESIGN_SYSTEM": {

@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getPluginDb } from "../../../services/pluginDb.js";
 import { requireRole } from "../../../plugins/requireRole.js";
-import { callAgent, generateImage, webFetch, webSearch } from "../../../services/aiClient.js";
+import { callAgent, generateImage, webFetch, webSearch } from "../../../agents/core/aiClient.js";
 import { InvalidUploadError, saveAiChatImage } from "../../../services/mediaStorage.js";
 import fs from "node:fs/promises";
 import path from "node:path";

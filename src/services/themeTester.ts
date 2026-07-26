@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
-import { callAgent } from "./aiClient.js";
+import { callAgent } from "../agents/core/aiClient.js";
 
 interface TestResult {
   status: "PASS" | "REJECT";

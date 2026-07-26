@@ -35,6 +35,8 @@ const updateSettingsSchema = z
     gscVerificationId: z.string().optional(),
     turnstileSiteKey: z.string().optional(),
     turnstileSecretKey: z.string().optional(),
+    adminChatAgentId: z.string().optional(),
+    cskhAgentId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const postPrefix = data.postSlugPrefix?.trim();

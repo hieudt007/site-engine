@@ -2,20 +2,31 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
+import { stripSystemResources } from "../../agents/core/agentPermissions.js";
 
 const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "ai-router", "custom"] as const;
 
+// isSystem VA pluginSlug KHONG duoc phep trong schema nay - ca 2 quyet dinh agent co duoc dung
+// tool/skill "isSystem" hay khong (xem src/agents/core/permissions.ts), NEU cho phep client tu
+// gui thi admin (hoac session bi chiem) co the tu tick "isSystem" de mo khoa tool nhay cam (doc/
+// ghi file...). 2 field nay CHI duoc set truc tiep qua prisma trong script seed/plugin install.ts,
+// khong bao gio qua API cong khai nay - zod se tu am tham bo qua neu client co gui len.
 const agentSchema = z.object({
   key: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/).nullable().optional(),
   name: z.string().min(1),
+  type: z.enum(["agent", "tool", "skill"]).optional().default("agent"),
   provider: z.enum(PROVIDERS),
   model: z.string().min(1),
   systemPrompt: z.string().optional(),
+  allowedTools: z.array(z.string()).optional().default([]),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
   endpoint: z.string().optional(),
-  isSystem: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  // Chi dung khi type='skill': noi dung bi kip day du (systemPrompt o tren tai dung lam mo ta ngan).
+  content: z.string().optional(),
+  // Chi dung khi type='agent': cac skill.key duoc phep goi.
+  allowedSkills: z.array(z.string()).optional().default([]),
 });
 
 const updateAgentSchema = agentSchema.partial();
@@ -29,8 +40,9 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 // CRUD cau hinh AI Agent — CHUA noi vao tinh nang nao, chi de dat truoc credentials/model se
 // dung sau. Chi "admin" duoc dung (nam api key), khac Post/Page ("edit" tao duoc nhap mon).
 export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/api/agents", { preHandler: requireRole("admin") }, async () => {
-    const agents = await prisma.agent.findMany({ orderBy: { name: "asc" } });
+  app.get<{ Querystring: { type?: string } }>("/admin/api/agents", { preHandler: requireRole("admin") }, async (request) => {
+    const type = request.query.type === "skill" ? "skill" : "agent";
+    const agents = await prisma.agent.findMany({ where: { type }, orderBy: { name: "asc" } });
     return { agents };
   });
 
@@ -53,7 +65,8 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
-    const agent = await prisma.agent.create({ data: { ...parsed.data, key: parsed.data.key || null } });
+    const cleanData = await stripSystemResources(parsed.data);
+    const agent = await prisma.agent.create({ data: { ...cleanData, key: cleanData.key || null } });
     await auditLog(userId, "agent.create", agent.id);
 
     if (parsed.data.apiKey && parsed.data.apiKey.trim() !== "") {
@@ -85,7 +98,8 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       // apiKey de trong = giu key cu (khong ghi de rong) - giong pattern posts.ts update ban dau
       // giu nguyen field khong truyen, khac cho apiKey rong tu form vi form luon gui key rong khi
       // khong doi -> can loai truoc khi update.
-      const data = { ...parsed.data, ...(parsed.data.key !== undefined ? { key: parsed.data.key || null } : {}) };
+      const cleanData = await stripSystemResources(parsed.data);
+      const data = { ...cleanData, ...(cleanData.key !== undefined ? { key: cleanData.key || null } : {}) };
       if (data.apiKey === "") {
         delete data.apiKey;
       }
@@ -118,6 +132,10 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
 
       if (agent.isSystem) {
         return reply.code(400).send({ error: "Không thể xoá Agent hệ thống" });
+      }
+
+      if (agent.type === "tool") {
+        return reply.code(403).send({ error: "Không thể xoá công cụ (Tool)" });
       }
 
       const userId = request.session.get("userId")!;

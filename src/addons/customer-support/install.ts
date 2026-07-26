@@ -1,26 +1,12 @@
-import { PrismaClient } from "@prisma/client";
+import { getPluginDb } from "../../services/pluginDb.js";
 
-export async function setup(prisma: PrismaClient, pluginSlug: string) {
-  const existingAgent = await prisma.agent.findUnique({ where: { key: "customer" } });
-  
-  if (!existingAgent) {
-    await prisma.agent.create({
-      data: {
-        key: "customer",
-        name: "CSKH Agent",
-        systemPrompt: "Bạn là nhân viên chăm sóc khách hàng của website. Bạn có khả năng tra cứu thông tin sản phẩm, bài viết và trang để giải đáp thắc mắc của khách hàng một cách lịch sự, ngắn gọn và chốt sale hiệu quả.",
-        model: "cx/gpt-5.4-mini",
-        provider: "ai-router",
-        pluginSlug: pluginSlug,
-        isSystem: false,
-      }
-    });
-    console.log(`[Plugin: ${pluginSlug}] Đã khởi tạo Agent CSKH thành công.`);
-  } else {
-    console.log(`[Plugin: ${pluginSlug}] Agent CSKH đã tồn tại, bỏ qua khởi tạo.`);
-  }
-
-  // Khởi tạo các bảng động (Dynamic Tables)
+// Agent CSKH KHONG con tao o day nua - da chuyen thanh khai bao trong manifest.json
+// (permissions.ai.agents), duoc CORE (routes/admin/plugins.ts) tu tao bang prisma that (Agent la
+// bang core, getPluginDb() chan ORM ghi bang nay - "seeder" tao Agent BAT BUOC phai la code core,
+// khong the la code cua plugin dua vao day). install.ts o day chi con lo dung phan viec cua no:
+// tao bang dong cua chinh plugin (da khai bao trong manifest.tables). Tool cua plugin duoc dang ky
+// o backend/index.ts (module-level, chay moi lan server start cho plugin dang bat).
+export async function setup(prisma: ReturnType<typeof getPluginDb>, pluginSlug: string) {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "PluginCustomerSupportChat" (
       "id" SERIAL PRIMARY KEY,
@@ -38,7 +24,7 @@ export async function setup(prisma: PrismaClient, pluginSlug: string) {
   await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "PluginCustomerSupportChat_sessionId_idx" ON "PluginCustomerSupportChat"("sessionId");
   `);
-  
+
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "PluginCustomerSupportLead" (
       "id" SERIAL PRIMARY KEY,

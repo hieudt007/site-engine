@@ -6,6 +6,7 @@ import fastifyStatic from "@fastify/static";
 import fastifyRateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
+import { getPluginDb } from "./services/pluginDb.js";
 import { registerSession } from "./plugins/session.js";
 import { deleteOtherUserSessions } from "./services/sessionStore.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
@@ -42,6 +43,7 @@ import { registerUserRoutes } from "./routes/admin/users.js";
 import { registerUsersUiRoutes } from "./routes/admin/usersUi.js";
 import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
+import "./agents/tools/index.js"; // đăng ký toàn bộ MCP tools vào ToolRegistry
 
 import { registerAdminFormsUiRoutes } from "./routes/admin/formsUi.js";
 import { registerPluginRoutes } from "./routes/admin/plugins.js";
@@ -52,6 +54,7 @@ import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
 import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
 import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
+import { registerMcpChatRoutes } from "./routes/admin/mcpChat.js"; // route THU NGHIEM nen mong MCP - song song, khong thay the aiChat.js
 import { registerThemeEditorUiRoutes } from "./routes/admin/themeEditorUi.js";
 import { registerThemePreviewRoutes } from "./routes/admin/themePreview.js";
 import { registerAdminSeoRoutes } from "./routes/admin/seo.js";
@@ -253,6 +256,7 @@ async function start(): Promise<void> {
   await registerThemeCustomizeRoutes(app);
   await registerThemeChatRoutes(app);
   await registerAiChatRoutes(app);
+  await registerMcpChatRoutes(app);
   await registerThemeEditorUiRoutes(app);
   await registerThemePreviewRoutes(app);
   await registerThemeInlineEditRoutes(app);
@@ -291,7 +295,10 @@ async function start(): Promise<void> {
             try {
               const installModule = await import("file://" + installPath.replace(/\\/g, "/"));
               if (installModule.setup) {
-                await installModule.setup(prisma, slug);
+                // getPluginDb() thay vi prisma that - install.ts KHONG duoc phep tuy y sua bang
+                // core (vd Agent) nua, chi ghi duoc bang dong da khai bao trong manifest.tables.
+                // allowedTables da duoc luu tu lan enable truoc do nen khong can tinh lai o day.
+                await installModule.setup(getPluginDb(slug), slug);
               }
             } catch (err) {
               app.log.error({ err }, `[Plugin: ${slug}] Error running install.ts:`);

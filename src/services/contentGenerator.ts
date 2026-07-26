@@ -1,5 +1,5 @@
 import type { Agent } from "@prisma/client";
-import { callAgent } from "./aiClient.js";
+import { callAgent } from "../agents/core/aiClient.js";
 import { sanitizePostBody } from "./sanitizeHtml.js";
 
 export interface GeneratedPostContent {

@@ -8,11 +8,5 @@
     "readModels": ["Post", "ProductCache", "SiteConfig"]
   },
   "collections": [],
-  "tables": ["PluginAdminAiChatHistory"],
-  "adminFooterComponents": [
-    {
-      "view": "ai-chat-widget.liquid",
-      "excludePathPrefixes": ["/admin/themes/"]
-    }
-  ]
+  "tables": ["PluginAdminAiChatHistory"]
 }

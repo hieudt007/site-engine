@@ -5,11 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { AiCallError, callAgent } from "../../services/aiClient.js";
+import { AiCallError, callAgent } from "../../agents/core/aiClient.js";
 import { renderAdmin } from "../../services/adminView.js";
 import {
   READABLE_CORE_MODELS,
   assertCollectionAllowed,
+  assertSettingKeyAllowed,
   findEnabledPlugin,
   manifestOf,
   pluginManifestSchema,
@@ -18,6 +19,8 @@ import {
   type ReadableCoreModel,
   validatePublicActionData,
 } from "../../services/pluginRuntime.js";
+import { getPluginDb, getPluginSiteSetting, setPluginSiteSetting, deletePluginSiteSetting } from "../../services/pluginDb.js";
+import { stripSystemResources } from "../../agents/core/agentPermissions.js";
 
 const importSchema = z.object({
   manifest: pluginManifestSchema,
@@ -40,6 +43,8 @@ const agentSchema = z.object({
 const enabledSchema = z.object({ enabled: z.boolean() });
 const recordSchema = z.object({ data: z.record(z.unknown()) });
 const collectionParamSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,48}$/);
+const settingKeyParamSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,48}$/);
+const settingValueSchema = z.object({ value: z.unknown() });
 const aiCallSchema = z.object({
   agentKey: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/),
   prompt: z.string().min(1),
@@ -233,11 +238,13 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
       for (const agentDef of agentsToCreate) {
         const existingAgent = await prisma.agent.findFirst({ where: { key: agentDef.key, pluginSlug: plugin.slug } });
         if (!existingAgent) {
+          const { allowedTools } = await stripSystemResources({ allowedTools: agentDef.allowedTools });
           await prisma.agent.create({
             data: {
               key: agentDef.key,
               name: agentDef.name,
               systemPrompt: agentDef.systemPrompt || null,
+              allowedTools,
               model: "cx/gpt-5.4-mini",
               provider: "ai-router",
               pluginSlug: plugin.slug,
@@ -266,54 +273,46 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
       if (parsed.data.enabled) {
         const manifest = manifestOf(plugin);
 
-        // 1. Execute install.ts
+        // 1. Cap allowedTables TRUOC khi chay install.ts (thu tu dao nguoc so voi truoc) - de
+        // install.ts co the dung getPluginDb() (thay vi prisma that) ma van CREATE TABLE duoc cho
+        // cac ten bang no da tu khai bao trong manifest.tables. Khong con kiem tra "bang da ton
+        // tai chua" o buoc nay nua (truoc day check nguoc - install.ts moi la noi TAO bang, nen
+        // luc nay bang chac chan chua ton tai) - tin theo khai bao (giong quy uoc cua
+        // collections/settingsKeys), khong theo su ton tai thuc te.
+        const coreModels = Prisma.dmmf.datamodel.models.map(m => m.dbName || m.name);
+        const declaredTables = (manifest.tables || []).filter((t) => !coreModels.includes(t));
+        await prisma.plugin.update({
+          where: { slug: plugin.slug },
+          data: { allowedTables: declaredTables },
+        });
+
+        // 2. Execute install.ts - dung getPluginDb() (KHONG con truyen prisma that) de install.ts
+        // khong the tuy y sua bang core (vd Agent) nua, chi ghi duoc bang dong da khai bao o buoc 1.
         const addonsDir = path.join(process.cwd(), "src", "addons");
         const installPath = path.join(addonsDir, plugin.slug, "install.ts");
         if (fs.existsSync(installPath)) {
           try {
             const installModule = await import("file://" + installPath.replace(/\\/g, "/"));
             if (installModule.setup) {
-              await installModule.setup(prisma, plugin.slug);
+              await installModule.setup(getPluginDb(plugin.slug), plugin.slug);
             }
           } catch (err) {
             request.log.error({ err }, `[Plugin: ${plugin.slug}] Error running install.ts`);
           }
         }
 
-        // 2. Validate and Update allowedTables
-        const validTables: string[] = [];
-        const coreModels = Prisma.dmmf.datamodel.models.map(m => m.dbName || m.name);
-        
-        for (const tableName of manifest.tables || []) {
-           if (coreModels.includes(tableName)) continue;
-
-           const result = await prisma.$queryRaw<any[]>`
-             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE  table_schema = 'public'
-                AND    table_name   = ${tableName}
-              );
-           `;
-           if (result && result[0] && result[0].exists) {
-              validTables.push(tableName);
-           }
-        }
-
-        await prisma.plugin.update({
-          where: { slug: plugin.slug },
-          data: { allowedTables: validTables }
-        });
-
         // 3. Create Agents if needed
         const agentsToCreate = manifest.permissions.ai?.agents || [];
         for (const agentDef of agentsToCreate) {
           const existing = await prisma.agent.findFirst({ where: { key: agentDef.key, pluginSlug: plugin.slug } });
           if (!existing) {
+            const { allowedTools } = await stripSystemResources({ allowedTools: agentDef.allowedTools });
             await prisma.agent.create({
               data: {
                 key: agentDef.key,
                 name: agentDef.name,
                 systemPrompt: agentDef.systemPrompt || null,
+                allowedTools,
                 model: "cx/gpt-5.4-mini",
                 provider: "ai-router",
                 pluginSlug: plugin.slug,
@@ -392,6 +391,51 @@ export async function registerPluginRoutes(app: FastifyInstance): Promise<void> 
       const record = await prisma.pluginRecord.findFirst({ where: { id: request.params.id, pluginSlug: plugin.slug } });
       if (!record) return reply.code(404).send({ error: "Plugin record not found" });
       await prisma.pluginRecord.delete({ where: { id: record.id } });
+      return { success: true };
+    },
+  );
+
+  // Cho phep plugin doc/ghi 1 "ban ghi" cua rieng no trong SiteConfig.pluginSettings (namespaced
+  // theo pluginSlug) - dung cho component plugin tu dang ky trong tab AI o trang Cai dat chung
+  // (xem manifest.aiSettingsComponents). KHONG mo quyen ghi toan bang SiteConfig - xem
+  // services/pluginDb.ts.
+  app.get<{ Params: { slug: string; key: string } }>(
+    "/admin/api/plugins/:slug/settings/:key",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const key = settingKeyParamSchema.parse(request.params.key);
+      if (!assertSettingKeyAllowed(plugin, key)) return reply.code(403).send({ error: "Setting key is not declared by this plugin" });
+      const value = await getPluginSiteSetting(plugin.slug, key);
+      return { value: value ?? null };
+    },
+  );
+
+  app.put<{ Params: { slug: string; key: string } }>(
+    "/admin/api/plugins/:slug/settings/:key",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const key = settingKeyParamSchema.parse(request.params.key);
+      if (!assertSettingKeyAllowed(plugin, key)) return reply.code(403).send({ error: "Setting key is not declared by this plugin" });
+      const parsed = settingValueSchema.safeParse(request.body);
+      if (!parsed.success) return reply.code(422).send({ error: parsed.error.flatten() });
+      await setPluginSiteSetting(plugin.slug, key, parsed.data.value);
+      return { success: true };
+    },
+  );
+
+  app.delete<{ Params: { slug: string; key: string } }>(
+    "/admin/api/plugins/:slug/settings/:key",
+    { preHandler: requireRole("admin") },
+    async (request, reply) => {
+      const plugin = await findEnabledPlugin(request.params.slug);
+      if (!plugin) return reply.code(404).send({ error: "Enabled plugin not found" });
+      const key = settingKeyParamSchema.parse(request.params.key);
+      if (!assertSettingKeyAllowed(plugin, key)) return reply.code(403).send({ error: "Setting key is not declared by this plugin" });
+      await deletePluginSiteSetting(plugin.slug, key);
       return { success: true };
     },
   );

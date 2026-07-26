@@ -4,7 +4,10 @@ import { Prisma } from "@prisma/client";
 import { getPluginDb } from "../../../services/pluginDb.js";
 const pluginDb = getPluginDb("customer-support");
 import { findEnabledPlugin, manifestOf } from "../../../services/pluginRuntime.js";
-import { callAgentWithTools, AiMessage, AiTool } from "../../../services/aiClient.js";
+import { callAgentWithTools, AiMessage, AiTool } from "../../../agents/core/aiClient.js";
+import { ToolRegistry } from "../../../agents/core/ToolRegistry.js";
+import type { AgentContext } from "../../../agents/core/BaseAgent.js";
+import { customerSupportTools } from "../tools.js";
 import crypto from "node:crypto";
 import { config as appConfig } from "../../../config.js";
 import { getOrCreateSiteConfig } from "../../../services/siteConfig.js";
@@ -12,6 +15,11 @@ import { getOrCreateSiteConfig } from "../../../services/siteConfig.js";
 import { requireRole } from "../../../plugins/requireRole.js";
 import { renderAdmin } from "../../../services/adminView.js";
 import { saveAiChatImage } from "../../../services/mediaStorage.js";
+
+// Dang ky tool cua plugin nay vao ToolRegistry chung ngay khi module duoc load - server.ts import
+// file nay (dong `register(app)`) o startup cho MOI plugin dang bat, nen dam bao tool duoc dang
+// ky lai sau khi restart server, khong chi luc bam "Bat" tren UI.
+customerSupportTools.forEach((tool) => ToolRegistry.register(tool));
 
 const chatSchema = z.object({
   agentKey: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/),
@@ -25,6 +33,10 @@ const chatSchema = z.object({
   images: z.array(z.string()).optional(),
 });
 
+// Schema function-calling GUI cho model (OpenAI-style) - KHAC voi MCPTool.description (van ban
+// tu do cho prompt dang Markdown) nen phai khai bao rieng, khong sinh tu ToolRegistry duoc. Ten
+// tung tool PHAI KHOP CHINH XAC voi ten trong src/addons/customer-support/tools.ts - viec thuc
+// thi da chuyen sang tra ToolRegistry.getTool(name) o duoi, khong con switch-case rieng nua.
 const tools: AiTool[] = [
   {
     type: "function",
@@ -259,62 +271,39 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
       let finalResponse = "";
       let isSpam = false;
 
+      // Chi gui cho model dung tool ma admin da tick allowedTools cho agent nay (qua /admin/agents)
+      // - truoc day gui ca 5 tool cung luc, khong quan tam agent.allowedTools co gi.
+      const activeTools = tools.filter((t) => agent.allowedTools.includes(t.function.name));
+      const toolContext: AgentContext = { meta: { sessionId, url, productId }, history: [] };
+
       try {
         while (loopCount < 5) {
           loopCount++;
-          const res = await callAgentWithTools(agent, aiMessages, tools);
-          
+          const res = await callAgentWithTools(agent, aiMessages, activeTools);
+
           if (res.type === "text") {
              finalResponse = res.text || "";
              break;
           }
-          
+
           if (res.type === "tool_calls" && res.tool_calls) {
              aiMessages.push(res.rawMessage);
-             
+
              for (const call of res.tool_calls) {
                 const args = JSON.parse(call.function.arguments || "{}");
                 let toolResult = "";
-                
+
                 try {
-                  if (call.function.name === "search_product") {
-                     const products = await pluginDb.productCache.findMany({
-                       where: { name: { contains: args.query, mode: 'insensitive' } },
-                       take: 5
-                     });
-                     toolResult = JSON.stringify(products.map(p => ({ id: p.id, name: p.name, price: p.price, salePrice: p.salePrice, imageUrl: p.imageUrls?.[0] })));
-                  }
-                  else if (call.function.name === "get_product") {
-                     const product = await pluginDb.productCache.findUnique({
-                       where: { id: args.productId }
-                     });
-                     toolResult = product ? JSON.stringify({ name: product.name, price: product.price, salePrice: product.salePrice, inStock: product.stock, imageUrls: product.imageUrls }) : "Not found";
-                  }
-                  else if (call.function.name === "check_order") {
-                     const orders = await pluginDb.cartOrder.findMany({
-                       where: { OR: [{ customerPhone: args.phoneOrCode }, { id: args.phoneOrCode }] },
-                       orderBy: { createdAt: 'desc' }, take: 3
-                     });
-                     toolResult = JSON.stringify(orders.map(o => ({ code: o.id, status: o.status, date: o.createdAt })));
-                  }
-                  else if (call.function.name === "create_lead") {
-                     await pluginDb.$executeRaw`
-                       INSERT INTO "PluginCustomerSupportLead" ("name", "phone", "notes", "sessionId", "url")
-                       VALUES (${args.name || null}, ${args.phone}, ${args.notes || null}, ${sessionId || null}, ${url || null})
-                     `;
-                     toolResult = "Đã lưu thông tin khách hàng thành công. Hãy báo cho khách biết.";
-                  }
-                  else if (call.function.name === "mark_as_spam") {
-                     isSpam = true;
-                     toolResult = "Đã đánh dấu spam. Hãy trả lời ngắn gọn từ chối phục vụ.";
-                  }
-                  else {
-                     toolResult = "Tool not found.";
+                  const tool = ToolRegistry.getTool(call.function.name);
+                  if (tool) {
+                    toolResult = await tool.execute(args, toolContext);
+                  } else {
+                    toolResult = "Tool not found.";
                   }
                 } catch (toolErr: any) {
                   toolResult = "Lỗi khi chạy tool: " + toolErr.message;
                 }
-                
+
                 aiMessages.push({
                    role: "tool",
                    content: toolResult,
@@ -323,7 +312,9 @@ Lưu ý: TRẢ VỀ ĐÚNG JSON, KHÔNG KÈM THEO MARKDOWN HAY BẤT KỲ VĂN B
              }
           }
         }
-        
+
+        if (toolContext.meta.isSpam) isSpam = true;
+
         if (!finalResponse) {
           finalResponse = JSON.stringify({ messages: ["Tôi đã xử lý yêu cầu nhưng không thể kết luận. Xin thử lại."], images: [] });
         }

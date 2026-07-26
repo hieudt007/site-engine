@@ -58,6 +58,7 @@
     <button type="button" class="tab-btn" data-tab="tab-paths">Đường dẫn</button>
     <button type="button" class="tab-btn" data-tab="tab-tracking">Tracking</button>
     <button type="button" class="tab-btn" data-tab="tab-security">Bảo mật</button>
+    <button type="button" class="tab-btn" data-tab="tab-ai">AI & Tự động hoá</button>
   </div>
 
   <form id="settings-form" class="card tabs-content">
@@ -163,6 +164,37 @@
       <p class="field-hint">Dùng để xác thực request ở Backend. Để trống nếu tắt bảo vệ.</p>
     </div>
 
+    <div id="tab-ai" class="tab-pane">
+      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">AI & Tự động hoá</h2>
+      <p style="color:#6b7280; font-size:0.9rem; margin-top:0; margin-bottom:1.5rem;">
+        Lựa chọn các AI Agent để phụ trách từng tính năng cụ thể trong hệ thống. Bạn có thể gán nhiều tính năng cho cùng một Agent, hoặc phân chia cho từng Agent riêng biệt.
+      </p>
+
+      <label for="adminChatAgentId">Trợ lý quản trị (Admin Chat)</label>
+      <div class="field-hint" style="margin-bottom:0.4rem;">Agent này sẽ trả lời các câu hỏi ở khung chat góc dưới bên phải màn hình quản trị, hỗ trợ admin sử dụng hệ thống.</div>
+      <select id="adminChatAgentId" name="adminChatAgentId">
+        <option value="">-- Chọn Agent --</option>
+        {% for agent in agents %}
+          <option value="{{ agent.id | escape }}">{{ agent.name | escape }} ({{ agent.key | escape }})</option>
+        {% endfor %}
+      </select>
+
+      <label for="cskhAgentId" style="margin-top:1rem;display:block;">Chăm sóc khách hàng (CSKH)</label>
+      <div class="field-hint" style="margin-bottom:0.4rem;">Agent này sẽ trả lời tin nhắn của khách ở giao diện ngoài website (nếu có bật tính năng live-chat AI).</div>
+      <select id="cskhAgentId" name="cskhAgentId">
+        <option value="">-- Chọn Agent --</option>
+        {% for agent in agents %}
+          <option value="{{ agent.id | escape }}">{{ agent.name | escape }} ({{ agent.key | escape }})</option>
+        {% endfor %}
+      </select>
+
+      {% for componentPath in pluginAiSettingsComponents %}
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid #eee;">
+          {% render componentPath %}
+        </div>
+      {% endfor %}
+    </div>
+
     <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #eee;">
       <button type="submit" class="btn btn-primary">Lưu cài đặt</button>
     </div>
@@ -175,15 +207,21 @@
   const tabs = document.querySelectorAll('.tab-btn');
   const panes = document.querySelectorAll('.tab-pane');
 
+  function openTab(tabName) {
+    const tabBtn = document.querySelector('.tab-btn[data-tab="tab-' + tabName + '"]');
+    if (!tabBtn) return;
+    tabs.forEach(t => t.classList.remove('active'));
+    panes.forEach(p => p.classList.remove('active'));
+    tabBtn.classList.add('active');
+    document.getElementById(tabBtn.dataset.tab).classList.add('active');
+  }
+
   tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      panes.forEach(p => p.classList.remove('active'));
-      
-      tab.classList.add('active');
-      document.getElementById(tab.dataset.tab).classList.add('active');
-    });
+    tab.addEventListener('click', () => openTab(tab.dataset.tab.replace('tab-', '')));
   });
+
+  const requestedTab = new URLSearchParams(window.location.search).get('tab');
+  if (requestedTab) openTab(requestedTab);
 
   // Data logic
   const form = document.getElementById("settings-form");
@@ -215,7 +253,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey"].forEach((key) => {
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
       if(form[key]) form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -258,6 +296,8 @@
       gscVerificationId: form.gscVerificationId.value.trim(),
       turnstileSiteKey: form.turnstileSiteKey.value.trim(),
       turnstileSecretKey: form.turnstileSecretKey.value.trim(),
+      adminChatAgentId: form.adminChatAgentId.value || null,
+      cskhAgentId: form.cskhAgentId.value || null,
       socialLinks: {
         facebook: form.facebook.value || undefined,
         zalo: form.zalo.value || undefined,

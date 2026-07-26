@@ -58,6 +58,17 @@ model SiteConfig {
 
   aiProviderKeys    Json?
 
+  adminChatAgentId  String?
+  cskhAgentId       String?
+
+  // Cho phep plugin doc/ghi 1 "ban ghi" cua rieng no trong SiteConfig ma KHONG can mo quyen ghi
+  // toan bang (quyen bang SiteConfig trong getPluginDb() giu nguyen - van bi chan hoan toan qua
+  // ORM/raw SQL nhu moi core model khac). Cau truc: { "<pluginSlug>": { <key>: <value>, ... } }.
+  // CHI duoc doc/ghi qua getPluginSiteSetting/setPluginSiteSetting/deletePluginSiteSetting trong
+  // services/pluginDb.ts (doc-merge-ghi trong transaction) - khong co duong nao khac cho plugin
+  // dung toi field nay.
+  pluginSettings Json? @default("{}")
+
   updatedAt DateTime @updatedAt
 }
 
@@ -309,23 +320,27 @@ model Post {
 // va tuy chinh theme bang AI (routes/admin/themeCustomize.ts).
 // provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'openrouter' | 'ai-router' | 'custom'
 // ('ai-router' = 9router, dung baseUrl mac dinh cua 9router; 'custom' bat buoc phai co baseUrl).
-// purpose: 'content' | 'design' | null — agent nao co purpose nay se TU DONG duoc chon lam mac
-// dinh cho dung tinh nang tuong ung (khong bat buoc — null = agent chung, khong tu chon o dau ca,
-// van chon tay duoc o man tuy chinh theme). seedAgents.ts tao san 2 agent mac dinh (1 moi purpose,
-// apiKey rong) moi khi 1 site moi duoc tao (xem WebsiteProvisionService ben lead-base).
 model Agent {
   id           String   @id @default(cuid())
   key          String?  @unique
   name         String
+  type         String   @default("agent") // 'agent' | 'tool' | 'skill'
   provider     String   @default("openai")
   model        String
   systemPrompt String?
+  allowedTools String[] @default([])
   apiKey       String?
   baseUrl      String?
   endpoint     String   @default("/chat/completions")
   isSystem     Boolean  @default(false)
   isActive     Boolean  @default(true)
   pluginSlug   String?
+  // Chi dung khi type='skill': noi dung "bi kip" day du, tra ve cho agent khi no goi USE_SKILL
+  // (systemPrompt o tren duoc tai dung lam mo ta ngan cho skill, hien trong danh sach skill kha dung).
+  content       String?
+  // Chi dung khi type='agent': danh sach key cua cac row type='skill' ma agent nay duoc phep goi
+  // (rong = khong duoc dung skill nao - giong quy uoc cua allowedTools).
+  allowedSkills String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

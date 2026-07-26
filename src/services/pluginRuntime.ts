@@ -103,10 +103,10 @@ const publicBlockSchema = z
     }
   });
 
-const adminFooterComponentSchema = z.object({
+// Component plugin tu dang ky, hien trong tab "AI & Tự động hoá" o trang Cai dat chung
+// (views/admin/settings-general.liquid) - xem services/adminView.ts.
+const aiSettingsComponentSchema = z.object({
   view: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,60}\.liquid$/),
-  // Prefix của currentPath bị loại trừ — vd "/admin/themes/" loại cả "/admin/themes/xyz/edit"
-  excludePathPrefixes: z.array(z.string()).default([]),
 });
 
 export const pluginManifestSchema = z.object({
@@ -125,6 +125,9 @@ export const pluginManifestSchema = z.object({
             key: z.string().regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/),
             name: z.string().min(1).max(120),
             systemPrompt: z.string().max(4000).optional(),
+            // Ten tool (da dang ky vao ToolRegistry - xem backend/index.ts cua plugin) ma agent
+            // nay duoc phep dung, giong het allowedTools cua Agent model.
+            allowedTools: z.array(z.string()).max(20).default([]),
           })).max(20).default([]),
           maxPromptLength: z.number().int().min(1).max(20000).default(4000),
           systemPrompt: z.string().max(4000).optional(),
@@ -137,7 +140,11 @@ export const pluginManifestSchema = z.object({
   publicData: z.array(publicDataSchema).default([]),
   publicBlocks: z.array(publicBlockSchema).default([]),
   publicActions: z.array(publicActionSchema).default([]),
-  adminFooterComponents: z.array(adminFooterComponentSchema).default([]),
+  aiSettingsComponents: z.array(aiSettingsComponentSchema).default([]),
+  // Danh sach key duoc phep doc/ghi qua GET|PUT|DELETE /admin/api/plugins/:slug/settings/:key
+  // (SiteConfig.pluginSettings, namespaced theo pluginSlug) - phai khai bao truoc, giong quy uoc
+  // cua "collections" (assertCollectionAllowed).
+  settingsKeys: z.array(z.string().regex(/^[a-z0-9][a-z0-9_-]{0,48}$/)).default([]),
 });
 
 
@@ -151,6 +158,11 @@ export function manifestOf(plugin: { manifest: unknown }) {
 export function assertCollectionAllowed(plugin: { manifest: unknown }, collection: string): boolean {
   const manifest = manifestOf(plugin);
   return manifest.collections.some((item) => item.name === collection);
+}
+
+export function assertSettingKeyAllowed(plugin: { manifest: unknown }, key: string): boolean {
+  const manifest = manifestOf(plugin);
+  return manifest.settingsKeys.includes(key);
 }
 
 export function publicActionOf(plugin: { manifest: unknown }, actionKey: string) {

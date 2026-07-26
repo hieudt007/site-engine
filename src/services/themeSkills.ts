@@ -1,5 +1,4 @@
-import fs from "node:fs/promises";
-import path from "node:path";
+import { prisma } from "../db.js";
 
 export interface AgentSkill {
   slug: string;
@@ -7,51 +6,21 @@ export interface AgentSkill {
   description: string;
 }
 
-const SKILLS_DIR = path.join(process.cwd(), "src", "agent-skills");
-
-export async function getAllAgentSkills(): Promise<AgentSkill[]> {
-  const skills: AgentSkill[] = [];
-  try {
-    const entries = await fs.readdir(SKILLS_DIR, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isFile() && entry.name.endsWith(".md")) {
-        const fullPath = path.join(SKILLS_DIR, entry.name);
-        const content = await fs.readFile(fullPath, "utf-8");
-        const slug = entry.name.replace(".md", "");
-
-        // Parse frontmatter
-        const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-        if (match) {
-          const frontmatter = match[1];
-          const nameMatch = frontmatter.match(/name:\s*(.+)/);
-          const descMatch = frontmatter.match(/description:\s*(.+)/);
-          if (nameMatch && descMatch) {
-            skills.push({
-              slug,
-              name: nameMatch[1].trim(),
-              description: descMatch[1].trim()
-            });
-          }
-        }
-      }
-    }
-  } catch (e) {
-    // Thư mục chưa tồn tại hoặc lỗi đọc
-  }
-  return skills;
+// Skill = row Agent voi type='skill' (xem prisma/schema.prisma). "allowedKeys" la
+// Agent.allowedSkills cua agent dang goi - RONG NGHIA LA KHONG DUOC DUNG SKILL NAO, giong
+// quy uoc cua allowedTools (khong phai "khong gioi han").
+export async function getAllAgentSkills(allowedKeys: string[] = []): Promise<AgentSkill[]> {
+  if (allowedKeys.length === 0) return [];
+  const skills = await prisma.agent.findMany({
+    where: { type: "skill", isActive: true, key: { in: allowedKeys } },
+    orderBy: { name: "asc" },
+  });
+  return skills
+    .filter((s) => s.key)
+    .map((s) => ({ slug: s.key as string, name: s.name, description: s.systemPrompt || "" }));
 }
 
 export async function getAgentSkillContent(slug: string): Promise<string | undefined> {
-  try {
-    const fullPath = path.join(SKILLS_DIR, `${slug}.md`);
-    const content = await fs.readFile(fullPath, "utf-8");
-    // Strip frontmatter
-    const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n([\s\S]*)$/);
-    if (match) {
-      return match[1].trim();
-    }
-    return content.trim(); // Return raw if no frontmatter
-  } catch (e) {
-    return undefined;
-  }
+  const skill = await prisma.agent.findFirst({ where: { type: "skill", isActive: true, key: slug } });
+  return skill?.content || undefined;
 }

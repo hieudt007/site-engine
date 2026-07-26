@@ -14,29 +14,73 @@ const writeOperations = [
 
 const coreModelsLowerCase = Prisma.dmmf.datamodel.models.map(m => (m.dbName || m.name).toLowerCase());
 
+// CREATE INDEX co cau truc khac han cac cau con lai: ten bang KHONG dung ngay sau tu khoa, ma
+// dung sau "ON" (vd CREATE UNIQUE INDEX IF NOT EXISTS idx_name ON "TableName" (...)) - phai tach
+// regex rieng, khong the gop chung vao tableRegex (von gia dinh "tu khoa + ten bang" lien nhau).
+const CREATE_INDEX_TABLE_RE = /create\s+(?:unique\s+)?index\s+(?:if\s+not\s+exists\s+)?"?[a-z0-9_]+"?\s+on\s+"?([a-z0-9_]+)"?/ig;
+const WRITE_TABLE_RE = /(?:insert\s+into|update|delete\s+from|drop\s+table|alter\s+table|truncate\s+table|create\s+table(?:\s+if\s+not\s+exists)?)\s+"?([a-z0-9_]+)"?/ig;
+
 async function checkSqlSecurity(sql: string, pluginSlug: string) {
    const lowerSql = sql.toLowerCase();
    // Chỉ chặn các thao tác Ghi (DML/DDL) trên các bảng Core. Read-only được phép.
    const isWrite = /^(insert|update|delete|drop|create|alter|truncate)\b/.test(lowerSql.trim());
-   
+
    if (isWrite) {
        const plugin = await prisma.plugin.findUnique({ where: { slug: pluginSlug } });
        const allowedTables = (plugin?.allowedTables || []).map((t: string) => t.toLowerCase());
-       
-       const tableRegex = /(?:insert\s+into|update|delete\s+from|drop\s+table|alter\s+table|truncate\s+table)\s+"?([a-z0-9_]+)"?/ig;
-       let match;
-       while ((match = tableRegex.exec(sql)) !== null) {
-           const tableName = match[1].toLowerCase();
-           
+
+       const matchedTables: string[] = [];
+       for (const re of [WRITE_TABLE_RE, CREATE_INDEX_TABLE_RE]) {
+         re.lastIndex = 0;
+         let match;
+         while ((match = re.exec(sql)) !== null) {
+           matchedTables.push(match[1].toLowerCase());
+         }
+       }
+
+       for (const tableName of matchedTables) {
            if (coreModelsLowerCase.includes(tableName)) {
-               throw new Error(`[Plugin Security] Plugin "${pluginSlug}" bị cấm thao tác GHI vào bảng Core: ${match[1]}`);
+               throw new Error(`[Plugin Security] Plugin "${pluginSlug}" bị cấm thao tác GHI vào bảng Core: ${tableName}`);
            }
-           
+
            if (!allowedTables.includes(tableName)) {
-               throw new Error(`[Plugin Security] Plugin "${pluginSlug}" không có quyền thao tác GHI trên bảng động: ${match[1]}. Cần khai báo trong allowedTables.`);
+               throw new Error(`[Plugin Security] Plugin "${pluginSlug}" không có quyền thao tác GHI trên bảng động: ${tableName}. Cần khai báo trong allowedTables.`);
            }
        }
    }
+}
+
+// Cho phep plugin doc/ghi 1 "ban ghi" cua rieng no trong SiteConfig.pluginSettings (namespaced
+// theo pluginSlug) MA KHONG mo quyen ghi toan bang SiteConfig - quyen bang (getPluginDb() o duoi)
+// giu nguyen, van chan hoan toan nhu moi core model khac. Day la DUONG DUY NHAT plugin duoc dung
+// de dung toi field nay - khong co API nao khac.
+export async function getPluginSiteSetting(pluginSlug: string, key: string): Promise<unknown> {
+  const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" }, select: { pluginSettings: true } });
+  const settings = (config?.pluginSettings as Record<string, Record<string, unknown>> | null) || {};
+  return settings[pluginSlug]?.[key];
+}
+
+// Doc-merge-ghi trong 1 transaction (khoa row) de 2 plugin ghi dong thoi khong de ghi de mat du
+// lieu cua nhau - field pluginSettings la JSON blob nguyen khoi, Prisma khong merge tung key.
+export async function setPluginSiteSetting(pluginSlug: string, key: string, value: unknown): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const config = await tx.siteConfig.findUnique({ where: { id: "singleton" }, select: { pluginSettings: true } });
+    const settings = { ...(config?.pluginSettings as Record<string, Record<string, unknown>> | null || {}) };
+    settings[pluginSlug] = { ...(settings[pluginSlug] || {}), [key]: value };
+    await tx.siteConfig.update({ where: { id: "singleton" }, data: { pluginSettings: settings as Prisma.InputJsonValue } });
+  });
+}
+
+export async function deletePluginSiteSetting(pluginSlug: string, key: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const config = await tx.siteConfig.findUnique({ where: { id: "singleton" }, select: { pluginSettings: true } });
+    const settings = { ...(config?.pluginSettings as Record<string, Record<string, unknown>> | null || {}) };
+    if (!settings[pluginSlug]) return;
+    const scoped = { ...settings[pluginSlug] };
+    delete scoped[key];
+    settings[pluginSlug] = scoped;
+    await tx.siteConfig.update({ where: { id: "singleton" }, data: { pluginSettings: settings as Prisma.InputJsonValue } });
+  });
 }
 
 export function getPluginDb(pluginSlug: string) {

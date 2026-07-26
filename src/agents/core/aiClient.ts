@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
-import { prisma } from "../db.js";
+import { prisma } from "../../db.js";
 
 // Ghi lai context gui/nhan voi AI de debug - GHI DE (khong noi tiep) - chi giu LAN GOI GAN NHAT,
 // tranh file phinh to vo han qua nhieu luot chat (1 luot co the goi AI nhieu lan: phan loai + tung

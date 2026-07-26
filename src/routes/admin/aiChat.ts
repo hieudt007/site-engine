@@ -3,7 +3,7 @@ import { z } from "zod";
 import { EventEmitter } from "node:events";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { callAgent, generateImage, webFetch, webSearch } from "../../services/aiClient.js";
+import { callAgent, generateImage, webFetch, webSearch } from "../../agents/core/aiClient.js";
 import { InvalidUploadError, saveAiChatImage } from "../../services/mediaStorage.js";
 
 // Dung cho tool "check_preview": server gui yeu cau mo URL preview len frontend qua SSE

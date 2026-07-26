@@ -28,14 +28,14 @@ export async function renderAdmin(template: string, data: Record<string, unknown
         menuGroup: page.menuGroup ?? "Plugins",
       }));
   });
-  const adminFooterComponents = enabledPlugins.flatMap((plugin) => {
-    const manifest = plugin.manifest as { adminFooterComponents?: Array<{ view?: string; excludePathPrefixes?: string[] }> };
-    return (manifest.adminFooterComponents ?? [])
+  // Plugin tu dang ky component hien trong tab "AI & Tự động hoá" o trang Cai dat chung
+  // (views/admin/settings-general.liquid) - thay cho co che adminFooterComponents cu (render vao
+  // MOI trang admin qua layout.liquid, da bo).
+  const pluginAiSettingsComponents = enabledPlugins.flatMap((plugin) => {
+    const manifest = plugin.manifest as { aiSettingsComponents?: Array<{ view?: string }> };
+    return (manifest.aiSettingsComponents ?? [])
       .filter((comp) => comp.view)
-      .map((comp) => ({
-        viewPath: `${plugin.slug}/views/admin/components/${comp.view}`,
-        excludePathPrefixes: comp.excludePathPrefixes ?? [],
-      }));
+      .map((comp) => `${plugin.slug}/views/admin/components/${comp.view}`);
   });
   return engine.renderFile(template, {
     faviconUrl: siteConfig?.faviconUrl ?? null,
@@ -47,7 +47,7 @@ export async function renderAdmin(template: string, data: Record<string, unknown
     pageSlugPrefix: siteConfig?.pageSlugPrefix ?? "page",
     productSlugPrefix: siteConfig?.productSlugPrefix ?? "product",
     pluginAdminPages,
-    adminFooterComponents,
+    pluginAiSettingsComponents,
     ...data,
   });
 }

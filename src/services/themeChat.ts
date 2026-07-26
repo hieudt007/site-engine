@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
 import { prisma } from "../db.js";
-import { callAgent } from "./aiClient.js";
+import { callAgent } from "../agents/core/aiClient.js";
 import { getAllThemeAssetFiles, getSelectableFiles, getContractFromDisk } from "./themeContract.js";
 import { validateThemeFile } from "./themeValidator.js";
 
@@ -36,10 +36,11 @@ import { getAllAgentSkills } from "./themeSkills.js";
 
 export async function buildAgentSystemPrompt(
   slug: string,
+  allowedSkills: string[] = [],
   isRedesign: boolean = false,
   hasOpenFiles: boolean = false
 ): Promise<string> {
-  const availableSkills = await getAllAgentSkills();
+  const availableSkills = await getAllAgentSkills(allowedSkills);
 
   const promptParts: string[] = [];
 
