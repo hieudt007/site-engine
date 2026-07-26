@@ -1,6 +1,17 @@
 import { prisma } from "./db.js";
 
-const DEFAULT_MODEL = "cx/gpt-5.4-mini"; 
+const DEFAULT_MODEL = "cx/gpt-5.4-mini";
+
+// Cau hinh (provider/model/endpoint) cho cac tool GOI API NGOAI (ToolRegistry chi biet ten +
+// execute(), con provider/apiKey lay tu 1 Agent row rieng type='tool' cung key - xem
+// src/agents/tools/webSearchTool.ts, generateImageTool.ts, webFetchTool.ts). Khong tao duoc qua
+// UI (agent-edit.liquid chi cho chon Agent/Skill) nen phai seed o day. apiKey de trong - tu dong
+// lay theo provider tu SiteConfig.aiProviderKeys (xem aiClient.ts).
+const DEFAULT_TOOL_CONFIGS: { name: string; key: string; endpoint?: string }[] = [
+  { name: "Tool: Web Search", key: "web_search", endpoint: "/search" },
+  { name: "Tool: Web Fetch", key: "webfetch", endpoint: "/web/fetch" },
+  { name: "Tool: Generate Image", key: "generate_image" },
+];
 
 const DEFAULT_AGENTS: { name: string; key: string; systemPrompt: string; allowedTools: string[] }[] = [
   {
@@ -17,8 +28,8 @@ Nhiệm vụ của bạn là nhận yêu cầu để sửa giao diện (HTML/CSS
 Nhiệm vụ của bạn là nhận yêu cầu từ người dùng, trò chuyện thân thiện, và Quyết định phân loại ý định (Intent Classification) để GIAO VIỆC cho đúng Agent chuyên trách, hoặc tự xử lý nếu là câu hỏi thông thường.
 
 QUY TẮC XỬ LÝ Ý ĐỊNH (INTENT CLASSIFICATION):
-1. Hỏi đáp chung/Tra cứu thông tin: 
-   - TỰ XỬ LÝ bằng cách dùng công cụ web_search hoặc fetch_url nếu cần.
+1. Hỏi đáp chung/Tra cứu thông tin:
+   - TỰ XỬ LÝ bằng cách dùng công cụ web_search hoặc webfetch nếu cần.
 2. Code / Giao diện / Cấu hình / File: 
    - GIAO VIỆC cho 'developer' (Thợ Code).
 3. Nội dung bài viết / Sản phẩm / SEO: 
@@ -43,7 +54,7 @@ NẾU KHÔNG CÓ 'QA_URL': Thay đổi nhỏ, bạn dùng '# REPLY_TO_USER' đ�
 TRẢ LỜI NGƯỜI DÙNG:
 # REPLY_TO_USER
 [Nội dung trả lời...]`,
-    allowedTools: ["web_search", "read_fields", "fill_form", "request_visual_qa", "get_current_page"],
+    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history"],
   },
   {
     name: "Giám đốc Mỹ thuật (UI/UX)",
@@ -72,17 +83,52 @@ Nhiệm vụ của bạn là viết bài blog, tạo nội dung mô tả sản p
 QUY TẮC VIẾT BÀI:
 - Trả về nội dung có định dạng HTML hợp lệ (dùng p, br, hr, strong, h2, a, img, ul, ol...).
 - CẤM dùng các thẻ script, style, iframe.
-- Giọng văn tự nhiên, thân thiện. Phải đảm bảo tiêu chuẩn SEO (có H1, H2, chứa từ khóa).
+- Giọng văn tự nhiên, thân thiện.
+
+TỰ KIỂM TRA SEO TRƯỚC KHI TRẢ LỜI (không cần gọi tool, tự chấm bằng chính bạn):
+- Có đúng 1 H1 chứa từ khoá chính, ít nhất 1-2 H2 chia bố cục rõ ràng.
+- Từ khoá chính xuất hiện trong đoạn mở đầu (100 từ đầu), mật độ tự nhiên (không nhồi nhét).
+- Độ dài nội dung phù hợp với yêu cầu (bài blog tối thiểu ~300 từ, mô tả sản phẩm ngắn gọn hơn).
+- Ảnh (nếu có) phải có thuộc tính alt mô tả đúng nội dung.
+- Có ít nhất 1 liên kết nội bộ hoặc external hợp lý nếu ngữ cảnh cho phép.
 
 TRẢ LỜI NGƯỜI DÙNG:
 # REPLY_TO_USER
 Tiêu đề: ...
 Nội dung: ...`,
-    allowedTools: ["web_search", "generate_image", "get_post", "seo_audit"],
+    allowedTools: ["web_search", "generate_image", "get_post"],
+  },
+  {
+    name: "CSKH Agent",
+    key: "customer",
+    systemPrompt: `Bạn là nhân viên chăm sóc khách hàng của website. Bạn có khả năng tra cứu thông tin sản phẩm, bài viết và trang để giải đáp thắc mắc của khách hàng một cách lịch sự, ngắn gọn và chốt sale hiệu quả.`,
+    allowedTools: ["search_product", "get_product", "check_order", "create_lead", "mark_as_spam", "get_chat_history"],
   }
 ];
 
 async function main() {
+  for (const def of DEFAULT_TOOL_CONFIGS) {
+    const existing = await prisma.agent.findFirst({ where: { key: def.key, type: "tool" } });
+    if (existing) {
+      console.log(`[seedAgents] Tool config key="${def.key}" đã tồn tại, bỏ qua.`);
+      continue;
+    }
+    await prisma.agent.create({
+      data: {
+        name: def.name,
+        type: "tool",
+        provider: "ai-router",
+        model: DEFAULT_MODEL,
+        key: def.key,
+        endpoint: def.endpoint,
+        apiKey: null,
+        baseUrl: null,
+        isActive: true,
+      },
+    });
+    console.log(`[seedAgents] Đã tạo tool config "${def.name}" (key=${def.key}).`);
+  }
+
   for (const def of DEFAULT_AGENTS) {
     const existing = await prisma.agent.findFirst({ where: { key: def.key } });
     if (existing) {

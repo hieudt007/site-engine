@@ -147,6 +147,111 @@ export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: 
   return callOpenAiCompatible(agent, systemPrompt, userPrompt, imageUrl, forceJson);
 }
 
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  content: string;
+  imageUrl?: string;
+}
+
+// Goi AI voi LICH SU DA TURN THAT (moi turn 1 message rieng) - dung cho BaseAgent.run() (vong lap
+// MCP). KHAC voi callAgent(): callAgent chi nhan 1 "userPrompt" duy nhat nen BaseAgent truoc day
+// phai JSON.stringify() ca mang lich su nhoi vao do - AI nhan duoc 1 khoi JSON tho thay vi hoi
+// thoai that, vua ton token vua de model hieu sai. Ham nay gui dung 1 message/turn.
+export async function callAgentConversation(
+  agent: Agent,
+  systemPrompt: string,
+  turns: ConversationTurn[],
+  forceJson?: boolean
+): Promise<string> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  if (forceJson) {
+    systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object.";
+  }
+
+  writeDebugLog(
+    "input",
+    agent,
+    `--- SYSTEM ---\n${systemPrompt}\n` +
+      turns.map((t) => `--- ${t.role.toUpperCase()} ---\n${t.content}${t.imageUrl ? `\n[image] ${t.imageUrl}` : ""}`).join("\n")
+  );
+
+  if (agent.provider === "anthropic") {
+    const messages = turns.map((t) => ({
+      role: t.role,
+      content: t.imageUrl
+        ? [{ type: "text", text: t.content }, { type: "image", source: { type: "url", url: t.imageUrl } }]
+        : t.content,
+    }));
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": agent.apiKey ?? "",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({ model: agent.model, max_tokens: 8000, system: systemPrompt, messages }),
+    });
+    if (!res.ok) {
+      throw new AiCallError(`Anthropic API lỗi ${res.status}: ${await res.text()}`);
+    }
+    const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+    const text = data.content?.find((block) => block.type === "text")?.text;
+    if (!text) {
+      throw new AiCallError("Anthropic API trả về rỗng");
+    }
+    writeDebugLog("output", agent, text);
+    return text;
+  }
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...turns.map((t) => ({
+      role: t.role,
+      content: t.imageUrl
+        ? [{ type: "text", text: t.content }, { type: "image_url", image_url: { url: t.imageUrl } }]
+        : t.content,
+    })),
+  ];
+  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: agent.model,
+      messages,
+      ...(forceJson ? { response_format: { type: "json_object" } } : {}),
+      temperature: 0.7,
+      stream: false,
+    }),
+  });
+  if (!res.ok) {
+    throw new AiCallError(`AI API lỗi ${res.status}: ${await res.text()}`);
+  }
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new AiCallError("AI API trả về rỗng");
+  }
+  writeDebugLog("output", agent, text);
+  return text;
+}
+
 export async function generateImage(agent: Agent, prompt: string, size: string = "1024x1024"): Promise<string> {
   if (!agent.isActive) {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);

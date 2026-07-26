@@ -3,20 +3,14 @@ import { BaseAgent } from "./BaseAgent.js";
 
 export class AgentFactory {
   static async create(agentType: string): Promise<BaseAgent | null> {
-    // 1. Lấy thông tin model/provider từ Database
-    // Ở site-engine, hiện tại có bảng Agent, ví dụ: name = agentType
-    // Ta lấy agent theo tên hoặc alias. 
-    // Tuy nhiên nếu DB chưa mapping rõ ràng, ta có thể fallback về default model.
-    let agentModel = await prisma.agent.findFirst({
+    // Lay dung agent theo key - KHONG fallback ve "agent dau tien trong DB" nua (truoc day lam
+    // vay, de lam agent SAI chay am tham ma khong ai biet neu agentType go/nhap sai). agentType
+    // khong ton tai/khong active thi tra ve null, cho caller tu bao loi ro rang.
+    const agentModel = await prisma.agent.findFirst({
       where: { key: agentType, type: 'agent', isActive: true }
     });
-
     if (!agentModel) {
-      // Fallback lấy agent admin default
-      agentModel = await prisma.agent.findFirst();
-      if (!agentModel) {
-        throw new Error("Không tìm thấy Agent Model nào trong CSDL.");
-      }
+      return null;
     }
 
     // 2. Resolve đúng Class Agent

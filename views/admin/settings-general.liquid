@@ -187,12 +187,6 @@
           <option value="{{ agent.id | escape }}">{{ agent.name | escape }} ({{ agent.key | escape }})</option>
         {% endfor %}
       </select>
-
-      {% for componentPath in pluginAiSettingsComponents %}
-        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid #eee;">
-          {% render componentPath %}
-        </div>
-      {% endfor %}
     </div>
 
     <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #eee;">

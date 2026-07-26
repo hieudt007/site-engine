@@ -3,7 +3,6 @@ import { Liquid } from "liquidjs";
 import { prisma } from "../db.js";
 import crypto from "node:crypto";
 import { config as appConfig } from "../config.js";
-import { buildPublicPluginContext } from "./pluginRuntime.js";
 import { buildOrganizationSchema } from "./schema.js";
 import { pagePrefix, prefixPath, postPrefix, productPrefix } from "./urlPaths.js";
 
@@ -77,21 +76,19 @@ function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string 
 // lan render nay thoi.
 export async function renderPublic(template: string, data: RenderData, themeSlugOverride?: string): Promise<string> {
   const slug = themeSlugOverride ?? (await activeThemeSlug());
-  const engine = new Liquid({ 
+  const engine = new Liquid({
     root: [
-      path.join(THEMES_ROOT, slug), 
+      path.join(THEMES_ROOT, slug),
       path.join(THEMES_ROOT, "default"),
-      path.join(process.cwd(), "src", "addons")
-    ], 
+    ],
     extname: ".liquid",
     cache: process.env.NODE_ENV === "production"
   });
 
-  const [siteConfig, headerMenu, footerMenu, pluginContext] = await Promise.all([
+  const [siteConfig, headerMenu, footerMenu] = await Promise.all([
     prisma.siteConfig.findUnique({ where: { id: "singleton" } }),
     prisma.menu.findUnique({ where: { slug: "header" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
     prisma.menu.findUnique({ where: { slug: "footer" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
-    buildPublicPluginContext(),
   ]);
 
   const { schemas, ...restData } = data;
@@ -119,9 +116,6 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const chatSessionId = "sess_" + crypto.randomBytes(8).toString("hex");
   const chatHmacToken = crypto.createHmac("sha256", appConfig.siteEngineSecret).update(chatSessionId).digest("hex");
 
-  const activePluginsRecords = await prisma.plugin.findMany({ where: { enabled: true }, select: { slug: true } });
-  const activePlugins = activePluginsRecords.map(p => p.slug);
-
   const contextData = {
     ...restData,
     site,
@@ -129,8 +123,11 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     // fallback ve nav cung khi rong (xem themes/default/layout.liquid).
     headerMenu,
     footerMenu,
-    pluginData: pluginContext.data,
-    pluginAreas: pluginContext.areas,
+    // pluginData/pluginAreas: he thong plugin dong da bi go bo (xem routes/admin/plugins.ts) -
+    // giu 2 key nay rong de cac theme (minimal/misamom) con render "components/plugin/area"
+    // khong bi loi (Liquid lap qua object/array rong = khong render gi, an toan).
+    pluginData: {},
+    pluginAreas: {},
     postUrlPrefix,
     pageUrlPrefix,
     productUrlPrefix,
@@ -144,7 +141,6 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     year: new Date().getFullYear(),
     chatSessionId,
     chatHmacToken,
-    activePlugins,
     // Cache buster - doi theo ngay deploy de browser buc tai file CSS/JS moi
     assetVersion: process.env.ASSET_VERSION || Date.now().toString(36).slice(-6),
   };

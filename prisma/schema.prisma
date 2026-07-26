@@ -61,14 +61,6 @@ model SiteConfig {
   adminChatAgentId  String?
   cskhAgentId       String?
 
-  // Cho phep plugin doc/ghi 1 "ban ghi" cua rieng no trong SiteConfig ma KHONG can mo quyen ghi
-  // toan bang (quyen bang SiteConfig trong getPluginDb() giu nguyen - van bi chan hoan toan qua
-  // ORM/raw SQL nhu moi core model khac). Cau truc: { "<pluginSlug>": { <key>: <value>, ... } }.
-  // CHI duoc doc/ghi qua getPluginSiteSetting/setPluginSiteSetting/deletePluginSiteSetting trong
-  // services/pluginDb.ts (doc-merge-ghi trong transaction) - khong co duong nao khac cho plugin
-  // dung toi field nay.
-  pluginSettings Json? @default("{}")
-
   updatedAt DateTime @updatedAt
 }
 
@@ -141,6 +133,36 @@ model AdminChatHistory {
   @@index([entityId])
 }
 
+// Tin nhắn chat trực tuyến (live-chat) giữa khách và AI CSKH (agent key="customer") trên trang
+// public — trước đây la bang rieng cua plugin "customer-support" (raw SQL, khong qua Prisma), gio
+// la core feature that su. "role": 'user' | 'assistant' | 'error' | 'admin' (admin tra loi tay
+// qua trang /admin/live-chat).
+model CustomerChatMessage {
+  id        Int      @id @default(autoincrement())
+  sessionId String
+  agentKey  String
+  role      String
+  message   String
+  images    Json?
+  url       String?
+  title     String?
+  productId String?
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, id])
+}
+
+// Lead (khach tiem nang) AI CSKH tu dong ghi lai khi khach de lai SDT trong luc chat.
+model CustomerChatLead {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  phone     String
+  notes     String?
+  sessionId String?
+  url       String?
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+}
 
 // Lịch sử chỉnh sửa nội dung — snapshot TOÀN BỘ field nội dung của Post/Page/Product NGAY TRƯỚC
 // mỗi lần PATCH sửa nội dung (KHÔNG snapshot khi chỉ đổi status/lên lịch/xuất bản, và KHÔNG
@@ -341,6 +363,11 @@ model Agent {
   // Chi dung khi type='agent': danh sach key cua cac row type='skill' ma agent nay duoc phep goi
   // (rong = khong duoc dung skill nao - giong quy uoc cua allowedTools).
   allowedSkills String[] @default([])
+  // So lan lap toi da cua vong lap BaseAgent.run() (TOOL_CALL/AGENT_CALL/USE_SKILL lien tiep truoc
+  // khi bat buoc phai REPLY_TO_USER) - RIENG cho agent nay, KHONG dung chung/cong don voi agent cha
+  // hay agent con no goi qua AGENT_CALL (moi agent.run() co loopCount rieng, doc dung maxLoops cua
+  // chinh no). Truoc day hardcode = 10 cho moi agent.
+  maxLoops     Int      @default(10)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -658,33 +685,6 @@ model CustomTheme {
 // Plugin admin-only (phase 1): plugin khong chay code server tu do, chi la manifest khai bao
 // trang admin/menu/quyen doc core model + storage rieng qua PluginRecord. Khac WordPress plugin:
 // khong duoc import prisma/core DB truc tiep, khong hien public site trong phase nay.
-model Plugin {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  name        String
-  version     String
-  enabled     Boolean  @default(false)
-  manifest    Json
-  source        String   @default("uploaded")
-  installedAt   DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  allowedTables String[] @default([])
-
-  records PluginRecord[]
-}
-
-model PluginRecord {
-  id         String @id @default(cuid())
-  pluginSlug String
-  plugin     Plugin @relation(fields: [pluginSlug], references: [slug], onDelete: Cascade)
-  collection String
-  data       Json
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([pluginSlug, collection])
-}
-
 // File upload thật (ảnh bìa bài viết, ảnh chèn nội dung...) — lưu trên đĩa VPS ở uploads/
 // (services/mediaStorage.ts), KHÔNG resize/optimize (bỏ qua sharp — tránh phụ thuộc native binary
 // khó cài trên VPS, đơn giản hoá có chủ đích). Trước đây ảnh chỉ là URL dán tay, không có nơi lưu.

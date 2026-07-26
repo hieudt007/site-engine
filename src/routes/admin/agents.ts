@@ -23,6 +23,8 @@ const agentSchema = z.object({
   baseUrl: z.string().optional(),
   endpoint: z.string().optional(),
   isActive: z.boolean().optional(),
+  // So lan lap toi da cua BaseAgent.run() - rieng cho agent nay, xem prisma/schema.prisma.
+  maxLoops: z.number().int().min(1).max(50).optional(),
   // Chi dung khi type='skill': noi dung bi kip day du (systemPrompt o tren tai dung lam mo ta ngan).
   content: z.string().optional(),
   // Chi dung khi type='agent': cac skill.key duoc phep goi.

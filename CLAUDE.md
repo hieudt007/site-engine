@@ -12,6 +12,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 If a file appears broken and you suspect reverting would fix it: **stop and ask** ("this file looks broken — do you want me to revert it to the last commit, or fix it in place?"). Fixing forward (editing the file to correct the actual problem) is almost always the safer default over reverting. Only revert after the user has confirmed that's what they want, and confirm exactly which file(s) and to which commit.
 
+## RULE: keep AI-facing prompts terse
+
+When writing or editing text that gets sent TO an AI model as a prompt (system prompts, `RESPONSE_FORMAT_GUIDE`, tool descriptions in `ToolRegistry`, agent `systemPrompt` seeds, etc.) — every extra sentence is tokens spent on every single call. State the rule/format directly. Do not add explanatory prose, rationale, or examples beyond what's needed for the model to comply. If a shorter phrasing conveys the same instruction, use it.
+
 ## Commands
 
 ```bash

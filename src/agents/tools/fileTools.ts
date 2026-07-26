@@ -5,75 +5,31 @@ import { AgentContext } from "../core/BaseAgent.js";
 import { getSelectableFiles } from "../../services/themeContract.js";
 import { applyReplacements, retryUntilValid } from "../../services/themeChat.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
-import { findEnabledPlugin } from "../../services/pluginRuntime.js";
 
-// Cac tool doc/ghi file cho DEVELOPER agent — pham vi ghi bi khoa cung vao 1 trong 3 "khong
-// gian" duoc xac dinh boi context.meta (Theme / Landing Page / Plugin), khong bao gio ra ngoai
-// process.cwd(). filename luon phai qua validateFile() (chan ".." + whitelist duoi file) TRUOC
-// khi build path — khong duoc goi getSecurePath() truc tiep voi filename chua kiem tra.
-// LUU Y: nhanh "pluginSlug" rieng (ghi thang vao goc thu muc plugin, ngoai addons/<slug>/views/)
-// da bi loai bo - validateFile() gio bat buoc moi truy cap cua ngu canh plugin phai di qua tien
-// to "addons/" (validateAddonFile, gioi han trong views/), nen ham nay chi con 3 "khong gian".
+// Cac tool doc/ghi file cho DEVELOPER agent — pham vi ghi bi khoa cung vao 1 trong 2 "khong gian"
+// duoc xac dinh boi context.meta (Theme / Landing Page), khong bao gio ra ngoai process.cwd().
+// filename luon phai qua validateFile() (chan ".." + whitelist duoi file) TRUOC khi build path —
+// khong duoc goi getSecurePath() truc tiep voi filename chua kiem tra.
+// (Truoc day co them "khong gian" Plugin (addons/<slug>/views/...) - da bo cung luc go bo he
+// thong plugin dong (chay code khong sandbox, xem lich su commit).)
 function getSecurePath(context: AgentContext, filename: string): string {
   const { themeSlug, landingPageSlug } = context.meta;
 
-  if (filename.startsWith("addons/")) {
-    return path.join(process.cwd(), "src", filename);
-  }
   if (themeSlug) {
     return path.join(process.cwd(), "themes", themeSlug, filename);
   }
   if (landingPageSlug) {
     return path.join(process.cwd(), "storage", "landing-pages", landingPageSlug, filename);
   }
-  throw new Error("Không xác định được slug (Theme/Landing/Plugin).");
+  throw new Error("Không xác định được slug (Theme/Landing).");
 }
 
 // Chan path traversal (".." trong filename thoat khoi thu muc goc du path.join co the resolve
 // nguoc ra ngoai) + chi cho phep dung duoi file lien quan giao dien - KHONG cho .ts/.env/... —
 // goi TRUOC moi lan doc/ghi, khong duoc bo qua o bat ky nhanh nao.
-//
-// Nhanh "addons/": co lap GIUA CAC PLUGIN VOI NHAU, nhung Theme van duoc cham vao view cua plugin
-// (dung nghiep vu: theme phai tich hop giao dien cho nhieu plugin cung luc, giong co che
-// manifest.themeContracts). Cu the:
-//   1. Phai nam trong "addons/<slug>/views/..." - khong dung toi file logic (backend/, install.ts,
-//      manifest.json).
-//   2. <slug> phai la 1 plugin THAT SU dang bat (findEnabledPlugin).
-//   3. Neu ngu canh la CUA 1 PLUGIN (context.meta.pluginSlug, khong phai dang sua Theme) thi
-//      <slug> BAT BUOC phai trung plugin do - khong dung cheo sang plugin khac. Ngu canh Theme
-//      (context.meta.themeSlug) thi khong bi gioi han nay - duoc dung view cua bat ky plugin dang
-//      bat nao.
-async function validateAddonFile(context: AgentContext, filename: string): Promise<string | null> {
-  const match = filename.match(/^addons\/([^/]+)\/views\//);
-  if (!match) {
-    return `Lỗi bảo mật, file "${filename}" không hợp lệ (chỉ được truy cập addons/<plugin>/views/...).`;
-  }
-  const targetSlug = match[1];
-
-  if (!context.meta.themeSlug && context.meta.pluginSlug && context.meta.pluginSlug !== targetSlug) {
-    return `Lỗi bảo mật, không được truy cập file của plugin khác ("${targetSlug}").`;
-  }
-
-  const plugin = await findEnabledPlugin(targetSlug);
-  if (!plugin) {
-    return `Lỗi, plugin "${targetSlug}" không tồn tại hoặc chưa được bật.`;
-  }
-  return null;
-}
-
 async function validateFile(context: AgentContext, filename: string): Promise<string | null> {
   if (filename.includes("..") || !/\.(liquid|css|js|html)$/.test(filename)) {
     return `Lỗi bảo mật, file "${filename}" không hợp lệ.`;
-  }
-  if (filename.startsWith("addons/")) {
-    return validateAddonFile(context, filename);
-  }
-  // Ngu canh cua 1 PLUGIN (khong phai Theme) BAT BUOC dung duong dan dang "addons/<slug>/views/..."
-  // - khong duoc dung filename "tron" (vd "backend/index.js"), vi nhanh do se lot qua het cac
-  // check o tren va getSecurePath() se ghi thang vao goc thu muc plugin (ngoai views/, dung toi
-  // ca file logic cua chinh no).
-  if (context.meta.pluginSlug && !context.meta.themeSlug) {
-    return `Lỗi bảo mật, chỉ được dùng đường dẫn dạng "addons/<slug>/views/..." cho file "${filename}".`;
   }
   const themeSlug = context.meta.themeSlug;
   if (themeSlug) {

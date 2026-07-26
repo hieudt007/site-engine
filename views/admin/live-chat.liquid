@@ -5,7 +5,6 @@
     <h1 style="margin:0;">{{ pageTitle | escape }}</h1>
     <p style="color:#777;margin:0.4rem 0 0;">Quản lý phiên chat tự động của AI & Hỗ trợ trực tiếp</p>
   </div>
-  <a class="btn" href="/admin/plugins">{% render "components/icon", name: "arrow-left" %}<span>Quay lại</span></a>
 </div>
 
 <div class="card" style="display:flex;height:calc(100vh - 200px);padding:0;overflow:hidden;">
@@ -104,7 +103,6 @@
 </style>
 
 <script>
-const pluginSlug = "{{ plugin.slug }}";
 let activeSessionId = null;
 let pollingInterval = null;
 const sessionsContainer = document.getElementById("livechat-sessions");
@@ -116,7 +114,7 @@ const submitBtn = document.getElementById("livechat-submit");
 
 async function loadSessions() {
   try {
-    const res = await fetch(`/admin/api/plugins/${pluginSlug}/live-chat/sessions`);
+    const res = await fetch(`/admin/api/customer-chat/sessions`);
     const data = await res.json();
     
     if (data.sessions.length === 0) {
@@ -148,7 +146,7 @@ async function loadSessions() {
 async function loadMessages(forceScroll = false) {
   if (!activeSessionId) return;
   try {
-    const res = await fetch(`/admin/api/plugins/${pluginSlug}/live-chat/history?sessionId=${encodeURIComponent(activeSessionId)}`);
+    const res = await fetch(`/admin/api/customer-chat/history?sessionId=${encodeURIComponent(activeSessionId)}`);
     const data = await res.json();
     
     const wasScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 50;
@@ -211,7 +209,7 @@ form.onsubmit = async (e) => {
   submitBtn.disabled = true;
   
   try {
-    await fetch(`/admin/api/plugins/${pluginSlug}/live-chat/send`, {
+    await fetch(`/admin/api/customer-chat/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId: activeSessionId, message: text })

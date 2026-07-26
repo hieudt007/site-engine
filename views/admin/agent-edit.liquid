@@ -67,6 +67,10 @@
 
     <label for="systemPrompt">System prompt</label>
     <textarea id="systemPrompt" name="systemPrompt" style="min-height:160px;">{% if agent and agent.type != "skill" %}{{ agent.systemPrompt }}{% endif %}</textarea>
+
+    <label for="maxLoops">Số lần lặp tối đa (mỗi lượt chat)</label>
+    <input type="number" id="maxLoops" name="maxLoops" min="1" max="50" value="{% if agent and agent.maxLoops %}{{ agent.maxLoops }}{% else %}10{% endif %}">
+    <div class="field-hint">Số vòng gọi tool/agent con liên tiếp tối đa TRONG 1 lượt trả lời (riêng cho agent này, không cộng dồn với agent khác nó gọi qua AGENT_CALL). Vượt quá sẽ báo lỗi và dừng.</div>
   </div>
 
   <div style="display:flex;gap:1rem;margin-top:0.5rem;flex-wrap:wrap;">
@@ -74,12 +78,6 @@
       <input type="checkbox" id="isActive" name="isActive" style="width:auto;" {% if agent == null or agent.isActive %}checked{% endif %}>
       Đang bật
     </label>
-    {% if agent.isSystem %}
-    <span style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:#6b7280;" title="Chỉ được thiết lập khi cài đặt hệ thống/plugin, không sửa được qua giao diện.">
-      {% render "components/icon", name: "lock" %}
-      Agent hệ thống (không thể xoá, không thể sửa cờ này qua giao diện)
-    </span>
-    {% endif %}
   </div>
 
   <div id="allowed-skills-block" class="mt-8 border-t pt-6" style="border-top: 1px solid #e5e7eb; margin-top: 2rem; padding-top: 1.5rem;">
@@ -265,6 +263,7 @@
       payload.systemPrompt = form.systemPrompt.value || undefined;
       payload.endpoint = form.endpoint.value || undefined;
       payload.allowedSkills = allowedSkills;
+      payload.maxLoops = form.maxLoops.value ? parseInt(form.maxLoops.value, 10) : undefined;
       if (form.apiKey.value) {
         payload.apiKey = form.apiKey.value;
       }

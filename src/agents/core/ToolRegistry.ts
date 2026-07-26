@@ -6,10 +6,7 @@ export interface MCPTool {
   execute: (args: Record<string, any>, context: AgentContext) => Promise<string>;
   // true = tool nhay cam (vd doc/ghi file) - KHONG hien ra o UI cho admin gan vao allowedTools
   // cua bat ky agent nao (xem agentsUi.ts loc allTools truoc khi render agent-edit.liquid). Chi
-  // gan duoc bang cach ghi thang vao DB (migration/seed) - khong co duong nao qua UI/API. Khong
-  // check lai o runtime luc goi AI: Agent la core model, plugin da bi chan ghi bang nay tu truoc
-  // (xem services/pluginDb.ts) nen khong the tu cap tool isSystem cho minh duoc, khong can lop
-  // phong thu thu 2 o day.
+  // gan duoc bang cach ghi thang vao DB (migration/seed) - khong co duong nao qua UI/API.
   isSystem?: boolean;
 }
 
@@ -41,10 +38,8 @@ export class ToolRegistry {
 [tên_công_cụ]
 ## args
 [tham_số_JSON]
-## message
-[Bắt buộc - thông báo ngắn gọn cho user biết bạn đang làm gì ở bước này]
 ## next_task
-[Tuỳ chọn - CHỈ điền khi bạn đang tự chia nhỏ 1 việc lớn thành nhiều bước và biết rõ bước kế tiếp sẽ làm gì]
+[Tuỳ chọn - chỉ điền khi bạn đang tự chia nhỏ 1 việc lớn thành nhiều bước và biết rõ bước kế tiếp.]
 
 DANH SÁCH CÔNG CỤ HỖ TRỢ:\n`;
     tools.forEach(t => {

@@ -14,7 +14,6 @@ const messageSchema = z.object({
   entityId: z.string().optional().nullable(),
   themeSlug: z.string().optional().nullable(),
   landingPageSlug: z.string().optional().nullable(),
-  pluginSlug: z.string().optional().nullable(),
   availableFields: z.array(z.string()).optional().nullable(),
   toolData: z.record(z.any()).optional().nullable(),
 });
@@ -68,7 +67,6 @@ export async function registerMcpChatRoutes(app: FastifyInstance): Promise<void>
           meta: {
             themeSlug: parsed.data.themeSlug || undefined,
             landingPageSlug: parsed.data.landingPageSlug || undefined,
-            pluginSlug: parsed.data.pluginSlug || undefined,
             availableFields: parsed.data.availableFields || undefined,
             toolData: parsed.data.toolData || undefined,
           },
@@ -79,15 +77,22 @@ export async function registerMcpChatRoutes(app: FastifyInstance): Promise<void>
         imageUrl || undefined,
       );
 
-      const responseText =
-        typeof result === "string" ? result : (result as Record<string, any>)?.message || JSON.stringify(result);
+      const resultObj: Record<string, any> = typeof result === "string" ? { action: "chat", message: result } : result;
 
-      await prisma.adminChatHistory.update({
-        where: { id: historyRow.id },
-        data: { assistantResponse: responseText, status: "success" },
-      });
-
-      sseWrite({ step: "done", payload: typeof result === "string" ? { action: "chat", message: result } : result });
+      if (resultObj.action === "request_fields_pending" || resultObj.action === "test_request_pending") {
+        // Tool (read_fields/request_visual_qa) da tu bat SSE rieng (step: "read_request"/
+        // "test_request") va gui du du lieu can thiet TRUOC khi nem loi de dung loop - khong gui
+        // them "done" o day nua (tranh 2 tin hieu chong nhau cho frontend). Cuoc hoi thoai cung
+        // CHUA thuc su xong - dang cho frontend gui tiep, khong danh dau "success".
+        await prisma.adminChatHistory.update({ where: { id: historyRow.id }, data: { status: "pending" } });
+      } else {
+        const responseText = resultObj.message || JSON.stringify(resultObj);
+        await prisma.adminChatHistory.update({
+          where: { id: historyRow.id },
+          data: { assistantResponse: responseText, status: "success" },
+        });
+        sseWrite({ step: "done", payload: resultObj });
+      }
     } catch (err: any) {
       await prisma.adminChatHistory.update({
         where: { id: historyRow.id },

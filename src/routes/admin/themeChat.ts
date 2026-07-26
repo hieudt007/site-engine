@@ -100,27 +100,6 @@ async function runAgentLoop(
           sseWrite(reply, { step: "tool", label: `Đang lấy danh sách file...` });
           const SELECTABLE_FILES = await getSelectableFiles(slug);
           const lines = Array.from(SELECTABLE_FILES);
-          try {
-            const activePlugins = await prisma.plugin.findMany({ where: { enabled: true } });
-            for (const plugin of activePlugins) {
-              const addonViewsDir = path.join(process.cwd(), "src", "addons", plugin.slug, "views");
-              const scanAddonDir = async (dir: string, base: string) => {
-                try {
-                  const entries = await fs.readdir(dir, { withFileTypes: true });
-                  for (const entry of entries) {
-                    const fullPath = path.join(dir, entry.name);
-                    const relPath = base ? `${base}/${entry.name}` : entry.name;
-                    if (entry.isDirectory()) {
-                      await scanAddonDir(fullPath, relPath);
-                    } else if (/\.(liquid|css|js)$/.test(entry.name)) {
-                      lines.push(`addons/${plugin.slug}/views/${relPath}`);
-                    }
-                  }
-                } catch (e) {}
-              };
-              await scanAddonDir(addonViewsDir, "");
-            }
-          } catch (e) {}
           stepObservations.push(`LIST_FILES:\n${lines.join("\n")}`);
           break;
         }
@@ -289,29 +268,10 @@ async function runAgentLoop(
           break;
         }
         case "GET_PLUGIN_CONTRACTS": {
+          // He thong plugin dong da bi go bo (xem routes/admin/plugins.ts) - khong con "hop dong"
+          // nao de lay nua, luon tra ve rong.
           sseWrite(reply, { step: "tool", label: `Đang lấy hợp đồng các Plugin đang bật...` });
-          const pluginContractLines: string[] = [];
-          try {
-            const activePlugins = await prisma.plugin.findMany({ where: { enabled: true } });
-            for (const plugin of activePlugins) {
-              const manifestPath = path.join(process.cwd(), "src", "addons", plugin.slug, "manifest.json");
-              try {
-                const manifestContent = await fs.readFile(manifestPath, "utf-8");
-                const manifest = JSON.parse(manifestContent);
-                if (manifest.themeContracts) {
-                  for (const [file, rules] of Object.entries(manifest.themeContracts)) {
-                    pluginContractLines.push(`[Plugin: ${manifest.name} - File ${file}]: ${rules}`);
-                  }
-                }
-              } catch (err) {}
-            }
-          } catch (err) {}
-          
-          if (pluginContractLines.length > 0) {
-            stepObservations.push(`GET_PLUGIN_CONTRACTS:\n${pluginContractLines.join("\n")}`);
-          } else {
-            stepObservations.push(`GET_PLUGIN_CONTRACTS: Hiện không có Plugin nào yêu cầu chèn giao diện (không có hợp đồng).`);
-          }
+          stepObservations.push(`GET_PLUGIN_CONTRACTS: Hiện không có Plugin nào yêu cầu chèn giao diện (không có hợp đồng).`);
           break;
         }
         case "USE_SKILL": {

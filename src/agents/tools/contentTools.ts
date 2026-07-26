@@ -10,10 +10,3 @@ export const getPostTool: MCPTool = {
   }
 };
 
-export const seoAuditTool: MCPTool = {
-  name: "seo_audit",
-  description: "Kiểm tra chuẩn SEO. Tham số: {\"content\": \"nội dung html\", \"keyword\": \"từ khóa\"}",
-  execute: async (args, context) => {
-    return "Kết quả kiểm tra SEO: Đạt yêu cầu (Mock).";
-  }
-};

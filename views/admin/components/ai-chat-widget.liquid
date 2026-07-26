@@ -483,6 +483,54 @@
     return (unsafe||'').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
+  // Ghi du lieu tool "fill_form" (event.payload.fields) vao DOM - dung chung cho SSE step
+  // "form_fill" (xem xu ly SSE ben duoi).
+  function applyFormFill(fields) {
+    if (!fields || typeof fields !== 'object') return;
+    for (const [key, val] of Object.entries(fields)) {
+      const el = document.getElementById(key);
+      if (el) {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+          el.value = val;
+          if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
+            const editorBody = el.parentNode.querySelector('.rich-editor-body');
+            if (editorBody) {
+              editorBody.innerHTML = val;
+              editorBody.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          }
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          el.innerHTML = val;
+        }
+      } else if (key === 'faq') {
+        const faqRows = document.getElementById('faq-rows');
+        if (faqRows) {
+          let parsedVal = val;
+          if (typeof val === 'string') {
+            try { parsedVal = JSON.parse(val); } catch(e) { parsedVal = []; }
+          }
+          if (Array.isArray(parsedVal)) {
+            faqRows.innerHTML = '';
+            parsedVal.forEach(item => {
+              if (typeof window.appendFaqRow === 'function') {
+                window.appendFaqRow(item.question, item.answer);
+              } else {
+                faqRows.insertAdjacentHTML('beforeend', `<div class="faq-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" class="input faq-q" value="${escapeHtml(item.question)}" style="flex:1;"><input type="text" class="input faq-a" value="${escapeHtml(item.answer)}" style="flex:2;"><button type="button" class="btn btn-danger btn-icon remove-faq-btn" tabindex="-1">✕</button></div>`);
+              }
+            });
+            faqRows.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+      } else if (key === 'keyword') {
+        if (typeof window.addTag === 'function') {
+          const tags = val.split(',').map(s => s.trim()).filter(Boolean);
+          tags.forEach(t => window.addTag(t));
+        }
+      }
+    }
+  }
+
   function renderMessage(role, content, meta, imageUrl) {
     const container = document.createElement('div');
     container.className = `ai-msg-container ${role === 'user' ? 'user' : 'bot'}`;
@@ -904,11 +952,18 @@
       if (hiddenPayload) {
         payload = hiddenPayload;
       } else {
-        const isContentEditPage = window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/);
+        // Quet field trong pham vi <main> cua BAT KY trang admin nao (khong con gioi han rieng
+        // posts/pages/products nhu truoc) - de AI doc/dien duoc field o moi trang, khong chi trang
+        // edit content. Chi lay trong <main> de tranh dinh phai sidebar/header (vd o tim kiem,
+        // sidebar-toggle) va input cua chinh khung chat nay (id bat dau "ai-").
+        const mainEl = document.querySelector('main');
         let formElements = [];
-        
-        if (isContentEditPage) {
-          formElements = Array.from(document.querySelectorAll('input, textarea, select'))
+
+        if (mainEl) {
+          formElements = Array.from(mainEl.querySelectorAll('input, textarea, select'))
+            // Loai field password (vd apiKey) khoi danh sach cho AI biet ngay tu dau - khong goi
+            // y AI hoi doc field nhay cam (read_fields cung da tu choi doc rieng field nay).
+            .filter(el => el.type !== 'password')
             .map(el => el.id)
             .filter(id => id && !id.startsWith('ai-') && id !== 'flash' && id !== 'sidebar-toggle');
           if (document.getElementById('faq-rows')) {
@@ -986,19 +1041,25 @@
              messagesDiv.scrollTop = messagesDiv.scrollHeight;
              isAiLoading = false;
              return;
-          } else if (event.step === "tool_request") {
-             // Handle request_fields recursively
+          } else if (event.step === "read_request") {
+             // Tool "read_fields" tam dung vong lap AI, cho frontend doc gia tri field roi gui
+             // lai 1 request /messages MOI (isToolResponse=true) de resume dung agent dieu phoi.
              const data = event.payload;
-             if (loadingEl) {
-               loadingEl.querySelector('span').textContent = data.message || "Đang thu thập dữ liệu...";
-             }
-             
-             // Thu thập dữ liệu form
+             if (loadingEl) loadingEl.querySelector('span').textContent = "Đang thu thập dữ liệu...";
+
              const toolData = {};
              if (Array.isArray(data.fields)) {
-               data.fields.forEach(fieldId => {
+               data.fields.forEach(rawFieldId => {
+                 // AI hay viet ten field kem dau backtick/khoang trang trong van ban (vd
+                 // "`systemPrompt`") va doi khi lap lai y het trong tool args - lam sach truoc khi
+                 // tra DOM, khong phu thuoc AI viet dung tuyet doi id.
+                 const fieldId = String(rawFieldId).replace(/[`'"]/g, '').trim();
                  const el = document.getElementById(fieldId);
-                 if (el) {
+                 // Chan cung: KHONG BAO GIO doc field password (vd apiKey) du AI co yeu cau dich
+                 // danh - tranh lo secret vao thang prompt gui cho AI ngoai.
+                 if (el && el.type === 'password') {
+                   toolData[fieldId] = "(Từ chối đọc - đây là field nhạy cảm, không được phép đọc qua AI)";
+                 } else if (el) {
                    toolData[fieldId] = el.value !== undefined ? el.value : el.innerText;
                  } else if (fieldId === 'faq') {
                    const faqRows = document.getElementById('faq-rows');
@@ -1008,31 +1069,31 @@
                        answer: row.querySelector('.faq-a').value.trim()
                      }));
                      toolData['faq'] = JSON.stringify(faqs);
+                   } else {
+                     toolData[fieldId] = "(Không tìm thấy phần tử này trên trang - kiểm tra lại tên field, đừng đoán field trống)";
                    }
+                 } else {
+                   toolData[fieldId] = "(Không tìm thấy phần tử này trên trang - kiểm tra lại tên field, đừng đoán field trống)";
                  }
                });
              }
-             
-             if (data.searchResults) toolData.searchResults = data.searchResults;
-             
+
              const secondPayload = {
                message: payload.originalMessage || payload.message,
                isToolResponse: true,
                toolData: toolData,
                originalMessage: payload.originalMessage || payload.message,
-               nextAgent: data.nextAgent || "content",
                imageUrl: payload.imageUrl,
                entityId: entityId,
                historyId: data.historyId,
                availableFields: payload.availableFields
              };
              return sendMessage(null, secondPayload);
-          } else if (event.step === "tool_open_preview") {
-             // Backend (tool "check_preview") dang CHO frontend mo thu trang preview that, bat
-             // loi console/runtime, roi POST ve /admin/api/ai-chat/preview-result de server tiep
-             // tuc vong lap (xem routes/admin/aiChat.ts). Chi hoat dong o trang Theme Editor -
-             // noi co san #preview-frame (theme-editor.liquid).
-             const { page, slug, historyId } = event.payload;
+          } else if (event.step === "test_request") {
+             // Tool "request_visual_qa" tam dung vong lap - frontend mo URL that trong iframe, bat
+             // loi console/runtime, chup anh, upload anh, roi gui lai 1 request /messages MOI de
+             // resume (agent dieu phoi tu quyet dinh AGENT_CALL sang uiux_consultant hay khong).
+             const { page, historyId } = event.payload;
              if (loadingEl) loadingEl.querySelector('span').textContent = "Đang mở trang xem trước để kiểm tra lỗi...";
              const tabPreviewBtn = document.getElementById('tab-preview');
              if (tabPreviewBtn) tabPreviewBtn.click();
@@ -1041,9 +1102,11 @@
              let previewScreenshot = null;
              if (!previewFrame) {
                previewErrors.push("(Không tìm thấy khung xem trước trên trang này)");
+             } else if (!page) {
+               previewErrors.push("(AI không cung cấp URL trang cần kiểm tra)");
              } else {
                try {
-                 const previewRes = await fetch(`/admin/themes/${slug}/preview?page=${page}`);
+                 const previewRes = await fetch(page);
                  const previewHtml = await previewRes.text();
                  const errorScript = `<script>
                    window.onerror = function(msg, url, line) { window.parent.postMessage({ type: 'AI_PREVIEW_ERROR', message: msg + ' at line ' + line }, '*'); };
@@ -1063,8 +1126,7 @@
                  window.removeEventListener("message", messageListener);
 
                  // Chup anh giao dien that (html2canvas load global san o layout.liquid) de gui
-                 // kem cho Tester Agent - JPEG nen 70% de tiet kiem bang thong/token, giong dung
-                 // cach he thong chat theme cu lam truoc day.
+                 // kem cho uiux_consultant agent - JPEG nen 70% de tiet kiem bang thong/token.
                  if (typeof html2canvas === "function") {
                    try {
                      const innerDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
@@ -1083,134 +1145,41 @@
                  previewErrors.push("Lỗi khi tải trang xem trước: " + e.message);
                }
              }
+
+             let screenshotUrl = null;
              try {
-               await fetch('/admin/api/ai-chat/preview-result', {
+               const upRes = await fetch('/admin/api/ai-chat/preview-result', {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
-                 body: JSON.stringify({ historyId, errors: previewErrors, screenshot: previewScreenshot })
+                 body: JSON.stringify({ errors: previewErrors, screenshot: previewScreenshot })
                });
+               const upData = await upRes.json();
+               screenshotUrl = upData.screenshotUrl || null;
              } catch (e) {}
-             // Khong return - vong doc SSE ben ngoai (while true) tiep tuc doc phan con lai cua
-             // stream, server se ghi tiep sau khi nhan duoc POST o tren.
+
+             const secondPayload = {
+               message: payload.originalMessage || payload.message,
+               isToolResponse: true,
+               toolData: { errors: previewErrors, screenshot: screenshotUrl },
+               originalMessage: payload.originalMessage || payload.message,
+               imageUrl: payload.imageUrl,
+               entityId: entityId,
+               historyId: historyId,
+               availableFields: payload.availableFields
+             };
+             return sendMessage(null, secondPayload);
+          } else if (event.step === "form_fill") {
+             // Tool "fill_form" KHONG dung vong lap - AI se tiep tuc tra loi (REPLY_TO_USER) ngay
+             // sau do tren CUNG stream nay, nen chi cap nhat DOM roi doc tiep, khong return.
+             applyFormFill((event.payload || {}).fields);
           } else if (event.step === "done") {
              const data = event.payload || {};
-             
-             if (data.action === "generate_image") {
-               if (loadingEl) loadingEl.querySelector('span').textContent = data.message || "Đang tạo ảnh...";
-               try {
-                 const imgRes = await fetch('/admin/api/ai-chat/generate-image', {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({ prompt: data.prompt, key: "image", historyId: data.historyId })
-                 });
-                 const imgData = await imgRes.json();
-                 if (!imgRes.ok) throw new Error(imgData.message);
-                 if (loadingEl) loadingEl.remove();
-                 const markdownImg = `![Tạo ảnh](${imgData.url})\n\n[Link ảnh](${imgData.url})`;
-                 messagesDiv.appendChild(renderMessage('bot', markdownImg));
-               } catch (e) {
-                 if (loadingEl) loadingEl.remove();
-                 messagesDiv.appendChild(renderMessage('bot', "Lỗi tạo ảnh: " + e.message, 'error'));
-               }
-               messagesDiv.scrollTop = messagesDiv.scrollHeight;
-               isAiLoading = false;
-               return;
-             } 
-             
-             if (data.action === "webfetch" || data.action === "websearch") {
-               if (loadingEl) loadingEl.querySelector('span').textContent = data.message || "Đang lấy dữ liệu...";
-               try {
-                 const endpoint = data.action === "webfetch" ? '/admin/api/ai-chat/webfetch' : '/admin/api/ai-chat/websearch';
-                 const bodyData = data.action === "webfetch" ? { url: data.url } : { query: data.query };
-                 const toolRes = await fetch(endpoint, {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify(bodyData)
-                 });
-                 const toolDataJson = await toolRes.json();
-                 if (!toolRes.ok) throw new Error(toolDataJson.message);
-                 
-                 const secondPayload = {
-                   message: payload.originalMessage || payload.message,
-                   isToolResponse: true,
-                   toolData: { [data.action]: toolDataJson.result },
-                   originalMessage: payload.originalMessage || payload.message,
-                   nextAgent: window.location.pathname.match(/^\/admin\/(posts|pages|products)\/(new|.+)/) ? "content" : "chat",
-                   imageUrl: payload.imageUrl,
-                   entityId: entityId,
-                   historyId: data.historyId,
-                   availableFields: payload.availableFields
-                 };
-                 return sendMessage(null, secondPayload);
-               } catch (e) {
-                 if (loadingEl) loadingEl.remove();
-                 messagesDiv.appendChild(renderMessage('bot', "Lỗi dữ liệu web: " + e.message, 'error'));
-                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                 isAiLoading = false;
-                 return;
-               }
-             }
-              
-             if (data.action === "fill_form") {
-               if (loadingEl) loadingEl.remove();
-               
-               // Cập nhật DOM
-               if (data.data && typeof data.data === 'object') {
-                 for (const [key, val] of Object.entries(data.data)) {
-                   const el = document.getElementById(key);
-                   if (el) {
-                     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                       el.value = val;
-                       if (el.parentNode && el.parentNode.classList.contains('rich-editor-wrapper')) {
-                         const editorBody = el.parentNode.querySelector('.rich-editor-body');
-                         if (editorBody) {
-                           editorBody.innerHTML = val;
-                           editorBody.dispatchEvent(new Event('input', { bubbles: true }));
-                         }
-                       }
-                       el.dispatchEvent(new Event('change', { bubbles: true }));
-                     } else {
-                       el.innerHTML = val;
-                     }
-                   } else if (key === 'faq') {
-                     const faqRows = document.getElementById('faq-rows');
-                     if (faqRows) {
-                       let parsedVal = val;
-                       if (typeof val === 'string') {
-                         try { parsedVal = JSON.parse(val); } catch(e) { parsedVal = []; }
-                       }
-                       
-                       if (Array.isArray(parsedVal)) {
-                         faqRows.innerHTML = '';
-                         parsedVal.forEach(item => {
-                           if (typeof window.appendFaqRow === 'function') {
-                             window.appendFaqRow(item.question, item.answer);
-                           } else {
-                             faqRows.insertAdjacentHTML('beforeend', `<div class="faq-row" style="display:flex;gap:0.5rem;margin-bottom:0.5rem;"><input type="text" class="input faq-q" value="${escapeHtml(item.question)}" style="flex:1;"><input type="text" class="input faq-a" value="${escapeHtml(item.answer)}" style="flex:2;"><button type="button" class="btn btn-danger btn-icon remove-faq-btn" tabindex="-1">✕</button></div>`);
-                           }
-                         });
-                         faqRows.dispatchEvent(new Event('change', { bubbles: true }));
-                       }
-                     }
-                   } else if (key === 'keyword') {
-                     if (typeof window.addTag === 'function') {
-                       const tags = val.split(',').map(s => s.trim()).filter(Boolean);
-                       tags.forEach(t => window.addTag(t));
-                     }
-                   }
-                 }
-                 messagesDiv.appendChild(renderMessage('bot', data.message || "Đã điền dữ liệu vào form."));
-               } else {
-                 messagesDiv.appendChild(renderMessage('bot', "Không có dữ liệu để điền.", "error"));
-               }
-               messagesDiv.scrollTop = messagesDiv.scrollHeight;
-               isAiLoading = false;
-               return;
-             } 
-             
-             // Mặc định là action: "chat"
              if (loadingEl) loadingEl.remove();
-             messagesDiv.appendChild(renderMessage('bot', data.message || data.reply || "Đã xử lý xong."));
+             const msgs = Array.isArray(data.messages) && data.messages.length ? data.messages : [data.message || data.reply || "Đã xử lý xong."];
+             msgs.forEach(m => messagesDiv.appendChild(renderMessage('bot', m)));
+             if (Array.isArray(data.images)) {
+               data.images.forEach(imgUrl => messagesDiv.appendChild(renderMessage('bot', `![Ảnh](${imgUrl})`)));
+             }
              messagesDiv.scrollTop = messagesDiv.scrollHeight;
              isAiLoading = false;
              return;

@@ -9,7 +9,6 @@
     const form = container.querySelector(".plugin-chat-form");
     const input = container.querySelector(".plugin-chat-input");
     const messagesEl = container.querySelector(".plugin-chat-messages");
-    const pluginSlug = container.getAttribute("data-plugin-slug");
 
     const attachBtn = container.querySelector("#plugin-chat-attach");
     const fileInput = container.querySelector("#plugin-chat-file");
@@ -33,7 +32,7 @@
       
       if (sessionId && hmacToken) {
         try {
-          const url = `/api/plugins/${pluginSlug}/chat?sessionId=${encodeURIComponent(sessionId)}&hmacToken=${encodeURIComponent(hmacToken)}` + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
+          const url = `/api/customer-chat?sessionId=${encodeURIComponent(sessionId)}&hmacToken=${encodeURIComponent(hmacToken)}` + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "");
           const res = await fetch(url);
           
           if (res.ok) {
@@ -290,7 +289,7 @@
           formData.append("file", fileToUpload);
           formData.append("sessionId", sessionId);
           formData.append("hmacToken", hmacToken);
-          const upRes = await fetch(`/api/plugins/${pluginSlug}/chat/upload`, {
+          const upRes = await fetch(`/api/customer-chat/upload`, {
             method: "POST",
             body: formData
           });
@@ -299,11 +298,11 @@
           if (upData.url) uploadedImages.push(upData.url);
         }
 
-        const res = await fetch(`/api/plugins/${pluginSlug}/chat`, {
+        const res = await fetch(`/api/customer-chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            agentKey: "customer", // The plugin uses 'customer' agent
+            agentKey: "customer",
             sessionId: sessionId,
             hmacToken: hmacToken,
             turnstileToken: turnstileToken,

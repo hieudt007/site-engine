@@ -6,7 +6,6 @@ import fastifyStatic from "@fastify/static";
 import fastifyRateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
-import { getPluginDb } from "./services/pluginDb.js";
 import { registerSession } from "./plugins/session.js";
 import { deleteOtherUserSessions } from "./services/sessionStore.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
@@ -55,13 +54,14 @@ import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
 import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
 import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
 import { registerMcpChatRoutes } from "./routes/admin/mcpChat.js"; // route THU NGHIEM nen mong MCP - song song, khong thay the aiChat.js
+import { registerCustomerChatAdminRoutes } from "./routes/admin/customerChat.js";
+import { registerCustomerChatPublicRoutes } from "./routes/public/customerChat.js";
 import { registerThemeEditorUiRoutes } from "./routes/admin/themeEditorUi.js";
 import { registerThemePreviewRoutes } from "./routes/admin/themePreview.js";
 import { registerAdminSeoRoutes } from "./routes/admin/seo.js";
 import { registerThemeInlineEditRoutes } from "./routes/admin/themeInlineEdit.js";
 import { registerSearchRoutes } from "./routes/admin/search.js";
 import { registerPreviewRoutes } from "./routes/admin/preview.js";
-import { buildAllPluginAssets, watchPluginAssets } from "./services/pluginAssetBundler.js";
 import { registerHomeRoutes } from "./routes/public/home.js";
 import { registerThemeAssetsRoutes } from "./routes/public/themeAssets.js";
 import { renderNotFound } from "./services/notFoundPage.js";
@@ -79,6 +79,7 @@ import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js"
 import { registerPublicSearchRoutes } from "./routes/public/search.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
+import { startAiChatCleanupCron } from "./services/aiChatCleanup.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -187,8 +188,8 @@ async function start(): Promise<void> {
     decorateReply: false,
   });
   await app.register(fastifyStatic, {
-    root: path.join(process.cwd(), "src", "addons"),
-    prefix: "/addon-assets/",
+    root: path.join(process.cwd(), "assets"),
+    prefix: "/assets/",
     decorateReply: false,
   });
 
@@ -257,6 +258,8 @@ async function start(): Promise<void> {
   await registerThemeChatRoutes(app);
   await registerAiChatRoutes(app);
   await registerMcpChatRoutes(app);
+  await registerCustomerChatAdminRoutes(app);
+  await registerCustomerChatPublicRoutes(app);
   await registerThemeEditorUiRoutes(app);
   await registerThemePreviewRoutes(app);
   await registerThemeInlineEditRoutes(app);
@@ -280,56 +283,11 @@ async function start(): Promise<void> {
   await registerProvincesRoutes(app);
   await registerSeoRoutes(app);
 
-  // Load Plugins Dynamically
-  const addonsDir = path.join(process.cwd(), "src", "addons");
-  if (fs.existsSync(addonsDir)) {
-    const addons = fs.readdirSync(addonsDir, { withFileTypes: true });
-    for (const addon of addons) {
-      if (addon.isDirectory()) {
-        const slug = addon.name;
-        const pluginRecord = await prisma.plugin.findUnique({ where: { slug } });
-        
-        if (pluginRecord && pluginRecord.enabled) {
-          const installPath = path.join(addonsDir, slug, "install.ts");
-          if (fs.existsSync(installPath)) {
-            try {
-              const installModule = await import("file://" + installPath.replace(/\\/g, "/"));
-              if (installModule.setup) {
-                // getPluginDb() thay vi prisma that - install.ts KHONG duoc phep tuy y sua bang
-                // core (vd Agent) nua, chi ghi duoc bang dong da khai bao trong manifest.tables.
-                // allowedTables da duoc luu tu lan enable truoc do nen khong can tinh lai o day.
-                await installModule.setup(getPluginDb(slug), slug);
-              }
-            } catch (err) {
-              app.log.error({ err }, `[Plugin: ${slug}] Error running install.ts:`);
-            }
-          }
-
-          const backendPath = path.join(addonsDir, slug, "backend", "index.ts");
-          if (fs.existsSync(backendPath)) {
-            try {
-              const backendModule = await import("file://" + backendPath.replace(/\\/g, "/"));
-              if (backendModule.register) {
-                await backendModule.register(app);
-                app.log.info(`[Plugin: ${slug}] Registered backend routes.`);
-              }
-            } catch (err) {
-              app.log.error({ err }, `[Plugin: ${slug}] Error registering backend:`);
-            }
-          }
-        }
-      }
-    }
-  }
-
   // Cron jobs (chỉ chay tren main worker neu pm2, hoac chay local doc lap)
   if (process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === "0") {
     startOrderRetryCron();
     startPublishScheduler();
-    
-    // Build & Watch Plugin Assets
-    await buildAllPluginAssets();
-    watchPluginAssets();
+    startAiChatCleanupCron();
   }
 
   await app.listen({ port: config.port, host: "0.0.0.0" });

@@ -7,12 +7,12 @@ import { BaseAgent, AgentContext } from "../core/BaseAgent.js";
 export class DeveloperAgent extends BaseAgent {
   public allowedTools = ["list_files", "read_files", "search_code", "replace_code", "overwrite_file"];
 
-  protected getSystemPrompt(context?: AgentContext): string {
+  protected async getSystemPrompt(context?: AgentContext): Promise<string> {
     const isTheme = !!context?.meta?.themeSlug;
     const isLanding = !!context?.meta?.landingPageSlug;
     const isPlugin = !!context?.meta?.pluginSlug;
 
-    let basePrompt = super.getSystemPrompt(context);
+    let basePrompt = await super.getSystemPrompt(context);
     basePrompt += `\n\nTHÔNG TIN HỆ THỐNG (NGỮ CẢNH ĐỘNG):\n`;
 
     if (isTheme) {
