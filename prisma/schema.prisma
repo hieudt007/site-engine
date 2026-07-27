@@ -363,6 +363,8 @@ model Agent {
   // Chi dung khi type='agent': danh sach key cua cac row type='skill' ma agent nay duoc phep goi
   // (rong = khong duoc dung skill nao - giong quy uoc cua allowedTools).
   allowedSkills String[] @default([])
+  // Danh sách key của các Agent con mà agent này được phép gọi qua tool call_agent.
+  allowedAgents String[] @default([])
   // So lan lap toi da cua vong lap BaseAgent.run() (TOOL_CALL/AGENT_CALL/USE_SKILL lien tiep truoc
   // khi bat buoc phai REPLY_TO_USER) - RIENG cho agent nay, KHONG dung chung/cong don voi agent cha
   // hay agent con no goi qua AGENT_CALL (moi agent.run() co loopCount rieng, doc dung maxLoops cua

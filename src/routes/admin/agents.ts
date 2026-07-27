@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { stripSystemResources } from "../../agents/core/agentPermissions.js";
+import { assertSafeOutboundUrl, UnsafeOutboundUrlError } from "../../security/ssrfGuard.js";
 
 const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "ai-router", "custom"] as const;
 
@@ -29,9 +30,25 @@ const agentSchema = z.object({
   content: z.string().optional(),
   // Chi dung khi type='agent': cac skill.key duoc phep goi.
   allowedSkills: z.array(z.string()).optional().default([]),
+  // Chi dung khi type='agent': cac agent.key duoc phep goi (sub-agents).
+  allowedAgents: z.array(z.string()).optional().default([]),
 });
 
 const updateAgentSchema = agentSchema.partial();
+
+// Agent.baseUrl la INPUT NGUOI DUNG (admin nhap qua form nay) - server se TU GOI toi dung URL nay
+// kem apiKey trong header (xem agents/core/aiClient.ts: resolveBaseUrl()/fetch()). Phai chan SSRF
+// NGAY LUC LUU (bao loi som cho admin thay) - aiClient.ts tu kiem tra LAI lan nua ngay truoc khi
+// fetch() that (phong DNS doi sau khi luu / TOCTOU).
+async function assertBaseUrlSafe(baseUrl: string | undefined | null): Promise<string | null> {
+  if (!baseUrl) return null;
+  try {
+    await assertSafeOutboundUrl(baseUrl);
+    return null;
+  } catch (err) {
+    return err instanceof UnsafeOutboundUrlError ? err.message : "baseUrl không hợp lệ.";
+  }
+}
 
 function auditLog(userId: number, action: string, entityId: string, metadata?: object) {
   return prisma.auditLog.create({
@@ -66,6 +83,11 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(422).send({ error: parsed.error.flatten() });
     }
 
+    const baseUrlError = await assertBaseUrlSafe(parsed.data.baseUrl);
+    if (baseUrlError) {
+      return reply.code(422).send({ error: { fieldErrors: { baseUrl: [baseUrlError] } } });
+    }
+
     const userId = request.session.get("userId")!;
     const cleanData = await stripSystemResources(parsed.data);
     const agent = await prisma.agent.create({ data: { ...cleanData, key: cleanData.key || null } });
@@ -90,6 +112,11 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const parsed = updateAgentSchema.safeParse(request.body);
       if (!parsed.success) {
         return reply.code(422).send({ error: parsed.error.flatten() });
+      }
+
+      const baseUrlError = await assertBaseUrlSafe(parsed.data.baseUrl);
+      if (baseUrlError) {
+        return reply.code(422).send({ error: { fieldErrors: { baseUrl: [baseUrlError] } } });
       }
 
       const agent = await prisma.agent.findUnique({ where: { id: request.params.id } });

@@ -102,6 +102,19 @@ export class BaseAgent {
         });
       }
     }
+
+    const subAgentKeys = this.agentModel.allowedAgents || [];
+    if (subAgentKeys.length > 0) {
+      const subAgents = await prisma.agent.findMany({
+        where: { type: "agent", isActive: true, key: { in: subAgentKeys } },
+      });
+      if (subAgents.length > 0) {
+        prompt += "\n\nSUB AGENT:\n";
+        subAgents.forEach((a) => {
+          prompt += `- \`${a.key}\`: ${a.name}`;
+        });
+      }
+    }
     return prompt;
   }
 

@@ -25,12 +25,14 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       // ghi chu o MCPTool.isSystem va Agent.isSystem.
       const allTools = ToolRegistry.getAllTools().filter((t) => !t.isSystem);
       const allSkills = await prisma.agent.findMany({ where: { type: "skill", isSystem: false }, orderBy: { name: "asc" } });
+      const allAgents = await prisma.agent.findMany({ where: { type: "agent", isSystem: false }, orderBy: { name: "asc" } });
       const html = await renderAdmin("agent-edit", {
         agent: null,
         defaultType: request.query.type === "skill" ? "skill" : "agent",
         aiProviderKeys: config?.aiProviderKeys || {},
         allTools,
         allSkills,
+        allAgents,
         userName: request.session.get("name"),
         role: request.session.get("role"),
         currentPath: request.url,
@@ -50,11 +52,16 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
       const allTools = ToolRegistry.getAllTools().filter((t) => !t.isSystem);
       const allSkills = await prisma.agent.findMany({ where: { type: "skill", isSystem: false }, orderBy: { name: "asc" } });
+      const allAgents = await prisma.agent.findMany({ where: { type: "agent", isSystem: false, id: { not: agent.id } }, orderBy: { name: "asc" } });
       // Tool/skill isSystem ma agent nay DA duoc gan san (qua DB, khong qua UI) - hien read-only +
       // giu nguyen khi luu form (xem agent-edit.liquid), khong duoc phep bo/them qua UI.
       const lockedTools = ToolRegistry.getAllTools().filter((t) => t.isSystem && agent.allowedTools.includes(t.name));
       const lockedSkills = await prisma.agent.findMany({
         where: { type: "skill", isSystem: true, key: { in: agent.allowedSkills } },
+        orderBy: { name: "asc" },
+      });
+      const lockedAgents = await prisma.agent.findMany({
+        where: { type: "agent", isSystem: true, key: { in: agent.allowedAgents } },
         orderBy: { name: "asc" },
       });
       const html = await renderAdmin("agent-edit", {
@@ -63,8 +70,10 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
         aiProviderKeys: config?.aiProviderKeys || {},
         allTools,
         allSkills,
+        allAgents,
         lockedTools,
         lockedSkills,
+        lockedAgents,
         userName: request.session.get("name"),
         role: request.session.get("role"),
         currentPath: request.url,

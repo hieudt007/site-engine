@@ -6,7 +6,8 @@ import { ToolRegistry } from "./ToolRegistry.js";
 // manifest.json cua plugin trong routes/admin/plugins.ts) - ca 2 duong deu nhan mang string tuy
 // y (tu request body hoac tu manifest do plugin tu viet), khong the chi dua vao UI an di tool
 // isSystem, phai loc lai o day truoc khi ghi DB.
-export async function stripSystemResources<T extends { allowedTools?: string[]; allowedSkills?: string[] }>(data: T): Promise<T> {
+// khong bao gio qua API cong khai nay - zod se tu am tham bo qua neu client co gui len.
+export async function stripSystemResources<T extends { allowedTools?: string[]; allowedSkills?: string[]; allowedAgents?: string[] }>(data: T): Promise<T> {
   const result = { ...data };
   if (result.allowedTools) {
     const systemToolNames = new Set(ToolRegistry.getAllTools().filter((t) => t.isSystem).map((t) => t.name));
@@ -19,6 +20,14 @@ export async function stripSystemResources<T extends { allowedTools?: string[]; 
     });
     const systemSkillKeys = new Set(systemSkills.map((s) => s.key));
     result.allowedSkills = result.allowedSkills.filter((key) => !systemSkillKeys.has(key));
+  }
+  if (result.allowedAgents && result.allowedAgents.length > 0) {
+    const systemAgents = await prisma.agent.findMany({
+      where: { type: "agent", isSystem: true, key: { in: result.allowedAgents } },
+      select: { key: true },
+    });
+    const systemAgentKeys = new Set(systemAgents.map((a) => a.key));
+    result.allowedAgents = result.allowedAgents.filter((key) => !systemAgentKeys.has(key));
   }
   return result;
 }

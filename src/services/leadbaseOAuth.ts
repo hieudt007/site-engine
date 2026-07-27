@@ -26,6 +26,11 @@ export function buildAuthorizeUrl(redirectUri: string, pkce: PkcePair): string {
   url.searchParams.set("state", pkce.state);
   url.searchParams.set("code_challenge", pkce.codeChallenge);
   url.searchParams.set("code_challenge_method", "S256");
+  // Xin dung 1 scope "userinfo" - de LeadBase phan biet duoc token nay CHI dung de doc thong tin
+  // dang nhap (GET /api/oauth/userinfo), khong phai token goi cong cu MCP (/api/mcp). Neu token nay
+  // lo ra (log, proxy...) se khong dung duoc de goi MCP tool, va nguoc lai 1 token MCP bi lo cung
+  // khong doc duoc userinfo - xem kiem tra scope tuong ung o LeadBase (oauthUserInfo.ts).
+  url.searchParams.set("scope", "userinfo");
 
   return url.toString();
 }

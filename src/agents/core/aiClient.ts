@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
 import { prisma } from "../../db.js";
+import { assertSafeOutboundUrl } from "../../security/ssrfGuard.js";
 
 // Ghi lai context gui/nhan voi AI de debug - GHI DE (khong noi tiep) - chi giu LAN GOI GAN NHAT,
 // tranh file phinh to vo han qua nhieu luot chat (1 luot co the goi AI nhieu lan: phan loai + tung
@@ -35,13 +36,32 @@ const DEFAULT_BASE_URLS: Record<string, string> = {
 
 export class AiCallError extends Error {}
 
-function resolveBaseUrl(agent: Agent): string {
-  if (agent.baseUrl) return agent.baseUrl;
+async function resolveBaseUrl(agent: Agent): Promise<string> {
+  if (agent.baseUrl) {
+    // agent.baseUrl la INPUT NGUOI DUNG (nhap qua /admin/api/agents, xem routes/admin/agents.ts) -
+    // KHAC DEFAULT_BASE_URLS ben duoi la hang cung tin cay. PHAI kiem tra lai NGAY LUC GOI (khong
+    // chi luc luu o route admin), phong DNS tro toi IP noi bo SAU KHI da luu (DNS rebinding/TOCTOU).
+    try {
+      await assertSafeOutboundUrl(agent.baseUrl);
+    } catch (err: any) {
+      throw new AiCallError(`Agent "${agent.name}" có baseUrl không an toàn: ${err.message}`);
+    }
+    return agent.baseUrl;
+  }
   const fallback = DEFAULT_BASE_URLS[agent.provider];
   if (!fallback) {
     throw new AiCallError(`Provider "${agent.provider}" cần baseUrl riêng, chưa cấu hình trong Agent`);
   }
   return fallback;
+}
+
+// KHONG duoc nhoi nguyen res.text() vao message tra ve nguoi goi/AI - voi agent.baseUrl do NGUOI
+// DUNG chon, response nay co the la du lieu tu 1 service NOI BO ma ho khong duoc phep doc truc tiep
+// (SSRF data-exfil qua thong bao loi). Chi ghi chi tiet o SERVER LOG, tra ve message chung kem status.
+async function readErrorSafely(res: Response, label: string, agent: Agent): Promise<string> {
+  const bodyText = await res.text().catch(() => "");
+  console.error(`[aiClient] ${label} lỗi ${res.status} (agent=${agent.name}, provider=${agent.provider}): ${bodyText}`);
+  return `${label} lỗi ${res.status}. Xem log server để biết chi tiết.`;
 }
 
 async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: string, imageUrl?: string, forceJson?: boolean): Promise<string> {
@@ -68,7 +88,7 @@ async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: str
   });
 
   if (!res.ok) {
-    throw new AiCallError(`Anthropic API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "Anthropic API", agent));
   }
   const data = (await res.json()) as { content?: { type: string; text?: string }[] };
   const text = data.content?.find((block) => block.type === "text")?.text;
@@ -87,7 +107,7 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
   const userContent = imageUrl
     ? [{ type: "text", text: userPrompt }, { type: "image_url", image_url: { url: imageUrl } }]
     : userPrompt;
-  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -110,7 +130,7 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
   });
 
   if (!res.ok) {
-    throw new AiCallError(`AI API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "AI API", agent));
   }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = data.choices?.[0]?.message?.content;
@@ -205,7 +225,7 @@ export async function callAgentConversation(
       body: JSON.stringify({ model: agent.model, max_tokens: 8000, system: systemPrompt, messages }),
     });
     if (!res.ok) {
-      throw new AiCallError(`Anthropic API lỗi ${res.status}: ${await res.text()}`);
+      throw new AiCallError(await readErrorSafely(res, "Anthropic API", agent));
     }
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
     const text = data.content?.find((block) => block.type === "text")?.text;
@@ -225,7 +245,7 @@ export async function callAgentConversation(
         : t.content,
     })),
   ];
-  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -241,7 +261,7 @@ export async function callAgentConversation(
     }),
   });
   if (!res.ok) {
-    throw new AiCallError(`AI API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "AI API", agent));
   }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = data.choices?.[0]?.message?.content;
@@ -272,7 +292,7 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
     throw new AiCallError("Anthropic không hỗ trợ tạo ảnh qua API này");
   }
 
-  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "").replace(/\/chat\/completions$/, "").replace(/\/v1$/, "");
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "").replace(/\/chat\/completions$/, "").replace(/\/v1$/, "");
   const endpoint = `${baseUrl}/v1/images/generations`;
 
   const res = await fetch(endpoint, {
@@ -290,7 +310,7 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
   });
 
   if (!res.ok) {
-    throw new AiCallError(`Image Generation API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "Image Generation API", agent));
   }
   const data = (await res.json()) as any;
   const url = data.data?.[0]?.url;
@@ -343,7 +363,7 @@ export async function callAgentWithTools(agent: Agent, messages: AiMessage[], to
     throw new AiCallError("Tool Calling hiện chưa hỗ trợ kết nối Anthropic native, vui lòng sử dụng API tương thích OpenAI.");
   }
 
-  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -361,7 +381,7 @@ export async function callAgentWithTools(agent: Agent, messages: AiMessage[], to
   });
 
   if (!res.ok) {
-    throw new AiCallError(`API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "API", agent));
   }
   
   const data = (await res.json()) as any;
@@ -401,7 +421,7 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
     }
   }
 
-  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   // Use endpoint from agent if available, fallback to /search
   const endpointPath = agent.endpoint || "/search";
   const endpoint = `${baseUrl}${endpointPath}`;
@@ -423,7 +443,7 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new AiCallError(`Web Search API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "Web Search API", agent));
   }
   const data = (await res.json()) as any;
   
@@ -463,7 +483,7 @@ export async function webFetch(agent: Agent, url: string): Promise<string> {
     }
   }
 
-  const baseUrl = resolveBaseUrl(agent).replace(/\/$/, "");
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const endpointPath = agent.endpoint || "/web/fetch";
   const endpoint = `${baseUrl}${endpointPath}`;
 
@@ -482,7 +502,7 @@ export async function webFetch(agent: Agent, url: string): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new AiCallError(`Web Fetch API lỗi ${res.status}: ${await res.text()}`);
+    throw new AiCallError(await readErrorSafely(res, "Web Fetch API", agent));
   }
   const data = (await res.json()) as any;
   const reply = data.content || data.results || data.text;

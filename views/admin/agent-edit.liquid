@@ -94,7 +94,7 @@
           {% render "components/icon", name: "lock" %}
           <div>
             <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ skill.name | escape }}</div>
-            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.2rem;">{{ skill.systemPrompt | escape }}</div>
+            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.2rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{{ skill.systemPrompt | escape }}">{{ skill.systemPrompt | escape }}</div>
           </div>
         </div>
       {% endfor %}
@@ -108,11 +108,46 @@
           <input type="checkbox" name="allowedSkills" value="{{ skill.key | escape }}" style="margin-top:0.2rem;" {% if isChecked %}checked{% endif %} onchange="this.closest('.skill-card').style.borderColor = this.checked ? '#d97706' : '#e5e7eb'; this.closest('.skill-card').style.backgroundColor = this.checked ? '#fffbeb' : '#f9fafb';">
           <div>
             <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ skill.name | escape }}</div>
-            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.2rem;">{{ skill.systemPrompt | escape }}</div>
+            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.2rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{{ skill.systemPrompt | escape }}">{{ skill.systemPrompt | escape }}</div>
           </div>
         </label>
       {% else %}
         <div class="empty-state" style="grid-column:1/-1;">Chưa có skill nào. <a href="/admin/agents/new?type=skill">Tạo skill mới</a>.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div id="allowed-agents-block" class="mt-8 border-t pt-6" style="border-top: 1px solid #e5e7eb; margin-top: 2rem; padding-top: 1.5rem;">
+    <h3 style="margin-top:0; margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;">
+      <svg class="admin-icon" style="width:20px;height:20px;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Sub Agent
+    </h3>
+    <p style="color:#6b7280; font-size:0.85rem; margin-top:0; margin-bottom:1rem;">Chọn các Agent con mà Agent này được phép gọi tới qua tool call_agent (rỗng = không cho phép gọi).</p>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+      {% for subAgent in lockedAgents %}
+        <input type="hidden" name="allowedAgents" value="{{ subAgent.key | escape }}">
+        <div class="skill-card" style="display:flex; gap:0.8rem; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:1rem; align-items:flex-start;" title="Agent hệ thống — chỉ gán được qua DB, không bỏ được qua giao diện.">
+          {% render "components/icon", name: "lock" %}
+          <div>
+            <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ subAgent.name | escape }}</div>
+          </div>
+        </div>
+      {% endfor %}
+      {% for subAgent in allAgents %}
+        {% assign isChecked = false %}
+        {% if agent and agent.allowedAgents contains subAgent.key %}
+          {% assign isChecked = true %}
+        {% endif %}
+
+        <label class="skill-card" style="display:flex; gap:0.8rem; background:#f9fafb; border:1px solid {% if isChecked %}#d97706{% else %}#e5e7eb{% endif %}; border-radius:8px; padding:1rem; cursor:pointer; transition:all 0.2s; align-items:flex-start;">
+          <input type="checkbox" name="allowedAgents" value="{{ subAgent.key | escape }}" style="margin-top:0.2rem;" {% if isChecked %}checked{% endif %} onchange="this.closest('.skill-card').style.borderColor = this.checked ? '#d97706' : '#e5e7eb'; this.closest('.skill-card').style.backgroundColor = this.checked ? '#fffbeb' : '#f9fafb';">
+          <div>
+            <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ subAgent.name | escape }}</div>
+          </div>
+        </label>
+      {% else %}
+        <div class="empty-state" style="grid-column:1/-1;">Chưa có Agent nào khác. <a href="/admin/agents/new">Tạo Agent mới</a>.</div>
       {% endfor %}
     </div>
   </div>
@@ -169,6 +204,7 @@
   const skillFields = document.getElementById("skill-fields");
   const agentFields = document.getElementById("agent-fields");
   const allowedSkillsBlock = document.getElementById("allowed-skills-block");
+  const allowedAgentsBlock = document.getElementById("allowed-agents-block");
   const modelInput = document.getElementById("model");
 
   function applyTypeUi() {
@@ -176,6 +212,7 @@
     skillFields.style.display = isSkill ? "block" : "none";
     agentFields.style.display = isSkill ? "none" : "block";
     allowedSkillsBlock.style.display = isSkill ? "none" : "block";
+    allowedAgentsBlock.style.display = isSkill ? "none" : "block";
     keyLabel.textContent = isSkill ? "Skill key" : "Agent key (Mục đích sử dụng)";
     keyHint.textContent = isSkill
       ? "Agent sẽ gọi skill bằng key này (### USE_SKILL: <key>). Chỉ được thiết lập lúc tạo và không thể sửa."
@@ -242,6 +279,7 @@
     // hien read-only - xem lockedTools/lockedSkills) - khong lam mat quyen isSystem khi luu form.
     const allowedTools = Array.from(document.querySelectorAll('input[name="allowedTools"]:checked, input[name="allowedTools"][type="hidden"]')).map(cb => cb.value);
     const allowedSkills = Array.from(document.querySelectorAll('input[name="allowedSkills"]:checked, input[name="allowedSkills"][type="hidden"]')).map(cb => cb.value);
+    const allowedAgents = Array.from(document.querySelectorAll('input[name="allowedAgents"]:checked, input[name="allowedAgents"][type="hidden"]')).map(cb => cb.value);
 
     const payload = {
       name: form.name.value.trim(),
@@ -263,6 +301,7 @@
       payload.systemPrompt = form.systemPrompt.value || undefined;
       payload.endpoint = form.endpoint.value || undefined;
       payload.allowedSkills = allowedSkills;
+      payload.allowedAgents = allowedAgents;
       payload.maxLoops = form.maxLoops.value ? parseInt(form.maxLoops.value, 10) : undefined;
       if (form.apiKey.value) {
         payload.apiKey = form.apiKey.value;
