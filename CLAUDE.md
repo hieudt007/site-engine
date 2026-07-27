@@ -16,6 +16,8 @@ If a file appears broken and you suspect reverting would fix it: **stop and ask*
 
 When writing or editing text that gets sent TO an AI model as a prompt (system prompts, `RESPONSE_FORMAT_GUIDE`, tool descriptions in `ToolRegistry`, agent `systemPrompt` seeds, etc.) — every extra sentence is tokens spent on every single call. State the rule/format directly. Do not add explanatory prose, rationale, or examples beyond what's needed for the model to comply. If a shorter phrasing conveys the same instruction, use it.
 
+Tool `name`/`description` fields sent to an AI model (MCP `inputSchema` descriptions, `ToolRegistry` tool descriptions) must be in **English**, not Vietnamese — regardless of the surrounding code comments' language. This content is model-facing context, not human-facing UI copy or internal documentation. The same applies to authored error/refusal strings a tool's `execute()` returns or throws on failure (e.g. "Missing required field X", "Not permitted", validation messages) — those go back into the model's context too. Data values pulled from the DB (a real customer/campaign name, a user-entered note) are not authored strings and don't need translating.
+
 ## Commands
 
 ```bash
