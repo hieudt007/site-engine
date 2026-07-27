@@ -2,11 +2,12 @@ import { ToolRegistry } from "../core/ToolRegistry.js";
 import { webSearchTool } from "./webSearchTool.js";
 import { webFetchTool } from "./webFetchTool.js";
 import { generateImageTool } from "./generateImageTool.js";
-import { readFieldsTool, fillFormTool, requestVisualQaTool, getCurrentPageTool, getChatHistoryTool } from "./assistantTools.js";
+import { readFieldsTool, fillFormTool, requestVisualQaTool, getCurrentPageTool, getChatHistoryTool, finishSubtaskTool } from "./assistantTools.js";
 import { visualQaTool, analyzeLayoutTool, getDesignSystemTool } from "./uiuxTools.js";
 import { getPostTool } from "./contentTools.js";
 import { listFilesTool, readFilesTool, searchCodeTool, replaceCodeTool, overwriteFileTool } from "./fileTools.js";
 import { searchProductTool, getProductTool, checkOrderTool, createLeadTool, markAsSpamTool } from "./customerSupportTools.js";
+import { callAgentTool, useSkillTool } from "./agentTools.js";
 
 // Đăng ký toàn bộ Tools vào Registry
 const allTools = [
@@ -16,6 +17,9 @@ const allTools = [
   readFieldsTool,
   fillFormTool,
   getChatHistoryTool,
+  finishSubtaskTool,
+  callAgentTool,
+  useSkillTool,
   requestVisualQaTool,
   visualQaTool,
   analyzeLayoutTool,

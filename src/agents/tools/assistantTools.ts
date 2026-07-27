@@ -35,12 +35,12 @@ function logReadFieldsCall(fields: unknown): void {
       `${new Date().toISOString()}\nAI goi read_fields voi fields: ${JSON.stringify(fields)}\n`,
       "utf-8"
     );
-  } catch {}
+  } catch { }
 }
 
 export const readFieldsTool: MCPTool = {
   name: "read_fields",
-  description: "Đọc giá trị form hiện tại. Tham số: {\"fields\": [\"trường_1\", \"trường_2\"]}",
+  description: "Read current form values. {\"fields\": [\"field_1\", \"field_2\"]}",
   execute: async (args, context) => {
     const fields: string[] = Array.isArray(args.fields) ? args.fields : [];
     logReadFieldsCall(fields);
@@ -48,7 +48,7 @@ export const readFieldsTool: MCPTool = {
     // vao thang prompt gui cho AI ngoai. Bat AI phai tu chi ro tung field can, tra loi ro de no
     // tu goi lai dung cach thay vi doan mo lay het.
     if (fields.length === 0) {
-      return "Lỗi: Bạn phải liệt kê rõ TÊN từng field cần đọc trong tham số \"fields\" (không được để rỗng).";
+      return "Error: list exact field names in \"fields\" (cannot be empty).";
     }
     if (context.reply) {
       context.reply.raw.write(`data: ${JSON.stringify({
@@ -62,25 +62,25 @@ export const readFieldsTool: MCPTool = {
 
 export const fillFormTool: MCPTool = {
   name: "fill_form",
-  description: "Điền form. Tham số: {\"form_name\": \"tên\", \"fields\": {\"trường\": \"giá trị\"}}",
+  description: "Fill form. {\"form_name\": \"name\", \"fields\": {\"field\": \"value\"}}",
   execute: async (args, context) => {
     const fields = args.fields || {};
     if (context.reply) {
-      context.reply.raw.write(`data: ${JSON.stringify({ 
-        step: "form_fill", 
+      context.reply.raw.write(`data: ${JSON.stringify({
+        step: "form_fill",
         payload: { action: "fill_form", formName: args.form_name, fields }
       })}\n\n`);
     }
-    return `ĐÃ ĐIỀN FORM TỰ ĐỘNG LÊN MÀN HÌNH NGƯỜI DÙNG: ${JSON.stringify(fields)}\nNgười dùng sẽ tự xem lại và bấm Save. Bạn không cần làm gì thêm.`;
+    return `Form auto-filled on user's screen: ${JSON.stringify(fields)}\nUser will review and click Save. No further action needed.`;
   }
 };
 
 export const requestVisualQaTool: MCPTool = {
   name: "request_visual_qa",
-  description: "Chụp ảnh màn hình để test UX/UI. Tham số: {\"url\": \"đường_dẫn\"}",
+  description: "Capture screenshot for UX/UI testing. {\"url\": \"path\"}",
   execute: async (args, context) => {
     const url = args.url || "";
-    if (!url) return "Lỗi: Thiếu url.";
+    if (!url) return "Error: missing url.";
     if (context.reply) {
       context.reply.raw.write(`data: ${JSON.stringify({
         step: "test_request",
@@ -93,11 +93,11 @@ export const requestVisualQaTool: MCPTool = {
 
 export const getCurrentPageTool: MCPTool = {
   name: "get_current_page",
-  description: "Kiểm tra xem người dùng đang ở trang nào trong hệ thống. Trả về URL và Tiêu đề trang hiện tại.",
+  description: "Check which page the user is on. Returns current URL and title.",
   execute: async (args, context) => {
     return JSON.stringify({
-      url: context.meta?.pageUrl || "Không xác định",
-      title: context.meta?.pageTitle || "Không xác định",
+      url: context.meta?.pageUrl || "Unknown",
+      title: context.meta?.pageTitle || "Unknown",
     });
   }
 };
@@ -106,13 +106,13 @@ export const getCurrentPageTool: MCPTool = {
 // de AI tu goi khi can (xem formatHistoryBlock o tren). context.history CHI chua cac luot CU (tin
 // nhan hien tai dang xu ly KHONG nam trong day - cac caller nhu aiChat.ts tu loc bo truoc khi
 // truyen vao run()), nen tool nay khong bao gio tra ve tin nhan hien tai.
-const DEFAULT_HISTORY_NUMBER = 10;
+const DEFAULT_HISTORY_NUMBER = 5;
 const DEFAULT_HISTORY_OFFSET = 0;
 
 export const getChatHistoryTool: MCPTool = {
   name: "get_chat_history",
   description:
-    'Xem lại lịch sử chat CŨ với user (không bao gồm tin nhắn hiện tại). Tham số (tuỳ chọn): {"number": 10, "offset": 0} - "number" = số tin muốn lấy (mặc định 10), "offset" = bỏ qua bao nhiêu tin gần nhất trước khi lấy, dùng khi cần xem xa hơn về trước (mặc định 0).',
+    '{"number": 5, "offset": 0}',
   execute: async (args, context) => {
     const number = Number.isFinite(args.number) ? Math.max(1, Math.floor(args.number)) : DEFAULT_HISTORY_NUMBER;
     const offset = Number.isFinite(args.offset) ? Math.max(0, Math.floor(args.offset)) : DEFAULT_HISTORY_OFFSET;
@@ -123,6 +123,22 @@ export const getChatHistoryTool: MCPTool = {
     const sliced = history.slice(Math.max(0, start), Math.max(0, end));
 
     const block = formatHistoryBlock(sliced);
-    return block || "(Không có lịch sử chat trong khoảng yêu cầu.)";
+    return block || "(No chat history in requested range.)";
+  },
+};
+
+// Danh cho task dai nhieu buoc (vd sua lien tiep nhieu file) - AI tu goi khi thay VUA XONG 1
+// CHANG LON, de nen bot cac ket qua tool/agent tho da tich luy trong "messages" (BaseAgent.run())
+// thanh 1 dong tom tat, tranh context phinh to dan qua tung buoc. Tool nay CHI ghi co hieu vao
+// context.meta - viec nen that su do chinh run() lam (no moi giu duoc bien "messages" cuc bo).
+export const finishSubtaskTool: MCPTool = {
+  name: "finish_subtask",
+  description:
+    'Mark a big step in a long multi-step task done, compacting working memory to save tokens. Only use after actually finishing a group of work, not after every small step. {"summary": "what you just finished"}',
+  execute: async (args, context) => {
+    const summary = String(args.summary || "").trim();
+    if (!summary) return "Error: missing summary.";
+    context.meta.__pendingSubtaskSummary = summary;
+    return "Recorded. Working memory will be compacted for the next step.";
   },
 };

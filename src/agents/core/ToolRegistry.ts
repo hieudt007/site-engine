@@ -32,16 +32,13 @@ export class ToolRegistry {
   static formatToolPrompt(names: string[]): string {
     const tools = this.getToolsByName(names);
     if (tools.length === 0) return "";
-    let prompt = `ĐỊNH DẠNG GỌI CÔNG CỤ:
-# TOOL_CALL
+    let prompt = `# TOOL_CALL
 ## name
-[tên_công_cụ]
+[tool_name]
 ## args
-[tham_số_JSON]
-## next_task
-[Tuỳ chọn - chỉ điền khi bạn đang tự chia nhỏ 1 việc lớn thành nhiều bước và biết rõ bước kế tiếp.]
+[args_JSON]
 
-DANH SÁCH CÔNG CỤ HỖ TRỢ:\n`;
+Can call multiple independent tools at once:\n`;
     tools.forEach(t => {
       prompt += `- \`${t.name}\`: ${t.description}\n`;
     });

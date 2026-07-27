@@ -4,6 +4,7 @@ import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { generateImage, webFetch, webSearch } from "../../agents/core/aiClient.js";
 import { BaseAgent, AgentContext } from "../../agents/core/BaseAgent.js";
+import { isRunActive, injectMessage } from "../../agents/core/runRegistry.js";
 import type { ChatHistoryItem } from "../../services/themeChat.js";
 import { saveAiChatImage } from "../../services/mediaStorage.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
@@ -131,8 +132,25 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
         return reply;
       }
 
+      // Bao historyId cho frontend SOM (truoc khi run() co the chay lau) - de frontend biet ID nao
+      // dang chay dang do, dung khi user go tiep tin nhan "chen ngang" trong luc AI dang xu ly.
+      sseWrite({ step: "history_id", historyId: historyRow.id });
+
+      // Chen ngang (steering): historyId nay dang co 1 run() KHAC con dang chay that (con trong
+      // vong lap BaseAgent.run(), chua tra ve REPLY) - KHONG tao run() moi song song (dam context),
+      // chi bom tin nhan vao hang doi de run() dang chay tu nhat len o lan goi AI tiep theo. Khac
+      // voi luong "isToolResponse" resume binh thuong (run() cu DA tra ve/ket thuc khi do, nen
+      // isRunActive se la false, khong bi chan o day).
+      if (parsed.data.historyId && isRunActive(historyRow.id)) {
+        injectMessage(historyRow.id, originalMessage);
+        sseWrite({ step: "injected", label: "Đã gửi, AI sẽ xử lý ở bước tiếp theo." });
+        reply.raw.end();
+        return reply;
+      }
+
+      // "[Trang hiện tại]" khong con noi vao day nua - da chuyen vao BaseAgent.getSystemPrompt()
+      // (dat truoc OUTPUT FORMAT, doc thang tu context.meta.pageTitle/pageUrl ben duoi).
       let finalMessage = originalMessage;
-      if (parsed.data.pageTitle) finalMessage += `\n\n[Trang hiện tại] ${parsed.data.pageTitle} (${parsed.data.pageUrl || ""})`;
       if (parsed.data.layoutMode) finalMessage += `\n[Layout mode] ${parsed.data.layoutMode}`;
 
       const context: AgentContext = {

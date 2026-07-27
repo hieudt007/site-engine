@@ -317,6 +317,37 @@
     border-style: solid;
     border-color: #e5e7eb transparent transparent transparent;
   }
+  body.ai-chat-docked.ai-chat-open main {
+    padding-right: calc(380px + var(--space-6)) !important;
+  }
+  @media (max-width: 900px) {
+    body.ai-chat-docked.ai-chat-open main {
+      padding-right: var(--space-4) !important;
+    }
+  }
+  body.ai-chat-docked.ai-chat-open #ai-chat-button,
+  body.ai-chat-docked.ai-chat-open #ai-chat-tooltip {
+    display: none !important;
+  }
+  body.ai-chat-docked #ai-chat-window {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    box-shadow: -4px 0 15px rgba(0,0,0,0.05);
+    border-right: none;
+    border-top: none;
+    border-bottom: none;
+    transform: none !important;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  #ai-chat-dock:hover {
+    background: #f3f4f6;
+    color: #4b5563;
+  }
 </style>
 
 <div id="ai-chat-widget">
@@ -328,9 +359,14 @@
         </div>
         <span>AI Chat</span>
       </div>
-      <button id="ai-chat-close">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
+      <div class="ai-chat-header-actions" style="display: flex; gap: 4px; align-items: center;">
+        <button id="ai-chat-dock" title="Gắn vào lề (Dock)" style="background: transparent; border: none; color: #9ca3af; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+        </button>
+        <button id="ai-chat-close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
     </div>
     
     <div id="ai-chat-messages">
@@ -371,6 +407,7 @@
   const btn = document.getElementById('ai-chat-button');
   const win = document.getElementById('ai-chat-window');
   const close = document.getElementById('ai-chat-close');
+  const dockBtn = document.getElementById('ai-chat-dock');
   const input = document.getElementById('ai-chat-input');
   const send = document.getElementById('ai-chat-send');
   const messagesDiv = document.getElementById('ai-chat-messages');
@@ -387,6 +424,9 @@
   let hasMoreHistory = false;
   let nextBeforeId = null;
   let isAiLoading = false;
+  // ID cua luot chat dang chay dang do (biet duoc qua SSE event "history_id") - dung de gui tin
+  // nhan "chen ngang" (steering) khi user go tiep trong luc AI van dang xu ly.
+  let currentInFlightHistoryId = null;
   let pendingImageUrl = null;
   let entityId = null;
   const pathMatch = window.location.pathname.match(/^\/admin\/(posts|pages|products|settings\/theme)\/([a-zA-Z0-9-_]+)/);
@@ -423,6 +463,7 @@
 
   btn.addEventListener('click', () => {
     win.classList.add('open');
+    document.body.classList.add('ai-chat-open');
     if (!historyLoaded) {
       loadInitialHistory();
     }
@@ -450,6 +491,7 @@
   const themeSlug = themeSlugMatch ? themeSlugMatch[1] : null;
   if (isThemeEditPage) {
     win.classList.add('open');
+    document.body.classList.add('ai-chat-open');
     sessionStorage.setItem('ai_tooltip_seen', 'true');
   }
 
@@ -477,6 +519,20 @@
   
   close.addEventListener('click', () => {
     win.classList.remove('open');
+    document.body.classList.remove('ai-chat-open');
+  });
+
+  if (localStorage.getItem('ai_chat_docked') === '1') {
+    document.body.classList.add('ai-chat-docked');
+  }
+
+  dockBtn.addEventListener('click', () => {
+    document.body.classList.toggle('ai-chat-docked');
+    if (document.body.classList.contains('ai-chat-docked')) {
+      localStorage.setItem('ai_chat_docked', '1');
+    } else {
+      localStorage.setItem('ai_chat_docked', '0');
+    }
   });
 
   function escapeHtml(unsafe) {
@@ -923,7 +979,27 @@
   async function sendMessage(hiddenText = null, hiddenPayload = null) {
     const text = hiddenText || input.value.trim();
     if (!text && !hiddenPayload) return;
-    if (isAiLoading && !hiddenPayload) return;
+
+    // Chen ngang (steering): AI dang xu ly luot truoc (isAiLoading) va da biet duoc historyId cua
+    // no (SSE event "history_id") - gui nhu 1 tin nhan bom vao luot dang chay thay vi mo luot moi
+    // song song (dam context/lich su). Neu chua kip biet historyId (request vua bat dau) thi bo
+    // qua, tranh gui sai/tao nham luot moi.
+    if (isAiLoading && !hiddenPayload) {
+      if (!currentInFlightHistoryId) return;
+      clearEmptyState();
+      messagesDiv.appendChild(renderMessage('user', text, ''));
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      input.value = '';
+      try {
+        await fetch('/admin/api/ai-chat/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, historyId: currentInFlightHistoryId, entityId })
+        });
+      } catch (e) { }
+      return;
+    }
+
     // Chup lai pendingImageUrl NGAY TU DAU - clearPendingImage() ben duoi se xoa no ve null,
     // cac nhanh xu ly phia sau (ke ca nhanh theme-chat) can dung dung anh nguoi dung vua dinh
     // kem, khong phai doc lai bien da bi xoa.
@@ -934,15 +1010,16 @@
       clearEmptyState();
       messagesDiv.appendChild(renderMessage('user', text, '', sentImageUrl));
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      
+
       input.value = '';
       clearPendingImage();
       isAiLoading = true;
-      
+      currentInFlightHistoryId = null;
+
       const loadingDiv = document.createElement('div');
       loadingDiv.id = 'ai-loading-indicator';
       loadingDiv.className = 'ai-chat-loading';
-      loadingDiv.innerHTML = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> <span>AI đang trả lời...</span>';
+      loadingDiv.innerHTML = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> <span>Đang suy nghĩ...</span>';
       messagesDiv.appendChild(loadingDiv);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
@@ -1033,7 +1110,13 @@
             event = JSON.parse(line.slice(5).trim());
           } catch(e) { continue; }
 
-          if (event.step === "thinking" || event.step === "tool") {
+          if (event.step === "history_id") {
+             // Bao som ID cua luot dang chay - luu lai de dung khi user go tiep tin nhan "chen
+             // ngang" trong luc AI van dang xu ly (xem nhanh isAiLoading o dau sendMessage()).
+             currentInFlightHistoryId = event.historyId;
+          } else if (event.step === "thinking" || event.step === "tool") {
+             // "tool": he thong tu ghep ten tool + tham so NGAY TRUOC KHI thuc thi (BaseAgent.
+             // streamToolCall) - thay dong "Dang suy nghi..." bang dong nay, khong ton token AI.
              if (loadingEl) loadingEl.querySelector('span').textContent = event.label;
           } else if (event.step === "error") {
              if (loadingEl) loadingEl.remove();

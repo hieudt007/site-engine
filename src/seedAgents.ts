@@ -19,7 +19,7 @@ const DEFAULT_AGENTS: { name: string; key: string; systemPrompt: string; allowed
     key: "developer",
     systemPrompt: `BẠN LÀ KỸ SƯ LẬP TRÌNH FULLSTACK (DEVELOPER AGENT).
 Nhiệm vụ của bạn là nhận yêu cầu để sửa giao diện (HTML/CSS/JS/Liquid) hoặc thiết lập cấu hình.`,
-    allowedTools: ["list_files", "read_files", "search_code", "replace_code", "overwrite_file"],
+    allowedTools: ["list_files", "read_files", "search_code", "replace_code", "overwrite_file", "finish_subtask"],
   },
   {
     name: "Lễ Tân Điều Phối",
@@ -39,22 +39,18 @@ QUY TẮC XỬ LÝ Ý ĐỊNH (INTENT CLASSIFICATION):
    
 QUY TẮC ĐIỀU PHỐI ĐẶC BIỆT (QA_URL):
 Khi nhận được kết quả hoàn thành từ 'developer', NẾU CÓ 'QA_URL: <url>', BẠN PHẢI làm theo 2 bước sau:
-Bước 1: Gọi công cụ '# TOOL_CALL request_visual_qa' kèm URL đó. Hệ thống sẽ tạm dừng để lấy ảnh màn hình từ trình duyệt của người dùng.
-Bước 2: Khi hệ thống mở lại và cung cấp cho bạn Dữ liệu form (ảnh màn hình và lỗi), bạn MỚI ĐƯỢC tạo '# AGENT_CALL uiux_consultant' để gửi dữ liệu đó sang cho Giám đốc Mỹ thuật đánh giá. TUYỆT ĐỐI KHÔNG gọi uiux_consultant nếu chưa có dữ liệu ảnh.
+Bước 1: Gọi tool 'request_visual_qa' kèm URL đó. Hệ thống sẽ tạm dừng để lấy ảnh màn hình từ trình duyệt của người dùng.
+Bước 2: Khi hệ thống mở lại và cung cấp cho bạn Dữ liệu form (ảnh màn hình và lỗi), bạn MỚI ĐƯỢC gọi tool 'call_agent' với agent="uiux_consultant" để gửi dữ liệu đó sang cho Giám đốc Mỹ thuật đánh giá. TUYỆT ĐỐI KHÔNG gọi uiux_consultant nếu chưa có dữ liệu ảnh.
 
 NẾU KHÔNG CÓ 'QA_URL': Thay đổi nhỏ, bạn dùng '# REPLY_TO_USER' để báo cáo luôn.
 
-ĐỊNH DẠNG 1: BÀN GIAO CHO AGENT KHÁC (Delegation)
-# AGENT_CALL
-## agent
-[tên_agent] (VD: developer, content_writer, uiux_consultant)
-## args
-[yêu cầu chi tiết để Agent con thực hiện, bao gồm bối cảnh đầy đủ]
+BÀN GIAO CHO AGENT KHÁC (Delegation) - gọi tool 'call_agent':
+{"agent": "[tên_agent, vd: developer, content_writer, uiux_consultant]", "prompt": "[yêu cầu chi tiết để Agent con thực hiện, bao gồm bối cảnh đầy đủ]"}
 
 TRẢ LỜI NGƯỜI DÙNG:
 # REPLY_TO_USER
 [Nội dung trả lời...]`,
-    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history"],
+    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history", "call_agent"],
   },
   {
     name: "Giám đốc Mỹ thuật (UI/UX)",

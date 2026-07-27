@@ -1,23 +1,25 @@
 export interface ParsedToolCall {
-  type: "TOOL" | "AGENT" | "SKILL" | "REPLY";
+  // "INVALID": AI viet lan cung luc "# TOOL_CALL" va "# REPLY_TO_USER" trong 1 luot - trai luat
+  // "1 loai hanh dong / luot" (tru rieng nhieu khoi TOOL_CALL voi nhau thi duoc). content la thong
+  // bao loi de BaseAgent.run() day nguoc lai cho AI tu sua, TRANH am tham chi chay 1 loai va mat
+  // lenh con lai. AGENT_CALL/USE_SKILL cu da gop thanh tool thuong (call_agent/use_skill trong
+  // agentTools.ts) - khong con la "loai" rieng o day nua, giong Claude Code khong phan biet loai o
+  // tang giao thuc, chi khac o cach thuc thi ben trong tung tool.
+  type: "TOOL" | "REPLY" | "INVALID";
   tool: string | null;
   args: Record<string, any>;
   content: string;
-  // Tuy chon - viec AI du dinh lam o buoc SAU (chi co khi AI dang tu chia nho 1 task nhieu buoc).
-  // Stream ngay TRUOC luot goi AI tiep theo (xem BaseAgent.run()), khong dung timer co dinh.
-  nextTask: string | null;
+  // Chi co khi type = "TOOL": AI duoc viet NHIEU khoi "# TOOL_CALL" lien tiep trong 1 luot tra loi
+  // (vd can 2 tool doc lap de so sanh) - moi phan tu la 1 lan goi. "tool"/"args" o tren van la lan
+  // goi DAU TIEN (tuong thich nguoc cho cho nao chi doc 2 field do), BaseAgent.run() phai loop qua
+  // "calls" thay vi chi doc tool/args khi xu ly type TOOL.
+  calls: { tool: string; args: Record<string, any> }[] | null;
   // Chi co khi type = "REPLY": tach cau tra loi thanh nhieu tin nhan/bubble RIENG BIET (giong
   // cach UI chat thuong gui lien tiep nhieu bubble ngan thay vi 1 doan van dai). content van la
   // ban gop (messages.join) de tuong thich nguoc voi cho nao chi doc .content.
   messages: string[] | null;
   // Chi co khi type = "REPLY": danh sach URL anh dinh kem cau tra loi (vd anh san pham).
   images: string[] | null;
-}
-
-// Lay 1 dong gia tri sau 1 heading "## key" trong block (dung cho next_task).
-function extractHeadingLine(block: string, heading: string): string | null {
-  const match = block.match(new RegExp(`##\\s*${heading}\\s*\\n(.*?)(?=\\n##|\\n#|$)`, "s"));
-  return match ? match[1].trim() || null : null;
 }
 
 // Parse noi dung ben trong "## args"/"## payload" - dang chuan la nhieu "### key\nvalue", nhung
@@ -56,105 +58,67 @@ export class MarkdownParser {
     // roi vao fallback mac dinh (coi ca khoi "# REPLY_TO_USER\n{...}" la text tho, hien nguyen van
     // cho user thay ca heading chua bi boc tach).
     const text = rawText.replace(/\r\n/g, "\n");
+
+    // Chan xung dot TRUOC KHI parse - AI viet lan ca TOOL_CALL lan REPLY_TO_USER cung luc thi
+    // khong ro y dinh la tiep tuc vong lap hay ket thuc luot, day loi nguoc lai bat AI chon lai.
+    const hasTool = /#\s*TOOL_CALL\n/.test(text);
+    const hasReply = /#\s*REPLY_TO_USER\n/.test(text);
+    if (hasTool && hasReply) {
+      return {
+        type: "INVALID",
+        tool: null,
+        args: {},
+        content: "Error: you mixed TOOL_CALL and REPLY_TO_USER in one turn. Pick exactly one type (multiple TOOL_CALL blocks together is fine). Retry with one type only.",
+        calls: null,
+        messages: null,
+        images: null,
+      };
+    }
+
     const result: ParsedToolCall = {
       type: "REPLY",
       content: text,
       tool: null,
       args: {},
-      nextTask: null,
       messages: null,
       images: null,
+      calls: null,
     };
 
-    // Check for # TOOL_CALL
-    const toolMatch = text.match(/#\s*TOOL_CALL\n(.*?)(?=\n#(?!#)|$)/s);
-    if (toolMatch) {
+    // Check for # TOOL_CALL - co the co NHIEU khoi lien tiep, gom het bang matchAll thay vi chi
+    // lay khoi dau tien (xem "calls" trong interface).
+    const toolBlocks = [...text.matchAll(/#\s*TOOL_CALL\n(.*?)(?=\n#(?!#)|$)/gs)];
+    if (toolBlocks.length > 0) {
       result.type = "TOOL";
-      const block = toolMatch[1].trim();
+      const calls: { tool: string; args: Record<string, any> }[] = [];
 
-      // Try JSON format
-      const jsonMatch = block.match(/```json\s*(.*?)\s*```/s);
-      const rawJson = jsonMatch ? jsonMatch[1] : block;
-      try {
-        const payload = JSON.parse(rawJson);
-        if (payload && typeof payload === 'object' && payload.name) {
-          result.tool = payload.name;
-          result.args = payload.args || {};
-          result.nextTask = payload.next_task || payload.nextTask || null;
-          return result;
+      for (const m of toolBlocks) {
+        const block = m[1].trim();
+
+        // Try JSON format
+        const jsonMatch = block.match(/```json\s*(.*?)\s*```/s);
+        const rawJson = jsonMatch ? jsonMatch[1] : block;
+        try {
+          const payload = JSON.parse(rawJson);
+          if (payload && typeof payload === 'object' && payload.name) {
+            calls.push({ tool: payload.name, args: payload.args || {} });
+            continue;
+          }
+        } catch (e) {}
+
+        // Try Headings format
+        const nameMatch = block.match(/##\s*name\s*\n(.*?)\n/s);
+        if (nameMatch) {
+          const argsMatch = block.match(/##\s*args\s*\n(.*?)(?=\n#|$)/s);
+          const args = argsMatch ? parseArgsBlock(argsMatch[1]) : {};
+          calls.push({ tool: nameMatch[1].trim(), args });
         }
-      } catch (e) {}
-
-      // Try Headings format
-      const nameMatch = block.match(/##\s*name\s*\n(.*?)\n/s);
-      if (nameMatch) {
-        result.tool = nameMatch[1].trim();
-        result.args = {};
-
-        const argsMatch = block.match(/##\s*args\s*\n(.*?)(?=\n##\s*next_task\s*\n|$)/s);
-        if (argsMatch) {
-          result.args = parseArgsBlock(argsMatch[1]);
-        }
-        result.nextTask = extractHeadingLine(block, "next_task");
-        return result;
       }
-    }
 
-    // Check for # AGENT_CALL
-    const agentMatch = text.match(/#\s*AGENT_CALL\n(.*?)(?=\n#(?!#)|$)/s);
-    if (agentMatch) {
-      result.type = "AGENT";
-      const block = agentMatch[1].trim();
-
-      // Try JSON format
-      const jsonMatch = block.match(/```json\s*(.*?)\s*```/s);
-      const rawJson = jsonMatch ? jsonMatch[1] : block;
-      try {
-        const payload = JSON.parse(rawJson);
-        if (payload && typeof payload === 'object' && payload.agent) {
-          result.tool = payload.agent;
-          result.args = payload.payload || {};
-          result.nextTask = payload.next_task || payload.nextTask || null;
-          return result;
-        }
-      } catch (e) {}
-
-      // Try Headings format
-      const nameMatch = block.match(/##\s*agent\s*\n(.*?)\n/s);
-      if (nameMatch) {
-        result.tool = nameMatch[1].trim();
-        result.args = {};
-
-        const argsMatch = block.match(/##\s*payload\s*\n(.*?)(?=\n##\s*next_task\s*\n|$)/s);
-        if (argsMatch) {
-          result.args = parseArgsBlock(argsMatch[1]);
-        }
-        result.nextTask = extractHeadingLine(block, "next_task");
-        return result;
-      }
-    }
-
-    // Check for # USE_SKILL
-    const skillMatch = text.match(/#\s*USE_SKILL\n(.*?)(?=\n#(?!#)|$)/s);
-    if (skillMatch) {
-      result.type = "SKILL";
-      const block = skillMatch[1].trim();
-
-      const jsonMatch = block.match(/```json\s*(.*?)\s*```/s);
-      const rawJson = jsonMatch ? jsonMatch[1] : block;
-      try {
-        const payload = JSON.parse(rawJson);
-        if (payload && typeof payload === 'object' && payload.skill) {
-          result.tool = payload.skill;
-          result.nextTask = payload.next_task || payload.nextTask || null;
-          return result;
-        }
-      } catch (e) {}
-
-      const nameMatch = block.match(/##\s*skill\s*\n(.*?)\n/s) || block.match(/##\s*skill\s*\n(.*)$/s);
-      if (nameMatch) {
-        result.tool = nameMatch[1].trim();
-        result.nextTask = extractHeadingLine(block, "next_task");
+      if (calls.length > 0) {
+        result.calls = calls;
+        result.tool = calls[0].tool;
+        result.args = calls[0].args;
         return result;
       }
     }
