@@ -1,0 +1,216 @@
+<!-- Popup sua cau hinh 1 Tool goi API ngoai da luu san trong DB (Agent row type="tool" - seedAgents.ts:
+     web_search/webfetch/generate_image/generate_video/create_embedding). KHONG tao moi duoc qua popup
+     nay (danh sach tool co san co dinh, chi sua model/endpoint/apiKey/settings/isActive), khac han
+     skill-modal.liquid la tao+sua. Sau khi luu thanh cong, dispatch CustomEvent "tool-config-saved". -->
+<dialog id="tool-config-modal" style="width: 550px; max-width: 95vw; padding: 0; border: none; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+  <form id="tool-config-modal-form" style="display: flex; flex-direction: column;">
+    <input type="hidden" name="id">
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 1.1rem;" id="tool-config-modal-title">Cấu hình công cụ</h3>
+      <button type="button" onclick="document.getElementById('tool-config-modal').close()" style="background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0;">&times;</button>
+    </div>
+
+    <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; max-height: 70vh; overflow-y: auto;">
+      <div>
+        <label>Model</label>
+        <input type="text" name="model" placeholder="vd: xai/grok-imagine-video" required>
+      </div>
+      <div>
+        <label>Endpoint</label>
+        <input type="text" name="endpoint" placeholder="/videos/generations">
+      </div>
+      <div>
+        <label>API key</label>
+        <input type="password" name="apiKey" autocomplete="off" placeholder="Để trống nếu giữ nguyên">
+      </div>
+
+      <div id="toolcfg-search-fields" style="display:none; flex-direction:column; gap:0.5rem; padding-top:0.5rem; border-top:1px dashed #e5e7eb;">
+        <strong style="font-size:0.85rem;color:#6b7280;">Tham số Tìm kiếm Web</strong>
+        <div style="display:flex; gap:1rem;">
+          <div style="flex:1;">
+            <label>Loại</label>
+            <select name="searchType">
+              <option value="news">news</option>
+              <option value="web">web</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Max results</label>
+            <input type="number" name="maxResults" min="1" placeholder="5">
+          </div>
+        </div>
+        <div style="display:flex; gap:1rem;">
+          <div style="flex:1;">
+            <label>Country</label>
+            <input type="text" name="country" placeholder="vietnam">
+          </div>
+          <div style="flex:1;">
+            <label>Ngôn ngữ</label>
+            <input type="text" name="language" placeholder="vi">
+          </div>
+        </div>
+      </div>
+
+      <div id="toolcfg-fetch-fields" style="display:none; flex-direction:column; gap:0.5rem; padding-top:0.5rem; border-top:1px dashed #e5e7eb;">
+        <strong style="font-size:0.85rem;color:#6b7280;">Tham số Đọc nội dung Web</strong>
+        <div style="display:flex; gap:1rem;">
+          <div style="flex:1;">
+            <label>Format</label>
+            <select name="format">
+              <option value="markdown">markdown</option>
+              <option value="text">text</option>
+              <option value="html">html</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Max chars (0 = không giới hạn)</label>
+            <input type="number" name="maxChars" min="0" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <div id="toolcfg-image-fields" style="display:none; flex-direction:column; gap:0.5rem; padding-top:0.5rem; border-top:1px dashed #e5e7eb;">
+        <strong style="font-size:0.85rem;color:#6b7280;">Tham số Tạo ảnh</strong>
+        <div style="display:flex; gap:1rem;">
+          <div style="flex:1;">
+            <label>Số ảnh (n)</label>
+            <input type="number" name="imageN" min="1" placeholder="1">
+          </div>
+          <div style="flex:1;">
+            <label>Output format</label>
+            <select name="outputFormat">
+              <option value="">Mặc định (URL)</option>
+              <option value="b64_json">JSON (Base64)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="toolcfg-embedding-fields" style="display:none; flex-direction:column; gap:0.5rem; padding-top:0.5rem; border-top:1px dashed #e5e7eb;">
+        <strong style="font-size:0.85rem;color:#6b7280;">Tham số Embeddings</strong>
+        <label>Dimensions (để trống = mặc định của model)</label>
+        <input type="number" name="dimensions" min="1" placeholder="vd: 512, 1024">
+      </div>
+
+      <label style="display:flex;align-items:center;gap:0.6rem; cursor:pointer;">
+        <span class="toggle-switch"><input type="checkbox" name="isActive" checked><span class="slider"></span></span>
+        <strong>Kích hoạt</strong>
+      </label>
+      <div id="tool-config-modal-error" style="color: var(--color-danger); font-size: 0.85rem;"></div>
+    </div>
+
+    <div style="padding: 1.25rem 1.5rem; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; justify-content: flex-end; gap: 0.5rem; border-radius: 0 0 12px 12px;">
+      <button type="button" class="btn" onclick="document.getElementById('tool-config-modal').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  const modal = document.getElementById("tool-config-modal");
+  const form = document.getElementById("tool-config-modal-form");
+  const title = document.getElementById("tool-config-modal-title");
+  const errorEl = document.getElementById("tool-config-modal-error");
+  const endpointInput = form.endpoint;
+
+  const searchFields = document.getElementById("toolcfg-search-fields");
+  const fetchFields = document.getElementById("toolcfg-fetch-fields");
+  const imageFields = document.getElementById("toolcfg-image-fields");
+  const embeddingFields = document.getElementById("toolcfg-embedding-fields");
+
+  function applyEndpointUi() {
+    const ep = endpointInput.value;
+    searchFields.style.display = ep === "/search" ? "flex" : "none";
+    fetchFields.style.display = ep === "/web/fetch" ? "flex" : "none";
+    imageFields.style.display = ep === "/images/generations" ? "flex" : "none";
+    embeddingFields.style.display = ep === "/embeddings" ? "flex" : "none";
+  }
+  endpointInput.addEventListener("input", applyEndpointUi);
+
+  // tool = object tu API /admin/api/agents?type=tool
+  window.openToolConfigModal = function (tool) {
+    form.reset();
+    errorEl.textContent = "";
+    title.textContent = "Cấu hình: " + (tool.name || tool.key);
+    form.id.value = tool.id;
+    form.model.value = tool.model || "";
+    endpointInput.value = tool.endpoint || "";
+    form.isActive.checked = tool.isActive !== false;
+
+    const settings = tool.settings || {};
+    form.searchType.value = settings.search_type || "news";
+    form.maxResults.value = settings.max_results || "";
+    form.country.value = settings.country || "";
+    form.language.value = settings.language || "";
+    form.format.value = settings.format || "markdown";
+    form.maxChars.value = settings.max_chars || "";
+    form.imageN.value = settings.n || "";
+    form.outputFormat.value = settings.output_format || "";
+    form.dimensions.value = settings.dimensions || "";
+
+    applyEndpointUi();
+    modal.showModal();
+  };
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.textContent = "";
+
+    const id = form.id.value;
+    const ep = endpointInput.value.trim();
+    const payload = {
+      model: form.model.value.trim(),
+      endpoint: ep || undefined,
+      isActive: form.isActive.checked,
+      settings: {},
+    };
+    if (ep === "/search") {
+      payload.settings.search_type = form.searchType.value || undefined;
+      payload.settings.max_results = form.maxResults.value ? parseInt(form.maxResults.value, 10) : undefined;
+      payload.settings.country = form.country.value || undefined;
+      payload.settings.language = form.language.value || undefined;
+    } else if (ep === "/web/fetch") {
+      payload.settings.format = form.format.value || undefined;
+      payload.settings.max_chars = form.maxChars.value ? parseInt(form.maxChars.value, 10) : undefined;
+    } else if (ep === "/images/generations") {
+      payload.settings.n = form.imageN.value ? parseInt(form.imageN.value, 10) : undefined;
+      payload.settings.output_format = form.outputFormat.value || undefined;
+    } else if (ep === "/embeddings") {
+      payload.settings.dimensions = form.dimensions.value ? parseInt(form.dimensions.value, 10) : undefined;
+    }
+    if (form.apiKey.value) {
+      payload.apiKey = form.apiKey.value;
+    }
+
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = "Đang lưu...";
+
+    try {
+      const res = await fetch("/admin/api/agents/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+
+      if (!res.ok) {
+        if (body.error && typeof body.error === "object" && body.error.fieldErrors) {
+          errorEl.textContent = Object.values(body.error.fieldErrors).flat().join(", ");
+        } else {
+          errorEl.textContent = body.error || "Lưu thất bại";
+        }
+      } else {
+        modal.close();
+        document.dispatchEvent(new CustomEvent("tool-config-saved", { detail: body.agent }));
+      }
+    } catch (err) {
+      errorEl.textContent = "Lỗi mạng hoặc server";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Lưu";
+    }
+  });
+})();
+</script>

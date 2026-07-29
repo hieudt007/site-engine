@@ -1,3 +1,4 @@
+import "./timezone.js";
 import fs from "node:fs";
 import path from "node:path";
 import Fastify from "fastify";
@@ -29,6 +30,8 @@ import { registerProductRoutes } from "./routes/admin/products.js";
 import { registerProductsUiRoutes } from "./routes/admin/productsUi.js";
 import { registerRedirectRoutes } from "./routes/admin/redirects.js";
 import { registerRedirectsUiRoutes } from "./routes/admin/redirectsUi.js";
+import { registerAutomationRoutes } from "./routes/admin/automations.js";
+import { registerAutomationsUiRoutes } from "./routes/admin/automationsUi.js";
 import { registerReviewAdminRoutes } from "./routes/admin/reviews.js";
 import { registerReviewsUiRoutes } from "./routes/admin/reviewsUi.js";
 import { registerSettingsRoutes } from "./routes/admin/settings.js";
@@ -44,7 +47,6 @@ import { registerAgentRoutes } from "./routes/admin/agents.js";
 import { registerAgentsUiRoutes } from "./routes/admin/agentsUi.js";
 import "./agents/tools/index.js"; // đăng ký toàn bộ MCP tools vào ToolRegistry
 
-import { registerAdminFormsUiRoutes } from "./routes/admin/formsUi.js";
 import { registerPluginRoutes } from "./routes/admin/plugins.js";
 import { registerMenuRoutes } from "./routes/admin/menus.js";
 import { registerMenusUiRoutes } from "./routes/admin/menusUi.js";
@@ -79,6 +81,7 @@ import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js"
 import { registerPublicSearchRoutes } from "./routes/public/search.js";
 import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
+import { startAutomationScheduler } from "./services/automationScheduler.js";
 import { startAiChatCleanupCron } from "./services/aiChatCleanup.js";
 
 declare module "fastify" {
@@ -236,6 +239,8 @@ async function start(): Promise<void> {
   await registerProductsUiRoutes(app);
   await registerRedirectRoutes(app);
   await registerRedirectsUiRoutes(app);
+  await registerAutomationRoutes(app);
+  await registerAutomationsUiRoutes(app);
   await registerReviewAdminRoutes(app);
   await registerReviewsUiRoutes(app);
   await registerSettingsRoutes(app);
@@ -264,7 +269,6 @@ async function start(): Promise<void> {
   await registerThemePreviewRoutes(app);
   await registerThemeInlineEditRoutes(app);
 
-  await registerAdminFormsUiRoutes(app);
   await registerAdminSeoRoutes(app);
   await registerSearchRoutes(app);
   await registerPreviewRoutes(app);
@@ -288,6 +292,7 @@ async function start(): Promise<void> {
     startOrderRetryCron();
     startPublishScheduler();
     startAiChatCleanupCron();
+    startAutomationScheduler();
   }
 
   await app.listen({ port: config.port, host: "0.0.0.0" });

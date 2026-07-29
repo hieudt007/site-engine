@@ -13,17 +13,10 @@ export class AgentFactory {
       return null;
     }
 
-    // 2. Resolve đúng Class Agent
-    const { DeveloperAgent } = await import("../workers/DeveloperAgent.js");
-    
-    // Đảm bảo tools được nạp
+    // Dam bao tools duoc nap. Moi agent type deu dung chung BaseAgent - boi canh rieng (vd Theme/
+    // Landing Page cho "developer") la trach nhiem cua CALLER qua AgentContext.extraSystemPrompt
+    // (xem mcpChat.ts), khong con class con rieng nhu DeveloperAgent (da xoa).
     await import("../tools/index.js");
-
-    switch (agentType) {
-      case "developer":
-        return new DeveloperAgent(agentModel);
-      default:
-        return new BaseAgent(agentModel);
-    }
+    return new BaseAgent(agentModel);
   }
 }

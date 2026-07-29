@@ -77,12 +77,18 @@ model User {
   role           String // 'admin' | 'manager' | 'edit'
   lastLoginAt    DateTime
   createdAt      DateTime @default(now())
+  // Ban tom tat dai han (khong phai lich su chat tho) ve user nay - AI TU doc/ghi qua 2 tool
+  // get_memory/save_memory (assistantTools.ts), KHONG tu dong nhet vao moi luot (giong het ly do
+  // context.history bi revert khoi auto-inject) - AI chu dong goi khi thay can, tu quyet dinh khi
+  // nao noi dung dang du "dong" de ghi lai (giong facebook_customer_memories.memory ben Facebook bot).
+  memories       String?
 
   posts     Post[]
   auditLogs AuditLog[]
   media     Media[]
   revisions Revision[]
   chatHistory AdminChatHistory[]
+  automations Automation[]
 }
 
 // Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange + lấy userinfo từ LeadBase.
@@ -147,6 +153,10 @@ model CustomerChatMessage {
   url       String?
   title     String?
   productId String?
+  // Luu JSON {actions: [{tool, args, result}]} cua LUOT NAY (chi role="assistant") - de build lai
+  // lich su tool-call/tool-result rieng biet cho get_chat_history o cac luot sau, dung pattern voi
+  // AdminChatHistory.metadata (xem routes/admin/aiChat.ts).
+  metadata  String?
   createdAt DateTime @default(now())
 
   @@index([sessionId, id])
@@ -370,8 +380,41 @@ model Agent {
   // hay agent con no goi qua AGENT_CALL (moi agent.run() co loopCount rieng, doc dung maxLoops cua
   // chinh no). Truoc day hardcode = 10 cho moi agent.
   maxLoops     Int      @default(10)
+  // Cac tham so goi provider PHU (khong can rieng 1 cot cho tung field, giong ai_agents.settings
+  // ben lead-base-node - dung chung 1 quy uoc key snake_case giua cac du an "anh em" de doi code
+  // giua cac repo de hon). Cac key hien dung (xem aiClient.ts):
+  // - stream (boolean, default false): bat stream:true khi goi provider - CHI anh huong toi tin
+  //   hieu "AI da bat dau xu ly" (typing indicator) + "message_delta" (go chu that) ban qua SSE,
+  //   CHI co ich khi request thuc su co context.reply (SSE) de nhan tin hieu do.
+  // - max_tokens (number): gioi han token output, mac dinh 8000 neu khong set.
+  // - temperature (number, 0-2): do "sang tao" cua model, mac dinh 0.7 neu khong set.
+  settings     Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// Lich AI tu chay ("automation scheduler") - CHI la ban ghi "khi nao chay + prompt gi", KHONG tu
+// chua logic/code moi. Luon chay qua agent "automation" (key co dinh, xem seedAgents.ts) - agent do
+// bi gioi han allowedTools/allowedAgents CHAT CHE (khong co tool pha huy/khong dao nguoc duoc) vi
+// day la hanh dong TU DONG, KHONG AI GIAM SAT luc chay - khac han AI chat truc tiep (admin dang xem,
+// co the dung kip). Xem services/automationScheduler.ts (worker) + agents/tools/automationTools.ts
+// (4 tool AI dung de tu quan ly: create/update/delete/list).
+model Automation {
+  id          String    @id @default(cuid())
+  name        String
+  prompt      String
+  scheduledAt DateTime
+  // 'once' (chay xong -> status='done', khong lap lai) | 'daily' (chay xong -> cong 1 ngay vao
+  // scheduledAt, dat lai status='pending' cho lan ke tiep).
+  recurrence  String    @default("once")
+  status      String    @default("pending") // 'pending' | 'running' | 'done' | 'error' | 'cancelled'
+  result      String?
+  createdBy   Int?
+  creator     User?     @relation(fields: [createdBy], references: [leadbaseUserId])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, scheduledAt])
 }
 
 // Sản phẩm liên kết với LeadBase — sở hữu dữ liệu CHIA ĐÔI, không phải cache thuần:

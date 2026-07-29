@@ -110,15 +110,56 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
         orderBy: { id: "desc" },
         take: 5,
       });
+      // Bo QUA CA CAP (user+assistant) neu la luot "pending" cua chinh request nay, hoac luot da loi
+      // ("error"/khong co assistantResponse) - KHONG dua luot loi vao history de AI doc lai, tranh
+      // dung bug da gap: AI "bat chuoc" lai cau tra loi hong/ky quac tu chinh no o lich su.
       const prevItems = contextItems.filter(
-        (i) => !(i.userMessage === originalMessage && i.status === "pending")
+        (i) => !(i.userMessage === originalMessage && i.status === "pending") && i.status === "success" && i.assistantResponse
       );
       const history: ChatHistoryItem[] = [];
       for (const item of [...prevItems].reverse()) {
         history.push({ role: "user", content: item.userMessage });
-        if (item.assistantResponse && item.status !== "error") {
-          history.push({ role: "assistant", content: item.assistantResponse });
+        // metadata.actions (BaseAgent.runLoop() ghi lai khi tra loi - xem doan "done" o duoi) = cac
+        // tool da goi + ket qua o luot do - tach thanh TUNG TURN RIENG (assistant tool-call + user
+        // tool-result), giong het hinh dang "messages" that su dung TRONG luc chay 1 luot (xem
+        // assistantEcho/trace.push o runLoop()) - KHONG con gop thanh 1 cau van ban "[Đã gọi tool X,
+        // kết quả: Y]" nhet truoc cau tra loi cuoi (kieu cu lam AI kho phan biet dau la hanh dong,
+        // dau la cau tra loi that).
+        if (item.metadata) {
+          try {
+            const meta = JSON.parse(item.metadata);
+            const actions = Array.isArray(meta.actions) ? meta.actions : [];
+            // Gom theo "round" (BaseAgent.ts: trace.push({..., round: loopCount})) - nhieu tool
+            // CUNG round nghia la AI goi chung 1 luot (1 turn assistant chua nhieu phan tu
+            // tool_calls), dung dung hinh dang that su da xay ra luc chay. Du lieu cu (truoc khi co
+            // "round") khong co field nay - fallback ve index rieng (moi tool 1 round) de van hoat
+            // dong duoc, chi khong gom nhom chinh xac cho log cu.
+            const rounds = new Map<number, typeof actions>();
+            actions.forEach((a: any, i: number) => {
+              const key = a.round ?? i;
+              if (!rounds.has(key)) rounds.set(key, []);
+              rounds.get(key)!.push(a);
+            });
+            for (const group of rounds.values()) {
+              // Dung hinh dang native tool-calling THAT (id THAT tu provider, luu lai trong
+              // metadata.actions luc live - xem BaseAgent.ts trace.push()) - khong con tu chep JSON
+              // trong content nua. Log cu (truoc khi co "id") se khong co field nay - bo qua an
+              // toan (undefined), khong crash, chi khong tai tao dung 100% cho log rat cu.
+              history.push({
+                role: "assistant",
+                content: null,
+                toolCalls: group.map((a: any) => ({ id: a.id, name: a.tool, args: a.args || {} })),
+              });
+              group.forEach((a: any) => {
+                history.push({ role: "tool", toolCallId: a.id, content: a.result });
+              });
+            }
+          } catch { }
         }
+        // assistantResponse luu trong DB la TEXT THUONG (khong con boc JSON gi ca - native
+        // tool-calling, "content" cua assistant von di la text thuong, khong phai 1 field trong
+        // JSON tu che nua).
+        history.push({ role: "assistant", content: item.assistantResponse as string });
       }
 
       const historyRow = parsed.data.historyId
@@ -148,10 +189,17 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
         return reply;
       }
 
-      // "[Trang hiện tại]" khong con noi vao day nua - da chuyen vao BaseAgent.getSystemPrompt()
-      // (dat truoc OUTPUT FORMAT, doc thang tu context.meta.pageTitle/pageUrl ben duoi).
       let finalMessage = originalMessage;
       if (parsed.data.layoutMode) finalMessage += `\n[Layout mode] ${parsed.data.layoutMode}`;
+
+      // "[Trang hiện tại]"/FIELDS LIST - CALLER (o day) tu ghep thanh chuoi, BaseAgent khong con
+      // biet gi ve trang/field cua tung luong (xem thao luan thiet ke AgentContext.extraSystemPrompt).
+      const extraSystemPromptParts = [
+        parsed.data.pageTitle ? `[Trang hiện tại] ${parsed.data.pageTitle} (${parsed.data.pageUrl || ""})` : undefined,
+        (chatAgent.allowedTools || []).includes("read_fields") && parsed.data.availableFields && parsed.data.availableFields.length > 0
+          ? `--- FIELDS LIST ---\n[${parsed.data.availableFields.join(", ")}]\n(Call read_fields to read a field's value)`
+          : undefined,
+      ].filter((p): p is string => !!p);
 
       const context: AgentContext = {
         meta: {
@@ -160,9 +208,13 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
           availableFields: parsed.data.availableFields || undefined,
           toolData: parsed.data.isToolResponse ? parsed.data.toolData || undefined : undefined,
           historyId: historyRow.id,
+          // Dung cho get_memory/save_memory (assistantTools.ts) - doc/ghi User.memories dung nguoi
+          // dang chat, khong phai id cua khach (khac han cac tool CSKH Facebook/Zalo).
+          userId,
         },
         history,
         reply,
+        extraSystemPrompt: extraSystemPromptParts.length > 0 ? extraSystemPromptParts.join("\n\n") : undefined,
       };
 
       try {
@@ -177,9 +229,13 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
           await prisma.adminChatHistory.update({ where: { id: historyRow.id }, data: { status: "pending" } });
         } else {
           const responseText = resultObj.message || JSON.stringify(resultObj);
+          // resultObj.actions (BaseAgent.runLoop()) = qua trinh goi tool + ket qua cua LUOT NAY -
+          // luu vao metadata (cot JSON dung chung, xem model AdminChatHistory) de get_chat_history
+          // doc lai duoc o cac luot sau, khong chi doc cau tra loi cuoi.
+          const metadata = Array.isArray(resultObj.actions) && resultObj.actions.length > 0 ? JSON.stringify({ actions: resultObj.actions }) : undefined;
           await prisma.adminChatHistory.update({
             where: { id: historyRow.id },
-            data: { assistantResponse: responseText, status: "success" },
+            data: { assistantResponse: responseText, status: "success", ...(metadata ? { metadata } : {}) },
           });
           sseWrite({ step: "done", payload: resultObj });
         }

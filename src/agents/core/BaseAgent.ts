@@ -1,7 +1,6 @@
 import type { Agent } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { callAgentConversation, ConversationTurn } from "./aiClient.js";
-import { MarkdownParser } from "./MarkdownParser.js";
 import type { ChatHistoryItem } from "../../services/themeChat.js";
 import { ToolRegistry } from "./ToolRegistry.js";
 import * as runRegistry from "./runRegistry.js";
@@ -23,18 +22,14 @@ export interface AgentContext {
   // Duoc BaseAgent.run() tu dien truoc khi goi tool - cac tool can goi lai AI (vd retryUntilValid)
   // dung field nay thay vi nhan agent rieng qua tham so.
   agentModel?: Agent;
+  // Chuoi tuy bien do NGUOI GOI (aiChat.ts/customerChat.ts/...) tu dung sao cho phu hop voi luong
+  // cua no (vd "[Trang hiện tại] X", "FIELDS LIST", context kenh/khach hang...) - BaseAgent KHONG
+  // biet/khong can biet ben trong co gi, chi noi vao system prompt MOI VONG cua run() nay (system
+  // prompt la truong doc lap, provider KHONG tu nho lai tu vong truoc - bo di se mat ngu canh ngay
+  // tu vong 2). Tach rieng khoi SKILL LIST/SUB AGENT (BaseAgent tu quan ly, tinh 1 lan vi la danh
+  // muc tool - khac ban chat voi boi canh dong nay) - xem thao luan thiet ke.
+  extraSystemPrompt?: string;
 }
-
-// Huong dan dinh dang chung - luon noi vao system prompt cua MOI agent. Nho agent khac xu ly hay
-// dung skill deu la TOOL_CALL binh thuong (tool "call_agent"/"use_skill" trong agentTools.ts) -
-// khong con la loai rieng, giong Claude Code khong phan biet o tang giao thuc.
-const RESPONSE_FORMAT_GUIDE = `=== OUTPUT FORMAT ===
-
-1. End turn:
-# REPLY_TO_USER
-{"messages": ["message 1", "message 2 (optional, max 2)"], "images": ["url1", "url2",..]}
-
-2. TOOL LIST`;
 
 export class BaseAgent {
   protected agentModel: Agent;
@@ -62,30 +57,47 @@ export class BaseAgent {
     } catch { }
   }
 
-  protected async getSystemPrompt(context?: AgentContext): Promise<string> {
+  // Bao hieu "AI da bat dau xu ly" NGAY KHI nhan byte dau tien tu provider (truoc khi co ket qua
+  // that) - dung lam typing indicator o frontend, thay cho viec phai doi ca cuc JSON hoan chinh moi
+  // biet AI dang lam gi. Chi bat len duoc khi settings.stream=true (Agent.settings) (xem callAgentConversation).
+  protected streamTypingStart(context: AgentContext): void {
+    if (!context.reply) return;
+    try {
+      context.reply.raw.write(`data: ${JSON.stringify({ step: "typing_start" })}\n\n`);
+    } catch { }
+  }
+
+  // Doan MOI cua "message" ngay khi provider tra ve (xem aiClient.ts: extractPartialMessage()) -
+  // frontend nen tu GOP DAN (khong thay the) de co hieu ung go chu that. Reset ve chuoi rong o phia
+  // frontend moi khi "typing_start" ban len (danh dau bat dau 1 luot goi AI MOI trong vong lap).
+  protected streamMessageDelta(context: AgentContext, delta: string): void {
+    if (!context.reply) return;
+    try {
+      context.reply.raw.write(`data: ${JSON.stringify({ step: "message_delta", text: delta })}\n\n`);
+    } catch { }
+  }
+
+  // Stream "message" AI viet KEM tool_calls (narration tam thoi, vd "de em kiem tra mot chut") -
+  // CHI de hien thi real-time cho nguoi dang xem (admin qua LiveChat/AI Chat), KHONG phai cau tra
+  // loi cuoi cung nen KHONG ghi vao lich su/DB - mat la thoi, khong can luu lai (xem thao luan thiet
+  // ke: chi message cuoi cung - luc khong con tool_calls - moi duoc ghi log ben goi run()).
+  protected streamNarration(context: AgentContext, narration: string): void {
+    if (!context.reply) return;
+    try {
+      context.reply.raw.write(`data: ${JSON.stringify({ step: "narration", label: narration })}\n\n`);
+    } catch { }
+  }
+
+  // KHONG con nhan "context" - phan boi canh rieng cua tung luong (trang hien tai, FIELDS LIST...)
+  // da chuyen thanh trach nhiem cua NGUOI GOI tu dung context.extraSystemPrompt (xem AgentContext).
+  // BaseAgent chi con lo phan CHUNG: system prompt goc + danh muc Skill/Sub Agent (can moi vong vi
+  // la thu AI co the goi, khong phai boi canh tinh).
+  protected async getSystemPrompt(): Promise<string> {
     let prompt = this.agentModel.systemPrompt || "";
 
-    // "[Trang hiện tại]" chuyen tu finalMessage (aiChat.ts) sang day - dat TRUOC OUTPUT FORMAT,
-    // vi day la boi canh on dinh cho ca cuoc hoi thoai (giong system prompt), khong phai noi dung
-    // rieng cua tung tin nhan.
-    if (context?.meta.pageTitle) {
-      prompt += `\n\n[Trang hiện tại] ${context.meta.pageTitle} (${context.meta.pageUrl || ""})`;
-    }
-
-    prompt += "\n\n" + RESPONSE_FORMAT_GUIDE;
-    // Nối thêm danh sách công cụ từ ToolRegistry
-    const toolPrompt = ToolRegistry.formatToolPrompt(this.agentModel.allowedTools || []);
-    if (toolPrompt) {
-      prompt += "\n" + toolPrompt;
-    }
-
-    // FIELDS LIST chuyen tu finalMessage (run()) sang day - dat NGAY SAU danh sach tool, cung ly
-    // do nhu tren. CHI hien khi agent nay THAT SU co tool "read_fields" trong allowedTools - neu
-    // khong AI se doc thay huong dan goi 1 tool no khong duoc phep dung, vua thua vua gay nham.
-    const hasReadFieldsTool = (this.agentModel.allowedTools || []).includes("read_fields");
-    if (hasReadFieldsTool && context?.meta.availableFields && Array.isArray(context.meta.availableFields) && context.meta.availableFields.length > 0) {
-      prompt += `\n\n--- FIELDS LIST ---\n[${context.meta.availableFields.join(', ')}]\n(Call read_fields to read a field's value)`;
-    }
+    // KHONG con nhet "AVAILABLE TOOLS" bang text vao prompt nua - tool duoc khai bao THAT qua tham
+    // so "tools" native cua API (xem ToolRegistry.getOpenAiToolDefs(), aiClient.ts/callAgentConversation()),
+    // provider tu biet AI co the goi gi, khong can lap lai trong system prompt.
 
     // Nối thêm danh sách Skill duoc phep dung (Agent.type='skill') - chi hien ten + mo ta ngan
     // (systemPrompt), KHONG hien content day du de do ton token - AI phai goi tool use_skill moi
@@ -152,19 +164,56 @@ export class BaseAgent {
   private async runLoop(context: AgentContext, message: string, imageUrl: string | undefined, trackedHistoryId: number | undefined): Promise<string | object> {
     let loopCount = 0;
 
-    // Khởi tạo context mảng tin nhắn - lich su chat CU KHONG con tu dong nhet vao nua, tach thanh
-    // tool rieng "get_chat_history" (xem src/agents/tools/historyTool.ts) - AI tu goi khi can.
-    const messages: ConversationTurn[] = [];
+    // Khởi tạo mảng tin nhắn - BOM SAN context.history (5 luot gan nhat, da duoc caller - aiChat.ts/
+    // customerChat.ts - lam sach + tach tool_calls/tool_result thanh turn rieng truoc khi truyen vao)
+    // vao dau "messages" NGAY TU DAU, khong doi AI tu goi get_chat_history moi thay. Tool
+    // get_chat_history (assistantTools.ts) van con de AI tu tra cuu THEM khi can xa hon 5 luot mac
+    // dinh nay. Dung CHUNG hanh vi cho MOI luong (admin, CSKH...) - khong tach rieng.
+    const messages: ConversationTurn[] = context.history.map((h) => ({
+      role: h.role,
+      // h.content == null (turn assistant chi goi tool, khong co narration) PHAI GIU NGUYEN null -
+      // JSON.stringify(null) tra ve CHUOI "null" (4 ky tu), KHONG phai gia tri null that, se bi hieu
+      // nham la AI thuc su noi chu "null" (da gap bug nay 1 lan, xem lich su session).
+      content: h.content == null ? null : typeof h.content === "string" ? h.content : JSON.stringify(h.content),
+      toolCallId: h.toolCallId,
+      toolCalls: h.toolCalls,
+    }));
+    // Trace CAC TOOL DA GOI + KET QUA cua LUOT NAY (KHONG gom narration - loi noi tam thoi, khong
+    // phai du lieu can nho) - khac han "messages" o tren (chi song trong 1 lan run(), khong luu DB).
+    // Dinh kem vao ket qua REPLY cuoi cung de aiChat.ts ghi vao AdminChatHistory.metadata, phuc vu
+    // doc lai qua get_chat_history o cac luot SAU (xem thao luan thiet ke: luu qua trinh goi tool +
+    // ket qua + cau tra loi cuoi, khong phai toan bo moi thu). Cat ngan result tranh phinh DB/token.
+    // round = loopCount cua vong goi AI sinh ra tool call nay - de caller (aiChat.ts/customerChat.ts)
+    // GOM LAI dung nhom khi build lai history: nhieu tool cung "round" nghia la AI goi CUNG 1 luot
+    // (1 turn assistant chua nhieu phan tu tool_calls), khac han nhieu round rieng le (nhieu turn
+    // assistant lien tiep, moi turn 1 tool) - giu dung hinh dang that su da xay ra trong luc chay.
+    const trace: { id: string; tool: string; args: Record<string, any>; result: string; round: number }[] = [];
+    const TRACE_RESULT_MAX_LEN = 500;
     let finalMessage = message;
     if (context.meta.toolData) {
       finalMessage += `\n\n--- Current form data ---\n${JSON.stringify(context.meta.toolData, null, 2)}`;
     }
 
+    // Danh dau TIN HIEN TAI (dau tien cua run() nay) bang 1 marker ngan - phan biet ro voi cac turn
+    // "user" KHAC trong history (turn cu, hoac turn tool-result) trong deu cung shape/role, AI kho
+    // biet dau la yeu cau MOI can xu ly tu dau. Yeu cau cu the AI phai lam gi voi marker nay (vd co
+    // bat buoc "message" o vong dau khi can nhieu buoc hay khong) do TUNG agent tu dinh nghia rieng
+    // trong systemPrompt cua no (cac agent phuc vu doi tuong khac nhau, khong ap dung chung 1 rule
+    // duoc) - o day chi bao HIEU, khong ra lenh gi ca.
     messages.push({
       role: "user",
-      content: finalMessage,
+      content: `[NEW REQUEST]\n${finalMessage}`,
       imageUrl: imageUrl
     });
+
+    // Khai bao tool THAT qua tham so "tools" native (thay vi nhet text vao system prompt) - xem
+    // ToolRegistry.getOpenAiToolDefs(). Tinh 1 lan truoc vong lap vi allowedTools khong doi giua
+    // cac vong cua CUNG 1 lan run() nay.
+    const toolDefs = ToolRegistry.getOpenAiToolDefs(this.agentModel.allowedTools || []);
+
+    // System prompt goc (+ SKILL/SUB AGENT list) tinh 1 LAN DUY NHAT truoc vong lap - khong doi
+    // giua cac vong cua CUNG 1 run() nay, tranh query DB lai (skill/sub-agent list) moi vong tool-loop.
+    const baseSystemPrompt = await this.getSystemPrompt();
 
     while (loopCount < this.maxSteps) {
       loopCount++;
@@ -179,97 +228,86 @@ export class BaseAgent {
         }
       }
 
-      const systemPrompt = await this.getSystemPrompt(context);
+      // extraSystemPrompt (boi canh rieng cua nguoi goi) gui kem o MOI vong - vong sau (tool-loop
+      // tiep tuc) van can thay lai channel/khach hang/... vi system prompt la truong doc lap gui LAI
+      // TU DAU moi lan goi API (khong ke thua tu vong truoc), thieu se mat ngu canh tu vong 2 tro di.
+      const systemPrompt = context.extraSystemPrompt ? `${baseSystemPrompt}\n\n${context.extraSystemPrompt}` : baseSystemPrompt;
 
-      // Gọi AI voi LICH SU DA TURN THAT (moi turn user/assistant 1 message rieng, khong con
-      // JSON.stringify() ca mang lich su nhoi vao 1 "userPrompt" duy nhat nhu truoc). NEM LOI thay
-      // vi tra ve string (truoc day nuot loi roi tra ve dang string binh thuong, khien caller o
-      // tang tren - vd routes/admin/mcpChat.ts - khong phan biet duoc day la loi hay cau tra loi
-      // that, ghi nham status "success" vao lich su). Tool call_agent (agentTools.ts) da tu bat
-      // exception va doi thanh string nen khong bi anh huong.
-      const rawResponse = await callAgentConversation(this.agentModel, systemPrompt, messages, false);
+      // Native tool-calling qua 9Router (provider tu dam bao cau truc tool_calls dung, khong con
+      // phu thuoc AI tu viet dung JSON trong text nua - xem thao luan thiet ke: MarkdownParser/
+      // RESPONSE_FORMAT_GUIDE cu da bo hoan toan).
+      const result = await callAgentConversation(
+        this.agentModel,
+        systemPrompt,
+        messages,
+        toolDefs,
+        () => this.streamTypingStart(context),
+        (delta) => this.streamMessageDelta(context, delta)
+      );
 
-      // Parse cú pháp Markdown Headings (hoặc JSON)
-      const parsed = MarkdownParser.parse(rawResponse);
+      // Echo lai DUNG turn assistant provider vua tra ve (content that + tool_calls that kem id
+      // that provider cap) - khong con tu chep lai JSON rieng nhu truoc.
+      messages.push({
+        role: "assistant",
+        content: result.content,
+        toolCalls: result.toolCalls.length > 0 ? result.toolCalls : undefined,
+      });
 
-      // Luu lai turn AI vua noi - neu la TOOL_CALL hop le thi nen thanh JSON gon (khop dinh dang
-      // voi turn "user" server tra ve ben duoi, deu la du lieu thuan tuy AI doc lai, khong can
-      // trinh bay dep dang Markdown heading day du). INVALID/REPLY van giu nguyen rawResponse -
-      // INVALID de AI thay dung loi cua chinh minh ma tu sua, REPLY thi vong lap ket thuc ngay
-      // nen khong anh huong.
-      const assistantEcho = parsed.type === "TOOL" && parsed.calls
-        ? JSON.stringify({ calls: parsed.calls.map((c) => ({ name: c.tool, args: c.args })) })
-        : rawResponse;
-      messages.push({ role: "assistant", content: assistantEcho });
-
-      if (parsed.type === "INVALID") {
-        // AI viet lan >= 2 loai hanh dong khac nhau cung luc - day loi nguoc lai cho AI tu sua o
-        // vong lap tiep theo, KHONG am tham bo qua (xem MarkdownParser.parse()).
-        messages.push({ role: "user", content: parsed.content });
-        continue;
+      if (result.toolCalls.length === 0) {
+        // Khong goi tool nao -> "content" la cau tra loi cuoi cung cua luot nay.
+        const finalText = result.content || "";
+        return { action: "chat", message: finalText, messages: [finalText], actions: trace };
       }
 
-      if (parsed.type === "REPLY") {
-        // Luon tra ve dang object co cau truc (khong con tra "string tron") de caller (vd
-        // routes/admin/mcpChat.ts) lay duoc ca "messages" (nhieu bubble rieng biet) lan "images".
-        return { action: "chat", message: parsed.content, messages: parsed.messages || [parsed.content], images: parsed.images || [] };
+      // Co tool_calls -> "content" (neu co) la narration tam thoi AI noi truoc/trong luc goi tool,
+      // KHONG phai cau tra loi cuoi (vong lap van tiep tuc) - chi stream real-time, khong ghi log/DB.
+      if (result.content) {
+        this.streamNarration(context, result.content);
       }
 
-      if (parsed.type === "TOOL") {
-        // AI co the viet nhieu khoi TOOL_CALL trong 1 luot (vd 2 tool doc lap de so sanh) - chay
-        // TUAN TU tung tool (khong Promise.all, vi tool co the doc/ghi chung context.meta), nhung
-        // gop KET QUA CUA CA NHOM ve chung 1 luot xu ly - chi ton 1 lan goi AI sau do de doc het
-        // ket qua cung luc, thay vi phai goi AI rieng cho tung tool.
-        const calls = parsed.calls && parsed.calls.length > 0
-          ? parsed.calls
-          : [{ tool: parsed.tool || "", args: parsed.args }];
+      // AI co the goi nhieu tool cung luc (tool_calls co > 1 phan tu) - chay TUAN TU (khong
+      // Promise.all, vi tool co the doc/ghi chung context.meta), nhung PHAI tra ve du 1 turn
+      // role:"tool" cho MOI tool_call (OpenAI-compatible bat buoc khop du, thieu se loi request
+      // sau do).
+      for (const call of result.toolCalls) {
+        this.streamToolCall(context, call.name);
 
-        for (const call of calls) {
-          this.streamToolCall(context, call.tool);
-
-          let toolResponse = "";
-          try {
-            toolResponse = await this.executeTool(call.tool, call.args, context);
-          } catch (err: any) {
-            if (err.message === "PAUSE_FOR_REQUEST_FIELDS") {
-              // Dừng vòng lặp vì Frontend đang đi gom fields và sẽ gọi lại API mới
-              return { action: "request_fields_pending" };
-            }
-            if (err.message === "PAUSE_FOR_QA") {
-              // Dừng vòng lặp vì Frontend đang chụp ảnh màn hình
-              return { action: "test_request_pending" };
-            }
-            if (err instanceof DelegatedReply) {
-              // Uy quyen hoan toan cho sub-agent (xem callAgentTool, mode="background") - ket qua
-              // cua no la phan hoi CUOI CUNG, khong quay lai vong lap de agent cha noi them.
-              const r = err.result;
-              return typeof r === "string" ? { action: "chat", message: r, messages: [r], images: [] } : r;
-            }
-            toolResponse = `Error running tool [${call.tool}]: ${err.message}`;
+        let toolResponse = "";
+        try {
+          toolResponse = await this.executeTool(call.name, call.args, context);
+        } catch (err: any) {
+          if (err.message === "PAUSE_FOR_REQUEST_FIELDS") {
+            // Dừng vòng lặp vì Frontend đang đi gom fields và sẽ gọi lại API mới
+            return { action: "request_fields_pending" };
           }
-
-          messages.push({
-            role: "user",
-            content: `Tool [${call.tool}] result:\n${toolResponse}`
-          });
+          if (err.message === "PAUSE_FOR_QA") {
+            // Dừng vòng lặp vì Frontend đang chụp ảnh màn hình
+            return { action: "test_request_pending" };
+          }
+          if (err instanceof DelegatedReply) {
+            // Uy quyen hoan toan cho sub-agent (xem callAgentTool, mode="background") - ket qua
+            // cua no la phan hoi CUOI CUNG, khong quay lai vong lap de agent cha noi them.
+            const r = err.result;
+            return typeof r === "string" ? { action: "chat", message: r, messages: [r], actions: trace } : r;
+          }
+          toolResponse = `Error running tool [${call.name}]: ${err.message}`;
         }
 
-        // finish_subtask vua chay xong (ghi co vao context.meta) - NEN mang "messages" lai: giu
-        // turn dau tien (yeu cau goc cua user o buoc 0) + 1 dong tom tat, xoa het cac turn tool/
-        // agent tho da tich luy giua chung. Lam O DAY (khong phai trong tool) vi chi run() moi
-        // giu duoc bien "messages" cuc bo.
-        if (context.meta.__pendingSubtaskSummary) {
-          const summary = context.meta.__pendingSubtaskSummary as string;
-          delete context.meta.__pendingSubtaskSummary;
-          const firstTurn = messages[0];
-          messages.length = 0;
-          messages.push(firstTurn, { role: "user", content: `Done: ${summary}` });
-        }
-        continue;
+        trace.push({ id: call.id, tool: call.name, args: call.args, result: toolResponse.slice(0, TRACE_RESULT_MAX_LEN), round: loopCount });
+        messages.push({ role: "tool", toolCallId: call.id, content: toolResponse });
       }
 
-      // Nếu không parse được gì, trả về raw
-      return rawResponse;
+      // finish_subtask vua chay xong (ghi co vao context.meta) - NEN mang "messages" lai: giu
+      // turn dau tien (yeu cau goc cua user o buoc 0) + 1 dong tom tat, xoa het cac turn tool/
+      // agent tho da tich luy giua chung. Lam O DAY (khong phai trong tool) vi chi run() moi
+      // giu duoc bien "messages" cuc bo.
+      if (context.meta.__pendingSubtaskSummary) {
+        const summary = context.meta.__pendingSubtaskSummary as string;
+        delete context.meta.__pendingSubtaskSummary;
+        const firstTurn = messages[0];
+        messages.length = 0;
+        messages.push(firstTurn, { role: "user", content: `Done: ${summary}` });
+      }
     }
 
     return "Error: exceeded max steps for this agent.";

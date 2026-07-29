@@ -14,6 +14,16 @@ export const callAgentTool: MCPTool = {
     const targetAgent = String(args.agent || "").trim();
     if (!targetAgent) return "Error: missing agent.";
 
+    // Chan uy quyen sang agent KHONG nam trong allowedAgents cua chinh agent dang goi - truoc day
+    // khong kiem tra gi ca, bat ky agent nao co tool call_agent deu goi duoc SANG BAT KY agent nao
+    // khac (ke ca agent co quyen manh hon nhu developer voi overwrite_file/replace_code) - lo hong
+    // leo thang quyen han that su, phat hien khi thiet ke tinh nang Automation (agent chay tu dong
+    // khong ai giam sat). Kiem tra CUNG mo hinh voi useSkillTool/allowedSkills o duoi.
+    const allowedAgents = context.agentModel?.allowedAgents || [];
+    if (!allowedAgents.includes(targetAgent)) {
+      return `Not allowed to call agent [${targetAgent}].`;
+    }
+
     const { AgentFactory } = await import("../core/AgentFactory.js");
     try {
       const agent = await AgentFactory.create(targetAgent);
@@ -43,7 +53,12 @@ export const callAgentTool: MCPTool = {
         throw new DelegatedReply(result);
       }
 
-      return typeof result === "object" ? JSON.stringify(result) : result;
+      // KHONG duoc JSON.stringify() nguyen object noi bo cua agent.run() (co "action"/"actions"
+      // rieng chi danh cho tang route HTTP nhu aiChat.ts doc) - chi lay dung phan "message" that
+      // su de tra ve cho agent CHA, tranh lo cau truc noi bo lam agent cha hieu nham/lap lai.
+      if (typeof result === "string") return result;
+      const r = result as { message?: string; messages?: string[] };
+      return r.message || r.messages?.join("\n") || JSON.stringify(result);
     } catch (e: any) {
       if (e instanceof DelegatedReply) throw e;
       return `Error calling Agent [${targetAgent}]: ${e.message}`;

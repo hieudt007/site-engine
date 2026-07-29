@@ -1,0 +1,242 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem;">
+  <div>
+    <h1 style="margin:0;">Automation</h1>
+    <p style="color:#6b7280; margin: 0.25rem 0 0;">Lịch chạy tự động cho agent AI (key: <code>automation</code>) - xem/tạo/sửa/xoá lịch. AI cũng có thể tự quản lý qua chat.</p>
+  </div>
+  <button type="button" class="btn btn-primary" id="top-add-btn" onclick="openModal()">+ Thêm lịch</button>
+</div>
+
+<div id="empty-state-container" style="display:none;text-align:center;padding:4rem 2rem;border:1px dashed #d1d5db;border-radius:8px;background:#fafafa;margin-bottom:2rem;">
+  <div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">⏰</div>
+  <h3 style="margin-top:0;color:#374151;">Chưa có lịch automation nào</h3>
+  <p style="color:#6b7280;margin-bottom:1.5rem;">Tạo lịch để agent AI tự chạy vào thời điểm đã hẹn.</p>
+  <button class="btn btn-primary" onclick="openModal()">+ Thêm lịch</button>
+</div>
+
+<div class="card" id="automations-content" style="margin-bottom: 1.5rem; display: none;">
+  <div class="table-scroll">
+    <table id="automations-table">
+      <thead>
+        <tr>
+          <th>Tên</th>
+          <th>Chạy lúc</th>
+          <th>Lặp lại</th>
+          <th>Trạng thái</th>
+          <th>Kết quả gần nhất</th>
+          <th style="width: 100px; text-align:right;">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody id="automations-tbody">
+        <tr><td colspan="6" style="text-align:center; color:#999;">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<dialog id="edit-modal" style="width: 560px; max-width: 95vw; padding: 0; border: none; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+  <form id="edit-form" style="display: flex; flex-direction: column;">
+    <input type="hidden" name="id">
+    <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; font-size: 1.1rem;" id="modal-title">Thêm lịch automation</h3>
+      <button type="button" onclick="document.getElementById('edit-modal').close()" style="background: none; border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; color: #6b7280; padding: 0;">&times;</button>
+    </div>
+
+    <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+      <div>
+        <label>Tên (gợi nhớ)</label>
+        <input type="text" name="name" required placeholder="VD: Bài AI hàng ngày">
+      </div>
+      <div>
+        <label>Prompt (hướng dẫn đầy đủ cho lần chạy sau - agent chỉ đọc đúng nội dung này, không có ngữ cảnh nào khác)</label>
+        <textarea name="prompt" required rows="4" placeholder="VD: Tìm 1 bài viết mới nhất về AI trên mạng, nhờ content_writer viết thành bài nháp"></textarea>
+      </div>
+      <div style="display:flex; gap:1rem;">
+        <div style="flex:1;">
+          <label>Chạy lúc</label>
+          <input type="datetime-local" name="scheduledAt" required>
+        </div>
+        <div style="flex:1;">
+          <label>Lặp lại</label>
+          <select name="recurrence">
+            <option value="once">Chỉ 1 lần</option>
+            <option value="daily">Hằng ngày</option>
+          </select>
+        </div>
+      </div>
+      <div id="form-error" style="color: var(--color-danger); font-size: 0.85rem;"></div>
+    </div>
+
+    <div style="padding: 1.25rem 1.5rem; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; justify-content: flex-end; gap: 0.5rem; border-radius: 0 0 12px 12px;">
+      <button type="button" class="btn" onclick="document.getElementById('edit-modal').close()">Hủy</button>
+      <button type="submit" class="btn btn-primary">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(function() {
+  const tbody = document.getElementById("automations-tbody");
+  const pagination = document.getElementById("pagination");
+  const flash = document.getElementById("flash");
+  const form = document.getElementById("edit-form");
+  const editModal = document.getElementById("edit-modal");
+  const formError = document.getElementById("form-error");
+  const modalTitle = document.getElementById("modal-title");
+
+  let currentPage = 1;
+
+  function showError(msg) { flash.textContent = msg; flash.className = "error"; }
+  function showSuccess(msg) { flash.textContent = msg; flash.className = "success"; }
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+  const STATUS_CLASS = { pending: "status-scheduled", running: "status-pending_review", done: "status-published", error: "status-failed", cancelled: "status-draft" };
+  const STATUS_LABEL = { pending: "Chờ chạy", running: "Đang chạy", done: "Hoàn tất", error: "Lỗi", cancelled: "Đã huỷ" };
+  const RECURRENCE_LABEL = { once: "1 lần", daily: "Hằng ngày" };
+
+  function toLocalInputValue(iso) {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  window.openModal = function(automation) {
+    form.reset();
+    formError.textContent = "";
+    if (automation) {
+      modalTitle.textContent = "Sửa lịch automation";
+      form.id.value = automation.id;
+      form.name.value = automation.name;
+      form.prompt.value = automation.prompt;
+      form.scheduledAt.value = toLocalInputValue(automation.scheduledAt);
+      form.recurrence.value = automation.recurrence;
+    } else {
+      modalTitle.textContent = "Thêm lịch automation";
+      form.id.value = "";
+    }
+    editModal.showModal();
+  };
+
+  async function load() {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999;">Đang tải...</td></tr>';
+    const params = new URLSearchParams({ page: currentPage });
+
+    try {
+      const res = await fetch("/admin/api/automations?" + params.toString());
+      if (!res.ok) throw new Error("Tải dữ liệu thất bại");
+      const { automations, totalPages } = await res.json();
+
+      if (!automations.length && currentPage === 1) {
+        document.getElementById("empty-state-container").style.display = "block";
+        document.getElementById("automations-content").style.display = "none";
+        document.getElementById("top-add-btn").style.display = "none";
+      } else {
+        document.getElementById("empty-state-container").style.display = "none";
+        document.getElementById("automations-content").style.display = "block";
+        document.getElementById("top-add-btn").style.display = "block";
+
+        tbody.innerHTML = automations.map(a => `
+          <tr>
+            <td>${escapeHtml(a.name)}</td>
+            <td>${new Date(a.scheduledAt).toLocaleString('vi-VN')}</td>
+            <td>${RECURRENCE_LABEL[a.recurrence] || a.recurrence}</td>
+            <td><span class="status-badge ${STATUS_CLASS[a.status] || ''}">${STATUS_LABEL[a.status] || a.status}</span></td>
+            <td style="max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(a.result || '')}">${escapeHtml(a.result || '-')}</td>
+            <td style="text-align:right; white-space:nowrap;">
+              <button class="btn btn-icon" data-edit-id="${a.id}" title="Sửa" style="width:auto;padding:0.35rem 0.6rem;">Sửa</button>
+              <button class="btn btn-danger btn-icon" data-delete-id="${a.id}" title="Xóa">${window.adminIcon("trash")}</button>
+            </td>
+          </tr>
+        `).join("");
+        window.__automations = automations;
+      }
+      window.renderPagination(pagination, currentPage, totalPages);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--color-danger); text-align:center;">Lỗi: ${e.message}</td></tr>`;
+    }
+  }
+
+  pagination.addEventListener("click", (e) => {
+    const link = e.target.closest("a[data-page]");
+    if (!link) return;
+    e.preventDefault();
+    currentPage = Number(link.dataset.page);
+    load();
+  });
+
+  tbody.addEventListener("click", async (e) => {
+    const editBtn = e.target.closest("button[data-edit-id]");
+    if (editBtn) {
+      const automation = (window.__automations || []).find((a) => a.id === editBtn.dataset.editId);
+      if (automation) window.openModal(automation);
+      return;
+    }
+    const delBtn = e.target.closest("button[data-delete-id]");
+    if (delBtn) {
+      if (!confirm("Bạn có chắc muốn xóa lịch automation này?")) return;
+      const res = await fetch("/admin/api/automations/" + delBtn.dataset.deleteId, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showError(err.error || "Xóa thất bại");
+        return;
+      }
+      showSuccess("Đã xóa lịch automation");
+      load();
+    }
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    formError.textContent = "";
+
+    const formData = new FormData(form);
+    const id = formData.get("id");
+    const data = {
+      name: formData.get("name").trim(),
+      prompt: formData.get("prompt").trim(),
+      scheduledAt: new Date(formData.get("scheduledAt")).toISOString(),
+      recurrence: formData.get("recurrence"),
+    };
+
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = "Đang lưu...";
+
+    try {
+      const res = await fetch(id ? "/admin/api/automations/" + id : "/admin/api/automations", {
+        method: id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const body = await res.json();
+
+      if (!res.ok) {
+        if (body.error && typeof body.error === 'object' && body.error.fieldErrors) {
+          formError.textContent = Object.values(body.error.fieldErrors).flat().join(", ");
+        } else {
+          formError.textContent = body.error || "Lỗi lưu automation";
+        }
+      } else {
+        editModal.close();
+        form.reset();
+        showSuccess(id ? "Đã cập nhật lịch automation" : "Tạo lịch automation thành công!");
+        currentPage = 1;
+        load();
+      }
+    } catch (err) {
+      formError.textContent = "Lỗi mạng hoặc server";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Lưu";
+    }
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

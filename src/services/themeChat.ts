@@ -10,8 +10,16 @@ const RECENT_HISTORY_LIMIT = 5;
 const MAX_ATTEMPTS = 3;
 
 export interface ChatHistoryItem {
-  role: "user" | "assistant";
-  content: string;
+  role: "user" | "assistant" | "tool";
+  // null: turn assistant chi goi tool, khong co narration text di kem (native tool-calling that su).
+  content: string | null;
+  // Chi dung khi role="tool" - id THAT (do provider cap luc live, luu lai tu metadata.actions) khop
+  // voi 1 phan tu trong "toolCalls" cua turn assistant TRUOC do - bat buoc de OpenAI-compatible
+  // chap nhan message role:"tool" (native tool-calling, xem aiClient.ts/BaseAgent.ts).
+  toolCallId?: string;
+  // Chi dung khi role="assistant" va co goi tool - tool_calls THAT (id/name/args that) de dung
+  // lai dung hinh dang provider tra ve luc live khi bom lich su cu vao lai.
+  toolCalls?: { id: string; name: string; args: Record<string, any> }[];
 }
 
 export interface ReplaceBlock {

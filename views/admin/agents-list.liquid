@@ -14,7 +14,7 @@
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2.5rem; padding-top:2rem; border-top: 1px solid #e5e7eb;">
   <h2 style="margin:0; font-size:1.4rem;">Skill (Bí kíp)</h2>
-  <a class="btn btn-primary" href="/admin/agents/new?type=skill">{% render "components/icon", name: "plus" %}<span>Skill mới</span></a>
+  <button type="button" class="btn btn-primary" onclick="openSkillModal(null)">{% render "components/icon", name: "plus" %}<span>Skill mới</span></button>
 </div>
 <p style="color:#777;font-size:0.85rem;margin-top:0.4rem;margin-bottom:1.2rem;">
   Hướng dẫn/kỹ năng chuyên sâu mà Agent có thể gọi ra khi cần (vd cách dựng 1 loại section cụ thể). Gán Skill cho Agent nào ở trang cấu hình Agent đó.
@@ -22,6 +22,35 @@
 
 <div id="skills-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:1.5rem;">
   <div style="color:#999;grid-column:1/-1;">Đang tải...</div>
+</div>
+
+<h2 style="margin-top:2.5rem; margin-bottom:1.2rem; font-size:1.4rem; padding-top:2rem; border-top: 1px solid #e5e7eb;">
+  Công cụ gọi API ngoài (Tools)
+</h2>
+<p style="color:#777;font-size:0.85rem;margin-top:-0.8rem;margin-bottom:1.2rem;">
+  Các tool gọi ra API bên ngoài (tìm kiếm, đọc web, tạo ảnh/video, embeddings). Bấm icon cấu hình để sửa model/endpoint/API key/tham số.
+</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:1.5rem;">
+  {% for tool in dbTools %}
+  <div class="card" style="padding:1rem; display:flex; flex-direction:column; gap:0.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h3 style="margin:0; font-size:1rem; display:flex; align-items:center;">
+          <svg class="admin-icon" style="width:18px;height:18px;margin-right:0.4rem;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+          {{ tool.name | escape }}
+        </h3>
+        <div style="font-size:0.75rem;color:#94a3b8;font-family:monospace;margin-top:0.2rem;">{{ tool.key | escape }} · {{ tool.model | escape }}</div>
+      </div>
+      <button type="button" class="btn btn-icon db-tool-config-btn" data-id="{{ tool.id }}" title="Cấu hình">
+        <svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
+    <div style="font-size:0.8rem;color:{% if tool.isActive %}#16a34a{% else %}#9ca3af{% endif %};">{% if tool.isActive %}● Đang bật{% else %}● Đang tắt{% endif %}</div>
+  </div>
+  {% else %}
+  <div class="empty-state" style="grid-column:1/-1;">Chưa có tool API ngoài nào.</div>
+  {% endfor %}
 </div>
 
 <h2 style="margin-top:2.5rem; margin-bottom:1.2rem; font-size:1.4rem; padding-top:2rem; border-top: 1px solid #e5e7eb;">
@@ -35,16 +64,16 @@
   {% for tool in allTools %}
   <div class="card" style="padding:1rem; display:flex; flex-direction:column; gap:0.5rem;">
     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <h3 style="margin:0; font-size:1rem; display:flex; align-items:center;">
-        <svg class="admin-icon" style="width:18px;height:18px;margin-right:0.4rem;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-        {{ tool.name | escape }}
-      </h3>
+      <div>
+        <h3 style="margin:0; font-size:1rem; display:flex; align-items:center;">
+          <svg class="admin-icon" style="width:18px;height:18px;margin-right:0.4rem;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+          {{ tool.label | escape }}
+        </h3>
+        <div style="font-size:0.75rem;color:#94a3b8;font-family:monospace;margin-top:0.2rem;">{{ tool.name | escape }}</div>
+      </div>
       <button class="btn btn-icon" style="color:#9ca3af;" title="Cấu hình (Code-based)" onclick="alert('Công cụ này được lập trình cứng trong code, không thể cấu hình qua giao diện.');">
         <svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </button>
-    </div>
-    <div style="font-size:0.85rem; color:#6b7280; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{{ tool.description | escape }}">
-      {{ tool.description | escape }}
     </div>
   </div>
   {% else %}
@@ -55,6 +84,27 @@
 <script>
 (function () {
   const flash = document.getElementById("flash");
+  let lastLoadedSkills = [];
+  let lastLoadedDbTools = [];
+
+  async function loadDbTools() {
+    const res = await fetch("/admin/api/agents?type=tool");
+    if (!res.ok) return;
+    const { agents } = await res.json();
+    lastLoadedDbTools = agents;
+  }
+  loadDbTools();
+
+  document.addEventListener("click", (event) => {
+    const btn = event.target.closest(".db-tool-config-btn");
+    if (!btn) return;
+    const tool = lastLoadedDbTools.find((t) => t.id === btn.dataset.id);
+    if (tool) window.openToolConfigModal(tool);
+  });
+
+  document.addEventListener("tool-config-saved", () => {
+    window.location.reload();
+  });
 
   function showError(message) {
     flash.textContent = message;
@@ -114,11 +164,18 @@
       ? (agent.systemPrompt ? escapeHtml(agent.systemPrompt) : '<span style="color:#999;">(chưa có mô tả)</span>')
       : escapeHtml(agent.provider) + ' — ' + escapeHtml(agent.model);
 
+    const nameHtml = isSkill
+      ? '<a href="#" data-action="edit-skill" data-id="' + agent.id + '" style="text-decoration:none;color:var(--text-color);">' + escapeHtml(agent.name) + '</a>'
+      : '<a href="/admin/agents/' + agent.id + '" style="text-decoration:none;color:var(--text-color);">' + escapeHtml(agent.name) + '</a>';
+    const configBtn = isSkill
+      ? '<button type="button" class="btn btn-icon" data-action="edit-skill" data-id="' + agent.id + '" title="Sửa">' + window.adminIcon("pencil") + '</button>'
+      : '<a href="/admin/agents/' + agent.id + '" class="btn">Cấu hình</a>';
+
     return (
       '<div class="card" style="display:flex;flex-direction:column;gap:1rem;height:100%;">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
       '<div>' +
-      '<h3 style="margin:0 0 0.2rem;font-size:1.1rem;display:flex;align-items:center;">' + icon + '<a href="/admin/agents/' + agent.id + '" style="text-decoration:none;color:var(--text-color);">' + escapeHtml(agent.name) + '</a>' + systemBadge + '</h3>' +
+      '<h3 style="margin:0 0 0.2rem;font-size:1.1rem;display:flex;align-items:center;">' + icon + nameHtml + systemBadge + '</h3>' +
       '<div style="font-size:0.85rem;color:#6b7280;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;" ' + (isSkill && agent.systemPrompt ? 'title="' + escapeHtml(agent.systemPrompt) + '"' : '') + '>' + subLine + '</div>' +
       '</div>' +
       '</div>' +
@@ -126,7 +183,7 @@
       '<div style="margin-top:5px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e5e7eb;padding-top:1rem;">' +
       statusToggle +
       '<div style="display:flex;gap:0.5rem;">' +
-      '<a href="/admin/agents/' + agent.id + '" class="btn">Cấu hình</a>' +
+      configBtn +
       deleteBtn +
       '</div>' +
       '</div>' +
@@ -141,6 +198,7 @@
       return;
     }
     const { agents } = await res.json();
+    if (type === "skill") lastLoadedSkills = agents;
     const grid = document.getElementById(gridId);
     grid.innerHTML = agents.length
       ? agents.map(rowHtml).join("")
@@ -151,6 +209,14 @@
     const grid = document.getElementById(gridId);
 
     grid.addEventListener("click", async (event) => {
+      const editBtn = event.target.closest("[data-action=edit-skill]");
+      if (editBtn) {
+        event.preventDefault();
+        const skill = lastLoadedSkills.find((s) => s.id === editBtn.dataset.id);
+        if (skill) window.openSkillModal(skill);
+        return;
+      }
+
       const btn = event.target.closest("button[data-action=delete]");
       if (!btn) return;
       if (!confirm("Xoá mục này?")) return;
@@ -189,6 +255,13 @@
   wireGrid("skills-grid", "skill", "Chưa có skill nào.");
   load("agents-grid", "agent", "Chưa có agent nào.");
   load("skills-grid", "skill", "Chưa có skill nào.");
+
+  document.addEventListener("skill-saved", () => {
+    load("skills-grid", "skill", "Chưa có skill nào.");
+  });
 })();
 </script>
+
+{% render "components/skill-modal" %}
+{% render "components/tool-config-modal" %}
 {% endblock %}

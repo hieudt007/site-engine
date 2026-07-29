@@ -22,6 +22,18 @@ function writeDebugLog(kind: "input" | "output", agent: Agent, content: string):
   }
 }
 
+// Debug: APPEND (khong ghi de) thoi diem nhan tung chunk SSE tu 9Router khi settings.stream=true (Agent.settings) - huu
+// ich de kiem tra 9Router co forward tung manh real-time hay bi buffer o tang gateway.
+function appendStreamTimingLog(agent: Agent, chunkTimestamps: number[], startedAt: number): void {
+  try {
+    fs.mkdirSync(DEBUG_DIR, { recursive: true });
+    const stamp = new Date().toISOString();
+    const offsets = chunkTimestamps.map((t) => `+${t - startedAt}ms`).join(", ");
+    const line = `${stamp} | agent=${agent.name} (${agent.provider}/${agent.model}) | chunks=${chunkTimestamps.length} | ${offsets}\n`;
+    fs.appendFileSync(path.join(DEBUG_DIR, "ai_stream_timing.log"), line, "utf-8");
+  } catch {}
+}
+
 // Goi model tu 1 Agent (schema.prisma) da cau hinh san (provider/model/apiKey/baseUrl, nhap qua
 // /admin/agents). Hau het provider dung chung API chat-completions kieu OpenAI (bao gom 9router
 // "ai-router" — cung 1 VPS, goi qua localhost, xem CLAUDE.md cac du an anh em) — rieng "anthropic"
@@ -35,6 +47,19 @@ const DEFAULT_BASE_URLS: Record<string, string> = {
 };
 
 export class AiCallError extends Error {}
+
+// Doc cac tham so PHU tu Agent.settings (Json?, gop chung 1 cot thay vi tung cot rieng - dung
+// chung quy uoc key snake_case voi ai_agents.settings ben lead-base-node, xem schema.prisma). Chi
+// 3 key hien dung: stream/max_tokens/temperature - the trong cung 1 ham de moi noi doc deu ra
+// default nhat quan, khong lap lai logic parse o nhieu cho.
+function getAgentSettings(agent: Agent): { stream: boolean; maxTokens: number; temperature: number } {
+  const settings = (agent.settings as Record<string, any>) || {};
+  return {
+    stream: settings.stream === true,
+    maxTokens: Number.isFinite(Number(settings.max_tokens)) && Number(settings.max_tokens) > 0 ? Number(settings.max_tokens) : 8000,
+    temperature: Number.isFinite(Number(settings.temperature)) ? Number(settings.temperature) : 0.7,
+  };
+}
 
 async function resolveBaseUrl(agent: Agent): Promise<string> {
   if (agent.baseUrl) {
@@ -68,6 +93,7 @@ async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: str
   if (forceJson) {
     systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object.";
   }
+  const { maxTokens } = getAgentSettings(agent);
   writeDebugLog("input", agent, `--- SYSTEM ---\n${systemPrompt}\n--- USER ---\n${userPrompt}${imageUrl ? `\n--- IMAGE ---\n${imageUrl}` : ""}`);
   const userContent = imageUrl
     ? [{ type: "text", text: userPrompt }, { type: "image", source: { type: "url", url: imageUrl } }]
@@ -81,7 +107,7 @@ async function callAnthropic(agent: Agent, systemPrompt: string, userPrompt: str
     },
     body: JSON.stringify({
       model: agent.model,
-      max_tokens: 8000,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
     }),
@@ -103,6 +129,7 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
   if (forceJson) {
     systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object.";
   }
+  const { maxTokens, temperature } = getAgentSettings(agent);
   writeDebugLog("input", agent, `--- SYSTEM ---\n${systemPrompt}\n--- USER ---\n${userPrompt}${imageUrl ? `\n--- IMAGE ---\n${imageUrl}` : ""}`);
   const userContent = imageUrl
     ? [{ type: "text", text: userPrompt }, { type: "image_url", image_url: { url: imageUrl } }]
@@ -121,7 +148,8 @@ async function callOpenAiCompatible(agent: Agent, systemPrompt: string, userProm
         { role: "user", content: userContent },
       ],
       ...(forceJson ? { response_format: { type: "json_object" } } : {}),
-      temperature: 0.7,
+      temperature,
+      max_tokens: maxTokens,
       // Vai model qua 9router (vd Claude qua provider "cc") tra ve SSE streaming DU KHONG
       // truyen "stream" - ep tuong minh false de luon nhan 1 JSON object thuong, tranh crash
       // res.json() khi response thuc te la nhieu dong "data: {...}".
@@ -167,22 +195,51 @@ export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: 
   return callOpenAiCompatible(agent, systemPrompt, userPrompt, imageUrl, forceJson);
 }
 
-export interface ConversationTurn {
-  role: "user" | "assistant";
-  content: string;
-  imageUrl?: string;
+export interface ToolCallData {
+  id: string;
+  name: string;
+  args: Record<string, any>;
 }
 
-// Goi AI voi LICH SU DA TURN THAT (moi turn 1 message rieng) - dung cho BaseAgent.run() (vong lap
-// MCP). KHAC voi callAgent(): callAgent chi nhan 1 "userPrompt" duy nhat nen BaseAgent truoc day
-// phai JSON.stringify() ca mang lich su nhoi vao do - AI nhan duoc 1 khoi JSON tho thay vi hoi
-// thoai that, vua ton token vua de model hieu sai. Ham nay gui dung 1 message/turn.
+export interface ConversationTurn {
+  role: "user" | "assistant" | "tool";
+  content: string | null;
+  imageUrl?: string;
+  // Chi dung khi role="assistant" va co goi tool - id/name/args THAT provider tra ve (native
+  // tool-calling that su qua 9Router, KHONG con la JSON tu chep trong text nhu truoc).
+  toolCalls?: ToolCallData[];
+  // Chi dung khi role="tool" - id THAT khop voi 1 phan tu toolCalls o turn assistant truoc do.
+  toolCallId?: string;
+}
+
+export interface ToolDef {
+  type: "function";
+  function: { name: string; description: string; parameters: Record<string, any> };
+}
+
+export interface AgentCallResult {
+  content: string | null;
+  toolCalls: ToolCallData[];
+}
+
+// Goi AI voi LICH SU DA TURN THAT + native tool-calling (OpenAI-compatible "tools"/"tool_calls",
+// dung qua 9Router - 9Router tu dich sang dung format provider dich that su vd Claude/Gemini, xem
+// thao luan thiet ke). Thay the hoan toan cach cu (bat AI tu viet JSON trong text content roi tu
+// parse lai) - AI chi con can viet "content" la text thuong (khong bat buoc dinh dang gi), con
+// tool call duoc provider dam bao dung cau truc o tang API, khong con phu thuoc AI "tu giac".
 export async function callAgentConversation(
   agent: Agent,
   systemPrompt: string,
   turns: ConversationTurn[],
-  forceJson?: boolean
-): Promise<string> {
+  tools: ToolDef[],
+  // Goi 1 lan duy nhat NGAY KHI nhan duoc byte dau tien tu provider (chi co y nghia khi agent.stream
+  // = true) - dung de BaseAgent bao hieu "AI da bat dau xu ly" (typing indicator) qua SSE.
+  onFirstByte?: () => void,
+  // Goi NHIEU LAN voi tung DOAN MOI cua text content ngay khi nhan duoc (chi co y nghia khi
+  // agent.stream = true) - gio la field "content" that su cua delta, khong con phai tu parse dang
+  // do tu 1 khoi JSON dang gui dan nhu truoc (xem lich su thiet ke cu: extractPartialMessage()).
+  onMessageDelta?: (delta: string) => void
+): Promise<AgentCallResult> {
   if (!agent.isActive) {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
@@ -197,23 +254,30 @@ export async function callAgentConversation(
     }
   }
 
-  if (forceJson) {
-    systemPrompt += "\n\nCRITICAL INSTRUCTION: You MUST return a valid JSON object.";
-  }
+  const { stream, maxTokens, temperature } = getAgentSettings(agent);
 
   writeDebugLog(
     "input",
     agent,
     `--- SYSTEM ---\n${systemPrompt}\n` +
-      turns.map((t) => `--- ${t.role.toUpperCase()} ---\n${t.content}${t.imageUrl ? `\n[image] ${t.imageUrl}` : ""}`).join("\n")
+      turns
+        .map((t) => {
+          const toolCallsStr = t.toolCalls ? `\ntool_calls: ${JSON.stringify(t.toolCalls)}` : "";
+          return `--- ${t.role.toUpperCase()}${t.toolCallId ? ` (${t.toolCallId})` : ""} ---\n${t.content ?? ""}${toolCallsStr}${t.imageUrl ? `\n[image] ${t.imageUrl}` : ""}`;
+        })
+        .join("\n")
   );
 
+  // provider="anthropic" (goi thang api.anthropic.com, KHONG qua 9Router) hien khong co agent nao
+  // dung (da kiem tra DB) - CHUA lam native tool-calling rieng cho nhanh nay, chi tra ve text don
+  // gian (khong tool_calls) de khong vo type. 9Router (provider="ai-router", nhanh duoi) moi la
+  // duong dang dung that su, tu dich sang Claude/Gemini/... khi can.
   if (agent.provider === "anthropic") {
     const messages = turns.map((t) => ({
-      role: t.role,
+      role: t.role === "tool" ? "user" : t.role,
       content: t.imageUrl
-        ? [{ type: "text", text: t.content }, { type: "image", source: { type: "url", url: t.imageUrl } }]
-        : t.content,
+        ? [{ type: "text", text: t.content ?? "" }, { type: "image", source: { type: "url", url: t.imageUrl } }]
+        : t.content ?? "",
     }));
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -222,28 +286,41 @@ export async function callAgentConversation(
         "x-api-key": agent.apiKey ?? "",
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({ model: agent.model, max_tokens: 8000, system: systemPrompt, messages }),
+      body: JSON.stringify({ model: agent.model, max_tokens: maxTokens, system: systemPrompt, messages }),
     });
     if (!res.ok) {
       throw new AiCallError(await readErrorSafely(res, "Anthropic API", agent));
     }
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = data.content?.find((block) => block.type === "text")?.text;
-    if (!text) {
-      throw new AiCallError("Anthropic API trả về rỗng");
-    }
+    const text = data.content?.find((block) => block.type === "text")?.text ?? "";
     writeDebugLog("output", agent, text);
-    return text;
+    return { content: text, toolCalls: [] };
   }
 
   const messages = [
     { role: "system", content: systemPrompt },
-    ...turns.map((t) => ({
-      role: t.role,
-      content: t.imageUrl
-        ? [{ type: "text", text: t.content }, { type: "image_url", image_url: { url: t.imageUrl } }]
-        : t.content,
-    })),
+    ...turns.map((t) => {
+      if (t.role === "tool") {
+        return { role: "tool", tool_call_id: t.toolCallId, content: t.content ?? "" };
+      }
+      if (t.role === "assistant" && t.toolCalls && t.toolCalls.length > 0) {
+        return {
+          role: "assistant",
+          content: t.content,
+          tool_calls: t.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+          })),
+        };
+      }
+      return {
+        role: t.role,
+        content: t.imageUrl
+          ? [{ type: "text", text: t.content ?? "" }, { type: "image_url", image_url: { url: t.imageUrl } }]
+          : t.content,
+      };
+    }),
   ];
   const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const res = await fetch(`${baseUrl}/chat/completions`, {
@@ -255,21 +332,122 @@ export async function callAgentConversation(
     body: JSON.stringify({
       model: agent.model,
       messages,
-      ...(forceJson ? { response_format: { type: "json_object" } } : {}),
-      temperature: 0.7,
-      stream: false,
+      ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
+      temperature,
+      max_tokens: maxTokens,
+      stream,
     }),
   });
   if (!res.ok) {
     throw new AiCallError(await readErrorSafely(res, "AI API", agent));
   }
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) {
+
+  let content: string | null = null;
+  let toolCalls: ToolCallData[] = [];
+
+  if (stream) {
+    const reader = res.body?.getReader();
+    if (!reader) {
+      throw new AiCallError("AI API không trả về stream.");
+    }
+    const decoder = new TextDecoder();
+    const startedAt = Date.now();
+    const chunkTimestamps: number[] = [];
+    let buffer = "";
+    let firedFirstByte = false;
+    let gatheredContent = "";
+    // Tool call co the stream ROI RAC nhieu chunk (id/name den truoc, "arguments" den dan tung
+    // manh) - gom theo "index" (vi tri trong mang tool_calls cua chunk delta, KHONG phai id) roi
+    // rap lai luc cuoi, giong het cach cac SDK chinh thuc lam.
+    const toolCallAcc = new Map<number, { id: string; name: string; args: string }>();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!firedFirstByte) {
+        firedFirstByte = true;
+        onFirstByte?.();
+      }
+      chunkTimestamps.push(Date.now());
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === "[DONE]") continue;
+        try {
+          const json = JSON.parse(payload) as {
+            choices?: { delta?: { content?: string; tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[];
+          };
+          const delta = json.choices?.[0]?.delta;
+          if (delta?.content) {
+            gatheredContent += delta.content;
+            onMessageDelta?.(delta.content);
+          }
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const existing = toolCallAcc.get(tc.index) || { id: "", name: "", args: "" };
+              if (tc.id) existing.id = tc.id;
+              if (tc.function?.name) existing.name += tc.function.name;
+              if (tc.function?.arguments) existing.args += tc.function.arguments;
+              toolCallAcc.set(tc.index, existing);
+            }
+          }
+        } catch {
+          // Chunk chua du 1 dong JSON hoan chinh (hiem, buffer se gop tiep o vong sau) - bo qua.
+        }
+      }
+    }
+    appendStreamTimingLog(agent, chunkTimestamps, startedAt);
+    content = gatheredContent || null;
+    toolCalls = Array.from(toolCallAcc.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, tc]) => {
+        let args: Record<string, any> = {};
+        try {
+          args = tc.args ? JSON.parse(tc.args) : {};
+        } catch {
+          // Provider hiem khi gui arguments khong phai JSON hop le - coi nhu rong, khong crash ca luot.
+        }
+        return { id: tc.id, name: tc.name, args };
+      });
+  } else {
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string | null; tool_calls?: { id: string; function: { name: string; arguments: string } }[] } }[];
+    };
+    const message = data.choices?.[0]?.message;
+    content = message?.content ?? null;
+    toolCalls = (message?.tool_calls || []).map((tc) => {
+      let args: Record<string, any> = {};
+      try {
+        args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+      } catch {
+        // Nhu tren - khong crash ca luot vi 1 tool call parse loi.
+      }
+      return { id: tc.id, name: tc.function.name, args };
+    });
+  }
+
+  // Mot so model reasoning (DeepSeek-R1, QwQ...) tu dong chen <think></think> (ke ca rong) vao
+  // dau field "content" - don sach truoc khi tra ve/luu lai (khong lam duoc voi tung mieng delta
+  // dang stream, chi lam duoc voi ban day du cuoi cung - xem BaseAgent.streamNarration()/message
+  // cuoi cung, chap nhan chunk stream truc tiep co the thoang thay tag nay voi model loai nay).
+  if (content) {
+    content = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim() || null;
+  }
+  // Mot so model, khi goi tool ma khong co gi de noi them, tra ve CHUOI TEXT "null" (4 ky tu) thay
+  // vi that su bo trong "content" - co le do quen voi thoi ky con phai dien field JSON. Coi nhu
+  // rong, tranh chuoi "null" bi hieu nham la narration/cau tra loi that.
+  if (content && content.trim().toLowerCase() === "null") {
+    content = null;
+  }
+
+  if (!content && toolCalls.length === 0) {
     throw new AiCallError("AI API trả về rỗng");
   }
-  writeDebugLog("output", agent, text);
-  return text;
+  writeDebugLog("output", agent, JSON.stringify({ content, tool_calls: toolCalls }));
+  return { content, toolCalls };
 }
 
 export async function generateImage(agent: Agent, prompt: string, size: string = "1024x1024"): Promise<string> {
@@ -295,6 +473,14 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
   const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "").replace(/\/chat\/completions$/, "").replace(/\/v1$/, "");
   const endpoint = `${baseUrl}/v1/images/generations`;
 
+  // Tham so PHU tu Agent.settings (giong quy uoc getAgentSettings() o tren, xem 9Router docs UI
+  // cho /v1/images/generations) - "output_format" CHI gui khi co set tuong minh, KHONG ep default
+  // gi ca: doi response tu {data:[{url}]} sang {data:[{b64_json}]} neu chon base64, code duoi van
+  // dang doc "url" - chua ho tro doc b64_json, tranh vo response parsing hien tai neu khong ai chu
+  // dinh doi.
+  const settings = (agent.settings as Record<string, any>) || {};
+  const n = Number.isFinite(Number(settings.n)) && Number(settings.n) > 0 ? Number(settings.n) : 1;
+
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -304,8 +490,9 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
     body: JSON.stringify({
       model: agent.model,
       prompt: prompt,
-      n: 1,
+      n,
       size: size,
+      ...(settings.output_format ? { output_format: settings.output_format } : {}),
     }),
   });
 
@@ -318,92 +505,6 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
     throw new AiCallError("AI API không trả về URL ảnh");
   }
   return url;
-}
-
-export interface AiTool {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: any;
-  };
-}
-
-export interface AiMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
-  name?: string;
-  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
-  tool_call_id?: string;
-}
-
-export interface AiToolCallResponse {
-  type: "text" | "tool_calls";
-  text?: string;
-  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
-  rawMessage?: any;
-}
-
-export async function callAgentWithTools(agent: Agent, messages: AiMessage[], tools: AiTool[]): Promise<AiToolCallResponse> {
-  if (!agent.isActive) {
-    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
-  }
-
-  if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
-
-  if (agent.provider === "anthropic") {
-    throw new AiCallError("Tool Calling hiện chưa hỗ trợ kết nối Anthropic native, vui lòng sử dụng API tương thích OpenAI.");
-  }
-
-  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
-    },
-    body: JSON.stringify({
-      model: agent.model,
-      messages: messages,
-      tools: tools,
-      tool_choice: "auto",
-      temperature: 0.7,
-      stream: false,
-    }),
-  });
-
-  if (!res.ok) {
-    throw new AiCallError(await readErrorSafely(res, "API", agent));
-  }
-  
-  const data = (await res.json()) as any;
-  const message = data.choices?.[0]?.message;
-  
-  if (!message) {
-    throw new AiCallError("AI API trả về rỗng");
-  }
-
-  if (message.tool_calls && message.tool_calls.length > 0) {
-    return {
-      type: "tool_calls",
-      tool_calls: message.tool_calls,
-      rawMessage: message
-    };
-  }
-
-  return {
-    type: "text",
-    text: message.content || "",
-    rawMessage: message
-  };
 }
 
 export async function webSearch(agent: Agent, query: string): Promise<string> {
@@ -426,6 +527,15 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
   const endpointPath = agent.endpoint || "/search";
   const endpoint = `${baseUrl}${endpointPath}`;
 
+  // Tham so PHU tu Agent.settings (xem 9Router docs UI cho /v1/search) - giu nguyen default CU
+  // (search_type "news", max_results 5, country "vietnam", language "vi") neu khong cau hinh gi,
+  // tranh doi hanh vi hien tai cho agent nao chua set settings.
+  const settings = (agent.settings as Record<string, any>) || {};
+  const searchType = typeof settings.search_type === "string" ? settings.search_type : "news";
+  const maxResults = Number.isFinite(Number(settings.max_results)) && Number(settings.max_results) > 0 ? Number(settings.max_results) : 5;
+  const country = typeof settings.country === "string" ? settings.country : "vietnam";
+  const language = typeof settings.language === "string" ? settings.language : "vi";
+
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -435,10 +545,10 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
     body: JSON.stringify({
       model: agent.model,
       query: query,
-      search_type: "news",
-      max_results: 5,
-      country: "vietnam",
-      language: "vi"
+      search_type: searchType,
+      max_results: maxResults,
+      country,
+      language
     }),
   });
 
@@ -468,6 +578,89 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
   return typeof reply === 'object' ? JSON.stringify(reply) : String(reply);
 }
 
+export async function generateVideo(agent: Agent, prompt: string): Promise<string> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  if (agent.provider === "anthropic") {
+    throw new AiCallError("Anthropic không hỗ trợ tạo video qua API này");
+  }
+
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
+  const endpointPath = agent.endpoint || "/videos/generations";
+  const endpoint = `${baseUrl}${endpointPath}`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({ model: agent.model, prompt }),
+  });
+
+  if (!res.ok) {
+    throw new AiCallError(await readErrorSafely(res, "Video Generation API", agent));
+  }
+  const data = (await res.json()) as any;
+  const url = data.data?.[0]?.url;
+  if (!url) {
+    throw new AiCallError("AI API không trả về URL video");
+  }
+  return url;
+}
+
+export async function createEmbedding(agent: Agent, input: string): Promise<string> {
+  if (!agent.isActive) {
+    throw new AiCallError(`Agent "${agent.name}" đang tắt`);
+  }
+
+  if (!agent.apiKey) {
+    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (config?.aiProviderKeys) {
+      const keys = config.aiProviderKeys as Record<string, string>;
+      if (keys[agent.provider]) {
+        agent.apiKey = keys[agent.provider];
+      }
+    }
+  }
+
+  const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
+  const endpointPath = agent.endpoint || "/embeddings";
+  const endpoint = `${baseUrl}${endpointPath}`;
+
+  // "dimensions" CHI gui khi co set tuong minh trong Agent.settings (xem 9Router docs UI cho
+  // /v1/embeddings) - de trong = dung mac dinh cua model.
+  const settings = (agent.settings as Record<string, any>) || {};
+  const dimensions = Number.isFinite(Number(settings.dimensions)) && Number(settings.dimensions) > 0 ? Number(settings.dimensions) : undefined;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(agent.apiKey ? { Authorization: `Bearer ${agent.apiKey}` } : {}),
+    },
+    body: JSON.stringify({ model: agent.model, input, ...(dimensions ? { dimensions } : {}) }),
+  });
+
+  if (!res.ok) {
+    throw new AiCallError(await readErrorSafely(res, "Embeddings API", agent));
+  }
+  const data = (await res.json()) as any;
+  return JSON.stringify(data);
+}
+
 export async function webFetch(agent: Agent, url: string): Promise<string> {
   if (!agent.isActive) {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
@@ -487,6 +680,12 @@ export async function webFetch(agent: Agent, url: string): Promise<string> {
   const endpointPath = agent.endpoint || "/web/fetch";
   const endpoint = `${baseUrl}${endpointPath}`;
 
+  // Tham so PHU tu Agent.settings (xem 9Router docs UI cho /v1/web/fetch) - giu nguyen default CU
+  // (format "markdown", max_characters 0 = khong gioi han) neu khong cau hinh gi.
+  const settings = (agent.settings as Record<string, any>) || {};
+  const format = typeof settings.format === "string" ? settings.format : "markdown";
+  const maxChars = Number.isFinite(Number(settings.max_chars)) && Number(settings.max_chars) >= 0 ? Number(settings.max_chars) : 0;
+
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -496,8 +695,8 @@ export async function webFetch(agent: Agent, url: string): Promise<string> {
     body: JSON.stringify({
       model: agent.model,
       url: url,
-      format: "markdown",
-      max_characters: 0,
+      format,
+      max_characters: maxChars,
     }),
   });
 

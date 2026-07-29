@@ -1,191 +1,314 @@
 {% layout "layout" %}
 {% block content %}
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-  <h1 style="margin:0;">{% if agent %}{% if agent.type == "skill" %}Sửa Skill{% else %}Sửa Agent{% endif %}{% else %}{% if defaultType == "skill" %}Skill mới{% else %}Agent mới{% endif %}{% endif %}</h1>
+  <h1 style="margin:0;">{% if agent %}{% if agent.type == "skill" %}Sửa Skill{% else %}Sửa Agent{% endif %}{% else %}Agent mới{% endif %}</h1>
   <a class="btn" href="/admin/agents">{% render "components/icon", name: "arrow-left" %}<span>Danh sách</span></a>
 </div>
 
-<form id="agent-form" class="card">
-  {% unless agent %}
-  <label for="type">Loại</label>
-  <select id="type" name="type">
-    <option value="agent" {% if defaultType != "skill" %}selected{% endif %}>Agent (gọi AI)</option>
-    <option value="skill" {% if defaultType == "skill" %}selected{% endif %}>Skill (Bí kíp cho Agent khác dùng)</option>
-  </select>
-  <div class="field-hint">Không thể đổi loại sau khi tạo.</div>
-  {% else %}
-  <input type="hidden" id="type" name="type" value="{{ agent.type }}">
-  {% endunless %}
+<form id="agent-form">
+<div id="agent-layout">
+  <!-- BỘ NÃO (Core Processor) -->
+  <div class="card" id="panel-brain">
+    <!-- Thông tin cơ bản -->
+    <div>
+      <h3 style="margin-top:0; margin-bottom:1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; display:flex; align-items:center; gap: 0.5rem;">
+        <svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary);"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+        Bộ Não (Cấu hình)
+      </h3>
 
-  <label for="name">Tên</label>
-  <input type="text" id="name" name="name" value="{% if agent %}{{ agent.name | escape }}{% endif %}" required>
+      <!-- Trang nay CHI con tao/sua Agent - Skill tao/sua qua popup (components/skill-modal.liquid),
+           xem nut "Skill mới"/icon sửa trong panel Kỹ năng va trang /admin/agents. -->
+      <input type="hidden" id="type" name="type" value="{% if agent %}{{ agent.type }}{% else %}agent{% endif %}">
+      {% if agent and agent.type == "skill" %}
+      <div class="field-hint" style="color:var(--color-danger);">Skill này nên được sửa qua popup ở trang danh sách Agent, không dùng trang này.</div>
+      {% endif %}
 
-  <label for="key" id="key-label">Agent key (Mục đích sử dụng)</label>
-  <input type="text" id="key" name="key" value="{% if agent and agent.key %}{{ agent.key | escape }}{% endif %}" placeholder="vd: image, content, chat..." required {% if agent and agent.key %}readonly style="background-color: #f3f4f6; cursor: not-allowed;"{% endif %}>
-  <div class="field-hint" id="key-hint">Plugin/hệ thống sẽ gọi agent bằng key này. Chỉ được thiết lập lúc tạo và không thể sửa.</div>
+      <label for="name">Tên hiển thị</label>
+      <input type="text" id="name" name="name" value="{% if agent %}{{ agent.name | escape }}{% endif %}" required>
 
-  <div id="skill-fields" style="display:none;">
-    <label for="systemPromptSkill">Mô tả ngắn (AI đọc để biết khi nào nên dùng skill này)</label>
-    <textarea id="systemPromptSkill" style="min-height:70px;">{% if agent and agent.type == "skill" %}{{ agent.systemPrompt }}{% endif %}</textarea>
+      <label for="key" id="key-label">Mã định danh (Key)</label>
+      <input type="text" id="key" name="key" value="{% if agent and agent.key %}{{ agent.key | escape }}{% endif %}" placeholder="vd: image, content, chat..." required {% if agent and agent.key %}readonly style="background-color: #f3f4f6; cursor: not-allowed;"{% endif %}>
+      <div class="field-hint" id="key-hint">Mã để hệ thống nhận diện. Không thể sửa.</div>
 
-    <label for="content" style="margin-top:1rem;display:block;">Nội dung chi tiết (Bí kíp)</label>
-    <textarea id="content" name="content" style="min-height:220px;" placeholder="Hướng dẫn/code mẫu chi tiết — trả về nguyên văn cho Agent khi nó gọi skill này.">{% if agent %}{{ agent.content }}{% endif %}</textarea>
-  </div>
+      <div id="agent-fields-left">
+        <label for="provider">Nhà cung cấp (Provider)</label>
+        <select id="provider" name="provider">
+          <option value="openai" {% if agent.provider == "openai" %}selected{% endif %}>OpenAI</option>
+          <option value="anthropic" {% if agent.provider == "anthropic" %}selected{% endif %}>Anthropic</option>
+          <option value="google" {% if agent.provider == "google" %}selected{% endif %}>Google</option>
+          <option value="deepseek" {% if agent.provider == "deepseek" %}selected{% endif %}>DeepSeek</option>
+          <option value="openrouter" {% if agent.provider == "openrouter" %}selected{% endif %}>OpenRouter</option>
+          <option value="ai-router" {% if agent.provider == "ai-router" %}selected{% endif %}>AI Router (9router)</option>
+          <option value="custom" {% if agent.provider == "custom" %}selected{% endif %}>Custom</option>
+        </select>
 
-  <div id="agent-fields">
-    <label for="provider">Nhà cung cấp</label>
-    <select id="provider" name="provider">
-      <option value="openai" {% if agent.provider == "openai" %}selected{% endif %}>OpenAI</option>
-      <option value="anthropic" {% if agent.provider == "anthropic" %}selected{% endif %}>Anthropic</option>
-      <option value="google" {% if agent.provider == "google" %}selected{% endif %}>Google</option>
-      <option value="deepseek" {% if agent.provider == "deepseek" %}selected{% endif %}>DeepSeek</option>
-      <option value="openrouter" {% if agent.provider == "openrouter" %}selected{% endif %}>OpenRouter</option>
-      <option value="ai-router" {% if agent.provider == "ai-router" %}selected{% endif %}>AI Router (9router)</option>
-      <option value="custom" {% if agent.provider == "custom" %}selected{% endif %}>Custom</option>
-    </select>
+        <label for="model">Model</label>
+        <input type="text" id="model" name="model" value="{% if agent %}{{ agent.model | escape }}{% endif %}" placeholder="vd: gpt-5.4-mini, claude-sonnet-5">
 
-    <label for="model">Model</label>
-    <input type="text" id="model" name="model" value="{% if agent %}{{ agent.model | escape }}{% endif %}" placeholder="vd: gpt-5.4-mini, claude-sonnet-5">
+        <label for="endpoint">Chức năng (Endpoint)</label>
+        <select id="endpoint" name="endpoint">
+          <option value="/chat/completions" {% if agent.endpoint == "/chat/completions" or agent.endpoint == null %}selected{% endif %}>Chat</option>
+          <option value="/images/generations" {% if agent.endpoint == "/images/generations" %}selected{% endif %}>Tạo ảnh</option>
+          <option value="/audio/transcriptions" {% if agent.endpoint == "/audio/transcriptions" %}selected{% endif %}>Nhận diện giọng nói</option>
+          <option value="/embeddings" {% if agent.endpoint == "/embeddings" %}selected{% endif %}>Embeddings</option>
+          <option value="/search" {% if agent.endpoint == "/search" %}selected{% endif %}>Tìm kiếm Web (Web Search)</option>
+          <option value="/web/fetch" {% if agent.endpoint == "/web/fetch" %}selected{% endif %}>Đọc nội dung Web (Web Fetch)</option>
+          <option value="/videos/generations" {% if agent.endpoint == "/videos/generations" %}selected{% endif %}>Tạo video</option>
+        </select>
 
-    <label for="endpoint">Khả năng</label>
-    <select id="endpoint" name="endpoint">
-      <option value="/chat/completions" {% if agent.endpoint == "/chat/completions" or agent.endpoint == null %}selected{% endif %}>Chat</option>
-      <option value="/images/generations" {% if agent.endpoint == "/images/generations" %}selected{% endif %}>Tạo ảnh</option>
-      <option value="/audio/transcriptions" {% if agent.endpoint == "/audio/transcriptions" %}selected{% endif %}>Nhận diện giọng nói</option>
-      <option value="/embeddings" {% if agent.endpoint == "/embeddings" %}selected{% endif %}>Embeddings</option>
-      <option value="/search" {% if agent.endpoint == "/search" %}selected{% endif %}>Tìm kiếm Web (Web Search)</option>
-      <option value="/web/fetch" {% if agent.endpoint == "/web/fetch" %}selected{% endif %}>Đọc nội dung Web (Web Fetch)</option>
-    </select>
-
-    <div id="base-url-group" style="display:none;">
-      <label for="baseUrl">Base URL <span style="font-weight:400;color:#888;">(chỉ dùng cho Custom provider)</span></label>
-      <input type="text" id="baseUrl" name="baseUrl" value="{% if agent %}{{ agent.baseUrl | escape }}{% endif %}" placeholder="https://api.custom.com/v1">
+        <div id="base-url-group" style="display:none;">
+          <label for="baseUrl">Base URL (Dành cho Custom)</label>
+          <input type="text" id="baseUrl" name="baseUrl" value="{% if agent %}{{ agent.baseUrl | escape }}{% endif %}" placeholder="https://api.custom.com/v1">
+        </div>
+      </div>
     </div>
 
-    <label for="apiKey">API key</label>
-    <input type="password" id="apiKey" name="apiKey" autocomplete="off" placeholder="{% if agent.apiKey %}Để trống nếu giữ key cũ{% else %}sk-...{% endif %}">
+    <!-- Cột phải: Prompt & Cấu hình nâng cao -->
+    <div>
 
-    <label for="systemPrompt">System prompt</label>
-    <textarea id="systemPrompt" name="systemPrompt" style="min-height:160px;">{% if agent and agent.type != "skill" %}{{ agent.systemPrompt }}{% endif %}</textarea>
+      <div id="skill-fields-right" style="display:none;">
+        <label for="systemPromptSkill">Mô tả ngắn (Để AI khác biết khi nào dùng)</label>
+        <textarea id="systemPromptSkill" style="min-height:70px;">{% if agent and agent.type == "skill" %}{{ agent.systemPrompt }}{% endif %}</textarea>
 
-    <label for="maxLoops">Số lần lặp tối đa (mỗi lượt chat)</label>
-    <input type="number" id="maxLoops" name="maxLoops" min="1" max="50" value="{% if agent and agent.maxLoops %}{{ agent.maxLoops }}{% else %}10{% endif %}">
-    <div class="field-hint">Số vòng gọi tool liên tiếp tối đa TRONG 1 lượt trả lời (riêng cho agent này, không cộng dồn với agent khác nó gọi qua tool call_agent). Vượt quá sẽ báo lỗi và dừng.</div>
-  </div>
+        <label for="content" style="margin-top:1rem;display:block;">Nội dung chi tiết (Bí kíp)</label>
+        <textarea id="content" name="content" style="min-height:220px;" placeholder="Hướng dẫn/code mẫu chi tiết — trả về nguyên văn khi gọi skill.">{% if agent %}{{ agent.content }}{% endif %}</textarea>
+      </div>
 
-  <div style="display:flex;gap:1rem;margin-top:0.5rem;flex-wrap:wrap;">
-    <label style="display:flex;align-items:center;gap:0.4rem;">
-      <input type="checkbox" id="isActive" name="isActive" style="width:auto;" {% if agent == null or agent.isActive %}checked{% endif %}>
-      Đang bật
-    </label>
-  </div>
+      <div id="agent-fields-right">
+        <label for="apiKey">API key</label>
+        <input type="password" id="apiKey" name="apiKey" autocomplete="off" placeholder="{% if agent.apiKey %}Đã cấu hình, để trống nếu giữ nguyên{% else %}sk-...{% endif %}">
 
-  <div id="allowed-skills-block" class="mt-8 border-t pt-6" style="border-top: 1px solid #e5e7eb; margin-top: 2rem; padding-top: 1.5rem;">
-    <h3 style="margin-top:0; margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;">
-      <svg class="admin-icon" style="width:20px;height:20px;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-      Skill được phép dùng
-    </h3>
-    <p style="color:#6b7280; font-size:0.85rem; margin-top:0; margin-bottom:1rem;">Chọn các Skill mà Agent này được gọi tới (rỗng = không dùng skill nào).</p>
+        <label for="systemPrompt">System prompt</label>
+        <textarea id="systemPrompt" name="systemPrompt" style="min-height:140px;">{% if agent and agent.type != "skill" %}{{ agent.systemPrompt }}{% endif %}</textarea>
 
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
-      {% for skill in lockedSkills %}
-        <input type="hidden" name="allowedSkills" value="{{ skill.key | escape }}">
-        <div class="skill-card" style="display:flex; gap:0.8rem; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:1rem; align-items:flex-start;" title="Skill hệ thống — chỉ gán được qua DB, không bỏ được qua giao diện.">
-          {% render "components/icon", name: "lock" %}
-          <div>
-            <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ skill.name | escape }}</div>
-            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.2rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{{ skill.systemPrompt | escape }}">{{ skill.systemPrompt | escape }}</div>
+        <label for="maxLoops">Số vòng lặp Tool tối đa</label>
+        <input type="number" id="maxLoops" name="maxLoops" min="1" max="50" value="{% if agent and agent.maxLoops %}{{ agent.maxLoops }}{% else %}10{% endif %}">
+      </div>
+
+      <div style="margin-top: 1.5rem; display:flex; flex-direction:column; gap:0.75rem;">
+        <label style="display:flex;align-items:center;gap:0.6rem; cursor:pointer;">
+          <span class="toggle-switch"><input type="checkbox" id="isActive" name="isActive" {% if agent == null or agent.isActive %}checked{% endif %}><span class="slider"></span></span>
+          <strong>Trạng thái: Kích hoạt</strong>
+        </label>
+        <label style="display:flex;align-items:center;gap:0.6rem; cursor:pointer;">
+          <span class="toggle-switch"><input type="checkbox" id="settingsStream" name="settingsStream" {% if agent and agent.settings.stream %}checked{% endif %}><span class="slider"></span></span>
+          <strong>Stream</strong>
+        </label>
+        <div class="field-hint" style="margin-top:-0.5rem;">Chỉ có tác dụng khi agent này được gọi từ nơi có kết nối SSE (vd widget AI Chat) — báo sớm "AI đang xử lý" cho người dùng. Bật ở agent không có ai nghe (CSKH, tool nội bộ...) chỉ tốn thêm xử lý, không lợi ích gì.</div>
+
+        <div style="display:flex; gap:1rem; margin-top:0.5rem;">
+          <div style="flex:1;">
+            <label for="settingsMaxTokens">Max tokens</label>
+            <input type="number" id="settingsMaxTokens" name="settingsMaxTokens" min="1" placeholder="8000" value="{% if agent and agent.settings.max_tokens %}{{ agent.settings.max_tokens }}{% endif %}">
+          </div>
+          <div style="flex:1;">
+            <label for="settingsTemperature">Temperature</label>
+            <input type="number" id="settingsTemperature" name="settingsTemperature" min="0" max="2" step="0.1" placeholder="0.7" value="{% if agent and agent.settings.temperature %}{{ agent.settings.temperature }}{% endif %}">
           </div>
         </div>
-      {% endfor %}
-      {% for skill in allSkills %}
-        {% assign isChecked = false %}
-        {% if agent and agent.allowedSkills contains skill.key %}
-          {% assign isChecked = true %}
-        {% endif %}
 
-        <label class="skill-card" style="display:flex; gap:0.8rem; background:#f9fafb; border:1px solid {% if isChecked %}#d97706{% else %}#e5e7eb{% endif %}; border-radius:8px; padding:1rem; cursor:pointer; transition:all 0.2s; align-items:flex-start;">
-          <input type="checkbox" name="allowedSkills" value="{{ skill.key | escape }}" style="margin-top:0.2rem;" {% if isChecked %}checked{% endif %} onchange="this.closest('.skill-card').style.borderColor = this.checked ? '#d97706' : '#e5e7eb'; this.closest('.skill-card').style.backgroundColor = this.checked ? '#fffbeb' : '#f9fafb';">
-          <div>
-            <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ skill.name | escape }}</div>
-            <div style="font-size:0.8rem; color:#6b7280; margin-top:0.2rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="{{ skill.systemPrompt | escape }}">{{ skill.systemPrompt | escape }}</div>
+        <!-- Field rieng theo endpoint da chon (Tim kiem Web / Doc noi dung Web / Tao anh) - AN theo
+             mac dinh, JS (applyEndpointUi) tu hien dung nhom khi doi select "endpoint" ben tren.
+             Chi anh huong toi cac agent goi thang endpoint tien ich cua 9Router (khong phai chat),
+             xem aiClient.ts: webSearch()/webFetch()/generateImage(). -->
+        <div id="settings-search-fields" style="display:none; margin-top:0.5rem; padding-top:0.75rem; border-top:1px dashed #e5e7eb; display:flex; flex-direction:column; gap:0.5rem;">
+          <strong style="font-size:0.85rem;color:#6b7280;">Tham số Tìm kiếm Web</strong>
+          <div style="display:flex; gap:1rem;">
+            <div style="flex:1;">
+              <label for="settingsSearchType">Loại</label>
+              <select id="settingsSearchType" name="settingsSearchType">
+                <option value="news" {% if agent.settings.search_type == "news" or agent.settings.search_type == null %}selected{% endif %}>news</option>
+                <option value="web" {% if agent.settings.search_type == "web" %}selected{% endif %}>web</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="settingsMaxResults">Max results</label>
+              <input type="number" id="settingsMaxResults" name="settingsMaxResults" min="1" placeholder="5" value="{% if agent and agent.settings.max_results %}{{ agent.settings.max_results }}{% endif %}">
+            </div>
           </div>
-        </label>
-      {% else %}
-        <div class="empty-state" style="grid-column:1/-1;">Chưa có skill nào. <a href="/admin/agents/new?type=skill">Tạo skill mới</a>.</div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <div id="allowed-agents-block" class="mt-8 border-t pt-6" style="border-top: 1px solid #e5e7eb; margin-top: 2rem; padding-top: 1.5rem;">
-    <h3 style="margin-top:0; margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;">
-      <svg class="admin-icon" style="width:20px;height:20px;color:var(--color-primary);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-      Sub Agent
-    </h3>
-    <p style="color:#6b7280; font-size:0.85rem; margin-top:0; margin-bottom:1rem;">Chọn các Agent con mà Agent này được phép gọi tới qua tool call_agent (rỗng = không cho phép gọi).</p>
-
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
-      {% for subAgent in lockedAgents %}
-        <input type="hidden" name="allowedAgents" value="{{ subAgent.key | escape }}">
-        <div class="skill-card" style="display:flex; gap:0.8rem; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:1rem; align-items:flex-start;" title="Agent hệ thống — chỉ gán được qua DB, không bỏ được qua giao diện.">
-          {% render "components/icon", name: "lock" %}
-          <div>
-            <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ subAgent.name | escape }}</div>
+          <div style="display:flex; gap:1rem;">
+            <div style="flex:1;">
+              <label for="settingsCountry">Country</label>
+              <input type="text" id="settingsCountry" name="settingsCountry" placeholder="vietnam" value="{% if agent and agent.settings.country %}{{ agent.settings.country | escape }}{% endif %}">
+            </div>
+            <div style="flex:1;">
+              <label for="settingsLanguage">Ngôn ngữ</label>
+              <input type="text" id="settingsLanguage" name="settingsLanguage" placeholder="vi" value="{% if agent and agent.settings.language %}{{ agent.settings.language | escape }}{% endif %}">
+            </div>
           </div>
         </div>
-      {% endfor %}
-      {% for subAgent in allAgents %}
-        {% assign isChecked = false %}
-        {% if agent and agent.allowedAgents contains subAgent.key %}
-          {% assign isChecked = true %}
-        {% endif %}
 
-        <label class="skill-card" style="display:flex; gap:0.8rem; background:#f9fafb; border:1px solid {% if isChecked %}#d97706{% else %}#e5e7eb{% endif %}; border-radius:8px; padding:1rem; cursor:pointer; transition:all 0.2s; align-items:flex-start;">
-          <input type="checkbox" name="allowedAgents" value="{{ subAgent.key | escape }}" style="margin-top:0.2rem;" {% if isChecked %}checked{% endif %} onchange="this.closest('.skill-card').style.borderColor = this.checked ? '#d97706' : '#e5e7eb'; this.closest('.skill-card').style.backgroundColor = this.checked ? '#fffbeb' : '#f9fafb';">
-          <div>
-            <div style="font-weight:600; color:#374151; font-size:0.95rem;">{{ subAgent.name | escape }}</div>
+        <div id="settings-fetch-fields" style="display:none; margin-top:0.5rem; padding-top:0.75rem; border-top:1px dashed #e5e7eb; display:flex; flex-direction:column; gap:0.5rem;">
+          <strong style="font-size:0.85rem;color:#6b7280;">Tham số Đọc nội dung Web</strong>
+          <div style="display:flex; gap:1rem;">
+            <div style="flex:1;">
+              <label for="settingsFormat">Format</label>
+              <select id="settingsFormat" name="settingsFormat">
+                <option value="markdown" {% if agent.settings.format == "markdown" or agent.settings.format == null %}selected{% endif %}>markdown</option>
+                <option value="text" {% if agent.settings.format == "text" %}selected{% endif %}>text</option>
+                <option value="html" {% if agent.settings.format == "html" %}selected{% endif %}>html</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="settingsMaxChars">Max chars (0 = không giới hạn)</label>
+              <input type="number" id="settingsMaxChars" name="settingsMaxChars" min="0" placeholder="0" value="{% if agent and agent.settings.max_chars %}{{ agent.settings.max_chars }}{% endif %}">
+            </div>
           </div>
-        </label>
-      {% else %}
-        <div class="empty-state" style="grid-column:1/-1;">Chưa có Agent nào khác. <a href="/admin/agents/new">Tạo Agent mới</a>.</div>
-      {% endfor %}
+        </div>
+
+        <div id="settings-image-fields" style="display:none; margin-top:0.5rem; padding-top:0.75rem; border-top:1px dashed #e5e7eb; display:flex; flex-direction:column; gap:0.5rem;">
+          <strong style="font-size:0.85rem;color:#6b7280;">Tham số Tạo ảnh</strong>
+          <div style="display:flex; gap:1rem;">
+            <div style="flex:1;">
+              <label for="settingsImageN">Số ảnh (n)</label>
+              <input type="number" id="settingsImageN" name="settingsImageN" min="1" placeholder="1" value="{% if agent and agent.settings.n %}{{ agent.settings.n }}{% endif %}">
+            </div>
+            <div style="flex:1;">
+              <label for="settingsOutputFormat">Output format</label>
+              <select id="settingsOutputFormat" name="settingsOutputFormat">
+                <option value="" {% if agent.settings.output_format == null %}selected{% endif %}>Mặc định (URL)</option>
+                <option value="b64_json" {% if agent.settings.output_format == "b64_json" %}selected{% endif %}>JSON (Base64)</option>
+              </select>
+              <div class="field-hint">Hệ thống hiện chỉ đọc được ảnh trả về dạng URL — chọn "JSON (Base64)" sẽ làm tool tạo ảnh báo lỗi cho tới khi code được cập nhật để đọc base64.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="settings-embedding-fields" style="display:none; margin-top:0.5rem; padding-top:0.75rem; border-top:1px dashed #e5e7eb; display:flex; flex-direction:column; gap:0.5rem;">
+          <strong style="font-size:0.85rem;color:#6b7280;">Tham số Embeddings</strong>
+          <label for="settingsDimensions">Dimensions (để trống = mặc định của model)</label>
+          <input type="number" id="settingsDimensions" name="settingsDimensions" min="1" placeholder="vd: 512, 1024" value="{% if agent and agent.settings.dimensions %}{{ agent.settings.dimensions }}{% endif %}">
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="mt-8 border-t pt-6" style="border-top: 1px solid #e5e7eb; margin-top: 2rem; padding-top: 1.5rem;">
-    <h3 style="margin-top:0; margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;">
-      <svg class="admin-icon" style="width:20px;height:20px;color:#d97706;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-      Cấu hình Công cụ (MCP Tools)
+  <!-- CÔNG CỤ (Tools) -->
+  <div class="card" id="panel-tools">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
+      <svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary);"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+      Tools <span id="tools-count" style="color:#6b7280;font-weight:400;"></span>
     </h3>
-    <p style="color:#6b7280; font-size:0.85rem; margin-top:0; margin-bottom:1rem;">Chọn các công cụ mà Agent/Skill này được phép sử dụng.</p>
-
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+    <input type="search" id="tools-search" placeholder="Tìm công cụ..." style="margin-bottom:0.75rem;">
+    <div id="list-tools" class="toggle-list" style="display:flex; flex-direction:column; gap:0.25rem; max-height:320px; overflow-y:auto;">
       {% for tool in lockedTools %}
-        <input type="hidden" name="allowedTools" value="{{ tool.name | escape }}">
-        <div class="tool-card" style="display:flex; gap:0.8rem; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; padding:1rem; align-items:flex-start;" title="Tool hệ thống — chỉ gán được qua DB, không bỏ được qua giao diện.">
-          {% render "components/icon", name: "lock" %}
-          <div style="font-weight:600; color:#374151; font-family:monospace; font-size:0.95rem;">{{ tool.name | escape }}</div>
-        </div>
+        <label class="toggle-row locked">
+          <span class="toggle-switch"><input type="checkbox" checked disabled><span class="slider"></span></span>
+          <span style="display:flex; align-items:center; gap:0.4rem; font-size:0.88rem;">{% render "components/icon", name: "lock" %} {{ tool.label | escape }}</span>
+        </label>
       {% endfor %}
       {% for tool in allTools %}
-        {% assign isChecked = false %}
-        {% if agent and agent.allowedTools contains tool.name %}
-          {% assign isChecked = true %}
-        {% endif %}
-
-        <label class="tool-card" style="display:flex; gap:0.8rem; p-4; background:#f9fafb; border:1px solid {% if isChecked %}#d97706{% else %}#e5e7eb{% endif %}; border-radius:8px; padding:1rem; cursor:pointer; transition:all 0.2s; align-items:flex-start;">
-          <input type="checkbox" name="allowedTools" value="{{ tool.name | escape }}" style="margin-top:0.2rem;" {% if isChecked %}checked{% endif %} onchange="this.closest('.tool-card').style.borderColor = this.checked ? '#d97706' : '#e5e7eb'; this.closest('.tool-card').style.backgroundColor = this.checked ? '#fffbeb' : '#f9fafb';">
-          <div style="font-weight:600; color:#374151; font-family:monospace; font-size:0.95rem;">{{ tool.name | escape }}</div>
+        <label class="toggle-row" data-search="{{ tool.label | escape | downcase }} {{ tool.name | escape | downcase }} {{ tool.description | escape | downcase }}">
+          <span class="toggle-switch"><input type="checkbox" class="tool-check" value="{{ tool.name | escape }}" {% if agent and agent.allowedTools contains tool.name %}checked{% endif %}><span class="slider"></span></span>
+          <span>
+            <span style="font-size:0.88rem; font-weight:600;">{{ tool.label | escape }}</span>
+            <div style="font-size:0.75rem;color:#94a3b8;font-family:monospace;">{{ tool.name | escape }}</div>
+          </span>
         </label>
       {% endfor %}
     </div>
   </div>
 
-  <div style="margin-top:1.5rem;display:flex;gap:0.6rem;">
-    <button type="submit" class="btn btn-primary">{% render "components/icon", name: "save" %}<span>Lưu</span></button>
+  <!-- KỸ NĂNG (Skills) -->
+  <div class="card" id="panel-skills">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+      <h3 style="margin:0; display:flex; align-items:center; gap:0.5rem;">
+        <svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary);"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        Skill <span id="skills-count" style="color:#6b7280;font-weight:400;"></span>
+      </h3>
+      <button type="button" class="btn btn-icon" title="Tạo skill mới" onclick="openSkillModal(null)">{% render "components/icon", name: "plus" %}</button>
+    </div>
+    <div id="list-skills" style="display:flex; flex-direction:column; gap:0.25rem; max-height:320px; overflow-y:auto;">
+      {% for skill in lockedSkills %}
+        <label class="toggle-row locked">
+          <span class="toggle-switch"><input type="checkbox" checked disabled><span class="slider"></span></span>
+          <span style="display:flex; align-items:center; gap:0.4rem; font-size:0.88rem;">{% render "components/icon", name: "lock" %} {{ skill.name | escape }}</span>
+        </label>
+      {% endfor %}
+      {% for skill in allSkills %}
+        <div style="display:flex; align-items:flex-start; gap:0.25rem;">
+          <label class="toggle-row" style="flex:1;">
+            <span class="toggle-switch"><input type="checkbox" class="skill-check" value="{{ skill.key | escape }}" {% if agent and agent.allowedSkills contains skill.key %}checked{% endif %}><span class="slider"></span></span>
+            <span>
+              <span style="font-size:0.88rem; font-weight:600;">{{ skill.name | escape }}</span>
+              <div style="font-size:0.75rem;color:#64748b;">{{ skill.systemPrompt | escape | truncate: 80 }}</div>
+            </span>
+          </label>
+          <button type="button" class="btn btn-icon skill-edit-btn" data-skill="{{ skill | json | escape }}" title="Sửa skill" style="flex-shrink:0;margin-top:0.35rem;">{% render "components/icon", name: "pencil" %}</button>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- SUBAGENT -->
+  <div class="card" id="panel-subagent">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;">
+      <svg class="admin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Subagent <span id="subagent-count" style="color:#6b7280;font-weight:400;"></span>
+    </h3>
+    <p style="color:#6b7280; font-size:0.8rem; margin-top:-0.4rem; margin-bottom:0.75rem;">Agent này được phép ủy quyền (gọi tool <code>call_agent</code>) sang các agent con nào.</p>
+    <div id="list-subagent" style="display:flex; flex-direction:column; gap:0.25rem; max-height:320px; overflow-y:auto;">
+      {% for subAgent in lockedAgents %}
+        <label class="toggle-row locked">
+          <span class="toggle-switch"><input type="checkbox" checked disabled><span class="slider"></span></span>
+          <span style="display:flex; align-items:center; gap:0.4rem; font-size:0.88rem;">{% render "components/icon", name: "lock" %} {{ subAgent.name | escape }}</span>
+        </label>
+      {% endfor %}
+      {% for subAgent in allAgents %}
+        <label class="toggle-row">
+          <span class="toggle-switch"><input type="checkbox" class="subagent-check" value="{{ subAgent.key | escape }}" {% if agent and agent.allowedAgents contains subAgent.key %}checked{% endif %}><span class="slider"></span></span>
+          <span style="font-size:0.88rem; font-weight:600;">{{ subAgent.name | escape }} </span>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+  <!-- ACTION BAR -->
+  <div style="position: sticky; bottom: 0; background: var(--color-bg); padding: 1rem 0; border-top: 1px solid #e5e7eb; display:flex; gap:0.6rem; z-index:10; margin-top:1.5rem;">
+    <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; font-size: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">{% render "components/icon", name: "save" %}<span>Lưu</span></button>
     <span id="delete-slot"></span>
   </div>
 </form>
+
+<style>
+  #agent-layout {
+    display: grid;
+    grid-template-columns: 6fr 4fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "brain subagent"
+      "brain skill"
+      "brain tool";
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+  }
+  #panel-brain { grid-area: brain; }
+  #panel-subagent { grid-area: subagent; }
+  #panel-skills { grid-area: skill; }
+  #panel-tools { grid-area: tool; }
+
+  @media (max-width: 900px) {
+    #agent-layout {
+      grid-template-columns: 1fr;
+      grid-template-areas: "brain" "subagent" "skill" "tool";
+    }
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0;
+    padding: .75rem;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .toggle-row.locked { background: #f8fafc; cursor: not-allowed; }
+  .toggle-row:hover:not(.locked) { background: #f8fafc; }
+  .toggle-row .toggle-switch { flex-shrink: 0; margin-top: 2px; }
+</style>
 
 <script>
 (function () {
@@ -198,26 +321,73 @@
     flash.className = ok ? "success" : "error";
   }
 
+  // Sua skill qua popup (skill-modal.liquid) - danh sach nay render server-side qua Liquid nen
+  // don gian nhat la reload lai trang sau khi luu, khong tu ve lai list bang JS.
+  document.getElementById("panel-skills").addEventListener("click", (event) => {
+    const btn = event.target.closest(".skill-edit-btn");
+    if (!btn) return;
+    window.openSkillModal(JSON.parse(btn.dataset.skill));
+  });
+  document.addEventListener("skill-saved", () => window.location.reload());
+
+  // So luong dang bat hien canh tieu de moi panel (Tools/Skill/Subagent) - dem CA muc khoa (locked,
+  // luon checked) lan muc AI/admin tu bat, cap nhat real-time moi khi tick/bo tick.
+  function updateCount(listId, countSpanId) {
+    const n = document.querySelectorAll("#" + listId + " input[type=checkbox]:checked").length;
+    document.getElementById(countSpanId).textContent = "(" + n + ")";
+  }
+  function wireCount(listId, countSpanId) {
+    updateCount(listId, countSpanId);
+    document.getElementById(listId).addEventListener("change", () => updateCount(listId, countSpanId));
+  }
+  wireCount("list-tools", "tools-count");
+  wireCount("list-skills", "skills-count");
+  wireCount("list-subagent", "subagent-count");
+
+  // Tìm kiếm trong danh sách Tools
+  const toolsSearch = document.getElementById("tools-search");
+  toolsSearch.addEventListener("input", () => {
+    const q = toolsSearch.value.trim().toLowerCase();
+    document.querySelectorAll("#list-tools .toggle-row:not(.locked)").forEach((row) => {
+      const haystack = row.getAttribute("data-search") || "";
+      row.style.display = !q || haystack.includes(q) ? "flex" : "none";
+    });
+  });
+
+  // Logic quản lý giao diện Type (Agent vs Skill)
   const typeInput = document.getElementById("type");
   const keyLabel = document.getElementById("key-label");
   const keyHint = document.getElementById("key-hint");
-  const skillFields = document.getElementById("skill-fields");
-  const agentFields = document.getElementById("agent-fields");
-  const allowedSkillsBlock = document.getElementById("allowed-skills-block");
-  const allowedAgentsBlock = document.getElementById("allowed-agents-block");
+
+  const skillFieldsRight = document.getElementById("skill-fields-right");
+  const agentFieldsRight = document.getElementById("agent-fields-right");
+  const agentFieldsLeft = document.getElementById("agent-fields-left");
   const modelInput = document.getElementById("model");
+
+  const panelSkills = document.getElementById("panel-skills");
+  const panelSubagent = document.getElementById("panel-subagent");
+  const panelTools = document.getElementById("panel-tools");
 
   function applyTypeUi() {
     const isSkill = typeInput.value === "skill";
-    skillFields.style.display = isSkill ? "block" : "none";
-    agentFields.style.display = isSkill ? "none" : "block";
-    allowedSkillsBlock.style.display = isSkill ? "none" : "block";
-    allowedAgentsBlock.style.display = isSkill ? "none" : "block";
+
+    skillFieldsRight.style.display = isSkill ? "block" : "none";
+    agentFieldsRight.style.display = isSkill ? "none" : "block";
+    agentFieldsLeft.style.display = isSkill ? "none" : "block";
     keyLabel.textContent = isSkill ? "Skill key" : "Agent key (Mục đích sử dụng)";
     keyHint.textContent = isSkill
-      ? "Agent sẽ gọi skill bằng key này (### USE_SKILL: <key>). Chỉ được thiết lập lúc tạo và không thể sửa."
-      : "Plugin/hệ thống sẽ gọi agent bằng key này. Chỉ được thiết lập lúc tạo và không thể sửa.";
+      ? "Agent sẽ gọi skill bằng key này (### USE_SKILL: <key>)."
+      : "Plugin/hệ thống sẽ gọi agent bằng key này.";
     if (!isSkill) modelInput.required = true; else modelInput.required = false;
+
+    // Skill CHI bom "content" vao context cua agent goi no (useSkillTool tra ve string, khong bao
+    // gio duoc wrap thanh BaseAgent va run()) - allowedTools/allowedSkills/allowedAgents gan cho 1
+    // row type=skill deu KHONG BAO GIO duoc doc o dau ca (xem BaseAgent.getSystemPrompt() - chi
+    // agent that su run() moi doc allowedTools). Panel nao con dung tool phai tuy AGENT dang GOI
+    // skill nay quyet dinh, khong phai skill tu quyet.
+    panelTools.style.display = isSkill ? "none" : "block";
+    panelSkills.style.display = isSkill ? "none" : "block";
+    panelSubagent.style.display = isSkill ? "none" : "block";
   }
 
   if (typeInput.tagName === "SELECT") {
@@ -225,42 +395,58 @@
   }
   applyTypeUi();
 
+  // Hien dung nhom field tham so theo "Chuc nang (Endpoint)" da chon - chi 3 endpoint tien ich
+  // (Tim kiem Web/Doc noi dung Web/Tao anh) co nhom rieng, endpoint khac (Chat/Embeddings/...)
+  // khong hien gi them ngoai field Stream/Max tokens/Temperature chung o tren.
+  const endpointSelect = document.getElementById("endpoint");
+  const settingsSearchFields = document.getElementById("settings-search-fields");
+  const settingsFetchFields = document.getElementById("settings-fetch-fields");
+  const settingsImageFields = document.getElementById("settings-image-fields");
+  const settingsEmbeddingFields = document.getElementById("settings-embedding-fields");
+  function applyEndpointUi() {
+    const ep = endpointSelect.value;
+    settingsSearchFields.style.display = ep === "/search" ? "flex" : "none";
+    settingsFetchFields.style.display = ep === "/web/fetch" ? "flex" : "none";
+    settingsImageFields.style.display = ep === "/images/generations" ? "flex" : "none";
+    settingsEmbeddingFields.style.display = ep === "/embeddings" ? "flex" : "none";
+  }
+  endpointSelect.addEventListener("change", applyEndpointUi);
+  applyEndpointUi();
+
+  // Logic Nhà cung cấp
   const providerSelect = document.getElementById("provider");
   const baseUrlGroup = document.getElementById("base-url-group");
   const apiKeyInput = document.getElementById("apiKey");
   const aiProviderKeys = {{ aiProviderKeys | json | default: "{}" }};
 
-  let previousProvider = providerSelect.value;
-
   function handleProviderChange() {
     baseUrlGroup.style.display = providerSelect.value === "custom" ? "block" : "none";
-
-    // Auto fill API key if empty and available in config
     if (!apiKeyInput.value && aiProviderKeys[providerSelect.value]) {
       apiKeyInput.value = aiProviderKeys[providerSelect.value];
     }
-    previousProvider = providerSelect.value;
+  }
+  if (providerSelect) {
+    providerSelect.addEventListener("change", handleProviderChange);
+    baseUrlGroup.style.display = providerSelect.value === "custom" ? "block" : "none";
   }
 
-  providerSelect.addEventListener("change", handleProviderChange);
-  baseUrlGroup.style.display = providerSelect.value === "custom" ? "block" : "none";
-
+  // Nút Xoá
   if (agentId) {
     const isSystem = {% if agent.isSystem %}true{% else %}false{% endif %};
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
-    deleteBtn.className = "btn btn-danger btn-icon";
-    deleteBtn.innerHTML = window.adminIcon("trash");
+    deleteBtn.className = "btn btn-danger";
+    deleteBtn.style.padding = "0.75rem 1.5rem";
+    deleteBtn.innerHTML = window.adminIcon("trash") + " <span>Xóa</span>";
     deleteBtn.title = "Xoá";
-    deleteBtn.setAttribute("aria-label", "Xoá");
     if (isSystem) {
       deleteBtn.disabled = true;
       deleteBtn.style.opacity = "0.5";
       deleteBtn.style.cursor = "not-allowed";
-      deleteBtn.title = "Không thể xoá Agent hệ thống";
+      deleteBtn.title = "Không thể xoá lõi hệ thống";
     } else {
       deleteBtn.onclick = async () => {
-        if (!confirm("Xoá mục này?")) return;
+        if (!confirm("Xoá agent này?")) return;
         const res = await fetch("/admin/api/agents/" + agentId, { method: "DELETE" });
         if (!res.ok) {
           showFlash("Xoá thất bại", false);
@@ -272,23 +458,28 @@
     document.getElementById("delete-slot").appendChild(deleteBtn);
   }
 
+  // Xử lý Gửi Form
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const isSkill = typeInput.value === "skill";
-    // Gom ca checkbox dang tick LAN hidden input cua tool/skill isSystem (da gan san qua DB, chi
-    // hien read-only - xem lockedTools/lockedSkills) - khong lam mat quyen isSystem khi luu form.
-    const allowedTools = Array.from(document.querySelectorAll('input[name="allowedTools"]:checked, input[name="allowedTools"][type="hidden"]')).map(cb => cb.value);
-    const allowedSkills = Array.from(document.querySelectorAll('input[name="allowedSkills"]:checked, input[name="allowedSkills"][type="hidden"]')).map(cb => cb.value);
-    const allowedAgents = Array.from(document.querySelectorAll('input[name="allowedAgents"]:checked, input[name="allowedAgents"][type="hidden"]')).map(cb => cb.value);
+
+    const getChecked = (selector) =>
+      Array.from(document.querySelectorAll(selector))
+        .filter((el) => el.checked)
+        .map((el) => el.value);
+
+    // Skill khong doc allowedTools o dau ca (xem ghi chu applyTypeUi()) - gui rong thay vi gia tri
+    // con sot lai tren DOM tu truoc do, tranh luu nham du lieu chet vao DB gay hieu lam sau nay.
+    const allowedTools = isSkill ? [] : getChecked(".tool-check");
+    const allowedSkills = getChecked(".skill-check");
+    const allowedAgents = getChecked(".subagent-check");
 
     const payload = {
       name: form.name.value.trim(),
       key: form.key.value.trim() || undefined,
       type: typeInput.value,
-      isActive: form.isActive.checked,
+      isActive: form.isActive ? form.isActive.checked : true,
       allowedTools: allowedTools,
-      // Bat buoc trong schema (provider/model) nhung khong dung toi khi type='skill' - gui gia tri
-      // co dinh de qua validation, khong hien o form.
       provider: isSkill ? "openai" : form.provider.value,
       model: isSkill ? "skill" : form.model.value,
     };
@@ -302,6 +493,28 @@
       payload.endpoint = form.endpoint.value || undefined;
       payload.allowedSkills = allowedSkills;
       payload.allowedAgents = allowedAgents;
+      payload.settings = {
+        stream: form.settingsStream.checked,
+        max_tokens: form.settingsMaxTokens.value ? parseInt(form.settingsMaxTokens.value, 10) : undefined,
+        temperature: form.settingsTemperature.value ? parseFloat(form.settingsTemperature.value) : undefined,
+      };
+      // Field rieng theo endpoint da chon (xem applyEndpointUi()) - CHI gui khi dung endpoint tuong
+      // ung, tranh nhet nham field khong lien quan vao settings cua agent chat binh thuong.
+      const selectedEndpoint = form.endpoint.value;
+      if (selectedEndpoint === "/search") {
+        payload.settings.search_type = form.settingsSearchType.value || undefined;
+        payload.settings.max_results = form.settingsMaxResults.value ? parseInt(form.settingsMaxResults.value, 10) : undefined;
+        payload.settings.country = form.settingsCountry.value || undefined;
+        payload.settings.language = form.settingsLanguage.value || undefined;
+      } else if (selectedEndpoint === "/web/fetch") {
+        payload.settings.format = form.settingsFormat.value || undefined;
+        payload.settings.max_chars = form.settingsMaxChars.value ? parseInt(form.settingsMaxChars.value, 10) : undefined;
+      } else if (selectedEndpoint === "/images/generations") {
+        payload.settings.n = form.settingsImageN.value ? parseInt(form.settingsImageN.value, 10) : undefined;
+        payload.settings.output_format = form.settingsOutputFormat.value || undefined;
+      } else if (selectedEndpoint === "/embeddings") {
+        payload.settings.dimensions = form.settingsDimensions.value ? parseInt(form.settingsDimensions.value, 10) : undefined;
+      }
       payload.maxLoops = form.maxLoops.value ? parseInt(form.maxLoops.value, 10) : undefined;
       if (form.apiKey.value) {
         payload.apiKey = form.apiKey.value;
@@ -328,4 +541,6 @@
   });
 })();
 </script>
+
+{% render "components/skill-modal" %}
 {% endblock %}

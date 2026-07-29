@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { MCPTool } from "../core/ToolRegistry.js";
 import type { ChatHistoryItem } from "../../services/themeChat.js";
+import { prisma } from "../../db.js";
 
 // Gop context.history (lich su chat CU, tu cac luot truoc do) thanh 1 khoi van ban duy nhat, dang
 // "USER:<noi dung>\n\nASSISTANT:<noi dung>" - dung rieng cho getChatHistoryTool ben duoi. Neu 1
@@ -11,7 +12,13 @@ function formatHistoryBlock(history: ChatHistoryItem[]): string {
   if (!history.length) return "";
   const lines: string[] = [];
   for (const item of history) {
-    const label = item.role === "user" ? "USER" : "ASSISTANT";
+    const label = item.role === "user" ? "USER" : item.role === "tool" ? "TOOL_RESULT" : "ASSISTANT";
+    // Turn assistant goi tool (native tool-calling) thuong khong co "content" text, chi co
+    // "toolCalls" - hien ten tool + args ra thay vi in "ASSISTANT:null" vo nghia.
+    if (item.role === "assistant" && item.toolCalls && item.toolCalls.length > 0) {
+      lines.push(`${label}: [called ${item.toolCalls.map((c) => `${c.name}(${JSON.stringify(c.args)})`).join(", ")}]`);
+      continue;
+    }
     const content: unknown = item.content;
     if (Array.isArray(content)) {
       for (const part of content) {
@@ -140,5 +147,35 @@ export const finishSubtaskTool: MCPTool = {
     if (!summary) return "Error: missing summary.";
     context.meta.__pendingSubtaskSummary = summary;
     return "Recorded. Working memory will be compacted for the next step.";
+  },
+};
+
+// Ban tom tat dai han ve NGUOI DANG CHAT (User.memories, cot moi) - KHAC han context.history/
+// get_chat_history (lich su tho, tung luot rieng le): day la 1 khoi text DUY NHAT do CHINH AI tu
+// nen/viet lai moi khi thay dang du thong tin moi (giong facebook_customer_memories.memory ben
+// Facebook bot) - AI tu doc luc can, tu ghi luc thay dang, KHONG tu dong nhet vao moi luot (cung ly
+// do context.history bi revert: tranh phinh token + tranh AI "hoc" lai loi cu tu chinh no).
+export const getMemoryTool: MCPTool = {
+  name: "get_memory",
+  description: "Read your long-term summary notes about the current user (preferences, ongoing projects, past decisions). Empty args.",
+  execute: async (_args, context) => {
+    const userId = context.meta?.userId;
+    if (!userId) return "Error: no user context available.";
+    const user = await prisma.user.findUnique({ where: { leadbaseUserId: Number(userId) }, select: { memories: true } });
+    return user?.memories?.trim() || "(No saved memory yet for this user.)";
+  },
+};
+
+export const saveMemoryTool: MCPTool = {
+  name: "save_memory",
+  description:
+    'Overwrite your long-term summary notes about the current user with a new full version (not an append - include everything still relevant, drop what is stale). Use sparingly, only when you learn something worth remembering long-term. {"content": "full updated memory text"}',
+  execute: async (args, context) => {
+    const userId = context.meta?.userId;
+    if (!userId) return "Error: no user context available.";
+    const content = String(args.content || "").trim();
+    if (!content) return "Error: missing content.";
+    await prisma.user.update({ where: { leadbaseUserId: Number(userId) }, data: { memories: content } });
+    return "Memory saved.";
   },
 };

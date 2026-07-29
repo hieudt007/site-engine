@@ -1,0 +1,45 @@
+// Ten tieng Viet de doc cho tung tool (chi phuc vu HIEN THI o UI admin - vd agent-edit.liquid,
+// agents-list.liquid) - KHONG anh huong den "name"/"description" thuc gui cho AI (van la tieng Anh,
+// theo dung hard rule "Model-facing tool text must be English" trong CLAUDE.md). Slug ky thuat kho
+// nho voi admin, nen them lop nhan hien thi rieng nay.
+export const TOOL_LABELS_VI: Record<string, string> = {
+  web_search: "Tìm kiếm thông tin",
+  webfetch: "Đọc nội dung trang web",
+  generate_image: "Tạo ảnh",
+  generate_video: "Tạo video",
+  create_embedding: "Tạo embedding",
+  read_fields: "Đọc dữ liệu form",
+  fill_form: "Điền form",
+  get_chat_history: "Xem lịch sử chat",
+  get_current_page: "Xem trang hiện tại",
+  finish_subtask: "Hoàn tất bước công việc",
+  get_memory: "Đọc ghi nhớ về người dùng",
+  save_memory: "Lưu ghi nhớ về người dùng",
+  call_agent: "Gọi agent khác",
+  use_skill: "Dùng kỹ năng",
+  request_visual_qa: "Yêu cầu kiểm tra giao diện",
+  visual_qa: "Kiểm tra giao diện (ảnh)",
+  analyze_layout: "Phân tích bố cục",
+  get_design_system: "Lấy hệ thống thiết kế",
+  get_post: "Xem bài viết",
+  create_draft_post: "Tạo bài viết nháp",
+  create_automation: "Tạo lịch tự động",
+  update_automation: "Sửa lịch tự động",
+  delete_automation: "Xoá lịch tự động",
+  list_automations: "Xem danh sách lịch tự động",
+  list_files: "Liệt kê file",
+  read_files: "Đọc nội dung file",
+  search_code: "Tìm kiếm trong code",
+  replace_code: "Thay thế đoạn code",
+  overwrite_file: "Ghi đè file",
+  search_product: "Tìm sản phẩm",
+  get_product: "Xem chi tiết sản phẩm",
+  check_order: "Tra cứu đơn hàng",
+  create_lead: "Tạo khách hàng tiềm năng",
+  create_order: "Tạo đơn hàng",
+  mark_as_spam: "Đánh dấu spam",
+};
+
+export function toolLabelVi(toolName: string): string {
+  return TOOL_LABELS_VI[toolName] || toolName;
+}

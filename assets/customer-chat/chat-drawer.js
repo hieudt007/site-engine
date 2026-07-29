@@ -151,19 +151,42 @@
     });
 
     // Add message helper (can prepend or append)
+    // AI khong con gui field "images" rieng nua - URL anh nam THANG trong noi dung message (xem
+    // BaseAgent.ts RESPONSE_FORMAT_GUIDE). Tach URL anh ra khoi text (khong hien URL tho trong bubble
+    // chat), tra ve rieng de goi appendImage() nhu cu; URL con lai (khong phai anh) boc thanh <a>.
+    const IMAGE_EXT_REGEX = /\.(png|jpe?g|gif|webp|svg)(\?\S*)?$/i;
+    const URL_REGEX = /https?:\/\/\S+/g;
+    const extractImages = (text) => {
+      const images = [];
+      const cleanText = text.replace(URL_REGEX, (url) => {
+        const trimmed = url.replace(/[.,;:!?)]+$/, "");
+        if (IMAGE_EXT_REGEX.test(trimmed)) {
+          images.push(trimmed);
+          return "";
+        }
+        return `<a href="${trimmed}" target="_blank" rel="noopener noreferrer">${trimmed}</a>`;
+      });
+      return { cleanText: cleanText.trim(), images };
+    };
+
     const appendMessage = (text, isUser, prepend = false, id = null) => {
       if (!text) return;
-      const msg = document.createElement("div");
-      msg.className = "plugin-chat-message " + (isUser ? "user" : "assistant");
-      if (id) msg.setAttribute("data-id", id);
-      // Handle simple markdown bold for UI
-      msg.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-      if (prepend) {
-        messagesEl.insertBefore(msg, messagesEl.firstChild);
-      } else {
-        messagesEl.appendChild(msg);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+      const { cleanText, images } = extractImages(text);
+      let msg = null;
+      if (cleanText) {
+        msg = document.createElement("div");
+        msg.className = "plugin-chat-message " + (isUser ? "user" : "assistant");
+        if (id) msg.setAttribute("data-id", id);
+        // Handle simple markdown bold for UI
+        msg.innerHTML = cleanText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+        if (prepend) {
+          messagesEl.insertBefore(msg, messagesEl.firstChild);
+        } else {
+          messagesEl.appendChild(msg);
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
       }
+      images.forEach((url) => appendImage(url, isUser, prepend));
       return msg;
     };
 
@@ -313,13 +336,12 @@
             images: uploadedImages
           })
         });
-        
-        loading.remove();
-        
+
         if (!res.ok) {
+          loading.remove();
           const err = await res.json().catch(() => ({}));
           appendMessage("Lỗi: " + (err.error || "Không thể kết nối với CSKH"), false);
-          
+
           // Reset turnstile if failed
           if (window.turnstile) {
             window.turnstile.reset();
@@ -327,15 +349,77 @@
           return;
         }
 
-        const data = await res.json();
-        if (data.messages && data.messages.length > 0) {
-          data.messages.forEach(msg => appendMessage(msg, false));
-        } else if (data.text) {
-          appendMessage(data.text, false);
+        // Server tra ve SSE (routes/public/customerChat.ts) thay vi 1 JSON don - "message_delta" gop
+        // dan vao bubble loading de co hieu ung go chu that (chi co khi agent CSKH bat Agent.stream=
+        // true), "done" moi la ket qua cuoi cung chinh thuc (giong luong admin ai-chat-widget.liquid).
+        if (!res.body) {
+          loading.remove();
+          appendMessage("Lỗi: Không nhận được phản hồi từ CSKH", false);
+          return;
         }
-        
-        if (data.images && data.images.length > 0) {
-          data.images.forEach(img => appendImage(img, false));
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let streamedText = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop();
+
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith("data:")) continue;
+            let event;
+            try { event = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+
+            if (event.step === "typing_start") {
+              // Bat dau 1 VONG GOI AI MOI trong vong lap - chi reset buffer go chu, KHONG dong gi
+              // khac (bo qua het cac step khac nhu "tool"/"narration" - CSKH chi quan tam "message"
+              // that su, xem yeu cau: cac stream khac ke ca tool dang chay deu bo qua khong xu ly).
+              streamedText = "";
+            } else if (event.step === "message_delta") {
+              // Hien chu dang go dan NHU 1 TIN NHAN THAT (bo class "loading" de tat hieu ung pulse) -
+              // van la chinh bubble loading nay, chua tao tin nhan that/chua luu log, chi doi giao
+              // dien - noi dung chinh thuc chi duoc luu khi co event "done".
+              streamedText += event.text;
+              loading.classList.remove("loading");
+              loading.textContent = streamedText;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            } else if (event.step === "error") {
+              loading.remove();
+              appendMessage("Lỗi: " + event.label, false);
+              if (window.turnstile) window.turnstile.reset();
+              return;
+            } else if (event.step === "done") {
+              const data = event.payload || {};
+              const finalMsgs = (data.messages && data.messages.length > 0) ? data.messages : [];
+
+              if (finalMsgs.length > 0 && !loading.classList.contains("loading")) {
+                // Bubble nay DA hien chu that qua "message_delta" roi - GIU NGUYEN element (khong
+                // xoa di tao lai tu dau du chua he ghi vao log/DB, tranh mat noi dung dang hien
+                // tren man hinh), chi hoan thien lai dung format cuoi cung (tach anh/link, giong
+                // appendMessage()) cho tin nhan DAU TIEN. Cac tin con lai (hiem khi > 1) van tao
+                // bubble moi binh thuong.
+                const { cleanText, images } = extractImages(finalMsgs[0]);
+                if (cleanText) {
+                  loading.innerHTML = cleanText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                } else {
+                  loading.remove();
+                }
+                images.forEach((url) => appendImage(url, false));
+                for (let i = 1; i < finalMsgs.length; i++) appendMessage(finalMsgs[i], false);
+              } else {
+                loading.remove();
+                // appendMessage tu tach anh (URL anh nam thang trong text) - khong con data.images rieng.
+                finalMsgs.forEach(msg => appendMessage(msg, false));
+              }
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+          }
         }
       } catch (err) {
         loading.remove();

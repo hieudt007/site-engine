@@ -123,19 +123,55 @@ export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Pr
         take: 5,
       });
 
-      const history: ChatHistoryItem[] = historyRecords
-        .filter((r) => r.role === "user" || r.role === "assistant")
-        .reverse()
-        .map((r) => {
-          let content = r.message;
-          if (r.role === "assistant") {
-            try {
-              const parsed = JSON.parse(content);
-              if (parsed.messages) content = parsed.messages.join("\n");
-            } catch {}
-          }
-          return { role: r.role as "user" | "assistant", content };
-        });
+      // Tach tool-call/tool-result thanh TURN RIENG (giong het hinh dang "messages" that su dung
+      // TRONG luc chay 1 luot cua BaseAgent.runLoop(), va giong cach aiChat.ts build lai lich su
+      // admin) - KHONG gop thanh 1 cau van ban mo ta nhet truoc cau tra loi cuoi. Khach vang lai
+      // (khong dang nhap) nen KHONG dung get_memory/save_memory o day - agent "customer" cung
+      // khong duoc gan 2 tool do trong allowedTools (xem seedAgents.ts).
+      const history: ChatHistoryItem[] = [];
+      for (const r of [...historyRecords].reverse()) {
+        if (r.role !== "user" && r.role !== "assistant") continue;
+        if (r.role === "user") {
+          history.push({ role: "user", content: r.message });
+          continue;
+        }
+        if (r.metadata) {
+          try {
+            const meta = JSON.parse(r.metadata);
+            const actions = Array.isArray(meta.actions) ? meta.actions : [];
+            // Gom theo "round" (BaseAgent.ts: trace.push({..., round: loopCount})) - nhieu tool
+            // CUNG round nghia la AI goi chung 1 luot (1 turn assistant chua nhieu phan tu
+            // tool_calls), dung dung hinh dang that su da xay ra luc chay. Du lieu cu (truoc khi co
+            // "round") khong co field nay - fallback ve index rieng (moi tool 1 round) de van hoat
+            // dong duoc, chi khong gom nhom chinh xac cho log cu.
+            const rounds = new Map<number, typeof actions>();
+            actions.forEach((a: any, i: number) => {
+              const key = a.round ?? i;
+              if (!rounds.has(key)) rounds.set(key, []);
+              rounds.get(key)!.push(a);
+            });
+            for (const group of rounds.values()) {
+              // Dung hinh dang native tool-calling THAT (id THAT tu provider, luu lai trong
+              // metadata.actions luc live - xem BaseAgent.ts trace.push()) - khong con tu chep JSON
+              // trong content nua.
+              history.push({
+                role: "assistant",
+                content: null,
+                toolCalls: group.map((a: any) => ({ id: a.id, name: a.tool, args: a.args || {} })),
+              });
+              group.forEach((a: any) => {
+                history.push({ role: "tool", toolCallId: a.id, content: a.result });
+              });
+            }
+          } catch {}
+        }
+        let content = r.message;
+        try {
+          const parsed = JSON.parse(content);
+          if (parsed.messages) content = parsed.messages.join("\n");
+        } catch {}
+        history.push({ role: "assistant", content });
+      }
 
       await prisma.customerChatMessage.create({
         data: {
@@ -156,26 +192,61 @@ export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Pr
         finalMessage += `\nKhách đang xem sản phẩm có ID: ${productId}. Gọi tool get_product nếu cần chi tiết.`;
       }
 
-      const context: AgentContext = { meta: { sessionId, url, productId }, history };
+      // AI provider tu tai anh ve tu URL nay, can TUYET DOI (khong phai /uploads/... tuong doi tu
+      // client) - xem ghi chu trong aiClient.ts. Chi gui anh DAU TIEN (BaseAgent.run() hien chi nhan
+      // 1 imageUrl, giong luong admin aiChat.ts).
+      const imageUrl = images && images.length > 0
+        ? (/^https?:\/\//.test(images[0]) ? images[0] : `${request.protocol}://${request.hostname}${images[0]}`)
+        : undefined;
+
+      // Chuyen sang SSE TU DAY (moi validate/loi phia tren van la JSON response binh thuong, giu
+      // nguyen cho frontend cu) - de context.reply co the dung, cho phep BaseAgent.streamMessageDelta
+      // ban tung doan "message" real-time (hieu ung go chu that, giong luong admin aiChat.ts) khi
+      // agent CSKH nay bat settings.stream=true (Agent.settings). Neu stream=false thi hanh vi y het truoc day, chi
+      // khac o cho ket qua tra ve qua 1 event "done" thay vi thang trong body response.
+      reply.raw.setHeader("Content-Type", "text/event-stream");
+      reply.raw.setHeader("Cache-Control", "no-cache");
+      reply.raw.setHeader("Connection", "keep-alive");
+      const sseWrite = (data: Record<string, unknown>) => reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+
+      // hostname: can cho tool create_order (agentTools/customerSupportTools.ts) khi goi
+      // sendOrderToLeadbase() - LeadBase can biet Website nao gui don de tra dung secret xac thuc.
+      const context: AgentContext = { meta: { sessionId, url, productId, hostname: request.hostname }, history, reply };
 
       try {
-        const result = await new BaseAgent(agent).run(context, finalMessage);
-        const resultObj: any = typeof result === "string" ? { messages: [result], images: [] } : result;
+        const result = await new BaseAgent(agent).run(context, finalMessage, imageUrl);
+        const resultObj: any = typeof result === "string" ? { messages: [result] } : result;
+        // Khong con field "images" rieng - URL anh nam thang trong noi dung message, frontend
+        // (chat-drawer.js) tu nhan dien va tach ra hien rieng (xem RESPONSE_FORMAT_GUIDE).
         const messagesOut: string[] = resultObj.messages || (resultObj.message ? [resultObj.message] : []);
-        const imagesOut: string[] = resultObj.images || [];
         const isSpam = !!context.meta.isSpam;
 
+        // resultObj.actions (BaseAgent.runLoop()) = qua trinh goi tool + ket qua cua LUOT NAY - luu
+        // vao metadata de get_chat_history doc lai duoc o cac luot sau (xem xay dung "history" o tren).
+        const metadata = Array.isArray(resultObj.actions) && resultObj.actions.length > 0
+          ? JSON.stringify({ actions: resultObj.actions })
+          : undefined;
+
         await prisma.customerChatMessage.create({
-          data: { sessionId, agentKey, role: "assistant", message: JSON.stringify({ messages: messagesOut, images: imagesOut }) },
+          data: {
+            sessionId,
+            agentKey,
+            role: "assistant",
+            message: JSON.stringify({ messages: messagesOut }),
+            ...(metadata ? { metadata } : {}),
+          },
         });
 
-        return reply.send({ messages: messagesOut, images: imagesOut, agent: { name: agent.name }, isSpam });
+        sseWrite({ step: "done", payload: { messages: messagesOut, agent: { name: agent.name }, isSpam } });
       } catch (err: any) {
         await prisma.customerChatMessage.create({
           data: { sessionId, agentKey, role: "error", message: err.message },
         });
-        return reply.code(502).send({ error: "AI Error: " + err.message });
+        sseWrite({ step: "error", label: "AI Error: " + err.message });
       }
+
+      reply.raw.end();
+      return reply;
     },
   );
 

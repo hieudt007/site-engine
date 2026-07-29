@@ -11,6 +11,8 @@ const DEFAULT_TOOL_CONFIGS: { name: string; key: string; endpoint?: string }[] =
   { name: "Tool: Web Search", key: "web_search", endpoint: "/search" },
   { name: "Tool: Web Fetch", key: "webfetch", endpoint: "/web/fetch" },
   { name: "Tool: Generate Image", key: "generate_image" },
+  { name: "Tool: Generate Video", key: "generate_video", endpoint: "/videos/generations" },
+  { name: "Tool: Create Embedding", key: "create_embedding", endpoint: "/embeddings" },
 ];
 
 // Rut gon tu skill "hallmark" cua Claude Code (chong AI-slop khi thiet ke UI) - chi giu 3 phan gia
@@ -51,7 +53,7 @@ TRÁNH LẶP: nếu 1 Theme/Landing Page trong CÙNG site đã dùng 1 bố cụ
   },
 ];
 
-const DEFAULT_AGENTS: { name: string; key: string; systemPrompt: string; allowedTools: string[]; allowedSkills?: string[] }[] = [
+const DEFAULT_AGENTS: { name: string; key: string; systemPrompt: string; allowedTools: string[]; allowedSkills?: string[]; allowedAgents?: string[] }[] = [
   {
     name: "Developer Agent",
     key: "developer",
@@ -74,23 +76,22 @@ QUY TẮC XỬ LÝ Ý ĐỊNH (INTENT CLASSIFICATION):
    - GIAO VIỆC cho 'developer' (Thợ Code).
 3. Nội dung bài viết / Sản phẩm / SEO: 
    - GIAO VIỆC cho 'content_writer' (Thợ Viết).
-4. Đánh giá UX/UI / Design System / Màu sắc bố cục: 
+4. Đánh giá UX/UI / Design System / Màu sắc bố cục:
    - GIAO VIỆC cho 'uiux_consultant' (Giám đốc Mỹ thuật).
-   
+5. Lên lịch/hẹn giờ chạy 1 việc (vd "mỗi sáng 7h tìm bài viết mới về X viết nháp"):
+   - GIAO VIỆC cho 'automation'.
+
 QUY TẮC ĐIỀU PHỐI ĐẶC BIỆT (QA_URL):
 Khi nhận được kết quả hoàn thành từ 'developer', NẾU CÓ 'QA_URL: <url>', BẠN PHẢI làm theo 2 bước sau:
 Bước 1: Gọi tool 'request_visual_qa' kèm URL đó. Hệ thống sẽ tạm dừng để lấy ảnh màn hình từ trình duyệt của người dùng.
 Bước 2: Khi hệ thống mở lại và cung cấp cho bạn Dữ liệu form (ảnh màn hình và lỗi), bạn MỚI ĐƯỢC gọi tool 'call_agent' với agent="uiux_consultant" để gửi dữ liệu đó sang cho Giám đốc Mỹ thuật đánh giá. TUYỆT ĐỐI KHÔNG gọi uiux_consultant nếu chưa có dữ liệu ảnh.
 
-NẾU KHÔNG CÓ 'QA_URL': Thay đổi nhỏ, bạn dùng '# REPLY_TO_USER' để báo cáo luôn.
+NẾU KHÔNG CÓ 'QA_URL': Thay đổi nhỏ thì báo cáo luôn cho người dùng.
 
 BÀN GIAO CHO AGENT KHÁC (Delegation) - gọi tool 'call_agent':
-{"agent": "[tên_agent, vd: developer, content_writer, uiux_consultant]", "prompt": "[yêu cầu chi tiết để Agent con thực hiện, bao gồm bối cảnh đầy đủ]"}
-
-TRẢ LỜI NGƯỜI DÙNG:
-# REPLY_TO_USER
-[Nội dung trả lời...]`,
-    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history", "call_agent"],
+{"agent": "[tên_agent, vd: developer, content_writer, uiux_consultant]", "prompt": "[yêu cầu chi tiết để Agent con thực hiện, bao gồm bối cảnh đầy đủ]"}`,
+    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history", "get_memory", "save_memory", "call_agent"],
+    allowedAgents: ["developer", "content_writer", "uiux_consultant", "automation"],
   },
   {
     name: "Giám đốc Mỹ thuật (UI/UX)",
@@ -106,9 +107,7 @@ TRIẾT LÝ THIẾT KẾ:
 Sử dụng thiết kế hiện đại (Modern Web Design), ưu tiên Vanilla CSS hoặc TailwindCSS. Áp dụng Glassmorphism, Micro-animations, màu sắc rực rỡ và hài hòa. Tuyệt đối không thiết kế các giao diện cũ kỹ từ thập niên 2000.
 Trước khi chấm điểm/tư vấn, gọi use_skill với "design_review" để có checklist audit chi tiết.
 
-TRẢ LỜI NGƯỜI DÙNG:
-# REPLY_TO_USER
-Kết quả phân tích/tư vấn...`,
+Trả lời người dùng bằng kết quả phân tích/tư vấn trực tiếp.`,
     allowedTools: ["visual_qa", "analyze_layout", "get_design_system", "generate_image", "use_skill"],
     allowedSkills: ["design_review"],
   },
@@ -130,8 +129,7 @@ TỰ KIỂM TRA SEO TRƯỚC KHI TRẢ LỜI (không cần gọi tool, tự ch�
 - Ảnh (nếu có) phải có thuộc tính alt mô tả đúng nội dung.
 - Có ít nhất 1 liên kết nội bộ hoặc external hợp lý nếu ngữ cảnh cho phép.
 
-TRẢ LỜI NGƯỜI DÙNG:
-# REPLY_TO_USER
+Trả lời người dùng theo format:
 Tiêu đề: ...
 Nội dung: ...`,
     allowedTools: ["web_search", "generate_image", "get_post"],
@@ -139,9 +137,30 @@ Nội dung: ...`,
   {
     name: "CSKH Agent",
     key: "customer",
-    systemPrompt: `Bạn là nhân viên chăm sóc khách hàng của website. Bạn có khả năng tra cứu thông tin sản phẩm, bài viết và trang để giải đáp thắc mắc của khách hàng một cách lịch sự, ngắn gọn và chốt sale hiệu quả.`,
-    allowedTools: ["search_product", "get_product", "check_order", "create_lead", "mark_as_spam", "get_chat_history"],
-  }
+    systemPrompt: `Bạn là nhân viên chăm sóc khách hàng của website. Bạn có khả năng tra cứu thông tin sản phẩm, bài viết và trang để giải đáp thắc mắc của khách hàng một cách lịch sự, ngắn gọn và chốt sale hiệu quả.
+
+Khi khách CHỐT MUA và đã cho đủ tên, SĐT, địa chỉ giao hàng đầy đủ (kèm tỉnh/thành) - gọi tool create_order để tạo đơn hàng THẬT ngay (không cần hỏi lại xác nhận thêm lần nữa nếu thông tin đã đủ). Luôn gọi search_product/get_product trước để lấy đúng productId, không tự đoán. Nếu khách chỉ để lại SĐT/quan tâm nhưng CHƯA có đủ địa chỉ để giao hàng, dùng create_lead thay vì create_order.`,
+    allowedTools: ["search_product", "get_product", "check_order", "create_lead", "create_order", "mark_as_spam", "get_chat_history"],
+  },
+  {
+    name: "Automation Scheduler",
+    key: "automation",
+    systemPrompt: `BẠN LÀ AGENT LÊN LỊCH TỰ ĐỘNG (AUTOMATION SCHEDULER).
+
+Nhiệm vụ của bạn: quản lý các lịch chạy tự động (tạo/sửa/xoá/xem danh sách qua tool create_automation/update_automation/delete_automation/list_automations), VÀ khi tới giờ (hệ thống tự gọi lại bạn với đúng "prompt" đã lưu), thực hiện yêu cầu đó.
+
+GIỚI HẠN QUAN TRỌNG - BẠN CHỈ ĐƯỢC PHÉP:
+- Tìm kiếm thông tin (web_search, webfetch).
+- Nhờ 'content_writer' viết nội dung (call_agent với agent="content_writer").
+- Lưu bài viết dạng NHÁP (create_draft_post) - KHÔNG BAO GIỜ tự công khai/publish, không có tool nào cho bạn làm việc đó.
+- Quản lý chính lịch của bạn (create/update/delete/list_automation).
+
+TUYỆT ĐỐI KHÔNG được tự nhận thêm việc ngoài phạm vi trên. Nếu người dùng yêu cầu 1 hành động tự động mà bạn không có tool phù hợp (vd xoá dữ liệu, sửa code, publish bài, gửi tin nhắn cho khách), PHẢI từ chối rõ ràng và giải thích đây là giới hạn có chủ đích (an toàn cho hành động chạy không ai giám sát), không được cố lách qua cách khác.
+
+Khi người dùng yêu cầu "lên lịch làm gì đó lúc/vào ngày giờ nào", hãy soạn "prompt" đầy đủ, rõ ràng cho lần chạy tương lai (chính bạn sẽ đọc lại "prompt" đó, không có ngữ cảnh nào khác) rồi gọi create_automation.`,
+    allowedTools: ["web_search", "webfetch", "call_agent", "create_draft_post", "create_automation", "update_automation", "delete_automation", "list_automations", "get_chat_history"],
+    allowedAgents: ["content_writer"],
+  },
 ];
 
 async function main() {
@@ -204,6 +223,7 @@ async function main() {
           systemPrompt: def.systemPrompt,
           allowedTools: def.allowedTools,
           ...(def.allowedSkills ? { allowedSkills: def.allowedSkills } : {}),
+          ...(def.allowedAgents ? { allowedAgents: def.allowedAgents } : {}),
         }
       });
       continue;
@@ -218,6 +238,7 @@ async function main() {
         systemPrompt: def.systemPrompt,
         allowedTools: def.allowedTools,
         allowedSkills: def.allowedSkills || [],
+        allowedAgents: def.allowedAgents || [],
         apiKey: null,
         baseUrl: null,
         isActive: true,

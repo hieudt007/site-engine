@@ -274,7 +274,8 @@
         trash: '<path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M6 6l1 16h10l1-16"></path><path d="M10 11v6"></path><path d="M14 11v6"></path>',
         "external-link": '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>',
         eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
-        lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>'
+        lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+        pencil: '<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>'
       };
       return '<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true">' + (paths[name] || "") + "</svg>";
     };
@@ -321,10 +322,10 @@
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath == "/admin/live-chat" %} active{% endif %}" href="/admin/live-chat">{% render "components/icon", name: "users" %}<span>Live Chat</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath == "/admin/plugins" %} active{% endif %}" href="/admin/plugins">{% render "components/icon", name: "plug" %}<span>Plugins</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">{% render "components/icon", name: "bot" %}<span>AI Agent</span></a>{% endif %}
-        <a class="sidebar-link{% if currentPath contains "/admin/forms" %} active{% endif %}" href="/admin/forms">{% render "components/icon", name: "users" %}<span>Lead Form</span></a>
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">{% render "components/icon", name: "users" %}<span>Người dùng</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">{% render "components/icon", name: "settings" %}<span>Cài đặt chung</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">{% render "components/icon", name: "route" %}<span>Chuyển hướng</span></a>{% endif %}
+        <a class="sidebar-link{% if currentPath contains "/admin/automations" %} active{% endif %}" href="/admin/automations">{% render "components/icon", name: "calendar" %}<span>Automation</span></a>
       </div>
     {% endif %}
 

@@ -427,6 +427,9 @@
   // ID cua luot chat dang chay dang do (biet duoc qua SSE event "history_id") - dung de gui tin
   // nhan "chen ngang" (steering) khi user go tiep trong luc AI van dang xu ly.
   let currentInFlightHistoryId = null;
+  // Buffer go chu dan cua "message" trong LUOT GOI AI HIEN TAI (reset o "typing_start", gop dan o
+  // "message_delta") - xem xu ly SSE trong sendMessage().
+  let streamedMessage = "";
   let pendingImageUrl = null;
   let entityId = null;
   const pathMatch = window.location.pathname.match(/^\/admin\/(posts|pages|products|settings\/theme)\/([a-zA-Z0-9-_]+)/);
@@ -539,6 +542,23 @@
     return (unsafe||'').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
+  // Escape truoc (message la PLAIN TEXT tu AI, khong con la HTML/markdown nhu truoc), roi tu nhan
+  // dien URL trong text: URL anh (duoi .png/.jpg/.gif/.webp/.svg) -> the <img>, URL khac -> the <a>.
+  // Thay the cho field "images" rieng da bo (xem RESPONSE_FORMAT_GUIDE trong BaseAgent.ts) - AI chi
+  // can viet URL thang vao message, khong can tach thanh field co cau truc.
+  const URL_REGEX = /https?:\/\/[^\s<>"']+/g;
+  const IMAGE_EXT_REGEX = /\.(png|jpe?g|gif|webp|svg)(\?[^\s<>"']*)?$/i;
+  function autoLinkify(text) {
+    return escapeHtml(text).replace(URL_REGEX, (url) => {
+      // escapeHtml co the doi "&" thanh "&amp;" trong url - khong anh huong toi viec nhan dien
+      // duoi file (luon nam cuoi, truoc dau "?" neu co).
+      if (IMAGE_EXT_REGEX.test(url)) {
+        return `<img src="${url}" alt="" style="display:block;max-width:280px;border-radius:8px;margin:6px 0;">`;
+      }
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    });
+  }
+
   // Ghi du lieu tool "fill_form" (event.payload.fields) vao DOM - dung chung cho SSE step
   // "form_fill" (xem xu ly SSE ben duoi).
   function applyFormFill(fields) {
@@ -587,6 +607,31 @@
     }
   }
 
+  // Chuyen 1 element (loadingEl) VE che do spinner+label (nhu cu) - dung cho tool dang chay hoac
+  // vong goi AI moi bat dau (chua co chu nao ve). An toan goi lai nhieu lan (idempotent).
+  const LOADING_SPINNER_SVG = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+  function enterLoadingMode(loadingEl, label) {
+    loadingEl.classList.remove('ai-msg-bubble', 'ai-msg-bot');
+    loadingEl.classList.add('ai-chat-loading');
+    loadingEl.style.alignSelf = '';
+    loadingEl.innerHTML = LOADING_SPINNER_SVG + ' <span></span>';
+    loadingEl.querySelector('span').textContent = label;
+  }
+
+  // Chuyen loadingEl SANG che do hien chu that dang go dan (muon nhu 1 bubble chat that, KHONG
+  // phai dong label loading nua) - dung khi bat dau nhan duoc "message_delta". Van la element loading
+  // cu (chua tao bubble that/chua ghi log), chi doi giao dien - "message" that su chi duoc luu khi
+  // co event "done" (xem sendMessage()). alignSelf=flex-start: loadingEl la con truc tiep cua
+  // #ai-chat-messages (flex column, align-items mac dinh la stretch) - khong co the "ai-msg-container"
+  // bao ngoai nhu renderMessage() de tu co align-items:flex-start rieng, phai tu set truc tiep tren
+  // chinh no de om sat noi dung/canh trai giong het bubble that, khong giang full-width.
+  function enterTextMode(loadingEl) {
+    loadingEl.classList.remove('ai-chat-loading');
+    loadingEl.classList.add('ai-msg-bubble', 'ai-msg-bot');
+    loadingEl.style.alignSelf = 'flex-start';
+    loadingEl.innerHTML = '';
+  }
+
   function renderMessage(role, content, meta, imageUrl) {
     const container = document.createElement('div');
     container.className = `ai-msg-container ${role === 'user' ? 'user' : 'bot'}`;
@@ -623,7 +668,7 @@
       // Bot response
       const botContent = item.assistant_response || (item.error_message ? `Lỗi: ${item.error_message}` : null);
       if (botContent) {
-        frag.appendChild(renderMessage('bot', botContent, item.status === 'success' ? '' : item.status));
+        frag.appendChild(renderMessage('bot', autoLinkify(botContent), item.status === 'success' ? '' : item.status));
       }
     });
 
@@ -1080,8 +1125,10 @@
         body: JSON.stringify(payload)
       });
       
-      const loadingEl = document.getElementById('ai-loading-indicator');
-      
+      // let (khong phai const) - "tool" co the can THAY THE bang 1 dong loading MOI rieng, giu lai
+      // bubble narration cu (xem nhanh "thinking"/"tool" ben duoi), nen bien nay phai gan lai duoc.
+      let loadingEl = document.getElementById('ai-loading-indicator');
+
       if (!res.ok || !res.body) {
         if (loadingEl) loadingEl.remove();
         messagesDiv.appendChild(renderMessage('bot', "Lỗi: Không thể gọi AI.", 'error'));
@@ -1116,8 +1163,49 @@
              currentInFlightHistoryId = event.historyId;
           } else if (event.step === "thinking" || event.step === "tool") {
              // "tool": he thong tu ghep ten tool + tham so NGAY TRUOC KHI thuc thi (BaseAgent.
-             // streamToolCall) - thay dong "Dang suy nghi..." bang dong nay, khong ton token AI.
-             if (loadingEl) loadingEl.querySelector('span').textContent = event.label;
+             // streamToolCall). Neu loadingEl dang la bubble narration DA hien chu that (message_
+             // delta) - KHONG duoc ghi de/xoa noi dung do (du chua ghi log, van la 1 tin nhan that
+             // dang hien tren man hinh) - "chot" bubble do lai (bo id de khong dung chung voi dong
+             // loading moi) roi tao 1 dong loading RIENG cho buoc tool nay, gan lai vao loadingEl de
+             // cac step sau (message_delta/tool/done) tiep tuc thao tac dung tren dong moi nay.
+             if (loadingEl && loadingEl.classList.contains('ai-msg-bubble')) {
+               loadingEl.removeAttribute('id');
+               const newLoadingEl = document.createElement('div');
+               newLoadingEl.id = 'ai-loading-indicator';
+               newLoadingEl.className = 'ai-chat-loading';
+               messagesDiv.appendChild(newLoadingEl);
+               loadingEl = newLoadingEl;
+             }
+             if (loadingEl) enterLoadingMode(loadingEl, event.label);
+             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          } else if (event.step === "typing_start") {
+             // Bao hieu byte dau tien tu provider da ve (BaseAgent.streamTypingStart, chi ban khi
+             // agent.stream=true) - AI dang xu ly that, khong phai dong "..." tinh nua. Cung la moc
+             // BAT DAU 1 LUOT GOI AI MOI trong vong lap - reset buffer go chu (streamedMessage) VA
+             // dua loadingEl VE che do loading (phong truong hop vong truoc dang o che do text vi co
+             // narration) truoc khi cho chu moi cua vong nay.
+             streamedMessage = "";
+             if (loadingEl) enterLoadingMode(loadingEl, "AI đang xử lý...");
+          } else if (event.step === "message_delta") {
+             // Doan MOI cua "message" AI dang viet (BaseAgent.streamMessageDelta, chi co khi
+             // agent.stream=true VA provider OpenAI-compatible) - GOP DAN va hien nhu 1 tin nhan chat
+             // THAT dang go dan (enterTextMode, khong con la dong label loading nua) - VAN la element
+             // loading cu, chua tao bubble that/chua luu log, chi doi giao dien cho giong tin that.
+             streamedMessage += event.text;
+             if (loadingEl) {
+               if (!loadingEl.classList.contains('ai-msg-bubble')) enterTextMode(loadingEl);
+               loadingEl.textContent = streamedMessage;
+               messagesDiv.scrollTop = messagesDiv.scrollHeight;
+             }
+          } else if (event.step === "narration") {
+             // "message" AI viet KEM tool_calls (BaseAgent.streamNarration) - vd "đợi em kiểm tra
+             // một chút" truoc khi goi tool. Neu agent.stream=true, chu nay DA hien dan qua
+             // "message_delta" roi (dang bubble that) - KHONG lam gi them, tranh ghi de mat hieu ung.
+             // Neu agent.stream=false (khong co message_delta nao truoc do), day la CACH DUY NHAT de
+             // hien narration - dua ve che do loading kem label nhu truoc gio.
+             if (loadingEl && !loadingEl.classList.contains('ai-msg-bubble')) {
+               enterLoadingMode(loadingEl, event.label);
+             }
           } else if (event.step === "error") {
              if (loadingEl) loadingEl.remove();
              messagesDiv.appendChild(renderMessage('bot', event.label, 'error'));
@@ -1257,11 +1345,21 @@
              applyFormFill((event.payload || {}).fields);
           } else if (event.step === "done") {
              const data = event.payload || {};
-             if (loadingEl) loadingEl.remove();
              const msgs = Array.isArray(data.messages) && data.messages.length ? data.messages : [data.message || data.reply || "Đã xử lý xong."];
-             msgs.forEach(m => messagesDiv.appendChild(renderMessage('bot', m)));
-             if (Array.isArray(data.images)) {
-               data.images.forEach(imgUrl => messagesDiv.appendChild(renderMessage('bot', `![Ảnh](${imgUrl})`)));
+             if (loadingEl && loadingEl.classList.contains('ai-msg-bubble')) {
+               // Bubble nay DA hien chu that qua "message_delta" roi (agent.stream=true) - GIU
+               // NGUYEN element (khong xoa di tao lai tu dau du chua he ghi vao log/DB, tranh mat
+               // noi dung dang hien tren man hinh), chi bo trang thai loading va hoan thien lai
+               // dung format cuoi cung (autoLinkify: link/anh). Cac message con lai (hiem khi > 1)
+               // van tao bubble moi binh thuong.
+               loadingEl.removeAttribute('id');
+               loadingEl.innerHTML = autoLinkify(msgs[0]);
+               for (let i = 1; i < msgs.length; i++) {
+                 messagesDiv.appendChild(renderMessage('bot', autoLinkify(msgs[i])));
+               }
+             } else {
+               if (loadingEl) loadingEl.remove();
+               msgs.forEach(m => messagesDiv.appendChild(renderMessage('bot', autoLinkify(m))));
              }
              messagesDiv.scrollTop = messagesDiv.scrollHeight;
              isAiLoading = false;

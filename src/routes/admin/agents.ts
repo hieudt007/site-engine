@@ -32,6 +32,29 @@ const agentSchema = z.object({
   allowedSkills: z.array(z.string()).optional().default([]),
   // Chi dung khi type='agent': cac agent.key duoc phep goi (sub-agents).
   allowedAgents: z.array(z.string()).optional().default([]),
+  // Tham so phu khi goi provider (gop chung 1 cot Json, xem prisma/schema.prisma comment tren
+  // Agent.settings va aiClient.ts: getAgentSettings()). "stream" chi co ich khi agent nay duoc goi
+  // tu noi co context.reply (SSE).
+  settings: z
+    .object({
+      stream: z.boolean().optional(),
+      max_tokens: z.number().int().positive().optional(),
+      temperature: z.number().min(0).max(2).optional(),
+      // Rieng agent endpoint="/search" (xem aiClient.ts: webSearch()).
+      search_type: z.enum(["news", "web"]).optional(),
+      max_results: z.number().int().positive().optional(),
+      country: z.string().optional(),
+      language: z.string().optional(),
+      // Rieng agent endpoint="/web/fetch" (xem aiClient.ts: webFetch()).
+      format: z.enum(["markdown", "text", "html"]).optional(),
+      max_chars: z.number().int().min(0).optional(),
+      // Rieng agent endpoint="/images/generations" (xem aiClient.ts: generateImage()).
+      n: z.number().int().positive().optional(),
+      output_format: z.string().optional(),
+      // Rieng agent endpoint="/embeddings" (xem aiClient.ts: createEmbedding()).
+      dimensions: z.number().int().positive().optional(),
+    })
+    .optional(),
 });
 
 const updateAgentSchema = agentSchema.partial();
@@ -60,7 +83,7 @@ function auditLog(userId: number, action: string, entityId: string, metadata?: o
 // dung sau. Chi "admin" duoc dung (nam api key), khac Post/Page ("edit" tao duoc nhap mon).
 export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { type?: string } }>("/admin/api/agents", { preHandler: requireRole("admin") }, async (request) => {
-    const type = request.query.type === "skill" ? "skill" : "agent";
+    const type = request.query.type === "skill" ? "skill" : request.query.type === "tool" ? "tool" : "agent";
     const agents = await prisma.agent.findMany({ where: { type }, orderBy: { name: "asc" } });
     return { agents };
   });

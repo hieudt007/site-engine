@@ -18,6 +18,38 @@ const messageSchema = z.object({
   toolData: z.record(z.any()).optional().nullable(),
 });
 
+// Port tu DeveloperAgent.ts's getSystemPrompt() override (da xoa - chuyen thanh trach nhiem cua
+// CALLER, xem AgentContext.extraSystemPrompt) - tuy bien theo dang sua Theme/Landing Page nao.
+function developerContextPrompt(data: z.infer<typeof messageSchema>): string {
+  let prompt = "THÔNG TIN HỆ THỐNG (NGỮ CẢNH ĐỘNG):\n";
+  if (data.themeSlug) {
+    prompt += `- Khung sườn (Framework): Bạn đang thao tác với mã nguồn của THEME sử dụng template engine **Liquid** (cú pháp giống Shopify).
+- Bạn phải tuân thủ nghiêm ngặt cấu trúc khối {% comment %} bảo vệ hợp đồng ở đầu các file.
+- Tuyệt đối không xóa logic Liquid khi sửa CSS.\n`;
+  } else if (data.landingPageSlug) {
+    prompt += `- Khung sườn (Framework): Bạn đang thao tác với mã nguồn của LANDING PAGE.
+- Môi trường tĩnh (HTML/TailwindCSS). Không có Liquid. Không cần bảo vệ {% comment %}.\n`;
+  } else {
+    prompt += `- Không xác định rõ ngữ cảnh (Theme/Landing/Plugin). Chỉ thực hiện thay thế cơ bản.\n`;
+  }
+  prompt += `
+Khi đã làm xong, báo cáo lại kết quả cho Lễ tân hoặc Người dùng trong "message".
+Nếu bạn vừa thực hiện THAY ĐỔI LỚN về giao diện/code, bạn BẮT BUỘC phải đính kèm dòng sau vào đầu "message" để hệ thống tự động kiểm tra lỗi UI/UX (chỉ định đúng URL của trang liên quan):
+QA_URL: <url_tương_ứng_của_trang>
+
+Ví dụ "message": "Tôi đã sửa xong file X, thay đổi cụ thể là Y."
+`;
+  return prompt;
+}
+
+// Port tu BaseAgent.getSystemPrompt() cu (da xoa - chuyen thanh trach nhiem CALLER) - CHI hien khi
+// agent nay THAT SU co tool "read_fields" trong allowedTools, tranh AI doc thay huong dan goi 1
+// tool no khong duoc phep dung.
+function fieldsListPrompt(allowedTools: string[], availableFields?: string[] | null): string | undefined {
+  if (!allowedTools.includes("read_fields") || !availableFields || availableFields.length === 0) return undefined;
+  return `--- FIELDS LIST ---\n[${availableFields.join(", ")}]\n(Call read_fields to read a field's value)`;
+}
+
 // Route THU NGHIEM cho nen mong MCP (AgentFactory/BaseAgent/ToolRegistry/MarkdownParser) - chay
 // SONG SONG voi luong cu (aiChat.ts, khong dung/thay the), de kiem tra end-to-end truoc khi tinh
 // chuyen router chat that sang day. Dung chung bang AdminChatHistory voi luong cu (phan biet qua
@@ -61,6 +93,11 @@ export async function registerMcpChatRoutes(app: FastifyInstance): Promise<void>
       data: { userId, entityId: entityId || null, userMessage: message, imageUrl: imageUrl || null, status: "pending" },
     });
 
+    const extraSystemPromptParts = [
+      agentKey === "developer" ? developerContextPrompt(parsed.data) : undefined,
+      fieldsListPrompt(agent.getAgentModel().allowedTools || [], parsed.data.availableFields),
+    ].filter((p): p is string => !!p);
+
     try {
       const result = await agent.run(
         {
@@ -72,6 +109,10 @@ export async function registerMcpChatRoutes(app: FastifyInstance): Promise<void>
           },
           history,
           reply,
+          // Boi canh dang sua (Theme/Landing Page) + FIELDS LIST - CALLER (o day) tu ghep thanh
+          // chuoi, BaseAgent khong con biet gi ve Theme/Landing/fields (xem thao luan thiet ke
+          // AgentContext.extraSystemPrompt).
+          extraSystemPrompt: extraSystemPromptParts.length > 0 ? extraSystemPromptParts.join("\n\n") : undefined,
         },
         message,
         imageUrl || undefined,

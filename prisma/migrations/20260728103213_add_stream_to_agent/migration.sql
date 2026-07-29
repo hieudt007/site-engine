@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Agent" ADD COLUMN "stream" BOOLEAN NOT NULL DEFAULT true;

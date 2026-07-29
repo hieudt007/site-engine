@@ -2,10 +2,9 @@ import { FastifyInstance } from "fastify";
 import { renderAdmin } from "../../services/adminView.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
-export async function registerAdminFormsUiRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/admin/forms", { preHandler: requireRole("edit") }, async (request, reply) => {
-    const html = await renderAdmin("forms-list", {
-      pageTitle: "Danh sách khách hàng (Lead Form)",
+export async function registerAutomationsUiRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/admin/automations", { preHandler: requireRole("manager") }, async (request, reply) => {
+    const html = await renderAdmin("automations", {
       userName: request.session.get("name"),
       role: request.session.get("role"),
       currentPath: request.url,
