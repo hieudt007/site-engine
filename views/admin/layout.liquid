@@ -325,7 +325,7 @@
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/users" %} active{% endif %}" href="/admin/users">{% render "components/icon", name: "users" %}<span>Người dùng</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">{% render "components/icon", name: "settings" %}<span>Cài đặt chung</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">{% render "components/icon", name: "route" %}<span>Chuyển hướng</span></a>{% endif %}
-        <a class="sidebar-link{% if currentPath contains "/admin/automations" %} active{% endif %}" href="/admin/automations">{% render "components/icon", name: "calendar" %}<span>Automation</span></a>
+        <a class="sidebar-link{% if currentPath contains "/admin/automations" %} active{% endif %}" href="/admin/automations">{% render "components/icon", name: "zap" %}<span>AI Automation</span></a>
       </div>
     {% endif %}
 

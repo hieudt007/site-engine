@@ -75,6 +75,7 @@ import { registerVnpayRoutes } from "./routes/public/vnpay.js";
 import { registerProvincesRoutes } from "./routes/public/provinces.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
+import { registerLeadbasePostRoutes } from "./routes/public/leadbasePosts.js";
 import { registerReviewRoutes } from "./routes/public/reviews.js";
 import { registerSeoRoutes } from "./routes/public/seo.js";
 import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js";
@@ -280,6 +281,7 @@ async function start(): Promise<void> {
   await registerPublicSearchRoutes(app);
   await registerDynamicPrefixRoutes(app);
   await registerProductsSyncRoutes(app);
+  await registerLeadbasePostRoutes(app);
   await registerReviewRoutes(app);
   await registerCartRoutes(app);
 

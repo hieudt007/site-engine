@@ -197,6 +197,88 @@
     margin-top: 8px;
   }
 
+  /* ── Stepper (giống Landing Page generator) ─────────────────── */
+  .ai-stepper-bubble {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 14px;
+    min-width: 220px;
+    max-width: 86%;
+    align-self: flex-start;
+  }
+
+  .ai-stepper-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 10px;
+  }
+
+  .ai-stepper-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+  }
+
+  .ai-stepper-item {
+    display: flex;
+    gap: 10px;
+  }
+
+  .ai-stepper-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .ai-stepper-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-stepper-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #d1d5db;
+    background: #fff;
+    margin-top: 3px;
+  }
+
+  .ai-stepper-line {
+    width: 1px;
+    flex: 1;
+    min-height: 8px;
+    background: #e5e7eb;
+    margin-top: 2px;
+  }
+  .ai-stepper-line.done { background: #6ee7b7; }
+
+  .ai-stepper-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .ai-stepper-body:not(:last-child) { padding-bottom: 10px; }
+
+  .ai-stepper-label {
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: #9ca3af;
+  }
+  .ai-stepper-label.active  { font-weight: 600; color: #1d4ed8; }
+  .ai-stepper-label.done    { color: #4b5563; }
+  .ai-stepper-label.failed  { font-weight: 600; color: #dc2626; }
+
+  @keyframes ai-spin { to { transform: rotate(360deg); } }
+  .ai-spin { animation: ai-spin 0.9s linear infinite; }
+
   .ai-chat-loading {
     display: flex;
     align-items: center;
@@ -607,11 +689,71 @@
     }
   }
 
-  // Chuyen 1 element (loadingEl) VE che do spinner+label (nhu cu) - dung cho tool dang chay hoac
-  // vong goi AI moi bat dau (chua co chu nao ve). An toan goi lai nhieu lan (idempotent).
-  const LOADING_SPINNER_SVG = '<svg class="lucide-loader-circle" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+  // ── SVG helpers ────────────────────────────────────────────────────────
+  const SPINNER_SVG  = '<svg class="ai-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+  const CHECK_SVG    = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+  const X_SVG        = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+
+  // ── Stepper state keyed by loadingEl ───────────────────────────────────
+  // WeakMap<el, {steps: [{label, state}]}>
+  const stepperMap = new WeakMap();
+
+  function _rebuildStepper(loadingEl) {
+    const data = stepperMap.get(loadingEl);
+    if (!data) return;
+
+    loadingEl.classList.remove('ai-chat-loading', 'ai-msg-bubble', 'ai-msg-bot');
+    loadingEl.classList.add('ai-stepper-bubble');
+    loadingEl.style.alignSelf = 'flex-start';
+
+    const { steps } = data;
+    const items = steps.map((s, i) => {
+      const isLast   = i === steps.length - 1;
+      const iconHtml = s.state === 'done' ? CHECK_SVG
+                     : s.state === 'failed' ? X_SVG
+                     : s.state === 'active' ? SPINNER_SVG
+                     : '<span class="ai-stepper-dot"></span>';
+      const lineHtml = isLast ? '' : `<div class="ai-stepper-line${s.state === 'done' ? ' done' : ''}"></div>`;
+      const bodyPb   = isLast ? '' : ' style="padding-bottom:10px"';
+      return `<li class="ai-stepper-item">
+  <div class="ai-stepper-left">
+    <div class="ai-stepper-icon">${iconHtml}</div>${lineHtml}
+  </div>
+  <div class="ai-stepper-body"${bodyPb}>
+    <div class="ai-stepper-label ${s.state}">${escapeHtml(s.label)}</div>
+  </div>
+</li>`;
+    }).join('');
+
+    loadingEl.innerHTML = `<div class="ai-stepper-header">Đang xử lý</div><ol class="ai-stepper-list">${items}</ol>`;
+  }
+
+  // Them buoc MOI vao stepper (va danh dau buoc truoc la "done")
+  function pushStep(loadingEl, label) {
+    if (!stepperMap.has(loadingEl)) stepperMap.set(loadingEl, { steps: [] });
+    const data = stepperMap.get(loadingEl);
+    if (data.steps.length > 0) data.steps[data.steps.length - 1].state = 'done';
+    data.steps.push({ label, state: 'active' });
+    _rebuildStepper(loadingEl);
+  }
+
+  // Danh dau buoc cuoi la "done" (khi message_delta den truoc khi co tool moi)
+  function markLastStepDone(loadingEl) {
+    const data = stepperMap.get(loadingEl);
+    if (!data || data.steps.length === 0) return;
+    data.steps[data.steps.length - 1].state = 'done';
+    _rebuildStepper(loadingEl);
+  }
+
+  // Chuyen 1 element (loadingEl) VE che do spinner+label (nhu cu, dung khi CHUA co step nao)
+  const LOADING_SPINNER_SVG = '<svg class="ai-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
   function enterLoadingMode(loadingEl, label) {
-    loadingEl.classList.remove('ai-msg-bubble', 'ai-msg-bot');
+    // Neu da co step trong stepper thi day them 1 buoc thay vi xoa trang
+    if (stepperMap.has(loadingEl) && stepperMap.get(loadingEl).steps.length > 0) {
+      pushStep(loadingEl, label);
+      return;
+    }
+    loadingEl.classList.remove('ai-msg-bubble', 'ai-msg-bot', 'ai-stepper-bubble');
     loadingEl.classList.add('ai-chat-loading');
     loadingEl.style.alignSelf = '';
     loadingEl.innerHTML = LOADING_SPINNER_SVG + ' <span></span>';
@@ -1162,12 +1304,9 @@
              // ngang" trong luc AI van dang xu ly (xem nhanh isAiLoading o dau sendMessage()).
              currentInFlightHistoryId = event.historyId;
           } else if (event.step === "thinking" || event.step === "tool") {
-             // "tool": he thong tu ghep ten tool + tham so NGAY TRUOC KHI thuc thi (BaseAgent.
-             // streamToolCall). Neu loadingEl dang la bubble narration DA hien chu that (message_
-             // delta) - KHONG duoc ghi de/xoa noi dung do (du chua ghi log, van la 1 tin nhan that
-             // dang hien tren man hinh) - "chot" bubble do lai (bo id de khong dung chung voi dong
-             // loading moi) roi tao 1 dong loading RIENG cho buoc tool nay, gan lai vao loadingEl de
-             // cac step sau (message_delta/tool/done) tiep tuc thao tac dung tren dong moi nay.
+             // "tool": he thong tu ghep ten tool + tham so NGAY TRUOC KHI thuc thi. Neu loadingEl
+             // dang la bubble text that (message_delta) - CHOT bubble do lai, tao 1 stepper MOI de
+             // tiep tuc theo doi cac buoc con lai.
              if (loadingEl && loadingEl.classList.contains('ai-msg-bubble')) {
                loadingEl.removeAttribute('id');
                const newLoadingEl = document.createElement('div');
@@ -1176,35 +1315,35 @@
                messagesDiv.appendChild(newLoadingEl);
                loadingEl = newLoadingEl;
              }
-             if (loadingEl) enterLoadingMode(loadingEl, event.label);
+             if (loadingEl) pushStep(loadingEl, event.label);
              messagesDiv.scrollTop = messagesDiv.scrollHeight;
           } else if (event.step === "typing_start") {
-             // Bao hieu byte dau tien tu provider da ve (BaseAgent.streamTypingStart, chi ban khi
-             // agent.stream=true) - AI dang xu ly that, khong phai dong "..." tinh nua. Cung la moc
-             // BAT DAU 1 LUOT GOI AI MOI trong vong lap - reset buffer go chu (streamedMessage) VA
-             // dua loadingEl VE che do loading (phong truong hop vong truoc dang o che do text vi co
-             // narration) truoc khi cho chu moi cua vong nay.
+             // Bao hieu byte dau tien tu provider da ve - reset buffer go chu, dam bao loadingEl
+             // ve trang thai dung truoc khi nhan chu moi.
              streamedMessage = "";
-             if (loadingEl) enterLoadingMode(loadingEl, "AI đang xử lý...");
+             if (loadingEl && stepperMap.has(loadingEl)) {
+               // Da co stepper - khong reset, chi de do
+             } else if (loadingEl) {
+               enterLoadingMode(loadingEl, "AI đang xử lý...");
+             }
           } else if (event.step === "message_delta") {
-             // Doan MOI cua "message" AI dang viet (BaseAgent.streamMessageDelta, chi co khi
-             // agent.stream=true VA provider OpenAI-compatible) - GOP DAN va hien nhu 1 tin nhan chat
-             // THAT dang go dan (enterTextMode, khong con la dong label loading nua) - VAN la element
-             // loading cu, chua tao bubble that/chua luu log, chi doi giao dien cho giong tin that.
+             // Chu dang go dan (stream) - chuyen sang bubble text that.
+             // Truoc do danh dau buoc cuoi cua stepper la done (neu co).
              streamedMessage += event.text;
              if (loadingEl) {
+               if (stepperMap.has(loadingEl)) markLastStepDone(loadingEl);
                if (!loadingEl.classList.contains('ai-msg-bubble')) enterTextMode(loadingEl);
                loadingEl.textContent = streamedMessage;
                messagesDiv.scrollTop = messagesDiv.scrollHeight;
              }
           } else if (event.step === "narration") {
-             // "message" AI viet KEM tool_calls (BaseAgent.streamNarration) - vd "đợi em kiểm tra
-             // một chút" truoc khi goi tool. Neu agent.stream=true, chu nay DA hien dan qua
-             // "message_delta" roi (dang bubble that) - KHONG lam gi them, tranh ghi de mat hieu ung.
-             // Neu agent.stream=false (khong co message_delta nao truoc do), day la CACH DUY NHAT de
-             // hien narration - dua ve che do loading kem label nhu truoc gio.
+             // Narration (stream=false): hien label tren stepper hoac loading thuong.
              if (loadingEl && !loadingEl.classList.contains('ai-msg-bubble')) {
-               enterLoadingMode(loadingEl, event.label);
+               if (stepperMap.has(loadingEl)) {
+                 pushStep(loadingEl, event.label);
+               } else {
+                 enterLoadingMode(loadingEl, event.label);
+               }
              }
           } else if (event.step === "error") {
              if (loadingEl) loadingEl.remove();

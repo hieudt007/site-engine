@@ -49,9 +49,36 @@
         <label>Tên (gợi nhớ)</label>
         <input type="text" name="name" required placeholder="VD: Bài AI hàng ngày">
       </div>
-      <div>
+      <div style="display:flex; gap:1rem;">
+        <div style="flex:1;">
+          <label>Loại hành động</label>
+          <select name="actionType" id="actionType" onchange="toggleActionFields()">
+            <option value="ai_agent">Dùng AI Agent</option>
+            <option value="function">Dùng Hàm Hệ Thống</option>
+          </select>
+        </div>
+        <div style="flex:1;" id="agentField">
+          <label>Chọn AI Agent</label>
+          <select name="aiAgentId">
+            <option value="">-- Chọn Agent --</option>
+            {% for agent in agents %}
+              <option value="{{ agent.id }}">{{ agent.name }} ({{ agent.key }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex:1; display:none;" id="functionField">
+          <label>Chọn Hàm (Function)</label>
+          <select name="targetFunction">
+            <option value="">-- Chọn Hàm --</option>
+            {% for func in functions %}
+              <option value="{{ func }}">{{ func }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div id="promptField">
         <label>Prompt (hướng dẫn đầy đủ cho lần chạy sau - agent chỉ đọc đúng nội dung này, không có ngữ cảnh nào khác)</label>
-        <textarea name="prompt" required rows="4" placeholder="VD: Tìm 1 bài viết mới nhất về AI trên mạng, nhờ content_writer viết thành bài nháp"></textarea>
+        <textarea name="prompt" rows="4" placeholder="VD: Tìm 1 bài viết mới nhất về AI trên mạng, nhờ content_writer viết thành bài nháp"></textarea>
       </div>
       <div style="display:flex; gap:1rem;">
         <div style="flex:1;">
@@ -62,7 +89,12 @@
           <label>Lặp lại</label>
           <select name="recurrence">
             <option value="once">Chỉ 1 lần</option>
+            <option value="every_15_minutes">Mỗi 15 phút</option>
+            <option value="every_30_minutes">Mỗi 30 phút</option>
+            <option value="hourly">Hằng giờ</option>
             <option value="daily">Hằng ngày</option>
+            <option value="weekly">Hằng tuần</option>
+            <option value="monthly">Hằng tháng</option>
           </select>
         </div>
       </div>
@@ -97,7 +129,34 @@
   }
   const STATUS_CLASS = { pending: "status-scheduled", running: "status-pending_review", done: "status-published", error: "status-failed", cancelled: "status-draft" };
   const STATUS_LABEL = { pending: "Chờ chạy", running: "Đang chạy", done: "Hoàn tất", error: "Lỗi", cancelled: "Đã huỷ" };
-  const RECURRENCE_LABEL = { once: "1 lần", daily: "Hằng ngày" };
+  const RECURRENCE_LABEL = { 
+    once: "1 lần", 
+    every_15_minutes: "Mỗi 15 phút", 
+    every_30_minutes: "Mỗi 30 phút", 
+    hourly: "Hằng giờ", 
+    daily: "Hằng ngày", 
+    weekly: "Hằng tuần", 
+    monthly: "Hằng tháng" 
+  };
+
+  window.toggleActionFields = function() {
+    const actionType = form.actionType.value;
+    if (actionType === 'ai_agent') {
+      document.getElementById('agentField').style.display = 'block';
+      document.getElementById('promptField').style.display = 'block';
+      document.getElementById('functionField').style.display = 'none';
+      form.aiAgentId.required = true;
+      form.prompt.required = true;
+      form.targetFunction.required = false;
+    } else {
+      document.getElementById('agentField').style.display = 'none';
+      document.getElementById('promptField').style.display = 'none';
+      document.getElementById('functionField').style.display = 'block';
+      form.aiAgentId.required = false;
+      form.prompt.required = false;
+      form.targetFunction.required = true;
+    }
+  };
 
   function toLocalInputValue(iso) {
     const d = new Date(iso);
@@ -112,12 +171,18 @@
       modalTitle.textContent = "Sửa lịch automation";
       form.id.value = automation.id;
       form.name.value = automation.name;
-      form.prompt.value = automation.prompt;
+      form.actionType.value = automation.actionType || 'ai_agent';
+      form.aiAgentId.value = automation.aiAgentId || '';
+      form.targetFunction.value = automation.targetFunction || '';
+      form.prompt.value = automation.prompt || '';
       form.scheduledAt.value = toLocalInputValue(automation.scheduledAt);
       form.recurrence.value = automation.recurrence;
+      window.toggleActionFields();
     } else {
       modalTitle.textContent = "Thêm lịch automation";
       form.id.value = "";
+      form.actionType.value = 'ai_agent';
+      window.toggleActionFields();
     }
     editModal.showModal();
   };
@@ -198,7 +263,10 @@
     const id = formData.get("id");
     const data = {
       name: formData.get("name").trim(),
-      prompt: formData.get("prompt").trim(),
+      actionType: formData.get("actionType"),
+      aiAgentId: formData.get("aiAgentId") || null,
+      targetFunction: formData.get("targetFunction") || null,
+      prompt: formData.get("prompt") ? formData.get("prompt").trim() : null,
       scheduledAt: new Date(formData.get("scheduledAt")).toISOString(),
       recurrence: formData.get("recurrence"),
     };

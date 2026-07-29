@@ -3,21 +3,32 @@ import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
-// Quan ly ban ghi Automation qua UI that (khong chi qua AI chat) - xem prisma/schema.prisma cho
-// ly do model nay chi luu "khi nao chay + prompt gi", KHONG tu chua logic/code moi. Worker thuc thi
-// rieng o services/automationScheduler.ts, luon goi agent key="automation" co dinh.
-const VALID_RECURRENCE = ["once", "daily"] as const;
+import { AutomationRegistry } from "../../jobs/AutomationRegistry.js";
+
+// Quan ly ban ghi Automation qua UI that (khong chi qua AI chat)
+const VALID_RECURRENCE = ["once", "every_15_minutes", "every_30_minutes", "hourly", "daily", "weekly", "monthly"] as const;
+const VALID_ACTION_TYPES = ["ai_agent", "function"] as const;
 
 const automationSchema = z.object({
   name: z.string().min(1),
-  prompt: z.string().min(1),
+  actionType: z.enum(VALID_ACTION_TYPES).optional().default("ai_agent"),
+  aiAgentId: z.string().optional().nullable(),
+  targetFunction: z.string().optional().nullable(),
+  prompt: z.string().optional().nullable(),
   scheduledAt: z.coerce.date(),
   recurrence: z.enum(VALID_RECURRENCE).optional().default("once"),
-});
+}).refine(data => {
+  if (data.actionType === "ai_agent") return !!data.aiAgentId && !!data.prompt;
+  if (data.actionType === "function") return !!data.targetFunction;
+  return true;
+}, { message: "Invalid actionType configuration" });
 
 const updateAutomationSchema = z.object({
   name: z.string().min(1).optional(),
-  prompt: z.string().min(1).optional(),
+  actionType: z.enum(VALID_ACTION_TYPES).optional(),
+  aiAgentId: z.string().optional().nullable(),
+  targetFunction: z.string().optional().nullable(),
+  prompt: z.string().optional().nullable(),
   scheduledAt: z.coerce.date().optional(),
   recurrence: z.enum(VALID_RECURRENCE).optional(),
   status: z.enum(["pending", "cancelled"]).optional(),
@@ -34,13 +45,22 @@ export async function registerAutomationRoutes(app: FastifyInstance): Promise<vo
       const skip = (page - 1) * PAGE_SIZE;
 
       const [automations, total] = await Promise.all([
-        prisma.automation.findMany({ orderBy: { createdAt: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.automation.findMany({ 
+          orderBy: { createdAt: "desc" }, 
+          skip, 
+          take: PAGE_SIZE,
+          include: { agent: { select: { name: true } } }
+        }),
         prisma.automation.count(),
       ]);
 
       return { automations, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)), hasNext: skip + automations.length < total, hasPrev: page > 1 };
     },
   );
+
+  app.get("/admin/api/automations/functions", { preHandler: requireRole("manager") }, async () => {
+    return { functions: Object.keys(AutomationRegistry) };
+  });
 
   app.post("/admin/api/automations", { preHandler: requireRole("manager") }, async (request, reply) => {
     const parsed = automationSchema.safeParse(request.body);

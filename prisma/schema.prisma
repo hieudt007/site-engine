@@ -56,10 +56,10 @@ model SiteConfig {
   turnstileSiteKey   String?
   turnstileSecretKey String?
 
-  aiProviderKeys    Json?
+  aiProviderKeys Json?
 
-  adminChatAgentId  String?
-  cskhAgentId       String?
+  adminChatAgentId String?
+  cskhAgentId      String?
 
   updatedAt DateTime @updatedAt
 }
@@ -83,10 +83,10 @@ model User {
   // nao noi dung dang du "dong" de ghi lai (giong facebook_customer_memories.memory ben Facebook bot).
   memories       String?
 
-  posts     Post[]
-  auditLogs AuditLog[]
-  media     Media[]
-  revisions Revision[]
+  posts       Post[]
+  auditLogs   AuditLog[]
+  media       Media[]
+  revisions   Revision[]
   chatHistory AdminChatHistory[]
   automations Automation[]
 }
@@ -99,7 +99,7 @@ model Session {
   // Trich tu chinh "data" luc ghi (services/sessionStore.ts) - cho phep tra "cac session KHAC
   // cua user nay" de xoa khi dang nhap lai (1 tai khoan chi dang nhap 1 thiet bi, giong
   // UserSessionService::keepOnlyCurrentSession() ben lead-base). Null cho session chua dang nhap.
-  userId Int?
+  userId    Int?
 
   @@index([userId])
 }
@@ -131,8 +131,8 @@ model AdminChatHistory {
   assistantResponse String?
   status            String   @default("success") // 'success' | 'error'
   errorMessage      String?
-  entityId          String?  // Gộp chung ID của Post, Page, Product, hoặc slug của Theme. Dùng chung 1 bảng.
-  metadata          String?  // Lưu JSON cho các data phụ (vd: redesignBrief, styleQuery của Theme Chat)
+  entityId          String? // Gộp chung ID của Post, Page, Product, hoặc slug của Theme. Dùng chung 1 bảng.
+  metadata          String? // Lưu JSON cho các data phụ (vd: redesignBrief, styleQuery của Theme Chat)
   createdAt         DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
@@ -181,17 +181,17 @@ model CustomerChatLead {
 // Prisma — entityId luôn là Post.id hoặc ProductCache.id tương ứng. userId null nếu không xác
 // định được người sửa (không xảy ra trong luồng hiện tại, chỉ để chỗ trống).
 model Revision {
-  id         String   @id @default(cuid())
-  entityType String // 'Post' | 'Page' | 'Product'
-  entityId   String
-  data       Json // snapshot cac field noi dung TRUOC khi update (khong phai toan bo row)
+  id            String   @id @default(cuid())
+  entityType    String // 'Post' | 'Page' | 'Product'
+  entityId      String
+  data          Json // snapshot cac field noi dung TRUOC khi update (khong phai toan bo row)
   // [{field, label, old, new}] - chi cac field THAT SU doi gia tri (services/revisions.ts diffFields).
   // Row Revision chi duoc tao khi mang nay khong rong.
   changedFields Json?
   description   String? // cau tom tat doc duoc, vd "Đã sửa: Tiêu đề, Nội dung"
-  userId     Int?
-  user       User?    @relation(fields: [userId], references: [leadbaseUserId])
-  createdAt  DateTime @default(now())
+  userId        Int?
+  user          User?    @relation(fields: [userId], references: [leadbaseUserId])
+  createdAt     DateTime @default(now())
 
   @@index([entityType, entityId])
 }
@@ -242,8 +242,8 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  posts        Post[]
-  products     ProductCache[]
+  posts         Post[]
+  products      ProductCache[]
   brandProducts ProductCache[] @relation("ProductBrand")
 
   @@unique([type, slug])
@@ -254,11 +254,11 @@ model Category {
 // 1-nhiều thường), không phân cấp cha/con, không có trang công khai riêng (chỉ dùng để lọc/gắn
 // nhãn) - chỉ áp dụng cho Post, không áp dụng cho ProductCache.
 model Topic {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
   customFields Json?
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   posts Post[]
 }
@@ -353,33 +353,33 @@ model Post {
 // provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'openrouter' | 'ai-router' | 'custom'
 // ('ai-router' = 9router, dung baseUrl mac dinh cua 9router; 'custom' bat buoc phai co baseUrl).
 model Agent {
-  id           String   @id @default(cuid())
-  key          String?  @unique
-  name         String
-  type         String   @default("agent") // 'agent' | 'tool' | 'skill'
-  provider     String   @default("openai")
-  model        String
-  systemPrompt String?
-  allowedTools String[] @default([])
-  apiKey       String?
-  baseUrl      String?
-  endpoint     String   @default("/chat/completions")
-  isSystem     Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  pluginSlug   String?
+  id            String       @id @default(cuid())
+  key           String?      @unique
+  name          String
+  type          String       @default("agent") // 'agent' | 'tool' | 'skill'
+  provider      String       @default("openai")
+  model         String
+  systemPrompt  String?
+  allowedTools  String[]     @default([])
+  apiKey        String?
+  baseUrl       String?
+  endpoint      String       @default("/chat/completions")
+  isSystem      Boolean      @default(false)
+  isActive      Boolean      @default(true)
+  pluginSlug    String?
   // Chi dung khi type='skill': noi dung "bi kip" day du, tra ve cho agent khi no goi USE_SKILL
   // (systemPrompt o tren duoc tai dung lam mo ta ngan cho skill, hien trong danh sach skill kha dung).
   content       String?
   // Chi dung khi type='agent': danh sach key cua cac row type='skill' ma agent nay duoc phep goi
   // (rong = khong duoc dung skill nao - giong quy uoc cua allowedTools).
-  allowedSkills String[] @default([])
+  allowedSkills String[]     @default([])
   // Danh sách key của các Agent con mà agent này được phép gọi qua tool call_agent.
-  allowedAgents String[] @default([])
+  allowedAgents String[]     @default([])
   // So lan lap toi da cua vong lap BaseAgent.run() (TOOL_CALL/AGENT_CALL/USE_SKILL lien tiep truoc
   // khi bat buoc phai REPLY_TO_USER) - RIENG cho agent nay, KHONG dung chung/cong don voi agent cha
   // hay agent con no goi qua AGENT_CALL (moi agent.run() co loopCount rieng, doc dung maxLoops cua
   // chinh no). Truoc day hardcode = 10 cho moi agent.
-  maxLoops     Int      @default(10)
+  maxLoops      Int          @default(10)
   // Cac tham so goi provider PHU (khong can rieng 1 cot cho tung field, giong ai_agents.settings
   // ben lead-base-node - dung chung 1 quy uoc key snake_case giua cac du an "anh em" de doi code
   // giua cac repo de hon). Cac key hien dung (xem aiClient.ts):
@@ -388,9 +388,10 @@ model Agent {
   //   CHI co ich khi request thuc su co context.reply (SSE) de nhan tin hieu do.
   // - max_tokens (number): gioi han token output, mac dinh 8000 neu khong set.
   // - temperature (number, 0-2): do "sang tao" cua model, mac dinh 0.7 neu khong set.
-  settings     Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  settings      Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  automations   Automation[]
 }
 
 // Lich AI tu chay ("automation scheduler") - CHI la ban ghi "khi nao chay + prompt gi", KHONG tu
@@ -400,19 +401,23 @@ model Agent {
 // co the dung kip). Xem services/automationScheduler.ts (worker) + agents/tools/automationTools.ts
 // (4 tool AI dung de tu quan ly: create/update/delete/list).
 model Automation {
-  id          String    @id @default(cuid())
-  name        String
-  prompt      String
-  scheduledAt DateTime
+  id             String   @id @default(cuid())
+  name           String
+  actionType     String   @default("ai_agent") // 'ai_agent' | 'function'
+  aiAgentId      String?
+  targetFunction String?
+  prompt         String?  @db.Text
+  scheduledAt    DateTime
   // 'once' (chay xong -> status='done', khong lap lai) | 'daily' (chay xong -> cong 1 ngay vao
   // scheduledAt, dat lai status='pending' cho lan ke tiep).
-  recurrence  String    @default("once")
-  status      String    @default("pending") // 'pending' | 'running' | 'done' | 'error' | 'cancelled'
-  result      String?
-  createdBy   Int?
-  creator     User?     @relation(fields: [createdBy], references: [leadbaseUserId])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  recurrence     String   @default("once")
+  status         String   @default("pending") // 'pending' | 'running' | 'done' | 'error' | 'cancelled'
+  result         String?
+  createdBy      Int?
+  creator        User?    @relation(fields: [createdBy], references: [leadbaseUserId])
+  agent          Agent?   @relation(fields: [aiAgentId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([status, scheduledAt])
 }
@@ -433,13 +438,13 @@ model ProductCache {
   leadbaseStatus String // giá trị đồng bộ nguyên văn từ LeadBase — enum cụ thể TBD
   // Luot ban - LeadBase tu cong don tu OrderItem luc don hoan tat, day sang moi lan doi (giong
   // price/stock, khong phai site tu tinh). Mac dinh 0 (san pham moi tao, chua co don nao).
-  soldCount      Int    @default(0)
+  soldCount      Int      @default(0)
   // Ma san pham - LeadBase so huu (Product.sku), chi de HIEN THI/tra cuu, khong dung lam khoa gi.
   sku            String?
 
   // --- Do CHÍNH website tự quản, LeadBase chỉ set giá trị khởi tạo lúc tạo mới, không ghi đè sau đó ---
   name        String
-  slug        String? @unique
+  slug        String?  @unique
   // Mo ta ngan hien o trang danh sach - cung y nghia voi Post.excerpt (xem docblock o do).
   // LeadBase KHONG gui truong nay (site tu viet/sua qua /admin/products), khac description ben duoi.
   excerpt     String?
@@ -486,13 +491,13 @@ model ProductCache {
   // trang danh sach/danh muc (N+1 neu tinh rieng tung san pham). Site TU tinh lai (KHONG phai
   // LeadBase gui) moi khi 1 review duoc duyet/tu choi (routes/admin/reviews.ts recomputeProductRatingAggregate) -
   // KHONG tinh luc tao review (luon tao o "pending", chua anh huong so nay).
-  reviewCount Int   @default(0)
+  reviewCount Int    @default(0)
   avgRating   Float?
 
   // Sản phẩm có biến thể (màu/size...) — LeadBase Product.has_variants. Khi true, price/salePrice/
   // stock ở TRÊN vẫn giữ (= giá thấp nhất/tổng tồn, LeadBase tự tính) để chỗ nào chưa biết variant
   // vẫn hiển thị được số hợp lý — nhưng nguồn thật cho khách CHỌN mua là bảng variants dưới đây.
-  hasVariants Boolean          @default(false)
+  hasVariants Boolean               @default(false)
   variants    ProductVariantCache[]
 
   // Danh mục — name/slug do LeadBase sở hữu (giống price/stock), excerpt/body/seo site tự quản.
@@ -521,9 +526,9 @@ model ProductReview {
   customerName String
   rating       Int // 1-5
   comment      String?
-  status       String @default("pending") // 'pending' | 'approved' | 'rejected'
+  status       String  @default("pending") // 'pending' | 'approved' | 'rejected'
 
-  imageUrls    String[]
+  imageUrls String[]
 
   // Trường tùy biến do admin tự đặt tay — xem services/customFields.ts.
   customFields Json?
@@ -569,9 +574,9 @@ model CartOrder {
   // van duoc quan ly o do), site-engine chi hien thi thong tin. vnpay: paymentStatus chi chuyen
   // 'paid' qua IPN (routes/public/vnpay.ts) - KHONG qua vnp_ReturnUrl (browser return khong dang
   // tin cay de chot da thanh toan that, xem services/vnpay.ts).
-  paymentMethod String  @default("cod")
-  paymentStatus String  @default("unpaid") // 'unpaid' | 'paid' | 'failed'
-  vnpayTxnRef   String? @unique
+  paymentMethod String    @default("cod")
+  paymentStatus String    @default("unpaid") // 'unpaid' | 'paid' | 'failed'
+  vnpayTxnRef   String?   @unique
   paidAt        DateTime?
 
   // Phi van chuyen (khop ShippingRule ben duoi). customerProvince BAT BUOC nhap luc checkout (khac
@@ -601,8 +606,8 @@ model CartOrder {
   // KHONG day sang LeadBase (sendOrderToLeadbase khong biet field nay), chi luu o site-engine.
   customFields Json?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Danh sach phuong thuc thanh toan CO THE bat/tat + cau hinh ngay tren admin UI (Settings ->
@@ -745,7 +750,7 @@ model Media {
   // Product.imageUrls thi khong gan duoc, chi noi thao tac truc tiep 1 the <img> moi dung).
   alt              String?
   uploadedByUserId Int?
-  uploadedBy       User? @relation(fields: [uploadedByUserId], references: [leadbaseUserId])
+  uploadedBy       User?    @relation(fields: [uploadedByUserId], references: [leadbaseUserId])
   createdAt        DateTime @default(now())
 }
 
