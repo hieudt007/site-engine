@@ -84,6 +84,7 @@ import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
 import { startAutomationScheduler } from "./services/automationScheduler.js";
 import { startAiChatCleanupCron } from "./services/aiChatCleanup.js";
+import { registerGeoMarkdownHook } from "./services/geoMarkdown.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -92,6 +93,8 @@ declare module "fastify" {
 }
 
 const app = Fastify({ logger: true, trustProxy: true });
+
+registerGeoMarkdownHook(app);
 
 // Giữ lại raw body (chuỗi thô trước khi JSON.parse) để verify chữ ký HMAC theo đúng byte đã ký
 // (security.ts signSiteEngineRequest/verifySiteEngineRequest) — cần cho routes/public/

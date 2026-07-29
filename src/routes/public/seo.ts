@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
+import { htmlToMarkdown } from "../../services/geoMarkdown.js";
 import { pagePath, postCategoryPath, postPath, productCategoryPath, productPath, topicPath } from "../../services/urlPaths.js";
 
 // system_design.md §10.3 — sitemap gồm trang chủ, /blog + từng bài đã publish, /products + từng
@@ -75,6 +76,126 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
     const baseUrl = `https://${request.hostname}`;
     const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\nSitemap: ${baseUrl}/sitemap.xml\n`;
     return reply.type("text/plain").send(body);
+  });
+
+  app.get("/llms.txt", async (request, reply) => {
+    const baseUrl = `https://${request.hostname}`;
+    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const isBlog = siteConfig?.siteType === "blog";
+    const siteName = siteConfig?.siteName ?? "Website";
+    const urlConfig = siteConfig as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
+
+    const [posts, pages, products] = await Promise.all([
+      prisma.post.findMany({
+        where: { type: "post", status: "published" },
+        orderBy: { publishedAt: "desc" },
+        take: 50,
+        select: { slug: true, title: true, excerpt: true },
+      }),
+      prisma.post.findMany({
+        where: { type: "page", status: "published" },
+        orderBy: { updatedAt: "desc" },
+        take: 50,
+        select: { slug: true, title: true, excerpt: true },
+      }),
+      isBlog
+        ? Promise.resolve([])
+        : prisma.productCache.findMany({
+            where: { status: "published" },
+            orderBy: { syncedAt: "desc" },
+            take: 50,
+            select: { id: true, slug: true, name: true, excerpt: true } as any,
+          }),
+    ]);
+
+    const lines = [
+      `# ${siteName}`,
+      "",
+      siteConfig?.tagline ? `> ${siteConfig.tagline}` : "",
+      "",
+      "AI agents can request any public HTML page with `Accept: text/markdown` to receive Markdown.",
+      "",
+      "## Core",
+      "",
+      `- [Home](${baseUrl}/)`,
+      `- [Blog](${baseUrl}${postPath(urlConfig ?? {}, "").replace(/\/$/, "")})`,
+      ...(isBlog ? [] : [`- [Products](${baseUrl}${productPath(urlConfig ?? {}, "").replace(/\/$/, "")})`]),
+      "",
+      "## Pages",
+      "",
+      ...pages.map((page) => `- [${page.title}](${baseUrl}${pagePath(urlConfig ?? {}, page.slug)})${page.excerpt ? `: ${page.excerpt}` : ""}`),
+      "",
+      "## Posts",
+      "",
+      ...posts.map((post) => `- [${post.title}](${baseUrl}${postPath(urlConfig ?? {}, post.slug)})${post.excerpt ? `: ${post.excerpt}` : ""}`),
+      ...(isBlog
+        ? []
+        : [
+            "",
+            "## Products",
+            "",
+            ...products.map((product: any) => `- [${product.name}](${baseUrl}${productPath(urlConfig ?? {}, product.slug ?? product.id)})${product.excerpt ? `: ${product.excerpt}` : ""}`),
+          ]),
+      "",
+    ];
+
+    return reply
+      .type("text/plain; charset=utf-8")
+      .header("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
+      .send(lines.filter((line) => line !== null).join("\n"));
+  });
+
+  app.get("/llms-full.txt", async (request, reply) => {
+    const baseUrl = `https://${request.hostname}`;
+    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const isBlog = siteConfig?.siteType === "blog";
+    const siteName = siteConfig?.siteName ?? "Website";
+    const urlConfig = siteConfig as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
+
+    const [posts, pages, products] = await Promise.all([
+      prisma.post.findMany({
+        where: { type: "post", status: "published" },
+        orderBy: { publishedAt: "desc" },
+        take: 30,
+        select: { id: true, slug: true, title: true, excerpt: true, body: true },
+      }),
+      prisma.post.findMany({
+        where: { type: "page", status: "published" },
+        orderBy: { updatedAt: "desc" },
+        take: 30,
+        select: { id: true, slug: true, title: true, excerpt: true, body: true },
+      }),
+      isBlog
+        ? Promise.resolve([])
+        : prisma.productCache.findMany({
+            where: { status: "published" },
+            orderBy: { syncedAt: "desc" },
+            take: 30,
+            select: { id: true, slug: true, name: true, excerpt: true, description: true } as any,
+          }),
+    ]);
+
+    const blocks = [`# ${siteName}`, siteConfig?.tagline ? siteConfig.tagline : ""];
+    for (const page of pages) {
+      const url = `${baseUrl}${pagePath(urlConfig ?? {}, page.slug)}`;
+      const body = htmlToMarkdown(`llms-page:${page.id}`, page.body || "", url).markdown;
+      blocks.push(`## ${page.title}\n\nSource: ${url}${page.excerpt ? `\n\n${page.excerpt}` : ""}\n\n${body}`);
+    }
+    for (const post of posts) {
+      const url = `${baseUrl}${postPath(urlConfig ?? {}, post.slug)}`;
+      const body = htmlToMarkdown(`llms-post:${post.id}`, post.body || "", url).markdown;
+      blocks.push(`## ${post.title}\n\nSource: ${url}${post.excerpt ? `\n\n${post.excerpt}` : ""}\n\n${body}`);
+    }
+    for (const product of products as any[]) {
+      const url = `${baseUrl}${productPath(urlConfig ?? {}, product.slug ?? product.id)}`;
+      const body = htmlToMarkdown(`llms-product:${product.id}`, product.description || product.excerpt || "", url).markdown;
+      blocks.push(`## ${product.name}\n\nSource: ${url}${product.excerpt ? `\n\n${product.excerpt}` : ""}\n\n${body}`);
+    }
+
+    return reply
+      .type("text/markdown; charset=utf-8")
+      .header("Cache-Control", "public, max-age=300, stale-while-revalidate=3600")
+      .send(blocks.filter(Boolean).join("\n\n---\n\n"));
   });
 
   // RSS 20 bài mới nhất đã xuất bản (chuẩn RSS 2.0) — trước đây chỉ có sitemap.xml cho công cụ
