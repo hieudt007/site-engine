@@ -1,6 +1,6 @@
 import { prisma } from "../../db.js";
 import { AgentContext, DelegatedReply } from "../core/BaseAgent.js";
-import { MCPTool } from "../core/ToolRegistry.js";
+import { MCPTool, ToolRegistry } from "../core/ToolRegistry.js";
 
 // Gop AGENT_CALL cu thanh 1 tool binh thuong - giong Claude Code khong phan biet "loai" o tang
 // giao thuc (moi thu deu la 1 tool_use), chi khac o CACH THUC THI ben trong execute(). Phai duoc
@@ -68,7 +68,8 @@ export const callAgentTool: MCPTool = {
 
 // Gop USE_SKILL cu thanh tool - AI doc noi dung skill roi TU LAM TIEP (khong ban giao, khac han
 // call_agent). Kiem tra quyen qua context.agentModel.allowedSkills (da duoc BaseAgent.run() gan
-// san context.agentModel = this.agentModel truoc khi vao vong lap).
+// san context.agentModel = this.agentModel truoc khi vao vong lap). Skill co the mo them tool cho
+// cac vong AI ke tiep trong CUNG mot run(), khong ghi nguoc vao agent goi.
 export const useSkillTool: MCPTool = {
   name: "use_skill",
   description:
@@ -83,6 +84,20 @@ export const useSkillTool: MCPTool = {
     }
 
     const skill = await prisma.agent.findFirst({ where: { type: "skill", isActive: true, key: skillKey } });
-    return skill?.content || `Skill [${skillKey}] not found or has no content.`;
+    if (!skill?.content) return `Skill [${skillKey}] not found or has no content.`;
+
+    const skillTools = (skill.allowedTools || []).filter((toolName) => ToolRegistry.getTool(toolName));
+    if (skillTools.length > 0) {
+      const runtimeTools = new Set(context.runtimeAllowedTools || []);
+      skillTools.forEach((toolName) => runtimeTools.add(toolName));
+      context.runtimeAllowedTools = Array.from(runtimeTools);
+    }
+
+    const usedSkills = new Set(context.usedSkillKeys || []);
+    usedSkills.add(skillKey);
+    context.usedSkillKeys = Array.from(usedSkills);
+
+    const activatedNote = skillTools.length > 0 ? `\n\nActivated tools for subsequent steps: ${skillTools.join(", ")}` : "";
+    return `${skill.content}${activatedNote}`;
   },
 };

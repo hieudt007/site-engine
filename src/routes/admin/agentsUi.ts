@@ -23,6 +23,7 @@ function sortChecked<T>(items: T[], getKey: (item: T) => string, allowed: string
 export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/agents", { preHandler: requireRole("admin") }, async (request, reply) => {
     const allTools = withLabel(ToolRegistry.getAllTools());
+    const skillAssignableTools = withLabel(ToolRegistry.getAllTools().filter((t) => !t.isSystem));
     // Tool config that qua API ngoai (goi endpoint /search, /web/fetch, /images/generations,
     // /videos/generations, /embeddings cua 9Router) - luu duoi dang Agent row rieng type="tool"
     // (seedAgents.ts), khac voi allTools o tren la danh sach tool CODE lap trinh cung. Nhung tool
@@ -30,6 +31,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
     const dbTools = await prisma.agent.findMany({ where: { type: "tool" }, orderBy: { name: "asc" } });
     const html = await renderAdmin("agents-list", {
       allTools,
+      skillAssignableTools,
       dbTools,
       userName: request.session.get("name"),
       role: request.session.get("role"),
@@ -46,6 +48,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       // Tool/skill isSystem KHONG duoc hien de gan qua UI (chi gan duoc thang qua DB) - xem
       // ghi chu o MCPTool.isSystem va Agent.isSystem.
       const allTools = withLabel(ToolRegistry.getAllTools().filter((t) => !t.isSystem));
+      const skillAssignableTools = allTools;
       const allSkills = await prisma.agent.findMany({ where: { type: "skill", isSystem: false }, orderBy: { name: "asc" } });
       const allAgents = await prisma.agent.findMany({ where: { type: "agent", isSystem: false }, orderBy: { name: "asc" } });
       const html = await renderAdmin("agent-edit", {
@@ -53,6 +56,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
         defaultType: request.query.type === "skill" ? "skill" : "agent",
         aiProviderKeys: config?.aiProviderKeys || {},
         allTools,
+        skillAssignableTools,
         allSkills,
         allAgents,
         userName: request.session.get("name"),
@@ -73,6 +77,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       }
       const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
       let allTools = withLabel(ToolRegistry.getAllTools().filter((t) => !t.isSystem));
+      const skillAssignableTools = allTools;
       let allSkills = await prisma.agent.findMany({ where: { type: "skill", isSystem: false }, orderBy: { name: "asc" } });
       let allAgents = await prisma.agent.findMany({ where: { type: "agent", isSystem: false, id: { not: agent.id } }, orderBy: { name: "asc" } });
       // Muc dang bat (co trong allowedX cua agent nay) len dau danh sach - xem sortChecked().
@@ -95,6 +100,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
         defaultType: agent.type,
         aiProviderKeys: config?.aiProviderKeys || {},
         allTools,
+        skillAssignableTools,
         allSkills,
         allAgents,
         lockedTools,

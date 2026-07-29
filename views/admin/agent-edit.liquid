@@ -380,12 +380,9 @@
       : "Plugin/hệ thống sẽ gọi agent bằng key này.";
     if (!isSkill) modelInput.required = true; else modelInput.required = false;
 
-    // Skill CHI bom "content" vao context cua agent goi no (useSkillTool tra ve string, khong bao
-    // gio duoc wrap thanh BaseAgent va run()) - allowedTools/allowedSkills/allowedAgents gan cho 1
-    // row type=skill deu KHONG BAO GIO duoc doc o dau ca (xem BaseAgent.getSystemPrompt() - chi
-    // agent that su run() moi doc allowedTools). Panel nao con dung tool phai tuy AGENT dang GOI
-    // skill nay quyet dinh, khong phai skill tu quyet.
-    panelTools.style.display = isSkill ? "none" : "block";
+    // Skill duoc phep gan allowedTools: khi agent goi use_skill, cac tool cua skill se duoc bat
+    // cho nhung vong AI ke tiep trong cung mot run(). Skills/Subagent van chi danh cho agent that.
+    panelTools.style.display = "block";
     panelSkills.style.display = isSkill ? "none" : "block";
     panelSubagent.style.display = isSkill ? "none" : "block";
   }
@@ -468,9 +465,7 @@
         .filter((el) => el.checked)
         .map((el) => el.value);
 
-    // Skill khong doc allowedTools o dau ca (xem ghi chu applyTypeUi()) - gui rong thay vi gia tri
-    // con sot lai tren DOM tu truoc do, tranh luu nham du lieu chet vao DB gay hieu lam sau nay.
-    const allowedTools = isSkill ? [] : getChecked(".tool-check");
+    const allowedTools = getChecked(".tool-check");
     const allowedSkills = getChecked(".skill-check");
     const allowedAgents = getChecked(".subagent-check");
 

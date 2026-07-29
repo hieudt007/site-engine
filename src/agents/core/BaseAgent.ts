@@ -29,6 +29,10 @@ export interface AgentContext {
   // tu vong 2). Tach rieng khoi SKILL LIST/SUB AGENT (BaseAgent tu quan ly, tinh 1 lan vi la danh
   // muc tool - khac ban chat voi boi canh dong nay) - xem thao luan thiet ke.
   extraSystemPrompt?: string;
+  // Runtime tools are added by use_skill for this run only. They are not persisted back to the
+  // caller agent; the skill row stays the source of truth.
+  runtimeAllowedTools?: string[];
+  usedSkillKeys?: string[];
 }
 
 export class BaseAgent {
@@ -143,6 +147,10 @@ export class BaseAgent {
     return this.executeSpecificTool(toolName, args, context);
   }
 
+  protected effectiveAllowedTools(context: AgentContext): string[] {
+    return Array.from(new Set([...(this.agentModel.allowedTools || []), ...(context.runtimeAllowedTools || [])]));
+  }
+
   public async run(context: AgentContext, message: string, imageUrl?: string): Promise<string | object> {
     let loopCount = 0;
     context.agentModel = this.agentModel;
@@ -206,11 +214,6 @@ export class BaseAgent {
       imageUrl: imageUrl
     });
 
-    // Khai bao tool THAT qua tham so "tools" native (thay vi nhet text vao system prompt) - xem
-    // ToolRegistry.getOpenAiToolDefs(). Tinh 1 lan truoc vong lap vi allowedTools khong doi giua
-    // cac vong cua CUNG 1 lan run() nay.
-    const toolDefs = ToolRegistry.getOpenAiToolDefs(this.agentModel.allowedTools || []);
-
     // System prompt goc (+ SKILL/SUB AGENT list) tinh 1 LAN DUY NHAT truoc vong lap - khong doi
     // giua cac vong cua CUNG 1 run() nay, tranh query DB lai (skill/sub-agent list) moi vong tool-loop.
     const baseSystemPrompt = await this.getSystemPrompt();
@@ -236,6 +239,8 @@ export class BaseAgent {
       // Native tool-calling qua 9Router (provider tu dam bao cau truc tool_calls dung, khong con
       // phu thuoc AI tu viet dung JSON trong text nua - xem thao luan thiet ke: MarkdownParser/
       // RESPONSE_FORMAT_GUIDE cu da bo hoan toan).
+      const allowedToolNames = this.effectiveAllowedTools(context);
+      const toolDefs = ToolRegistry.getOpenAiToolDefs(allowedToolNames);
       const result = await callAgentConversation(
         this.agentModel,
         systemPrompt,
@@ -273,24 +278,28 @@ export class BaseAgent {
         this.streamToolCall(context, call.name);
 
         let toolResponse = "";
-        try {
-          toolResponse = await this.executeTool(call.name, call.args, context);
-        } catch (err: any) {
-          if (err.message === "PAUSE_FOR_REQUEST_FIELDS") {
-            // Dừng vòng lặp vì Frontend đang đi gom fields và sẽ gọi lại API mới
-            return { action: "request_fields_pending" };
+        if (!this.effectiveAllowedTools(context).includes(call.name)) {
+          toolResponse = `Tool [${call.name}] is not allowed in this context.`;
+        } else {
+          try {
+            toolResponse = await this.executeTool(call.name, call.args, context);
+          } catch (err: any) {
+            if (err.message === "PAUSE_FOR_REQUEST_FIELDS") {
+              // Dừng vòng lặp vì Frontend đang đi gom fields và sẽ gọi lại API mới
+              return { action: "request_fields_pending" };
+            }
+            if (err.message === "PAUSE_FOR_QA") {
+              // Dừng vòng lặp vì Frontend đang chụp ảnh màn hình
+              return { action: "test_request_pending" };
+            }
+            if (err instanceof DelegatedReply) {
+              // Uy quyen hoan toan cho sub-agent (xem callAgentTool, mode="background") - ket qua
+              // cua no la phan hoi CUOI CUNG, khong quay lai vong lap de agent cha noi them.
+              const r = err.result;
+              return typeof r === "string" ? { action: "chat", message: r, messages: [r], actions: trace } : r;
+            }
+            toolResponse = `Error running tool [${call.name}]: ${err.message}`;
           }
-          if (err.message === "PAUSE_FOR_QA") {
-            // Dừng vòng lặp vì Frontend đang chụp ảnh màn hình
-            return { action: "test_request_pending" };
-          }
-          if (err instanceof DelegatedReply) {
-            // Uy quyen hoan toan cho sub-agent (xem callAgentTool, mode="background") - ket qua
-            // cua no la phan hoi CUOI CUNG, khong quay lai vong lap de agent cha noi them.
-            const r = err.result;
-            return typeof r === "string" ? { action: "chat", message: r, messages: [r], actions: trace } : r;
-          }
-          toolResponse = `Error running tool [${call.name}]: ${err.message}`;
         }
 
         trace.push({ id: call.id, tool: call.name, args: call.args, result: toolResponse.slice(0, TRACE_RESULT_MAX_LEN), round: loopCount });
