@@ -87,7 +87,7 @@
         </div>
         <div style="flex:1;">
           <label>Lặp lại</label>
-          <select name="recurrence">
+          <select name="recurrence" id="recurrence" onchange="toggleRecurrenceFields()">
             <option value="once">Chỉ 1 lần</option>
             <option value="every_15_minutes">Mỗi 15 phút</option>
             <option value="every_30_minutes">Mỗi 30 phút</option>
@@ -95,6 +95,21 @@
             <option value="daily">Hằng ngày</option>
             <option value="weekly">Hằng tuần</option>
             <option value="monthly">Hằng tháng</option>
+            <option value="custom">Tùy chọn...</option>
+          </select>
+        </div>
+      </div>
+      <div id="customRecurrenceFields" style="display:none; gap:1rem;">
+        <div style="flex:1;">
+          <label>Số lượng</label>
+          <input type="number" name="customInterval" min="1" value="1">
+        </div>
+        <div style="flex:1;">
+          <label>Đơn vị</label>
+          <select name="customType">
+            <option value="minute">Phút</option>
+            <option value="hour">Giờ</option>
+            <option value="day">Ngày</option>
           </select>
         </div>
       </div>
@@ -158,6 +173,12 @@
     }
   };
 
+  window.toggleRecurrenceFields = function() {
+    const isCustom = form.recurrence.value === 'custom';
+    document.getElementById('customRecurrenceFields').style.display = isCustom ? 'flex' : 'none';
+    form.customInterval.required = isCustom;
+  };
+
   function toLocalInputValue(iso) {
     const d = new Date(iso);
     const pad = (n) => String(n).padStart(2, "0");
@@ -176,13 +197,25 @@
       form.targetFunction.value = automation.targetFunction || '';
       form.prompt.value = automation.prompt || '';
       form.scheduledAt.value = toLocalInputValue(automation.scheduledAt);
-      form.recurrence.value = automation.recurrence;
+      
+      if (automation.recurrence && automation.recurrence.includes(" ")) {
+        form.recurrence.value = "custom";
+        const parts = automation.recurrence.split(" ");
+        form.customInterval.value = parts[0] || "1";
+        form.customType.value = parts[1] || "minute";
+      } else {
+        form.recurrence.value = automation.recurrence || 'once';
+      }
+      
       window.toggleActionFields();
+      window.toggleRecurrenceFields();
     } else {
       modalTitle.textContent = "Thêm lịch automation";
       form.id.value = "";
       form.actionType.value = 'ai_agent';
+      form.recurrence.value = 'once';
       window.toggleActionFields();
+      window.toggleRecurrenceFields();
     }
     editModal.showModal();
   };
@@ -261,6 +294,11 @@
 
     const formData = new FormData(form);
     const id = formData.get("id");
+    let rec = formData.get("recurrence");
+    if (rec === "custom") {
+      rec = formData.get("customInterval") + " " + formData.get("customType");
+    }
+
     const data = {
       name: formData.get("name").trim(),
       actionType: formData.get("actionType"),
@@ -268,7 +306,7 @@
       targetFunction: formData.get("targetFunction") || null,
       prompt: formData.get("prompt") ? formData.get("prompt").trim() : null,
       scheduledAt: new Date(formData.get("scheduledAt")).toISOString(),
-      recurrence: formData.get("recurrence"),
+      recurrence: rec,
     };
 
     const btn = form.querySelector('button[type="submit"]');

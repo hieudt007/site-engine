@@ -54,25 +54,33 @@ export async function runDueAutomations(): Promise<void> {
 
       if (item.recurrence !== "once") {
         const next = new Date(item.scheduledAt);
-        switch (item.recurrence) {
-          case "every_15_minutes":
-            next.setMinutes(next.getMinutes() + 15);
-            break;
-          case "every_30_minutes":
-            next.setMinutes(next.getMinutes() + 30);
-            break;
-          case "hourly":
-            next.setHours(next.getHours() + 1);
-            break;
-          case "daily":
-            next.setDate(next.getDate() + 1);
-            break;
-          case "weekly":
-            next.setDate(next.getDate() + 7);
-            break;
-          case "monthly":
-            next.setMonth(next.getMonth() + 1);
-            break;
+        if (item.recurrence.includes(" ")) {
+          const [intervalStr, type] = item.recurrence.split(" ");
+          const interval = parseInt(intervalStr, 10) || 1;
+          if (type === "minute") next.setMinutes(next.getMinutes() + interval);
+          else if (type === "hour") next.setHours(next.getHours() + interval);
+          else if (type === "day") next.setDate(next.getDate() + interval);
+        } else {
+          switch (item.recurrence) {
+            case "every_15_minutes":
+              next.setMinutes(next.getMinutes() + 15);
+              break;
+            case "every_30_minutes":
+              next.setMinutes(next.getMinutes() + 30);
+              break;
+            case "hourly":
+              next.setHours(next.getHours() + 1);
+              break;
+            case "daily":
+              next.setDate(next.getDate() + 1);
+              break;
+            case "weekly":
+              next.setDate(next.getDate() + 7);
+              break;
+            case "monthly":
+              next.setMonth(next.getMonth() + 1);
+              break;
+          }
         }
         await prisma.automation.update({
           where: { id: item.id },

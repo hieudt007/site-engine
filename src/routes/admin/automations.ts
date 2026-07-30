@@ -7,6 +7,7 @@ import { AutomationRegistry } from "../../jobs/AutomationRegistry.js";
 
 // Quan ly ban ghi Automation qua UI that (khong chi qua AI chat)
 const VALID_RECURRENCE = ["once", "every_15_minutes", "every_30_minutes", "hourly", "daily", "weekly", "monthly"] as const;
+const RECURRENCE_REGEX = /^\d+ (minute|hour|day)$/;
 const VALID_ACTION_TYPES = ["ai_agent", "function"] as const;
 
 const automationSchema = z.object({
@@ -16,7 +17,10 @@ const automationSchema = z.object({
   targetFunction: z.string().optional().nullable(),
   prompt: z.string().optional().nullable(),
   scheduledAt: z.coerce.date(),
-  recurrence: z.enum(VALID_RECURRENCE).optional().default("once"),
+  recurrence: z.union([
+    z.enum(VALID_RECURRENCE),
+    z.string().regex(RECURRENCE_REGEX)
+  ]).optional().default("once"),
 }).refine(data => {
   if (data.actionType === "ai_agent") return !!data.aiAgentId && !!data.prompt;
   if (data.actionType === "function") return !!data.targetFunction;
@@ -30,7 +34,10 @@ const updateAutomationSchema = z.object({
   targetFunction: z.string().optional().nullable(),
   prompt: z.string().optional().nullable(),
   scheduledAt: z.coerce.date().optional(),
-  recurrence: z.enum(VALID_RECURRENCE).optional(),
+  recurrence: z.union([
+    z.enum(VALID_RECURRENCE),
+    z.string().regex(RECURRENCE_REGEX)
+  ]).optional(),
   status: z.enum(["pending", "cancelled"]).optional(),
 });
 

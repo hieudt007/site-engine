@@ -11,7 +11,7 @@ const VALID_RECURRENCE = new Set(["once", "daily"]);
 export const createAutomationTool: MCPTool = {
   name: "create_automation",
   description:
-    'Schedule this agent to run again later with a saved prompt. {"name": "short label", "prompt": "full instructions for the future run", "scheduledAt": "ISO datetime, e.g. 2026-07-29T08:00:00", "recurrence": "once"|"daily" (optional, default "once")}',
+    'Schedule this agent to run again later with a saved prompt. {"name": "short label", "prompt": "full instructions for the future run", "scheduledAt": "ISO datetime, e.g. 2026-07-29T08:00:00", "recurrence": "once"|"daily"|"{number} minute"|"{number} hour"|"{number} day" (optional, default "once")}',
   execute: async (args, context) => {
     const name = String(args.name || "").trim();
     const prompt = String(args.prompt || "").trim();
@@ -23,7 +23,9 @@ export const createAutomationTool: MCPTool = {
     if (!scheduledAtRaw) return "Error: missing scheduledAt (ISO datetime).";
     const scheduledAt = new Date(scheduledAtRaw);
     if (Number.isNaN(scheduledAt.getTime())) return "Error: invalid scheduledAt, use ISO datetime format.";
-    if (!VALID_RECURRENCE.has(recurrence)) return `Error: recurrence must be one of: ${[...VALID_RECURRENCE].join(", ")}.`;
+    if (!VALID_RECURRENCE.has(recurrence) && !/^\d+ (minute|hour|day)$/.test(recurrence)) {
+      return `Error: recurrence must be one of: ${[...VALID_RECURRENCE].join(", ")} or format like "5 minute", "2 hour".`;
+    }
 
     const userId = context.meta?.userId ? Number(context.meta.userId) : null;
     const automation = await prisma.automation.create({
@@ -36,7 +38,7 @@ export const createAutomationTool: MCPTool = {
 export const updateAutomationTool: MCPTool = {
   name: "update_automation",
   description:
-    'Edit an existing automation (only pass fields you want to change). {"id": "automation_id", "name"?: "...", "prompt"?: "...", "scheduledAt"?: "ISO datetime", "recurrence"?: "once"|"daily", "status"?: "pending"|"cancelled"}',
+    'Edit an existing automation (only pass fields you want to change). {"id": "automation_id", "name"?: "...", "prompt"?: "...", "scheduledAt"?: "ISO datetime", "recurrence"?: "once"|"daily"|"{number} minute", "status"?: "pending"|"cancelled"}',
   execute: async (args, context) => {
     const id = String(args.id || "").trim();
     if (!id) return "Error: missing id.";
@@ -52,7 +54,9 @@ export const updateAutomationTool: MCPTool = {
       data.scheduledAt = d;
     }
     if (typeof args.recurrence === "string") {
-      if (!VALID_RECURRENCE.has(args.recurrence)) return `Error: recurrence must be one of: ${[...VALID_RECURRENCE].join(", ")}.`;
+      if (!VALID_RECURRENCE.has(args.recurrence) && !/^\d+ (minute|hour|day)$/.test(args.recurrence)) {
+        return `Error: recurrence must be one of: ${[...VALID_RECURRENCE].join(", ")} or format like "5 minute".`;
+      }
       data.recurrence = args.recurrence;
     }
     if (typeof args.status === "string") {
