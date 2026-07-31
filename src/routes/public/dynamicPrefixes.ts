@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { pagePrefix, postPrefix, productPrefix } from "../../services/urlPaths.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
 import { renderPage } from "./pages.js";
@@ -10,7 +11,7 @@ type DynamicNotFoundResult =
   | { html: string };
 
 async function siteUrlConfig() {
-  const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const config = await CacheService.getSiteConfig();
   return config as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 }
 
@@ -21,7 +22,7 @@ function queryString(url: string): string {
 
 async function renderDynamicNotFound(request: FastifyRequest, message = "Không tìm thấy trang"): Promise<DynamicNotFoundResult> {
   const pathname = request.url.split("?")[0];
-  const redirect = await prisma.redirect.findUnique({ where: { fromPath: pathname } });
+  const redirect = await CacheService.getRedirect(pathname);
   if (redirect) return { redirect };
   return { html: await renderNotFound(message) };
 }

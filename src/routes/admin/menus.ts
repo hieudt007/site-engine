@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 const menuItemSchema = z.object({
@@ -54,6 +55,8 @@ export async function registerMenuRoutes(app: FastifyInstance): Promise<void> {
           data: parsed.data.items.map((item) => ({ ...item, menuId: menu.id })),
         });
       }
+
+      await CacheService.forget('global:menus');
 
       const updated = await prisma.menu.findUnique({
         where: { id: menu.id },

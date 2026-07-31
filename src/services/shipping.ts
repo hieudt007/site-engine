@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { CacheService } from "./CacheService.js";
 import type { ShippingRule } from "@prisma/client";
 
 // Danh sach 63 tinh/thanh VN (truoc sap nhap) - dung lam dropdown checkout va gia tri khop voi
@@ -21,7 +22,8 @@ export const VN_PROVINCES = [
 ];
 
 export async function listShippingRules(): Promise<ShippingRule[]> {
-  return prisma.shippingRule.findMany({ orderBy: { updatedAt: "desc" } });
+  const rules = await CacheService.getShippingRules();
+  return rules.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 // Rule co "provinces" chua province da chon LUON uu tien hon rule fallback (provinces=[]), bat ke

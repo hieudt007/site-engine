@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 const storeSchema = z.object({
@@ -25,6 +26,7 @@ export async function registerStoreRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(422).send({ error: parsed.error.flatten() });
     }
     const store = await prisma.store.create({ data: parsed.data });
+    await CacheService.forget('global:stores');
     return reply.code(201).send({ store });
   });
 
@@ -37,6 +39,7 @@ export async function registerStoreRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(422).send({ error: parsed.error.flatten() });
       }
       const store = await prisma.store.update({ where: { id: request.params.id }, data: parsed.data });
+      await CacheService.forget('global:stores');
       return { store };
     },
   );
@@ -46,6 +49,7 @@ export async function registerStoreRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requireRole("manager") },
     async (request) => {
       await prisma.store.delete({ where: { id: request.params.id } });
+      await CacheService.forget('global:stores');
       return { success: true };
     },
   );

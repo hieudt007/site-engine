@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { customFieldsSchema } from "../../services/customFields.js";
 import { recomputeProductRatingAggregate } from "../../services/productRatingAggregate.js";
@@ -49,6 +50,9 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
       }
 
       const updated = await prisma.productReview.update({ where: { id: review.id }, data: parsed.data });
+      await CacheService.forget('product:' + updated.productCacheId);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { review: updated };
     },
   );
@@ -66,6 +70,9 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         data: { status: "approved" },
       });
       await recomputeProductRatingAggregate(review.productCacheId);
+      await CacheService.forget('product:' + review.productCacheId);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { review: updated };
     },
   );
@@ -83,6 +90,9 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         data: { status: "rejected" },
       });
       await recomputeProductRatingAggregate(review.productCacheId);
+      await CacheService.forget('product:' + review.productCacheId);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { review: updated };
     },
   );

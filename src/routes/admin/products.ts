@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { saveRevision, listRevisions } from "../../services/revisions.js";
 import { customFieldsSchema } from "../../services/customFields.js";
@@ -327,7 +328,10 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
           categories: categoryIds !== undefined ? { set: categoryIds.map(id => ({ id })) } : undefined,
         } as any,
       });
-
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { product: updated };
     },
   );
@@ -393,7 +397,10 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       );
 
       const updated = await prisma.productCache.update({ where: { id: product.id }, data: snapshot });
-
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { product: updated };
     },
   );
@@ -411,6 +418,10 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         where: { id: product.id },
         data: { status: "published", publishedAt: new Date(), scheduledAt: null },
       });
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { product: updated };
     },
   );
@@ -438,6 +449,10 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         where: { id: product.id },
         data: { status: "scheduled", scheduledAt, publishedAt: null },
       });
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { product: updated };
     },
   );
@@ -455,6 +470,10 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
         where: { id: product.id },
         data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { product: updated };
     },
   );

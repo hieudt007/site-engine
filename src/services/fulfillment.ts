@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { CacheService } from "./CacheService.js";
 import type { FulfillmentMethod, Store } from "@prisma/client";
 
 export const FULFILLMENT_METHOD_KEYS = ["delivery", "pickup"] as const;
@@ -16,16 +17,19 @@ export async function ensureFulfillmentMethodRows(): Promise<void> {
 
 export async function listFulfillmentMethods(): Promise<FulfillmentMethod[]> {
   await ensureFulfillmentMethodRows();
-  return prisma.fulfillmentMethod.findMany({ orderBy: { method: "asc" } });
+  const methods = await CacheService.getFulfillmentMethods();
+  return methods.sort((a, b) => a.method.localeCompare(b.method));
 }
 
 export async function isFulfillmentMethodEnabled(method: FulfillmentMethodKey): Promise<boolean> {
-  const row = await prisma.fulfillmentMethod.findUnique({ where: { method } });
+  const allMethods = await CacheService.getFulfillmentMethods();
+  const row = allMethods.find((m) => m.method === method);
   return row?.enabled ?? true;
 }
 
 export async function listEnabledStores(): Promise<Store[]> {
-  return prisma.store.findMany({ where: { enabled: true }, orderBy: { name: "asc" } });
+  const allStores = await CacheService.getStores();
+  return allStores.filter((s) => s.enabled).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // LeadBase khong co khai niem "cua hang pickup" rieng - ghi thanh 1 dong note kem theo don de
@@ -38,7 +42,8 @@ export async function buildFulfillmentNote(order: {
   if (order.fulfillmentMethod !== "pickup" || !order.storeId) {
     return undefined;
   }
-  const store = await prisma.store.findUnique({ where: { id: order.storeId } });
+  const allStores = await CacheService.getStores();
+  const store = allStores.find((s) => s.id === order.storeId);
   if (!store) {
     return undefined;
   }

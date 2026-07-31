@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { ensureProductSlugs } from "../../services/productSlug.js";
 
@@ -12,7 +13,7 @@ function normalizeQuery(q: string | undefined): string {
 export async function registerPublicSearchRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { q?: string } }>("/search", async (request, reply) => {
     const q = normalizeQuery(request.query.q);
-    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const siteConfig = await CacheService.getSiteConfig();
     const isBlog = siteConfig?.siteType === "blog";
 
     let posts: unknown[] = [];

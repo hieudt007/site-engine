@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 const PAGE_SIZE = 20;
@@ -50,6 +51,7 @@ export async function registerCouponRoutes(app: FastifyInstance): Promise<void> 
         enabled: parsed.data.enabled ?? true,
       },
     });
+    await CacheService.forget('global:coupons');
     return reply.code(201).send({ coupon });
   });
 
@@ -69,6 +71,7 @@ export async function registerCouponRoutes(app: FastifyInstance): Promise<void> 
           ...(expiresAt !== undefined ? { expiresAt: expiresAt ? new Date(expiresAt) : null } : {}),
         },
       });
+      await CacheService.forget('global:coupons');
       return { coupon };
     },
   );
@@ -78,6 +81,7 @@ export async function registerCouponRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: requireRole("manager") },
     async (request) => {
       await prisma.coupon.delete({ where: { id: request.params.id } });
+      await CacheService.forget('global:coupons');
       return { success: true };
     },
   );

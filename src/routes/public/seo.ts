@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { htmlToMarkdown } from "../../services/geoMarkdown.js";
 import { pagePath, postCategoryPath, postPath, productCategoryPath, productPath, topicPath } from "../../services/urlPaths.js";
 
@@ -9,7 +10,7 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
   app.get("/sitemap.xml", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
 
-    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const siteConfig = await CacheService.getSiteConfig();
     const isBlog = siteConfig?.siteType === "blog";
     const urlConfig = siteConfig as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 
@@ -21,9 +22,9 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
         ? Promise.resolve([])
         : prisma.productCache.findMany({ where: { status: "published" }, select: { id: true, slug: true, syncedAt: true } as any }),
       prisma.post.findMany({ where: { type: "page", status: "published" }, select: { slug: true, updatedAt: true } }),
-      prisma.category.findMany({ where: { type: "post" }, select: { slug: true, updatedAt: true } }),
+      CacheService.getCategories().then(cats => cats.filter((c: any) => c.type === "post").map((c: any) => ({ slug: c.slug, updatedAt: c.updatedAt }))),
       prisma.topic.findMany({ select: { slug: true, createdAt: true } }),
-      isBlog ? Promise.resolve([]) : prisma.category.findMany({ where: { type: "product" }, select: { slug: true, updatedAt: true } }),
+      isBlog ? Promise.resolve([]) : CacheService.getCategories().then(cats => cats.filter((c: any) => c.type === "product").map((c: any) => ({ slug: c.slug, updatedAt: c.updatedAt }))),
     ]);
 
     const staticUrls = [
@@ -80,7 +81,7 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/llms.txt", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
-    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const siteConfig = await CacheService.getSiteConfig();
     const isBlog = siteConfig?.siteType === "blog";
     const siteName = siteConfig?.siteName ?? "Website";
     const urlConfig = siteConfig as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
@@ -147,7 +148,7 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/llms-full.txt", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
-    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const siteConfig = await CacheService.getSiteConfig();
     const isBlog = siteConfig?.siteType === "blog";
     const siteName = siteConfig?.siteName ?? "Website";
     const urlConfig = siteConfig as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
@@ -202,7 +203,7 @@ export async function registerSeoRoutes(app: FastifyInstance): Promise<void> {
   // tìm kiếm, chưa có feed cho trình đọc RSS/tổng hợp tin.
   app.get("/feed.xml", async (request, reply) => {
     const baseUrl = `https://${request.hostname}`;
-    const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const siteConfig = await CacheService.getSiteConfig();
     const siteName = siteConfig?.siteName ?? "Website";
     const urlConfig = siteConfig as { postSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 

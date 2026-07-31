@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { customFieldsSchema } from "../../services/customFields.js";
 
@@ -93,6 +94,7 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
       }
 
       const updated = await prisma.category.update({ where: { id: category.id }, data: parsed.data });
+      await CacheService.forget('global:categories');
       return { category: updated };
     },
   );
@@ -118,6 +120,7 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
     }
 
     const category = await prisma.category.create({ data: parsed.data });
+    await CacheService.forget('global:categories');
     return reply.code(201).send({ category });
   });
 
@@ -131,6 +134,7 @@ export async function registerProductCategoryRoutes(app: FastifyInstance): Promi
       }
 
       await prisma.category.delete({ where: { id: category.id } });
+      await CacheService.forget('global:categories');
       return { success: true };
     }
   );

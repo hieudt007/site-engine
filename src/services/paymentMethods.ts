@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { CacheService } from "./CacheService.js";
 import type { PaymentMethod } from "@prisma/client";
 
 export const PAYMENT_METHOD_KEYS = ["cod", "bank_transfer", "vnpay"] as const;
@@ -33,14 +34,17 @@ export async function ensurePaymentMethodRows(): Promise<void> {
 
 export async function listPaymentMethods(): Promise<PaymentMethod[]> {
   await ensurePaymentMethodRows();
-  return prisma.paymentMethod.findMany({ orderBy: { method: "asc" } });
+  const methods = await CacheService.getPaymentMethods();
+  return methods.sort((a, b) => a.method.localeCompare(b.method));
 }
 
 export async function getEnabledPaymentMethodKeys(): Promise<PaymentMethodKey[]> {
-  const rows = await prisma.paymentMethod.findMany({ where: { enabled: true } });
+  const allMethods = await CacheService.getPaymentMethods();
+  const rows = allMethods.filter((r) => r.enabled);
   return rows.map((r) => r.method as PaymentMethodKey);
 }
 
 export async function getPaymentMethod(method: PaymentMethodKey): Promise<PaymentMethod | null> {
-  return prisma.paymentMethod.findUnique({ where: { method } });
+  const allMethods = await CacheService.getPaymentMethods();
+  return allMethods.find((m) => m.method === method) || null;
 }

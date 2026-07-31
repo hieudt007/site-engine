@@ -4,6 +4,7 @@ import path from "node:path";
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { THEME_BUNDLE_OUTPUTS, CORE_THEME_FILES, getAllContracts } from "../../services/themeContract.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
@@ -97,7 +98,7 @@ async function validateImportedThemeDir(themeDir: string): Promise<string[]> {
 export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/themes", { preHandler: requireRole("admin") }, async () => {
     const [config, customThemes] = await Promise.all([
-      prisma.themeConfig.findUnique({ where: { id: "singleton" } }),
+      CacheService.getThemeConfig(),
       prisma.customTheme.findMany({ orderBy: { installedAt: "desc" } }),
     ]);
     const activeTheme = config?.activeTheme ?? "default";
@@ -110,7 +111,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
       hasScreenshot: hasScreenshot(slug),
       hiddenFromGrid: HIDDEN_FROM_GRID_SLUGS.has(slug),
     }));
-    const custom = customThemes.map((t) => ({
+    const custom = customThemes.map((t: any) => ({
       slug: t.slug,
       name: t.name,
       source: t.source,
@@ -189,6 +190,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
           create: { id: "singleton", activeTheme: slug },
           update: { activeTheme: slug },
         });
+        await CacheService.forget('global:theme_config');
       }
 
       return reply.code(mode === "create" ? 201 : 200).send({ theme, activated: activate });
@@ -217,6 +219,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
       create: { id: "singleton", activeTheme: slug },
       update: { activeTheme: slug },
     });
+    await CacheService.forget('global:theme_config');
 
     return { config };
   });
@@ -234,7 +237,7 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: "Chỉ xoá được theme do AI tạo (không áp dụng theme có sẵn)" });
       }
 
-      const config = await prisma.themeConfig.findUnique({ where: { id: "singleton" } });
+      const config = await CacheService.getThemeConfig();
       if (config?.activeTheme === slug) {
         return reply.code(422).send({ error: "Không thể xoá theme đang dùng — đổi sang theme khác trước." });
       }

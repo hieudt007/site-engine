@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyReply } from "fastify";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
@@ -11,12 +12,12 @@ function queryString(url: string): string {
 }
 
 async function siteUrlConfig() {
-  const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const config = await CacheService.getSiteConfig();
   return config as { postSlugPrefix?: string | null; pageSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 }
 
 export async function renderPage(slug: string, reply: FastifyReply) {
-  const page = await prisma.post.findUnique({ where: { type_slug: { type: "page", slug } } });
+  const page = await CacheService.getPageBySlug(slug);
   if (!page || page.status !== "published") {
     return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy trang"));
   }

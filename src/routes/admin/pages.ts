@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
@@ -139,6 +140,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         authorId: userId,
       },
     });
+    await CacheService.forget('page:' + page.slug);
+    await CacheService.forget('page:' + page.slug);
     await auditLog(userId, "page.create", page.id);
 
     return reply.code(201).send({ page });
@@ -211,6 +214,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         where: { id: page.id },
         data: dataWithSeo as any,
       });
+      await CacheService.forget('page:' + updated.slug);
+      await CacheService.forget('page:' + updated.slug);
       await auditLog(userId, "page.update", page.id);
 
       if (slugChanged) {
@@ -299,6 +304,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const updated = await prisma.post.update({ where: { id: page.id }, data: snapshot });
+      await CacheService.forget('page:' + updated.slug);
+      await CacheService.forget('page:' + updated.slug);
       await auditLog(userId, "page.restore", page.id, { revisionId: revision.id });
 
       return { page: updated };
@@ -319,6 +326,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         where: { id: page.id },
         data: { status: "pending_review" },
       });
+      await CacheService.forget('page:' + updated.slug);
+      await CacheService.forget('page:' + updated.slug);
       await auditLog(userId, "page.submit", page.id);
 
       return { page: updated };
@@ -339,6 +348,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         where: { id: page.id },
         data: { status: "published", publishedAt: new Date(), scheduledAt: null },
       });
+      await CacheService.forget('page:' + updated.slug);
+      await CacheService.forget('page:' + updated.slug);
       await auditLog(userId, "page.publish", page.id);
 
       return { page: updated };
@@ -369,6 +380,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         where: { id: page.id },
         data: { status: "scheduled", scheduledAt, publishedAt: null },
       });
+      await CacheService.forget('page:' + updated.slug);
+      await CacheService.forget('page:' + updated.slug);
       await auditLog(userId, "page.schedule", page.id, { scheduledAt: updated.scheduledAt });
 
       return { page: updated };
@@ -389,6 +402,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
         where: { id: page.id },
         data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
+      await CacheService.forget('page:' + updated.slug);
+      await CacheService.forget('page:' + updated.slug);
       await auditLog(userId, "page.unpublish", page.id);
 
       return { page: updated };
@@ -406,6 +421,8 @@ export async function registerPageRoutes(app: FastifyInstance): Promise<void> {
 
       const userId = request.session.get("userId")!;
       await prisma.post.delete({ where: { id: page.id } });
+      await CacheService.forget('page:' + page.slug);
+      await CacheService.forget('page:' + page.slug);
       await auditLog(userId, "page.delete", page.id, { title: page.title, slug: page.slug });
 
       return { success: true };

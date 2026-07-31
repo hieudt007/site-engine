@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { assertSafeOutboundUrl } from "../../security/ssrfGuard.js";
 
 // Ghi lai context gui/nhan voi AI de debug - GHI DE (khong noi tiep) - chi giu LAN GOI GAN NHAT,
@@ -180,7 +181,7 @@ export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: 
 
   // Fallback to SiteConfig api keys if agent's key is not set
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {
@@ -245,7 +246,7 @@ export async function callAgentConversation(
   }
 
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {
@@ -456,7 +457,7 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
   }
 
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {
@@ -513,7 +514,7 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
   }
 
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {
@@ -584,7 +585,7 @@ export async function generateVideo(agent: Agent, prompt: string): Promise<strin
   }
 
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {
@@ -627,7 +628,7 @@ export async function createEmbedding(agent: Agent, input: string): Promise<stri
   }
 
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {
@@ -667,7 +668,7 @@ export async function webFetch(agent: Agent, url: string): Promise<string> {
   }
 
   if (!agent.apiKey) {
-    const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    const config = await CacheService.getSiteConfig();
     if (config?.aiProviderKeys) {
       const keys = config.aiProviderKeys as Record<string, string>;
       if (keys[agent.provider]) {

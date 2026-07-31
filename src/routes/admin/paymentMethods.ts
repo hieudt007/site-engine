@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { listPaymentMethods, PAYMENT_METHOD_KEYS } from "../../services/paymentMethods.js";
 
@@ -53,6 +54,7 @@ export async function registerPaymentMethodRoutes(app: FastifyInstance): Promise
           ...(parsed.data.config !== undefined ? { config: parsed.data.config } : {}),
         },
       });
+      await CacheService.forget('global:payment_methods');
 
       return { method: updated };
     },

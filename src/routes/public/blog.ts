@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
@@ -10,7 +11,7 @@ import { ensureProductSlug } from "../../services/productSlug.js";
 // URL tuyet doi + thong tin site cho JSON-LD (BlogPosting.publisher...) - xem cung ly do trong
 // routes/public/products.ts.
 async function siteInfo(): Promise<{ siteName: string; logoUrl: string | null; domain: string; baseUrl: string }> {
-  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const siteConfig = await CacheService.getSiteConfig();
   const domain = siteConfig?.domain ?? "localhost";
   return {
     siteName: siteConfig?.siteName ?? "Website",
@@ -23,7 +24,7 @@ async function siteInfo(): Promise<{ siteName: string; logoUrl: string | null; d
 const PAGE_SIZE = 10;
 
 async function siteUrlConfig() {
-  const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const config = await CacheService.getSiteConfig();
   return config as { postSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 }
 
@@ -39,12 +40,9 @@ function unlockCookieName(postId: string): string {
 }
 
 export async function renderPostBySlug(slug: string, request: FastifyRequest, reply: FastifyReply) {
-  const post = await prisma.post.findUnique({
-    where: { type_slug: { type: "post", slug } },
-    include: { categories: { select: { name: true, slug: true } } },
-  });
+  const post = await CacheService.getPostBySlug(slug);
   if (!post || post.status !== "published") {
-    const redirect = await prisma.redirect.findUnique({ where: { fromPath: request.url } });
+    const redirect = await CacheService.getRedirect(request.url);
     if (redirect) {
       return reply.code(redirect.statusCode).redirect(redirect.toPath);
     }
@@ -123,10 +121,8 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
 }
 
 export async function renderPostCategoryBySlug(slug: string, request: FastifyRequest<{ Querystring: { page?: string } }>, reply: FastifyReply) {
-  const category = await prisma.category.findUnique({
-    where: { type_slug: { type: "post", slug } },
-    include: { children: { select: { name: true, slug: true } } },
-  });
+  const allCategories = await CacheService.getCategories();
+  const category = allCategories.find((c: any) => c.type === "post" && c.slug === slug);
   if (!category) {
     return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy danh mục"));
   }
@@ -134,16 +130,18 @@ export async function renderPostCategoryBySlug(slug: string, request: FastifyReq
   const page = Math.max(1, Number(request.query.page ?? 1) || 1);
   const skip = (page - 1) * PAGE_SIZE;
   const where = { type: "post", status: "published", categories: { some: { id: category.id } } };
-  const [posts, total] = await Promise.all([
-    prisma.post.findMany({
-      where,
-      orderBy: { publishedAt: "desc" },
-      skip,
-      take: PAGE_SIZE,
-      select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
-    }),
-    prisma.post.count({ where }),
-  ]);
+  const [posts, total] = await CacheService.getPostList(`category:${category.slug}:${page}`, async () => {
+    return Promise.all([
+      prisma.post.findMany({
+        where,
+        orderBy: { publishedAt: "desc" },
+        skip,
+        take: PAGE_SIZE,
+        select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
+      }),
+      prisma.post.count({ where }),
+    ]);
+  });
 
   const seo = readSeo(category.seo);
   const site = await siteInfo();
@@ -192,16 +190,18 @@ export async function renderTopicBySlug(slug: string, request: FastifyRequest<{ 
   const page = Math.max(1, Number(request.query.page ?? 1) || 1);
   const skip = (page - 1) * PAGE_SIZE;
   const where = { type: "post", status: "published", topicId: topic.id };
-  const [posts, total] = await Promise.all([
-    prisma.post.findMany({
-      where,
-      orderBy: { publishedAt: "desc" },
-      skip,
-      take: PAGE_SIZE,
-      select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
-    }),
-    prisma.post.count({ where }),
-  ]);
+  const [posts, total] = await CacheService.getPostList(`topic:${topic.slug}:${page}`, async () => {
+    return Promise.all([
+      prisma.post.findMany({
+        where,
+        orderBy: { publishedAt: "desc" },
+        skip,
+        take: PAGE_SIZE,
+        select: { slug: true, title: true, excerpt: true, coverImage: true, publishedAt: true },
+      }),
+      prisma.post.count({ where }),
+    ]);
+  });
 
   const site = await siteInfo();
   const urlConfig = await siteUrlConfig();
@@ -286,10 +286,8 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/danh-muc/:slug",
     async (request, reply) => {
-      const category = await prisma.category.findUnique({
-        where: { type_slug: { type: "post", slug: request.params.slug } },
-        include: { children: { select: { name: true, slug: true } } },
-      });
+      const allCategories = await CacheService.getCategories();
+      const category = allCategories.find((c: any) => c.type === "post" && c.slug === request.params.slug);
       if (!category) {
         return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy danh mục"));
       }
@@ -449,9 +447,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get<{ Params: { slug: string } }>("/:slug", async (request, reply) => {
-    const page = await prisma.post.findUnique({
-      where: { type_slug: { type: "page", slug: request.params.slug } },
-    });
+    const page = await CacheService.getPageBySlug(request.params.slug);
     if (page?.status === "published") {
       const urlConfig = await siteUrlConfig();
       if (pagePrefix(urlConfig ?? {}) !== "") {
@@ -485,10 +481,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       return reply.type("text/html").send(html);
     }
 
-    const post = await prisma.post.findUnique({
-      where: { type_slug: { type: "post", slug: request.params.slug } },
-      include: { categories: { select: { name: true, slug: true } } },
-    });
+    const post = await CacheService.getPostBySlug(request.params.slug);
     if (!post || post.status !== "published") {
       const urlConfig = await siteUrlConfig();
       if (productPrefix(urlConfig ?? {}) === "") {
@@ -554,7 +547,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       // "/blog/:slug" la route DA DANG KY nen luon khop pattern - app.setNotFoundHandler()
       // (server.ts) KHONG BAO GIO chay toi day, phai tu tra Redirect ngay trong handler nay
       // (khac cac path hoan toan khong ton tai, moi roi xuong setNotFoundHandler that).
-      const redirect = await prisma.redirect.findUnique({ where: { fromPath: request.url } });
+      const redirect = await CacheService.getRedirect(request.url);
       if (redirect) {
         return reply.code(redirect.statusCode).redirect(redirect.toPath);
       }
@@ -626,9 +619,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
   app.post<{ Params: { slug: string }; Body: { password?: string } }>(
     "/api/posts/:slug/unlock",
     async (request, reply) => {
-      const post = await prisma.post.findUnique({
-        where: { type_slug: { type: "post", slug: request.params.slug } },
-      });
+      const post = await CacheService.getPostBySlug(request.params.slug);
       if (!post || post.status !== "published" || !post.password) {
         return reply.code(404).send({ error: "Không tìm thấy bài viết" });
       }

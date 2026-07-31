@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { stripSystemResources } from "../../agents/core/agentPermissions.js";
 import { assertSafeOutboundUrl, UnsafeOutboundUrlError } from "../../security/ssrfGuard.js";
@@ -114,6 +115,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     const userId = request.session.get("userId")!;
     const cleanData = await stripSystemResources(parsed.data);
     const agent = await prisma.agent.create({ data: { ...cleanData, key: cleanData.key || null } });
+    await CacheService.forget('global:agents');
     await auditLog(userId, "agent.create", agent.id);
 
     if (parsed.data.apiKey && parsed.data.apiKey.trim() !== "") {
@@ -122,6 +124,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         const keys = (config.aiProviderKeys as Record<string, string> | null) || {};
         keys[parsed.data.provider] = parsed.data.apiKey;
         await prisma.siteConfig.update({ where: { id: "singleton" }, data: { aiProviderKeys: keys } });
+        await CacheService.forget('global:site_config');
       }
     }
 
@@ -147,9 +150,6 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: "Không tìm thấy agent" });
       }
 
-      // apiKey de trong = giu key cu (khong ghi de rong) - giong pattern posts.ts update ban dau
-      // giu nguyen field khong truyen, khac cho apiKey rong tu form vi form luon gui key rong khi
-      // khong doi -> can loai truoc khi update.
       const cleanData = await stripSystemResources(parsed.data);
       const data = { ...cleanData, ...(cleanData.key !== undefined ? { key: cleanData.key || null } : {}) };
       if (data.apiKey === "") {
@@ -158,6 +158,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
 
       const userId = request.session.get("userId")!;
       const updated = await prisma.agent.update({ where: { id: agent.id }, data });
+      await CacheService.forget('global:agents');
       await auditLog(userId, "agent.update", agent.id);
 
       if (data.apiKey && data.apiKey.trim() !== "") {
@@ -166,6 +167,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
           const keys = (config.aiProviderKeys as Record<string, string> | null) || {};
           keys[data.provider || agent.provider] = data.apiKey;
           await prisma.siteConfig.update({ where: { id: "singleton" }, data: { aiProviderKeys: keys } });
+          await CacheService.forget('global:site_config');
         }
       }
 
@@ -192,6 +194,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
 
       const userId = request.session.get("userId")!;
       await prisma.agent.delete({ where: { id: agent.id } });
+      await CacheService.forget('global:agents');
       await auditLog(userId, "agent.delete", agent.id, { name: agent.name });
 
       return { success: true };

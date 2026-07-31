@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { listShippingRules } from "../../services/shipping.js";
 
@@ -34,6 +35,7 @@ export async function registerShippingRuleRoutes(app: FastifyInstance): Promise<
         enabled: parsed.data.enabled ?? true,
       },
     });
+    await CacheService.forget('global:shipping_rules');
     return reply.code(201).send({ rule });
   });
 
@@ -52,6 +54,7 @@ export async function registerShippingRuleRoutes(app: FastifyInstance): Promise<
           ...(parsed.data.freeShipThreshold !== undefined ? { freeShipThreshold: parsed.data.freeShipThreshold } : {}),
         },
       });
+      await CacheService.forget('global:shipping_rules');
       return { rule };
     },
   );
@@ -59,8 +62,13 @@ export async function registerShippingRuleRoutes(app: FastifyInstance): Promise<
   app.delete<{ Params: { id: string } }>(
     "/admin/api/shipping-rules/:id",
     { preHandler: requireRole("manager") },
-    async (request) => {
+    async (request, reply) => {
+      const exists = await prisma.shippingRule.findUnique({ where: { id: request.params.id } });
+      if (!exists) {
+        return reply.code(404).send({ error: "Không tìm thấy rule" });
+      }
       await prisma.shippingRule.delete({ where: { id: request.params.id } });
+      await CacheService.forget('global:shipping_rules');
       return { success: true };
     },
   );

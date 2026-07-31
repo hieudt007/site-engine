@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
 
@@ -109,6 +110,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
           gscVerificationId: parsed.data.gscVerificationId,
         },
       });
+      await CacheService.forget('global:site_config');
     } catch (error) {
       request.log.error(error);
       return reply.code(500).send({

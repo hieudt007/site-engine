@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
@@ -10,13 +11,13 @@ import { ensureProductSlug, ensureProductSlugs } from "../../services/productSlu
 // URL tuyet doi cho JSON-LD (Product.url, BreadcrumbList.item...) - Schema.org yeu cau URL day du,
 // khong chap nhan duong dan tuong doi.
 async function siteBaseUrl(): Promise<string> {
-  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const siteConfig = await CacheService.getSiteConfig();
   const domain = siteConfig?.domain ?? "localhost";
   return domain.startsWith("http") ? domain : `https://${domain}`;
 }
 
 async function siteUrlConfig() {
-  const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const config = await CacheService.getSiteConfig();
   return config as { postSlugPrefix?: string | null; productSlugPrefix?: string | null } | null;
 }
 
@@ -31,16 +32,18 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     const skip = (page - 1) * PAGE_SIZE;
 
     const where = { status: "published" };
-    const [productsRaw, total] = await Promise.all([
-      prisma.productCache.findMany({
-        where,
-        orderBy: { syncedAt: "desc" },
-        skip,
-        take: PAGE_SIZE,
-        include: { categories: { select: { name: true, slug: true } } },
-      }),
-      prisma.productCache.count({ where }),
-    ]);
+    const [productsRaw, total] = await CacheService.getProductList(`all:${page}`, async () => {
+      return Promise.all([
+        prisma.productCache.findMany({
+          where,
+          orderBy: { syncedAt: "desc" },
+          skip,
+          take: PAGE_SIZE,
+          include: { categories: { select: { name: true, slug: true } } },
+        }),
+        prisma.productCache.count({ where }),
+      ]);
+    });
     const products = await ensureProductSlugs(productsRaw as any);
 
     const html = await renderPublic("products-list", {
@@ -65,10 +68,8 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/product/danh-muc/:slug",
     async (request, reply) => {
-      const category = await prisma.category.findUnique({
-        where: { type_slug: { type: "product", slug: request.params.slug } },
-        include: { children: { select: { name: true, slug: true } } },
-      });
+      const allCategories = await CacheService.getCategories();
+      const category = allCategories.find((c: any) => c.type === "product" && c.slug === request.params.slug);
       if (!category) {
         return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy danh mục"));
       }
@@ -77,10 +78,12 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       const skip = (page - 1) * PAGE_SIZE;
       const where = { status: "published", categories: { some: { id: category.id } } };
 
-      const [productsRaw, total] = await Promise.all([
-        prisma.productCache.findMany({ where, orderBy: { syncedAt: "desc" }, skip, take: PAGE_SIZE }),
-        prisma.productCache.count({ where }),
-      ]);
+      const [productsRaw, total] = await CacheService.getProductList(`category:${category.slug}:${page}`, async () => {
+        return Promise.all([
+          prisma.productCache.findMany({ where, orderBy: { syncedAt: "desc" }, skip, take: PAGE_SIZE }),
+          prisma.productCache.count({ where }),
+        ]);
+      });
       const products = await ensureProductSlugs(productsRaw as any);
 
       const seo = readSeo(category.seo);
@@ -130,10 +133,8 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/product/thuong-hieu/:slug",
     async (request, reply) => {
-      const brand = await prisma.category.findUnique({
-        where: { type_slug: { type: "brand", slug: request.params.slug } },
-        include: { children: { select: { name: true, slug: true } } },
-      });
+      const allCategories = await CacheService.getCategories();
+      const brand = allCategories.find((c: any) => c.type === "brand" && c.slug === request.params.slug);
       if (!brand) {
         return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy thương hiệu"));
       }
@@ -142,10 +143,12 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       const skip = (page - 1) * PAGE_SIZE;
       const where = { status: "published", brandId: brand.id };
 
-      const [productsRaw, total] = await Promise.all([
-        prisma.productCache.findMany({ where, orderBy: { syncedAt: "desc" }, skip, take: PAGE_SIZE }),
-        prisma.productCache.count({ where }),
-      ]);
+      const [productsRaw, total] = await CacheService.getProductList(`brand:${brand.slug}:${page}`, async () => {
+        return Promise.all([
+          prisma.productCache.findMany({ where, orderBy: { syncedAt: "desc" }, skip, take: PAGE_SIZE }),
+          prisma.productCache.count({ where }),
+        ]);
+      });
       const products = await ensureProductSlugs(productsRaw as any);
 
       const seo = readSeo(brand.seo);
@@ -193,15 +196,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
   );
 
   const renderProductDetail = async (request: FastifyRequest<{ Params: { slug: string } }>, reply: FastifyReply) => {
-    const product =
-      (await prisma.productCache.findUnique({
-        where: { slug: request.params.slug } as any,
-        include: { variants: true, categories: { select: { name: true, slug: true } } },
-      })) ??
-      (await prisma.productCache.findUnique({
-        where: { id: request.params.slug },
-        include: { variants: true, categories: { select: { name: true, slug: true } } },
-      }));
+    const product = await CacheService.getProductByIdOrSlug(request.params.slug);
     if (!product || product.status !== "published") {
       return reply.code(404).type("text/html").send(await renderNotFound("Không tìm thấy sản phẩm"));
     }

@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { FULFILLMENT_METHOD_KEYS, listFulfillmentMethods } from "../../services/fulfillment.js";
 
@@ -29,6 +30,7 @@ export async function registerFulfillmentMethodRoutes(app: FastifyInstance): Pro
         create: { method, enabled: parsed.data.enabled },
         update: { enabled: parsed.data.enabled },
       });
+      await CacheService.forget('global:fulfillment_methods');
       return { method: updated };
     },
   );

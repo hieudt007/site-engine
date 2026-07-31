@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { config } from "../../config.js";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { verifySiteEngineRequest } from "../../security.js";
 import { uniqueProductSlug } from "../../services/productSlug.js";
 import { recomputeCategoryCounts } from "../../services/categoryCounts.js";
@@ -89,6 +90,7 @@ async function resolveTypedCategoryId(
     },
     update: { name: entry.name, slug: entry.slug, syncedAt: new Date() },
   });
+  await CacheService.forget('global:categories');
   return upserted.id;
 }
 
@@ -162,6 +164,10 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
         if (hasVariants) {
           await upsertVariants(existing.id, parsed.data.variants!);
         }
+        await CacheService.forget('product:' + existing.id);
+        if (existing.slug) await CacheService.forget('product:' + existing.slug);
+        await CacheService.forget('home:products');
+        await CacheService.forgetPattern('product_list:*');
         await recomputeCategoryCounts([...existing.categories.map((category) => category.id), existing.brandId, categoryId, brandId]);
         return { success: true };
       }
@@ -187,6 +193,10 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
       if (hasVariants) {
         await upsertVariants(created.id, parsed.data.variants!);
       }
+      await CacheService.forget('product:' + created.id);
+      if (created.slug) await CacheService.forget('product:' + created.slug);
+      await CacheService.forget('home:products');
+      await CacheService.forgetPattern('product_list:*');
       return { success: true };
     }
 
@@ -214,6 +224,10 @@ export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<
     if (hasVariants) {
       await upsertVariants(existing.id, parsed.data.variants!);
     }
+    await CacheService.forget('product:' + existing.id);
+    if (existing.slug) await CacheService.forget('product:' + existing.slug);
+        await CacheService.forget('home:products');
+        await CacheService.forgetPattern('product_list:*');
     await recomputeCategoryCounts([...existing.categories.map((category) => category.id), existing.brandId, categoryId, brandId]);
 
     return { success: true };

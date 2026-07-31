@@ -7,6 +7,7 @@ import fastifyStatic from "@fastify/static";
 import fastifyRateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
+import { CacheService } from "./services/CacheService.js";
 import { configureSecurity } from "./plugins/security.js";
 import { registerSession } from "./plugins/session.js";
 import { deleteOtherUserSessions } from "./services/sessionStore.js";
@@ -169,7 +170,7 @@ app.addHook("onRequest", async (request, reply) => {
     return;
   }
 
-  const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+  const siteConfig = await CacheService.getSiteConfig();
   if (siteConfig?.siteType !== "blog") {
     return;
   }
@@ -186,7 +187,7 @@ app.addHook("onRequest", async (request, reply) => {
 // the dua vao handler nay cho case do. Quan tri tay bo sung o routes/admin/redirects.ts.
 app.setNotFoundHandler(async (request, reply) => {
   const pathname = request.url.split("?")[0];
-  const redirect = await prisma.redirect.findUnique({ where: { fromPath: pathname } });
+  const redirect = await CacheService.getRedirect(pathname);
   if (redirect) {
     return reply.code(redirect.statusCode).redirect(redirect.toPath);
   }

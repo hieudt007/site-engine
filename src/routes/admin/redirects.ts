@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 
 // Đa số redirect tự tạo khi đổi slug bài viết (routes/admin/posts.ts) — màn này chỉ để XEM lại
@@ -47,6 +48,7 @@ export async function registerRedirectRoutes(app: FastifyInstance): Promise<void
     const redirect = await prisma.redirect.create({
       data: { fromPath: parsed.data.fromPath, toPath: parsed.data.toPath, statusCode: parsed.data.statusCode ?? 301 },
     });
+    await CacheService.forget(`redirect:${redirect.fromPath}`);
     return reply.code(201).send({ redirect });
   });
 
@@ -59,6 +61,7 @@ export async function registerRedirectRoutes(app: FastifyInstance): Promise<void
         return reply.code(404).send({ error: "Không tìm thấy redirect" });
       }
       await prisma.redirect.delete({ where: { id: redirect.id } });
+      await CacheService.forget(`redirect:${redirect.fromPath}`);
       return { success: true };
     },
   );

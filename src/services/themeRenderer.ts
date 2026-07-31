@@ -1,6 +1,7 @@
 import path from "node:path";
 import { Liquid } from "liquidjs";
 import { prisma } from "../db.js";
+import { CacheService } from "./CacheService.js";
 import crypto from "node:crypto";
 import { config as appConfig } from "../config.js";
 import { buildOrganizationSchema } from "./schema.js";
@@ -13,7 +14,7 @@ import { pagePrefix, prefixPath, postPrefix, productPrefix } from "./urlPaths.js
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 
 async function activeThemeSlug(): Promise<string> {
-  const config = await prisma.themeConfig.findUnique({ where: { id: "singleton" } });
+  const config = await CacheService.getThemeConfig();
   return config?.activeTheme ?? "default";
 }
 
@@ -85,11 +86,12 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     cache: process.env.NODE_ENV === "production"
   });
 
-  const [siteConfig, headerMenu, footerMenu] = await Promise.all([
-    prisma.siteConfig.findUnique({ where: { id: "singleton" } }),
-    prisma.menu.findUnique({ where: { slug: "header" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
-    prisma.menu.findUnique({ where: { slug: "footer" }, include: { items: { orderBy: { sortOrder: "asc" } } } }),
+  const [siteConfig, allMenus] = await Promise.all([
+    CacheService.getSiteConfig(),
+    CacheService.getMenus(),
   ]);
+  const headerMenu = allMenus.find((m: any) => m.slug === "header") || null;
+  const footerMenu = allMenus.find((m: any) => m.slug === "footer") || null;
 
   const { schemas, ...restData } = data;
   const site = siteConfig ?? {

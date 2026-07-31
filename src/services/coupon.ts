@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { CacheService } from "./CacheService.js";
 import type { Coupon } from "@prisma/client";
 
 export interface CouponValidationResult {
@@ -11,11 +12,12 @@ export interface CouponValidationResult {
 // Goi luc checkout (truoc khi tao CartOrder) - KHONG tang usedCount o day, chi validate + tinh so
 // tien giam. incrementCouponUsage() goi rieng SAU KHI da tao don thanh cong (xem cart.ts).
 export async function validateCoupon(code: string, subtotal: number): Promise<CouponValidationResult> {
-  const coupon = await prisma.coupon.findUnique({ where: { code } });
+  const allCoupons = await CacheService.getCoupons();
+  const coupon = allCoupons.find((c) => c.code === code);
   if (!coupon || !coupon.enabled) {
     return { ok: false, error: "Mã giảm giá không tồn tại hoặc đã bị tắt" };
   }
-  if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) {
+  if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() < Date.now()) {
     return { ok: false, error: "Mã giảm giá đã hết hạn" };
   }
   if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
@@ -33,4 +35,5 @@ export async function validateCoupon(code: string, subtotal: number): Promise<Co
 
 export async function incrementCouponUsage(code: string): Promise<void> {
   await prisma.coupon.update({ where: { code }, data: { usedCount: { increment: 1 } } });
+  await CacheService.forget('global:coupons');
 }

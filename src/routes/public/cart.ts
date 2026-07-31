@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
 import { sendOrderToLeadbase, LeadbaseOrderError, OrderItemPayload } from "../../services/leadbaseClient.js";
@@ -187,7 +188,8 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
       const matchedRule = findMatchingShippingRule(shippingRules, parsed.data.customerProvince!);
       shippingFee = calculateShippingFee(matchedRule, total);
     } else {
-      const store = await prisma.store.findUnique({ where: { id: parsed.data.storeId! } });
+      const allStores = await CacheService.getStores();
+      const store = allStores.find((s) => s.id === parsed.data.storeId!);
       if (!store || !store.enabled) {
         return reply.code(422).send({ error: "Cửa hàng không tồn tại hoặc đã ngừng hoạt động" });
       }
@@ -293,7 +295,8 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
       bankInfo = bankMethod?.config ?? null;
     }
 
-    const pickupStore = order.storeId ? await prisma.store.findUnique({ where: { id: order.storeId } }) : null;
+    const allStores = await CacheService.getStores();
+    const pickupStore = order.storeId ? allStores.find((s) => s.id === order.storeId) || null : null;
 
     const html = await renderPublic("order-confirmation", {
       pageTitle: "Xác nhận đơn hàng",

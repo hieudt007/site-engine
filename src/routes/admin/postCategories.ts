@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { customFieldsSchema } from "../../services/customFields.js";
 
@@ -96,6 +97,7 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
     }
 
     const category = await prisma.category.create({ data: { ...parsed.data, type: TYPE } });
+    await CacheService.forget('global:categories');
     return reply.code(201).send({ category });
   });
 
@@ -133,6 +135,7 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
       }
 
       const updated = await prisma.category.update({ where: { id: category.id }, data: parsed.data });
+      await CacheService.forget('global:categories');
       return { category: updated };
     },
   );
@@ -150,6 +153,7 @@ export async function registerPostCategoryRoutes(app: FastifyInstance): Promise<
       // (cascade), không cần tự dọn tay. Category con (parentId trỏ tới đây) tự về null (ON
       // DELETE SET NULL, xem migration).
       await prisma.category.delete({ where: { id: category.id } });
+      await CacheService.forget('global:categories');
 
       return { success: true };
     },

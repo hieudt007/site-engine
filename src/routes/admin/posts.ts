@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../db.js";
+import { CacheService } from "../../services/CacheService.js";
 import { Role, requireRole } from "../../plugins/requireRole.js";
 import { sanitizePostBody } from "../../services/sanitizeHtml.js";
 import { canEditContentFields } from "../../services/contentStatus.js";
@@ -168,6 +169,9 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         ...(categoryIds ? { categories: { connect: categoryIds.map((id) => ({ id })) } } : {}),
       },
     });
+    await CacheService.forget('post:' + post.slug);
+    await CacheService.forget('home:posts');
+    await CacheService.forgetPattern('blog_list:*');
     await auditLog(userId, "post.create", post.id);
     await recomputeCategoryCounts(categoryIds ?? []);
 
@@ -248,6 +252,9 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
           ...(categoryIds ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
         } as any,
       });
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.update", post.id);
       await recomputeCategoryCounts([...(categoryIds ?? []), ...post.categories.map((category) => category.id)]);
 
@@ -346,6 +353,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const updated = await prisma.post.update({ where: { id: post.id }, data: snapshot });
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.restore", post.id, { revisionId: revision.id });
 
       return { post: updated };
@@ -366,6 +379,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         where: { id: post.id },
         data: { status: "pending_review" },
       });
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.submit", post.id);
 
       return { post: updated };
@@ -386,6 +405,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         where: { id: post.id },
         data: { status: "published", publishedAt: new Date(), scheduledAt: null },
       });
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.publish", post.id);
 
       return { post: updated };
@@ -416,6 +441,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         where: { id: post.id },
         data: { status: "scheduled", scheduledAt, publishedAt: null },
       });
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.schedule", post.id, { scheduledAt: updated.scheduledAt });
 
       return { post: updated };
@@ -436,6 +467,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
         where: { id: post.id },
         data: { status: "draft", publishedAt: null, scheduledAt: null },
       });
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
+      await CacheService.forget('post:' + updated.slug);
+      await CacheService.forget('home:posts');
+      await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.unpublish", post.id);
 
       return { post: updated };
@@ -453,6 +490,12 @@ export async function registerPostRoutes(app: FastifyInstance): Promise<void> {
 
       const userId = request.session.get("userId")!;
       await prisma.post.delete({ where: { id: post.id } });
+      await CacheService.forget('post:' + post.slug);
+    await CacheService.forget('home:posts');
+    await CacheService.forgetPattern('blog_list:*');
+      await CacheService.forget('post:' + post.slug);
+    await CacheService.forget('home:posts');
+    await CacheService.forgetPattern('blog_list:*');
       await auditLog(userId, "post.delete", post.id, { title: post.title, slug: post.slug });
       await recomputeCategoryCounts(post.categories.map((category) => category.id));
 
