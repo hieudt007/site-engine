@@ -7,6 +7,7 @@ import fastifyStatic from "@fastify/static";
 import fastifyRateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
+import { configureSecurity } from "./plugins/security.js";
 import { registerSession } from "./plugins/session.js";
 import { deleteOtherUserSessions } from "./services/sessionStore.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
@@ -93,6 +94,20 @@ declare module "fastify" {
 }
 
 const app = Fastify({ logger: true, trustProxy: true });
+
+// Global Error Handler - Chống rò rỉ Stack Trace
+app.setErrorHandler((error: any, request, reply) => {
+  request.log.error(error);
+  if (error.statusCode) {
+    return reply.code(error.statusCode).send({ message: error.message });
+  }
+  // Ẩn hoàn toàn chi tiết lỗi 5xx trên môi trường Production
+  const isDev = process.env.NODE_ENV !== "production";
+  return reply.code(500).send({
+    message: "Internal Server Error",
+    ...(isDev && { dev_details: error.message, stack: error.stack })
+  });
+});
 
 registerGeoMarkdownHook(app);
 
@@ -184,6 +199,8 @@ app.setNotFoundHandler(async (request, reply) => {
 });
 
 async function start(): Promise<void> {
+  await configureSecurity(app);
+
   const uploadsDir = path.join(process.cwd(), "uploads");
   fs.mkdirSync(uploadsDir, { recursive: true }); // @fastify/static doi root ton tai luc dang ky
 

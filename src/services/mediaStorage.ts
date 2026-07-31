@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { fileTypeFromBuffer } from "file-type";
 
 // Luu file that tren dia VPS o uploads/ (sibling dist/) - KHONG resize/optimize (bo qua sharp,
 // tranh phu thuoc native binary kho cai tren VPS - don gian hoa co chu dich). Serve qua
@@ -36,21 +37,30 @@ function yearMonthDir(): string {
   return `${year}/${month}`;
 }
 
-export async function saveUploadedFile(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<{ url: string; filename: string }> {
-  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-    throw new InvalidUploadError(`Định dạng không hỗ trợ: ${mimeType} (chỉ nhận JPG/PNG/WEBP/GIF)`);
-  }
+async function validateBuffer(buffer: Buffer): Promise<string> {
   if (buffer.length > MAX_SIZE_BYTES) {
     throw new InvalidUploadError("File vượt quá 8MB");
   }
 
+  // Khám xét Magic Bytes thực sự của file
+  const fileType = await fileTypeFromBuffer(buffer);
+  if (!fileType || !ALLOWED_MIME_TYPES.has(fileType.mime)) {
+    throw new InvalidUploadError(`Định dạng không hợp lệ hoặc bị mạo danh. (Phát hiện: ${fileType?.mime || "Unknown"})`);
+  }
+
+  return fileType.mime;
+}
+
+export async function saveUploadedFile(
+  buffer: Buffer,
+  _clientMimeType: string,
+): Promise<{ url: string; filename: string }> {
+  const verifiedMimeType = await validateBuffer(buffer);
+
   const subDir = yearMonthDir();
   await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
 
-  const filename = `${randomUUID()}.${extensionFor(mimeType)}`;
+  const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
   await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
 
   return { url: `/uploads/${subDir}/${filename}`, filename };
@@ -58,19 +68,14 @@ export async function saveUploadedFile(
 
 export async function saveAiChatImage(
   buffer: Buffer,
-  mimeType: string,
+  _clientMimeType: string,
 ): Promise<{ url: string; filename: string }> {
-  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-    throw new InvalidUploadError(`Định dạng không hỗ trợ: ${mimeType} (chỉ nhận JPG/PNG/WEBP/GIF)`);
-  }
-  if (buffer.length > MAX_SIZE_BYTES) {
-    throw new InvalidUploadError("File vượt quá 8MB");
-  }
+  const verifiedMimeType = await validateBuffer(buffer);
 
   const subDir = "ai-chat";
   await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
 
-  const filename = `${randomUUID()}.${extensionFor(mimeType)}`;
+  const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
   await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
 
   return { url: `/uploads/${subDir}/${filename}`, filename };
