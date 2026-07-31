@@ -8,12 +8,14 @@
   },
   "scripts": {
     "dev": "tsx watch --exclude themes --exclude uploads --exclude debug-ai --env-file=.env src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "release": "bash scripts/build-release.sh",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepare": "husky"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
@@ -43,6 +45,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/sanitize-html": "^2.16.1",
     "@types/turndown": "^5.0.6",
+    "husky": "^9.1.7",
     "prisma": "^6.2.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
