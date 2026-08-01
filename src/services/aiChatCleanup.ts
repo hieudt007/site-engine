@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import cron from "node-cron";
+import { logger } from "../logger.js";
 
 const AI_CHAT_DIR = path.join(process.cwd(), "uploads", "ai-chat");
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -19,11 +20,11 @@ export function startAiChatCleanupCron() {
         const filePath = path.join(AI_CHAT_DIR, file);
         const stats = await fs.stat(filePath);
         if (now - stats.mtimeMs > MAX_AGE_MS) {
-          await fs.unlink(filePath).catch(console.error);
+          await fs.unlink(filePath).catch((err) => logger.error(err, "AI chat cleanup: failed to unlink file"));
         }
       }
     } catch (err) {
-      console.error("AI Chat Cleanup Error:", err);
+      logger.error(err, "AI Chat Cleanup Error");
     }
   });
 }

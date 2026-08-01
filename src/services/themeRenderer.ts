@@ -3,6 +3,7 @@ import { Liquid } from "liquidjs";
 import { prisma } from "../db.js";
 import { CacheService } from "./CacheService.js";
 import crypto from "node:crypto";
+import { logger } from "../logger.js";
 import { config as appConfig } from "../config.js";
 import { buildOrganizationSchema } from "./schema.js";
 import { pagePrefix, prefixPath, postPrefix, productPrefix } from "./urlPaths.js";
@@ -153,7 +154,7 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
       (contextData as any).rawHtml = await engine.parseAndRender((contextData as any).rawHtml, contextData);
     } catch (e) {
       // Bỏ qua lỗi parse Liquid nếu cú pháp bị sai (để tránh sập trang), giữ nguyên html tĩnh
-      console.error("Error parsing Liquid in rawHtml:", e);
+      logger.error(e, "Error parsing Liquid in rawHtml");
     }
   }
 

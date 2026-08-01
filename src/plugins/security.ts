@@ -87,9 +87,14 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
     },
   });
 
-  // Global onRequest hook để kiểm tra CSRF token cho các API POST/PUT/DELETE
-  // Ngoại lệ: Webhook từ bên thứ 3 hoặc API khách hàng
-  app.addHook("onRequest", (request: FastifyRequest, reply: FastifyReply, done) => {
+  // QUAN TRONG: PHAI dung "preHandler" (KHONG duoc "onRequest") - getToken() o tren doc
+  // req.body?._token/_csrf khi khong co header. "onRequest" chay TRUOC khi Fastify parse body
+  // (request.body luon undefined o giai doan do) nen fallback nay se LUON LUON fail cho bat ky
+  // form nao gui token qua body thay vi header - dung theo README cua @fastify/csrf-protection.
+  // Hien tai chua co <form> HTML that nao trong views/ (tat ca deu fetch() gui token qua header)
+  // nen chua co trieu chung, nhung day la dung bug da gap va sua 2 lan o lead-base-node/
+  // chatbot-lite - sua truoc de khong thanh qua bom hen gio.
+  app.addHook("preHandler", (request: FastifyRequest, reply: FastifyReply, done) => {
     if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return done();
     
     const pathname = request.url.split("?")[0];

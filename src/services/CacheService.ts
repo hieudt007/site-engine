@@ -1,5 +1,6 @@
 import { Redis } from 'ioredis';
 import { prisma } from '../db.js';
+import { logger } from '../logger.js';
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 export const redis = new Redis(redisUrl, {
@@ -7,7 +8,7 @@ export const redis = new Redis(redisUrl, {
 });
 
 redis.on('error', (err: any) => {
-  console.error('[Redis] Connection error:', err);
+  logger.error(err, '[Redis] Connection error');
 });
 
 // Use a specific prefix to avoid colliding with lead-base-node
@@ -31,7 +32,7 @@ export class CacheService {
         }) as T;
       }
     } catch (e) {
-      console.error(`[Redis] Error getting key ${fullKey}:`, e);
+      logger.error(e, `[Redis] Error getting key ${fullKey}`);
     }
 
     const value = await resolver();
@@ -41,7 +42,7 @@ export class CacheService {
         await redis.set(fullKey, JSON.stringify(value), 'EX', ttlSeconds);
       }
     } catch (e) {
-      console.error(`[Redis] Error setting key ${fullKey}:`, e);
+      logger.error(e, `[Redis] Error setting key ${fullKey}`);
     }
 
     return value;
@@ -54,7 +55,7 @@ export class CacheService {
     try {
       await redis.del(PREFIX + key);
     } catch (e) {
-      console.error(`[Redis] Error deleting key ${PREFIX + key}:`, e);
+      logger.error(e, `[Redis] Error deleting key ${PREFIX + key}`);
     }
   }
 
@@ -74,7 +75,7 @@ export class CacheService {
         }
       } while (cursor !== '0');
     } catch (e) {
-      console.error(`[Redis] Error deleting pattern ${PREFIX + pattern}:`, e);
+      logger.error(e, `[Redis] Error deleting pattern ${PREFIX + pattern}`);
     }
   }
 

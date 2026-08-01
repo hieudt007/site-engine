@@ -4,6 +4,19 @@ import type { Agent } from "@prisma/client";
 import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { assertSafeOutboundUrl } from "../../security/ssrfGuard.js";
+import { decryptNodeString } from "../../nodeCrypt.js";
+import { logger } from "../../logger.js";
+
+// Agent.apiKey (va SiteConfig.aiProviderKeys) luu duoi dang ma hoa (xem routes/admin/agents.ts,
+// nodeCrypt.ts) - ham nay giai ma dung 1 cho duy nhat, uu tien key rieng cua agent, fallback ve
+// key chung cua provider trong SiteConfig neu agent chua tu cau hinh.
+export async function resolveAgentApiKey(agent: Agent): Promise<string | null> {
+  if (agent.apiKey) return decryptNodeString(agent.apiKey);
+  const config = await CacheService.getSiteConfig();
+  const keys = (config?.aiProviderKeys as Record<string, string> | null) || {};
+  const raw = keys[agent.provider];
+  return raw ? decryptNodeString(raw) : null;
+}
 
 // Ghi lai context gui/nhan voi AI de debug - GHI DE (khong noi tiep) - chi giu LAN GOI GAN NHAT,
 // tranh file phinh to vo han qua nhieu luot chat (1 luot co the goi AI nhieu lan: phan loai + tung
@@ -86,7 +99,7 @@ async function resolveBaseUrl(agent: Agent): Promise<string> {
 // (SSRF data-exfil qua thong bao loi). Chi ghi chi tiet o SERVER LOG, tra ve message chung kem status.
 async function readErrorSafely(res: Response, label: string, agent: Agent): Promise<string> {
   const bodyText = await res.text().catch(() => "");
-  console.error(`[aiClient] ${label} lỗi ${res.status} (agent=${agent.name}, provider=${agent.provider}): ${bodyText}`);
+  logger.error({ status: res.status, agent: agent.name, provider: agent.provider, bodyText }, `[aiClient] ${label} lỗi`);
   return `${label} lỗi ${res.status}. Xem log server để biết chi tiết.`;
 }
 
@@ -180,15 +193,7 @@ export async function callAgent(agent: Agent, systemPrompt: string, userPrompt: 
   }
 
   // Fallback to SiteConfig api keys if agent's key is not set
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   if (agent.provider === "anthropic") {
     return callAnthropic(agent, systemPrompt, userPrompt, imageUrl, forceJson);
@@ -245,15 +250,7 @@ export async function callAgentConversation(
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
 
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   const { stream, maxTokens, temperature } = getAgentSettings(agent);
 
@@ -456,15 +453,7 @@ export async function generateImage(agent: Agent, prompt: string, size: string =
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
 
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   // Anthropic does not support image generation
   if (agent.provider === "anthropic") {
@@ -513,15 +502,7 @@ export async function webSearch(agent: Agent, query: string): Promise<string> {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
 
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   // Use endpoint from agent if available, fallback to /search
@@ -584,15 +565,7 @@ export async function generateVideo(agent: Agent, prompt: string): Promise<strin
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
 
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   if (agent.provider === "anthropic") {
     throw new AiCallError("Anthropic không hỗ trợ tạo video qua API này");
@@ -627,15 +600,7 @@ export async function createEmbedding(agent: Agent, input: string): Promise<stri
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
 
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const endpointPath = agent.endpoint || "/embeddings";
@@ -667,15 +632,7 @@ export async function webFetch(agent: Agent, url: string): Promise<string> {
     throw new AiCallError(`Agent "${agent.name}" đang tắt`);
   }
 
-  if (!agent.apiKey) {
-    const config = await CacheService.getSiteConfig();
-    if (config?.aiProviderKeys) {
-      const keys = config.aiProviderKeys as Record<string, string>;
-      if (keys[agent.provider]) {
-        agent.apiKey = keys[agent.provider];
-      }
-    }
-  }
+  agent.apiKey = await resolveAgentApiKey(agent);
 
   const baseUrl = (await resolveBaseUrl(agent)).replace(/\/$/, "");
   const endpointPath = agent.endpoint || "/web/fetch";

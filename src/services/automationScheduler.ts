@@ -3,6 +3,7 @@ import { prisma } from "../db.js";
 import { AgentFactory } from "../agents/core/AgentFactory.js";
 import type { AgentContext } from "../agents/core/BaseAgent.js";
 import { AutomationRegistry } from "../jobs/AutomationRegistry.js";
+import { logger } from "../logger.js";
 
 // Worker chay dung hen cac ban ghi Automation (mau publishScheduler.ts) - quet moi phut, luon chay
 // qua agent "automation" (key co dinh, allowedTools/allowedAgents bi gioi han chat che - xem
@@ -10,7 +11,7 @@ import { AutomationRegistry } from "../jobs/AutomationRegistry.js";
 // KHONG AI GIAM SAT luc chay.
 export function startAutomationScheduler(): void {
   cron.schedule("* * * * *", () => {
-    runDueAutomations().catch((err) => console.error("automationScheduler: lỗi không mong đợi", err));
+    runDueAutomations().catch((err) => logger.error(err, "automationScheduler: lỗi không mong đợi"));
   });
 }
 

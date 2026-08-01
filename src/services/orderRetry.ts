@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { prisma } from "../db.js";
 import { sendOrderToLeadbase, LeadbaseOrderError, OrderItemPayload } from "./leadbaseClient.js";
 import { buildFulfillmentNote } from "./fulfillment.js";
+import { logger } from "../logger.js";
 
 const MAX_ORDER_AGE_HOURS = 24; // quá tuổi này coi như bỏ, cần tenant tự xử lý thủ công
 
@@ -10,7 +11,7 @@ const MAX_ORDER_AGE_HOURS = 24; // quá tuổi này coi như bỏ, cần tenant 
 // - dùng tuổi đơn (createdAt) làm giới hạn thay vì đếm lượt, đơn giản hơn và không cần migration.
 export function startOrderRetryCron(): void {
   cron.schedule("*/5 * * * *", () => {
-    retryFailedOrders().catch((err) => console.error("orderRetry: lỗi không mong đợi", err));
+    retryFailedOrders().catch((err) => logger.error(err, "orderRetry: lỗi không mong đợi"));
   });
 }
 

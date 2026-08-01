@@ -153,6 +153,7 @@ function loadRows(domain: string, file: string): Row[] {
   if (cached) return cached;
 
   const filePath = path.join(DATA_ROOT, file);
+  // eslint-disable-next-line no-irregular-whitespace -- BOM that su trong regex, khong phai loi go nham
   const raw = fs.readFileSync(filePath, "utf-8").replace(/^﻿/, "");
   const table = parseCsv(raw).filter((r) => r.length > 1 || (r.length === 1 && r[0] !== ""));
   const [header, ...dataRows] = table;

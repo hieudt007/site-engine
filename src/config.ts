@@ -22,6 +22,9 @@ export const config = {
   sessionSecret: requireEnv("SESSION_SECRET"),
   customerSessionSecret: requireEnv("CUSTOMER_SESSION_SECRET"),
 
+  // Ma hoa API key AI provider tai DB (Agent.apiKey, SiteConfig.aiProviderKeys) - xem nodeCrypt.ts.
+  nodeEncryptionKey: requireEnv("NODE_ENCRYPTION_KEY"),
+
   smsProvider: process.env.SMS_PROVIDER ?? "",
   smsApiKey: process.env.SMS_API_KEY ?? "",
   smsApiSecret: process.env.SMS_API_SECRET ?? "",

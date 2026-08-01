@@ -5,6 +5,7 @@ import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { stripSystemResources } from "../../agents/core/agentPermissions.js";
 import { assertSafeOutboundUrl, UnsafeOutboundUrlError } from "../../security/ssrfGuard.js";
+import { encryptNodeString } from "../../nodeCrypt.js";
 
 const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "ai-router", "custom"] as const;
 
@@ -113,16 +114,20 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const userId = request.session.get("userId")!;
+    const rawApiKey = parsed.data.apiKey;
     const cleanData = await stripSystemResources(parsed.data);
+    // Ma hoa TRUOC khi luu - apiKey la credential AI provider that (OpenAI/Anthropic...), khong
+    // duoc luu plaintext trong DB (xem nodeCrypt.ts).
+    if (cleanData.apiKey) cleanData.apiKey = encryptNodeString(cleanData.apiKey);
     const agent = await prisma.agent.create({ data: { ...cleanData, key: cleanData.key || null } });
     await CacheService.forget('global:agents');
     await auditLog(userId, "agent.create", agent.id);
 
-    if (parsed.data.apiKey && parsed.data.apiKey.trim() !== "") {
+    if (rawApiKey && rawApiKey.trim() !== "") {
       const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
       if (config) {
         const keys = (config.aiProviderKeys as Record<string, string> | null) || {};
-        keys[parsed.data.provider] = parsed.data.apiKey;
+        keys[parsed.data.provider] = encryptNodeString(rawApiKey);
         await prisma.siteConfig.update({ where: { id: "singleton" }, data: { aiProviderKeys: keys } });
         await CacheService.forget('global:site_config');
       }
@@ -155,17 +160,20 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       if (data.apiKey === "") {
         delete data.apiKey;
       }
+      const rawApiKey = data.apiKey;
+      // Ma hoa TRUOC khi luu - xem ghi chu o handler POST tao agent phia tren.
+      if (data.apiKey) data.apiKey = encryptNodeString(data.apiKey);
 
       const userId = request.session.get("userId")!;
       const updated = await prisma.agent.update({ where: { id: agent.id }, data });
       await CacheService.forget('global:agents');
       await auditLog(userId, "agent.update", agent.id);
 
-      if (data.apiKey && data.apiKey.trim() !== "") {
+      if (rawApiKey && rawApiKey.trim() !== "") {
         const config = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
         if (config) {
           const keys = (config.aiProviderKeys as Record<string, string> | null) || {};
-          keys[data.provider || agent.provider] = data.apiKey;
+          keys[data.provider || agent.provider] = encryptNodeString(rawApiKey);
           await prisma.siteConfig.update({ where: { id: "singleton" }, data: { aiProviderKeys: keys } });
           await CacheService.forget('global:site_config');
         }

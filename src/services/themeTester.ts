@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
 import { callAgent } from "../agents/core/aiClient.js";
+import { logger } from "../logger.js";
 
 interface TestResult {
   status: "PASS" | "REJECT";
@@ -17,7 +18,7 @@ export async function callTestAgent(
   try {
     promptTemplate = await fs.readFile(path.join(process.cwd(), "src", "agents", "tester.md"), "utf-8");
   } catch (err) {
-    console.error("Không thể đọc file src/agents/tester.md:", err);
+    logger.error(err, "Không thể đọc file src/agents/tester.md");
     return { status: "PASS" };
   }
 
@@ -38,7 +39,7 @@ export async function callTestAgent(
     }
     return { status: "PASS" }; // Fallback
   } catch (err) {
-    console.error("Lỗi khi gọi Tester Agent:", err);
+    logger.error(err, "Lỗi khi gọi Tester Agent");
     return { status: "PASS" }; // Fallback nếu API lỗi để không block luồng
   }
 }
@@ -52,7 +53,7 @@ export async function callReviewAgent(
   try {
     promptTemplate = await fs.readFile(path.join(process.cwd(), "src", "agents", "reviewer.md"), "utf-8");
   } catch (err) {
-    console.error("Không thể đọc file src/agents/reviewer.md:", err);
+    logger.error(err, "Không thể đọc file src/agents/reviewer.md");
     return { status: "PASS" };
   }
 
@@ -71,7 +72,7 @@ export async function callReviewAgent(
     }
     return { status: "PASS" }; // Fallback
   } catch (err) {
-    console.error("Lỗi khi gọi Review Agent:", err);
+    logger.error(err, "Lỗi khi gọi Review Agent");
     return { status: "PASS" }; // Fallback pass nếu lỗi API
   }
 }

@@ -95,7 +95,12 @@ declare module "fastify" {
   }
 }
 
-const app = Fastify({ logger: true, trustProxy: true });
+const app = Fastify({
+  logger: {
+    redact: ["req.headers.cookie", "req.headers.authorization", "req.body.password", "req.body.token"],
+  },
+  trustProxy: true,
+});
 
 // Global Error Handler - Chống rò rỉ Stack Trace
 app.setErrorHandler((error: any, request, reply) => {
