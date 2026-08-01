@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import Fastify from "fastify";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { prisma } from "../db.js";
+import { CacheService } from "../services/CacheService.js";
 
 // /payment/vnpay/ipn la nguon xac thuc THAT DUY NHAT de chot 1 don da duoc thanh toan (khac
 // /payment/vnpay/return - browser redirect, khong dang tin cay, xem ghi chu trong vnpay.ts/route).
@@ -47,6 +48,10 @@ describe("GET /payment/vnpay/ipn", () => {
       update: { enabled: true, config: { tmnCode: "TESTTMN", hashSecret: HASH_SECRET, sandbox: true } },
       create: { method: "vnpay", enabled: true, config: { tmnCode: "TESTTMN", hashSecret: HASH_SECRET, sandbox: true } },
     });
+    // PaymentMethod duoc doc qua CacheService (TTL 24h) - phai xoa cache NGAY sau khi ghi DB de
+    // dam bao doc duoc gia tri MOI nhat, tranh doc trung 1 ban cache cu tu file test khac (chay
+    // song song, Vitest moi file 1 worker rieng) da luu truoc do voi hashSecret khac.
+    await CacheService.forget("global:payment_methods");
     const order = await prisma.cartOrder.create({
       data: {
         status: "pending",

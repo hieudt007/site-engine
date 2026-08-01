@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { prisma } from "../db.js";
+import { CacheService } from "../services/CacheService.js";
 
 // POST /cart/checkout tao don hang THAT (tien that, gui LeadBase that) - khach KHONG gui gia len
 // server (chi gui productId/qty), server luon tu tra gia THAT tu DB (ProductCache.price/salePrice)
@@ -114,11 +115,16 @@ describe("POST /cart/checkout", () => {
   }, 20_000);
 
   it("defers sending to LeadBase for vnpay orders until IPN confirms payment", async () => {
+    // PaymentMethod "vnpay" la 1 SINGLETON (unique theo "method"), dung chung config voi
+    // vnpayIpn.test.ts (cung 1 hashSecret) - tranh 2 file test chay song song (Vitest chay tung
+    // file 1 worker rieng) doi de len nhau qua cache Redis 'global:payment_methods' (24h TTL),
+    // gay sai lech chu ky ky/verify giua 2 file.
     await prisma.paymentMethod.upsert({
       where: { method: "vnpay" },
-      update: { enabled: true, config: { tmnCode: "TESTTMN", hashSecret: "test-secret", sandbox: true } },
-      create: { method: "vnpay", enabled: true, config: { tmnCode: "TESTTMN", hashSecret: "test-secret", sandbox: true } },
+      update: { enabled: true, config: { tmnCode: "TESTTMN", hashSecret: "test-vnpay-hash-secret", sandbox: true } },
+      create: { method: "vnpay", enabled: true, config: { tmnCode: "TESTTMN", hashSecret: "test-vnpay-hash-secret", sandbox: true } },
     });
+    await CacheService.forget("global:payment_methods");
     vi.mocked(sendOrderToLeadbase).mockClear();
 
     const res = await app.inject({
