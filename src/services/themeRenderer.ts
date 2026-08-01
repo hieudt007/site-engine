@@ -27,7 +27,7 @@ interface RenderData extends Record<string, unknown> {
   schemas?: Record<string, unknown>[];
 }
 
-function injectSchemas(html: string, schemas: Record<string, unknown>[]): string {
+export function injectSchemas(html: string, schemas: Record<string, unknown>[]): string {
   const scriptTags = schemas
     .map((s) => `<script type="application/ld+json">${JSON.stringify(s).replace(/</g, "\\u003c")}</script>`)
     .join("\n");
@@ -39,7 +39,7 @@ function injectSchemas(html: string, schemas: Record<string, unknown>[]): string
 // khong theme/AI nao can biet field nay ton tai). Khong escape customHeadScript vi ban chat no
 // LA HTML/JS admin chu dinh chen (vd TikTok Pixel/Hotjar) - tin tuong o cung muc voi viec admin
 // da co toan quyen chinh sua theme/DB.
-function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string | null; customHeadScript?: string | null; gscVerificationId?: string | null }): string {
+export function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: string | null; customHeadScript?: string | null; gscVerificationId?: string | null }): string {
   const parts: string[] = [];
 
   if (site.gscVerificationId) {
