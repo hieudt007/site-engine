@@ -1,0 +1,39 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "security"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:security/recommended-legacy"
+  ],
+  "env": {
+    "node": true,
+    "es2024": true
+  },
+  "ignorePatterns": ["dist/", "uploads/", "themes/", "debug-ai/", "scratch/"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "security/detect-object-injection": "off",
+    "no-constant-condition": "off",
+    "no-useless-escape": "off",
+    "no-empty": "off",
+    "no-control-regex": "off",
+    "prefer-const": "off",
+    "@typescript-eslint/no-empty-object-type": "off",
+    "@typescript-eslint/no-unused-expressions": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "no-mixed-spaces-and-tabs": "off",
+    "no-console": "error"
+  },
+  "overrides": [
+    {
+      // CLI scripts (khong phai server runtime) - console.log la dung, khong co request/logger
+      // context, day la cach nguoi van hanh doc output khi chay tay.
+      "files": ["scripts/**/*.ts", "src/seedAgents.ts", "src/seedSiteConfig.ts", "src/seedDeveloper.ts", "migrate.ts", "rebuild.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

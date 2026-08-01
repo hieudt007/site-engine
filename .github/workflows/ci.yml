@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  security-audit-and-test:
+    name: Security tests + DAST
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_dummy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      # CacheService.ts (ioredis) duoc nhieu route dung (SiteConfig, ThemeConfig, Agents...) - can
+      # service nay de app khoi dong sach cho buoc DAST ben duoi (khong bi loi Redis lien tuc).
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      SITE_ENGINE_SECRET: ci-throwaway-site-engine-secret
+      LEADBASE_API_URL: "http://127.0.0.1:8000"
+      LEADBASE_OAUTH_CLIENT_ID: ci-throwaway-oauth-client-id
+      SESSION_SECRET: ci-throwaway-session-secret-not-for-prod-use
+      CUSTOMER_SESSION_SECRET: ci-throwaway-customer-session-secret
+      NODE_ENCRYPTION_KEY: "base64:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_dummy"
+      REDIS_URL: "redis://localhost:6379"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: 🔍 Code linting
+        run: npm run lint
+
+      - name: 🛡️ Type checking
+        run: npm run typecheck
+
+      - name: 🛡️ Security audit (check for vulnerable dependencies)
+        run: npm run audit:security
+
+      - name: 🗄️ Push Prisma schema to the CI Postgres service
+        run: npx prisma db push --skip-generate
+
+      - name: 🧪 Security integration tests
+        run: npm run test
+
+      - name: 🕵️ Build app for DAST scan
+        run: npm run build
+
+      - name: 🚀 Start app in background for DAST scan
+        timeout-minutes: 3
+        run: |
+          nohup node dist/server.js > server.log 2>&1 &
+          echo $! > server.pid
+          if npx --yes wait-on -t 60000 tcp:127.0.0.1:3040; then
+            echo "Server is up"
+          else
+            echo "Server failed to start in time"
+            cat server.log
+            exit 1
+          fi
+        env:
+          NODE_ENV: production
+          PORT: 3040
+
+      # DAST (Dynamic Application Security Testing) - baseline (thu dong, khong active-attack)
+      # vao chinh app vua tu khoi dong o tren trong CI, khong phai production that. Dang nhap qua
+      # OAuth (khong co password local) nen ZAP chu yeu quet duoc trang cong khai + static assets +
+      # response headers - cac lo hong sau dang nhap (encrypt API key, rate-limit, SSRF...) do
+      # integration test o buoc tren dam nhiem (xem .agents/skills/secure-nodejs-setup/SKILL.md muc 8).
+      - name: 🕷️ OWASP ZAP Baseline Scan (DAST)
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://127.0.0.1:3040"
+          cmd_options: "-a"
+          fail_action: false
+          allow_issue_writing: false
+
+      - name: 🧹 Stop app
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill "$(cat server.pid)" || true; fi
