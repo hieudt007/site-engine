@@ -25,9 +25,15 @@ const chatSchema = z.object({
   images: z.array(z.string()).optional(),
 });
 
-function verifyHmac(sessionId: string, hmacToken: string): boolean {
+// Chan timing attack: "===" so sanh chuoi dung short-circuit tai ky tu dau tien khac nhau, lo ra
+// khac biet thoi gian ti le voi so ky tu dau khop dung - ke tan cong co the do do de doan dan
+// tung ky tu cua hmacToken hop le cho 1 sessionId bat ky. Dung cung pattern voi vnpay.ts trong
+// repo nay (crypto.timingSafeEqual, kem check do dai truoc vi ham nay throw neu 2 buffer khac size).
+export function verifyHmac(sessionId: string, hmacToken: string): boolean {
   const expected = crypto.createHmac("sha256", appConfig.siteEngineSecret).update(sessionId).digest("hex");
-  return expected === hmacToken;
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(hmacToken);
+  return expectedBuf.length === providedBuf.length && crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Promise<void> {
