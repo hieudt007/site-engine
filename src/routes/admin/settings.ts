@@ -36,6 +36,7 @@ const updateSettingsSchema = z
     gscVerificationId: z.string().optional(),
     turnstileSiteKey: z.string().optional(),
     turnstileSecretKey: z.string().optional(),
+    goongApiKey: z.string().optional(),
     adminChatAgentId: z.string().optional(),
     cskhAgentId: z.string().optional(),
   })
@@ -108,6 +109,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
           ...(parsed.data.pageSlugPrefix !== undefined ? { pageSlugPrefix: parsed.data.pageSlugPrefix.trim() } : {}),
           ...(parsed.data.productSlugPrefix !== undefined ? { productSlugPrefix: parsed.data.productSlugPrefix.trim() } : {}),
           gscVerificationId: parsed.data.gscVerificationId,
+          goongApiKey: parsed.data.goongApiKey,
         },
       });
       await CacheService.forget('global:site_config');

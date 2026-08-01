@@ -75,6 +75,7 @@ import { registerCartRoutes } from "./routes/public/cart.js";
 
 import { registerVnpayRoutes } from "./routes/public/vnpay.js";
 import { registerProvincesRoutes } from "./routes/public/provinces.js";
+import { registerAddressAutocompleteRoutes } from "./routes/public/addressAutocomplete.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
 import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
 import { registerLeadbasePostRoutes } from "./routes/public/leadbasePosts.js";
@@ -308,6 +309,7 @@ async function start(): Promise<void> {
 
   await registerVnpayRoutes(app);
   await registerProvincesRoutes(app);
+  await registerAddressAutocompleteRoutes(app);
   await registerSeoRoutes(app);
 
   // Cron jobs (chỉ chay tren main worker neu pm2, hoac chay local doc lap)

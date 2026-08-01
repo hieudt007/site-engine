@@ -58,6 +58,9 @@ model SiteConfig {
 
   aiProviderKeys Json?
 
+  // API Key cho Goong Autocomplete
+  goongApiKey String?
+
   adminChatAgentId String?
   cskhAgentId      String?
 

@@ -51,6 +51,8 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
 
       const updated = await prisma.productReview.update({ where: { id: review.id }, data: parsed.data });
       await CacheService.forget('product:' + updated.productCacheId);
+      await CacheService.forget('product:' + updated.productCacheId);
+      await CacheService.forget('product:' + updated.productCacheId);
       await CacheService.forget('home:products');
       await CacheService.forgetPattern('product_list:*');
       return { review: updated };
@@ -69,6 +71,8 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         where: { id: review.id },
         data: { status: "approved" },
       });
+      await CacheService.forget('product:' + updated.productCacheId);
+      await CacheService.forget('product:' + updated.productCacheId);
       await recomputeProductRatingAggregate(review.productCacheId);
       await CacheService.forget('product:' + review.productCacheId);
       await CacheService.forget('home:products');
@@ -89,6 +93,8 @@ export async function registerReviewAdminRoutes(app: FastifyInstance): Promise<v
         where: { id: review.id },
         data: { status: "rejected" },
       });
+      await CacheService.forget('product:' + updated.productCacheId);
+      await CacheService.forget('product:' + updated.productCacheId);
       await recomputeProductRatingAggregate(review.productCacheId);
       await CacheService.forget('product:' + review.productCacheId);
       await CacheService.forget('home:products');

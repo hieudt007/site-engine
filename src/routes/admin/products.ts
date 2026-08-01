@@ -330,8 +330,6 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       });
       await CacheService.forget('product:' + updated.id);
       if (updated.slug) await CacheService.forget('product:' + updated.slug);
-      await CacheService.forget('home:products');
-      await CacheService.forgetPattern('product_list:*');
       return { product: updated };
     },
   );
@@ -399,8 +397,8 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       const updated = await prisma.productCache.update({ where: { id: product.id }, data: snapshot });
       await CacheService.forget('product:' + updated.id);
       if (updated.slug) await CacheService.forget('product:' + updated.slug);
-      await CacheService.forget('home:products');
-      await CacheService.forgetPattern('product_list:*');
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
       return { product: updated };
     },
   );
@@ -420,8 +418,8 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       });
       await CacheService.forget('product:' + updated.id);
       if (updated.slug) await CacheService.forget('product:' + updated.slug);
-      await CacheService.forget('home:products');
-      await CacheService.forgetPattern('product_list:*');
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
       return { product: updated };
     },
   );
@@ -451,8 +449,8 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       });
       await CacheService.forget('product:' + updated.id);
       if (updated.slug) await CacheService.forget('product:' + updated.slug);
-      await CacheService.forget('home:products');
-      await CacheService.forgetPattern('product_list:*');
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
       return { product: updated };
     },
   );
@@ -472,8 +470,8 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       });
       await CacheService.forget('product:' + updated.id);
       if (updated.slug) await CacheService.forget('product:' + updated.slug);
-      await CacheService.forget('home:products');
-      await CacheService.forgetPattern('product_list:*');
+      await CacheService.forget('product:' + updated.id);
+      if (updated.slug) await CacheService.forget('product:' + updated.slug);
       return { product: updated };
     },
   );
