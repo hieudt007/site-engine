@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import helmet from "@fastify/helmet";
 import fastifyCsrfProtection from "@fastify/csrf-protection";
 import { config } from "../config.js";
+import { CacheService } from "../services/CacheService.js";
+import { extractScriptDomains } from "../utils/cspParser.js";
 
 export async function configureSecurity(app: FastifyInstance): Promise<void> {
   // 1. Helmet: Content-Security-Policy
@@ -14,6 +16,9 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
               "'self'",
               "https://static.cloudflareinsights.com",
               "https://challenges.cloudflare.com",
+              "https://www.googletagmanager.com",
+              "https://www.google-analytics.com",
+              "https://connect.facebook.net",
               "'unsafe-inline'", // Site builder/CMS thường sinh CSS/JS inline
               "'unsafe-eval'",
             ],
@@ -28,6 +33,43 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
         }
       : false,
     crossOriginResourcePolicy: { policy: "cross-origin" }, // Cho phép load ảnh từ CDN
+  });
+
+  // 1.5. Dynamic CSP cho external scripts từ SiteConfig
+  app.addHook("onSend", async (request, reply, payload) => {
+    const contentType = reply.getHeader("content-type");
+    if (typeof contentType === "string" && contentType.includes("text/html")) {
+      const csp = reply.getHeader("content-security-policy");
+      if (typeof csp === "string") {
+        try {
+          const site = await CacheService.getSiteConfig();
+          const customDomains = [
+            ...extractScriptDomains(site.customHeadScript),
+            ...extractScriptDomains(site.customFooterScript),
+          ];
+
+          if (customDomains.length > 0) {
+            const uniqueDomains = Array.from(new Set(customDomains)).join(" ");
+            let newCsp = csp;
+            if (newCsp.includes("script-src ")) {
+              newCsp = newCsp.replace("script-src ", `script-src ${uniqueDomains} `);
+            }
+            if (newCsp.includes("connect-src ")) {
+              newCsp = newCsp.replace("connect-src ", `connect-src ${uniqueDomains} `);
+            }
+            // frame-src may also be needed for chat widgets
+            if (newCsp.includes("frame-src ")) {
+              newCsp = newCsp.replace("frame-src ", `frame-src ${uniqueDomains} `);
+            }
+            reply.header("content-security-policy", newCsp);
+          }
+        } catch (e) {
+          // Ignore cache/db error to not break the page
+          app.log.error(e, "Error injecting dynamic CSP");
+        }
+      }
+    }
+    return payload;
   });
 
   // 2. CSRF Protection

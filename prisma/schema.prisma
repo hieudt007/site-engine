@@ -50,6 +50,7 @@ model SiteConfig {
   gaId              String?
   fbPixelId         String?
   customHeadScript  String?
+  customFooterScript String?
   gscVerificationId String?
 
   // Turnstile Cloudflare keys for anti-spam (e.g. chat plugin, forms)

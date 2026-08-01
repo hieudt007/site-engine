@@ -150,6 +150,10 @@
       <label for="customHeadScript">Script tuỳ chỉnh khác (TikTok Pixel, Hotjar...)</label>
       <textarea id="customHeadScript" name="customHeadScript" placeholder="Dán nguyên đoạn <script>...</script>" style="min-height:140px;"></textarea>
       <p class="field-hint">Chèn nguyên văn vào mọi trang public (trước &lt;/head&gt;) — chỉ dán mã từ nguồn bạn tin tưởng.</p>
+
+      <label for="customFooterScript">Script chân trang (Live Chat widget, v.v...)</label>
+      <textarea id="customFooterScript" name="customFooterScript" placeholder="Dán nguyên đoạn <script>...</script>" style="min-height:140px;"></textarea>
+      <p class="field-hint">Chèn nguyên văn vào mọi trang public (trước &lt;/body&gt;) — chỉ dán mã từ nguồn bạn tin tưởng.</p>
     </div>
 
     <div id="tab-security" class="tab-pane">
@@ -247,7 +251,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
       if(form[key]) form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -287,6 +291,7 @@
       gaId: form.gaId.value.trim(),
       fbPixelId: form.fbPixelId.value.trim(),
       customHeadScript: form.customHeadScript.value.trim(),
+      customFooterScript: form.customFooterScript.value.trim(),
       gscVerificationId: form.gscVerificationId.value.trim(),
       turnstileSiteKey: form.turnstileSiteKey.value.trim(),
       turnstileSecretKey: form.turnstileSecretKey.value.trim(),

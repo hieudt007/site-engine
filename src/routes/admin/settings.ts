@@ -33,6 +33,7 @@ const updateSettingsSchema = z
     gaId: z.string().optional(),
     fbPixelId: z.string().optional(),
     customHeadScript: z.string().optional(),
+    customFooterScript: z.string().optional(),
     gscVerificationId: z.string().optional(),
     turnstileSiteKey: z.string().optional(),
     turnstileSecretKey: z.string().optional(),

@@ -163,10 +163,19 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const withSchemas = injectSchemas(html, allSchemas);
 
   const analyticsScripts = buildAnalyticsScripts(site);
-  if (!analyticsScripts) {
-    return withSchemas;
+  let finalHtml = withSchemas;
+
+  if (analyticsScripts) {
+    finalHtml = finalHtml.includes("</head>")
+      ? finalHtml.replace("</head>", analyticsScripts + "\n</head>")
+      : finalHtml + analyticsScripts;
   }
-  return withSchemas.includes("</head>")
-    ? withSchemas.replace("</head>", analyticsScripts + "\n</head>")
-    : withSchemas + analyticsScripts;
+
+  if (site.customFooterScript) {
+    finalHtml = finalHtml.includes("</body>")
+      ? finalHtml.replace("</body>", site.customFooterScript + "\n</body>")
+      : finalHtml + site.customFooterScript;
+  }
+
+  return finalHtml;
 }
