@@ -88,6 +88,19 @@ describe("POST /api/customer-chat", () => {
     expect(res.statusCode).toBe(403);
   });
 
+  // Chan regression: GET (lay lich su chat) truoc day khong rate-limit du POST (gui tin) da co -
+  // 1 session hop le van co the tu spam doc lich su vo han. Gioi han 30/phut.
+  it("rate-limits GET /api/customer-chat after 30 requests within 1 minute", async () => {
+    const sessionId = `session-${suffix}-getlimit`;
+    const query = `sessionId=${sessionId}&hmacToken=${sign(sessionId)}`;
+    let lastStatus = 0;
+    for (let i = 0; i < 31; i++) {
+      const res = await app.inject({ method: "GET", url: `/api/customer-chat?${query}` });
+      lastStatus = res.statusCode;
+    }
+    expect(lastStatus).toBe(429);
+  }, 20_000);
+
   it("accepts a valid HMAC token and streams a response via the mocked agent", async () => {
     const sessionId = `session-${suffix}-happy`;
     const res = await app.inject({

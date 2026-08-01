@@ -39,6 +39,7 @@ export function verifyHmac(sessionId: string, hmacToken: string): boolean {
 export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { sessionId: string; hmacToken: string; cursor?: string } }>(
     "/api/customer-chat",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (request, reply) => {
       const { sessionId, hmacToken, cursor } = request.query;
       if (!sessionId || !hmacToken) return reply.code(400).send({ error: "Missing tokens" });
