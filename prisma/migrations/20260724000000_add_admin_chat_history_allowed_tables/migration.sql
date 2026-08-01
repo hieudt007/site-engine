@@ -24,4 +24,9 @@ CREATE INDEX "AdminChatHistory_entityId_idx" ON "AdminChatHistory"("entityId");
 ALTER TABLE "AdminChatHistory" ADD CONSTRAINT "AdminChatHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("leadbaseUserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AlterTable: Plugin - add allowedTables column
-ALTER TABLE "Plugin" ADD COLUMN IF NOT EXISTS "allowedTables" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'Plugin') THEN
+        ALTER TABLE "Plugin" ADD COLUMN IF NOT EXISTS "allowedTables" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+    END IF;
+END $$;
