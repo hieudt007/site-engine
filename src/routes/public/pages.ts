@@ -1,5 +1,4 @@
 import { FastifyInstance, FastifyReply } from "fastify";
-import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";

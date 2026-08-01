@@ -1,6 +1,5 @@
 import path from "node:path";
 import { Liquid } from "liquidjs";
-import { prisma } from "../db.js";
 import { CacheService } from "./CacheService.js";
 import crypto from "node:crypto";
 import { logger } from "../logger.js";

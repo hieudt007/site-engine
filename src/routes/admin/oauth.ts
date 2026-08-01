@@ -91,7 +91,7 @@ export async function registerOAuthRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.post("/admin/logout", async (request, reply) => {
+  app.post("/admin/logout", async (request, _reply) => {
     await request.session.destroy();
     return { success: true };
   });

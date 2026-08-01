@@ -5,8 +5,6 @@ import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { customFieldsSchema } from "../../services/customFields.js";
 
-const TYPE = "product";
-
 const seoSchema = z
   .object({
     metaTitle: z.string().optional(),

@@ -1,9 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getAllContracts } from "./themeContract.js";
-import { prisma } from "../db.js";
-
-const ADDONS_ROOT = path.join(process.cwd(), "src", "addons");
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 

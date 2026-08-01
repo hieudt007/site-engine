@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Agent } from "@prisma/client";
-import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { assertSafeOutboundUrl } from "../../security/ssrfGuard.js";
 import { decryptNodeString } from "../../nodeCrypt.js";

@@ -8,7 +8,7 @@ import { prisma } from "../../db.js";
 
 export const themeTestEmitter = new EventEmitter();
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_BUNDLE_OUTPUTS, getSelectableFiles, getViewableFiles } from "../../services/themeContract.js";
+import { getSelectableFiles, getViewableFiles } from "../../services/themeContract.js";
 import { readThemeMd, updateAppliedSection } from "../../services/themeMemory.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
 import {
@@ -134,7 +134,7 @@ async function runAgentLoop(
               if (content.toLowerCase().includes(query)) {
                 matchedFiles.push(f);
               }
-            } catch (err) {}
+            } catch (_err) {}
           }
           stepObservations.push(`SEARCH_CODE [${query}]: Tìm thấy trong các file: ${matchedFiles.join(", ")}`);
           break;
@@ -315,7 +315,7 @@ async function runAgentLoop(
                   stepObservations.push(obsMsg);
                   qaFailed = true;
                }
-             } catch (err) {
+             } catch (_err) {
                action.payload.message += "\n\n(Chưa test)";
              }
           }
@@ -330,7 +330,7 @@ async function runAgentLoop(
                     stepObservations.push(`REVIEW LỖI: ${reviewResult.feedback}\nYÊU CẦU: Chỉnh lại UI/UX bằng REPLACE_CODE và gọi lại REPLY_TO_USER.`);
                     qaFailed = true;
                  }
-               } catch (err) {
+               } catch (_err) {
                  action.payload.message += "\n\n(Chưa review)";
                }
             }
@@ -555,7 +555,7 @@ export async function registerThemeChatRoutes(app: FastifyInstance): Promise<voi
           try {
             const { url } = await saveAiChatImage(Buffer.from(match[2], "base64"), match[1]);
             screenshotUrl = `${request.protocol}://${request.hostname}${url}`;
-          } catch (err) {
+          } catch (_err) {
             // Anh loi thi bo qua, van tiep tuc voi loi console (khong chan luong test).
           }
         }

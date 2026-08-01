@@ -16,7 +16,7 @@ export function extractScriptDomains(html: string | null | undefined): string[] 
         // Add protocol and host (e.g. "https://chat.zalo.me")
         domains.add(`${url.protocol}//${url.host}`);
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore invalid URLs
     }
   }

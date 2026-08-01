@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { THEME_BUNDLE_OUTPUTS, CORE_THEME_FILES, getAllContracts } from "../../services/themeContract.js";
+import { THEME_BUNDLE_OUTPUTS, CORE_THEME_FILES } from "../../services/themeContract.js";
 import { validateThemeFile } from "../../services/themeValidator.js";
 import { rebuildThemeAssets } from "../../services/themeAssetBundler.js";
 import { ensureThemeMd } from "../../services/themeMemory.js";

@@ -1,4 +1,3 @@
-import { prisma } from "../db.js";
 import { CacheService } from "./CacheService.js";
 import type { ShippingRule } from "@prisma/client";
 

@@ -58,7 +58,7 @@ export async function getContractFromDisk(themeSlug: string, filename: string): 
   try {
     const content = await fs.readFile(filePath, "utf-8");
     return parseContractFromLiquid(content, filename);
-  } catch (e) {
+  } catch (_e) {
     return undefined;
   }
 }

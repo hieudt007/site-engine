@@ -39,7 +39,7 @@ export const updateAutomationTool: MCPTool = {
   name: "update_automation",
   description:
     'Edit an existing automation (only pass fields you want to change). {"id": "automation_id", "name"?: "...", "prompt"?: "...", "scheduledAt"?: "ISO datetime", "recurrence"?: "once"|"daily"|"{number} minute", "status"?: "pending"|"cancelled"}',
-  execute: async (args, context) => {
+  execute: async (args, _context) => {
     const id = String(args.id || "").trim();
     if (!id) return "Error: missing id.";
     const existing = await prisma.automation.findUnique({ where: { id } });

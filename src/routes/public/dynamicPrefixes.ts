@@ -1,5 +1,4 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
-import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { pagePrefix, postPrefix, productPrefix } from "../../services/urlPaths.js";
 import { renderNotFound } from "../../services/notFoundPage.js";

@@ -3,7 +3,6 @@ import path from "node:path";
 import CleanCSS from "clean-css";
 import { minify as minifyJs } from "terser";
 import { getAllContracts } from "./themeContract.js";
-import { prisma } from "../db.js";
 
 const THEMES_ROOT = path.join(process.cwd(), "themes");
 

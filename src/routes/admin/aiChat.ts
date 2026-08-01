@@ -399,7 +399,7 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
           try {
             const { url } = await saveAiChatImage(Buffer.from(match[2], "base64"), match[1]);
             screenshotUrl = `${request.protocol}://${request.hostname}${url}`;
-          } catch (err) {
+          } catch (_err) {
             // Anh loi thi bo qua, van tra ve loi console (khong chan) - xem
             // services/mediaStorage.ts (vd qua 8MB, sai dinh dang).
           }

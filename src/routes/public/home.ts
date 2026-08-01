@@ -1,5 +1,4 @@
 import { FastifyInstance } from "fastify";
-import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { ensureProductSlugs } from "../../services/productSlug.js";

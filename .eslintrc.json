@@ -13,7 +13,7 @@
   "ignorePatterns": ["dist/", "uploads/", "themes/", "debug-ai/", "scratch/"],
   "rules": {
     "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
     "security/detect-object-injection": "off",
     "no-constant-condition": "off",
     "no-useless-escape": "off",

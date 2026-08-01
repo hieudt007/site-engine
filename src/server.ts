@@ -212,7 +212,7 @@ async function start(): Promise<void> {
   fs.mkdirSync(uploadsDir, { recursive: true }); // @fastify/static doi root ton tai luc dang ky
 
   await app.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
-  await app.register(fastifyRateLimit, { global: false, errorResponseBuilder: (request, context) => ({ error: "Vượt quá giới hạn request, vui lòng thử lại sau." }) });
+  await app.register(fastifyRateLimit, { global: false, errorResponseBuilder: (_request, _context) => ({ error: "Vượt quá giới hạn request, vui lòng thử lại sau." }) });
   await app.register(fastifyStatic, {
     root: uploadsDir,
     prefix: "/uploads/",

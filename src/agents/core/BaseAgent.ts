@@ -134,7 +134,7 @@ export class BaseAgent {
     return prompt;
   }
 
-  protected async executeSpecificTool(toolName: string, args: Record<string, any>, context: AgentContext): Promise<string> {
+  protected async executeSpecificTool(toolName: string, _args: Record<string, any>, _context: AgentContext): Promise<string> {
     return `Error: tool ${toolName} not registered.`;
   }
 
@@ -152,7 +152,6 @@ export class BaseAgent {
   }
 
   public async run(context: AgentContext, message: string, imageUrl?: string): Promise<string | object> {
-    let loopCount = 0;
     context.agentModel = this.agentModel;
 
     // Chi track/cho phep "chen ngang" (steering, xem runRegistry.ts) o CAP TREN CUNG - agent con

@@ -1,9 +1,6 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import type { Agent } from "@prisma/client";
-import { prisma } from "../db.js";
 import { callAgent } from "../agents/core/aiClient.js";
-import { getAllThemeAssetFiles, getSelectableFiles, getContractFromDisk } from "./themeContract.js";
+import { getContractFromDisk } from "./themeContract.js";
 import { validateThemeFile } from "./themeValidator.js";
 
 const RECENT_HISTORY_LIMIT = 5;
