@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis';
 import { prisma } from '../db.js';
 import { logger } from '../logger.js';
+import { config } from '../config.js';
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 export const redis = new Redis(redisUrl, {
@@ -11,8 +12,11 @@ redis.on('error', (err: any) => {
   logger.error(err, '[Redis] Connection error');
 });
 
-// Use a specific prefix to avoid colliding with lead-base-node
-const PREFIX = 'site_engine:';
+// Use a specific prefix to avoid colliding with lead-base-node, PLUS the per-instance id so
+// multiple site-engine instances sharing this same Redis (all fall back to the same REDIS_URL
+// unless customized, see siteEngineProvision.ts) don't read/write each other's cached
+// site_config/theme_config/menus/etc.
+const PREFIX = `site_engine:${config.siteEngineInstanceId}:`;
 const DEFAULT_TTL = 86400; // 24 hours (1 day)
 
 export class CacheService {
