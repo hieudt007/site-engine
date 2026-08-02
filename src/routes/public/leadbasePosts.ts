@@ -36,7 +36,8 @@ async function uniquePostSlug(title: string): Promise<string> {
 }
 
 export async function registerLeadbasePostRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/api/leadbase/posts/draft", async (request, reply) => {
+  // Khop dung muc 60/phut dung cho /api/site-engine/orders ben lead-base-node.
+  app.post("/api/leadbase/posts/draft", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (request, reply) => {
     if (!verifyLeadBaseRequest(request)) {
       return reply.code(401).send({ error: "Unauthorized" });
     }

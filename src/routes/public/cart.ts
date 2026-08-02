@@ -97,7 +97,9 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     return reply.type("text/html").send(html);
   });
 
-  app.post("/cart/checkout", async (request, reply) => {
+  // Nut dat hang that (co Turnstile that o tren), khop dung muc 20/phut dung cho
+  // /public/landing-orders ben lead-base-node.
+  app.post("/cart/checkout", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (request, reply) => {
     const parsed = checkoutSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(422).send({ error: parsed.error.flatten() });

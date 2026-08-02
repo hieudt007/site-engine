@@ -122,7 +122,9 @@ async function upsertVariants(productCacheId: string, variants: z.infer<typeof v
 }
 
 export async function registerProductsSyncRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/api/products/sync", async (request, reply) => {
+  // HMAC xac thuc tot nhung truoc query rawBody van ton CPU verify - khop dung muc 60/phut dung
+  // cho /api/site-engine/orders ben lead-base-node.
+  app.post("/api/products/sync", { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } }, async (request, reply) => {
     const signature = request.headers["x-site-engine-signature-256"];
     const timestamp = request.headers["x-site-engine-timestamp"];
     if (typeof signature !== "string" || typeof timestamp !== "string" || !request.rawBody) {
