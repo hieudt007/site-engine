@@ -1,11 +1,8 @@
 {% comment %}
 @description: Chi tiet 1 san pham — file chinh quyet dinh layout va render cac block chuc nang.
-@context_vars: product (Object), shop, global_settings
-@responsibilities: Bố cục chính trang sản phẩm. Render các component con: media, info, purchase, content, related
-@structure_rules: Thường chia 2 cột ở trên (ảnh trái, thông tin phải) và 1 cột lớn ở dưới (mô tả)
-@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, data-product-id="{{ product.id }}", {% render "components/product/media", {% render "components/product/info", {% render "components/product/purchase", {% render "components/product/content"
-@required_ids: 
-@notes: File nay giu layout tong the cua trang san pham. Cac ID JS bat buoc nam trong components/product/purchase.liquid va components/product/content.liquid. Chi sua file nay khi can doi vi tri/sap xep cac khoi lon. Neu sua ben trong anh/ten/gia/mua hang/mo ta/review/related thi sua component tuong ung.
+@required_substrings: layout "layout", block content, endblock, data-product-id, render components/product/media, render components/product/info, render components/product/purchase, render components/product/content
+@required_ids:
+@notes: File nay giu layout tong the cua trang san pham. Cac ID JS bat buoc nam trong components/product/purchase.liquid va components/product/content.liquid. Chi sua file nay khi can doi vi tri/sap xep cac khoi lon. Neu sua ben trong anh/ten/gia/mua hang/mo ta/review/related thi sua component tuong ung. Thu tu render khuyen nghi: media+info+purchase (2 cot tren) -> components/product/related voi title "Mua kèm ưu đãi" (crossSellProducts, gan dau trang) -> content (mo ta dai/thong so/danh gia, FAQ co the nam trong content.liquid hoac tach rieng thanh components/product/faq.liquid neu tao them) -> components/product/related voi title "Có thể bạn quan tâm" (upsellProducts, cuoi trang).
 {% endcomment %}
 
 <!-- Giao diện trống -->

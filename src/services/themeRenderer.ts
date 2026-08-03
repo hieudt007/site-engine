@@ -85,6 +85,13 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
     extname: ".liquid",
     cache: process.env.NODE_ENV === "production"
   });
+  // LiquidJS bo qua filter khong ton tai (khong throw, tra ve nguyen gia tri) nen theme dung
+  // "| money" tu truoc gio da am tham hien gia tho khong dinh dang - dang ky filter that o day.
+  engine.registerFilter("money", (value: unknown) => {
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    return num.toLocaleString("vi-VN") + "₫";
+  });
 
   const [siteConfig, allMenus] = await Promise.all([
     CacheService.getSiteConfig(),

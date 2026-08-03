@@ -1,11 +1,8 @@
 {% comment %}
 @description: Trang chu — hero + bai viet moi + san pham moi.
-@context_vars: shop, global_settings, featured_products (Array), featured_posts (Array)
-@responsibilities: Hiển thị trang chủ: Banner hero, danh sách sản phẩm nổi bật, bài viết mới
-@structure_rules: Sử dụng các section tách biệt, rộng toàn màn hình (full width)
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, posts, products
-@required_ids: 
-@notes: Nhan post[] (slug/title/excerpt/coverImage/publishedAt) va products[] (id/name/imageUrls/price/salePrice). Ca 2 co the rong — phai co fallback khi rong. NÊN CÓ thêm: Hero Banner (Slider hoặc ảnh lớn) với nút Call-to-Action, và Khối danh mục nổi bật.
+@required_ids:
+@notes: Nhan post[] (slug/title/excerpt/coverImage/publishedAt) va products[] (id/name/imageUrls/price/salePrice). Ca 2 co the rong — phai co fallback khi rong. Link san pham/bai viet PHAI dung {{ productUrlPrefix }}/{{ product.slug }} va {{ postUrlPrefix }}/{{ post.slug }} (bien global tu themeRenderer.ts, KHONG hardcode "/products/" hay "/blog/" vi site co the tuy chinh prefix - loi that da gap). BAT BUOC: khung anh san pham (khong phai anh bai viet) PHAI vuong 1:1 (class "aspect-square" hoac tuong duong). NÊN CÓ thêm: Hero Banner (Slider hoặc ảnh lớn) với nút Call-to-Action, và Khối danh mục nổi bật.
 {% endcomment %}
 
 <!-- Giao diện trống -->

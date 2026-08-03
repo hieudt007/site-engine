@@ -6,15 +6,15 @@
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-<main class="bg-[#eff6ff]/30 min-h-screen pt-8 md:pt-10 pb-24 overflow-hidden relative font-sans">
+<main class="bg-[#eff6ff]/30 min-h-screen pt-8 md:pt-10 pb-20 overflow-hidden relative font-sans">
   <!-- Background effects (Organic Blobs) -->
   <div class="absolute top-0 left-1/4 w-[40rem] h-[40rem] bg-brand/10 rounded-[40%_60%_70%_30%] blur-[100px] mix-blend-multiply pointer-events-none animate-[spin_20s_linear_infinite]"></div>
   <div class="absolute bottom-0 right-1/4 w-[35rem] h-[35rem] bg-[#87CEEB]/10 rounded-[60%_40%_30%_70%] blur-[120px] mix-blend-multiply pointer-events-none animate-[spin_25s_linear_infinite_reverse]"></div>
 
-  <article data-product-id="{{ product.id }}" class="container mx-auto px-4 md:px-8 max-w-7xl relative z-10 product-detail-animate">
-    
+  <article data-product-id="{{ product.id }}" class="max-w-[1200px] mx-auto px-6 relative z-10 product-detail-animate mb-10">
+
     <!-- Top Section: Media & Info -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 mb-24 relative">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 relative">
       <!-- Media Column -->
       <div>
         <div class="sticky top-20">
@@ -26,19 +26,25 @@
       <div class="flex flex-col gap-8">
         <div class="bg-white/80 p-8 md:p-10 rounded-[24px] backdrop-blur-xl border border-brand/10 shadow-[0_8px_32px_rgba(5,150,105,0.08)]">
           {% render "components/product/info", product: product, productCategoryPathPrefix: productCategoryPathPrefix %}
-          
+
           <div class="w-full h-px bg-gradient-to-r from-transparent via-brand/20 to-transparent my-8"></div>
-          
+
           {% render "components/product/purchase", product: product, variantsJson: variantsJson %}
         </div>
       </div>
     </div>
 
-    <!-- Bottom Section: Content & Reviews -->
-    <div class="w-full bg-white/80 p-8 md:p-12 rounded-[24px] backdrop-blur-xl border border-brand/10 shadow-[0_8px_32px_rgba(5,150,105,0.08)]">
-      {% render "components/product/content", product: product, reviews: reviews, avgRating: avgRating %}
-    </div>
-    
   </article>
+
+  {% render "components/product/related", title: "Mua kèm ưu đãi", products: crossSellProducts, productUrlPrefix: productUrlPrefix %}
+
+  <section class="max-w-[1200px] mx-auto px-6 py-6 relative z-10">
+    <!-- Bottom Section: Content & Reviews -->
+    {% render "components/product/content", product: product, reviews: reviews, avgRating: avgRating %}
+  </section>
+
+  {% render "components/product/faq", product: product %}
+
+  {% render "components/product/related", title: "Có thể bạn quan tâm", products: upsellProducts, productUrlPrefix: productUrlPrefix %}
 </main>
 {% endblock %}

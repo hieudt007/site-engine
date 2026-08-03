@@ -79,7 +79,7 @@ export function Dashboard() {
     <div className="container mx-auto p-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Analytics</CardTitle>
+          <CardTitle className="text-2xl font-medium">Analytics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">View your metrics</p>

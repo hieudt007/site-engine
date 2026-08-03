@@ -2,7 +2,7 @@
 @description: Danh sach san pham, co phan trang.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, products, product.id, hasNext, hasPrev
 @required_ids: 
-@notes: products[] co id/name/imageUrls/price/salePrice. NÊN CÓ thêm: Sidebar hoặc Dropdown bộ lọc (Filter) cơ bản và Sắp xếp (Sort: giá, mới nhất).
+@notes: products[] co id/name/imageUrls/price/salePrice. categories[]/brands[] co name/slug/itemCount (itemCount tinh san o Category.itemCount qua services/categoryCounts.ts, khong tu dem lai). Da co Sidebar bo loc Danh muc + Thuong hieu (hien so luong ke ten) va Muc gia (currentPrice la 1 trong 'under500'/'500to1000'/'over1000'/null - loc theo GIA THAT khach tra, uu tien salePrice neu co, xem priceRangeWhere trong products.ts). extraQuery (vd "&price=under500") PHAI truyen vao pagination de khong mat bo loc khi chuyen trang. BAT BUOC: khung anh san pham trong grid PHAI vuong 1:1 (class "aspect-square", KHONG duoc doi ti le khac). NÊN CÓ thêm: Sắp xếp (Sort: giá, mới nhất) hoat dong that (hien tai <select> chi la UI, chua noi voi query param).
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
@@ -18,7 +18,7 @@
         <div class="relative z-10 max-w-3xl mx-auto px-4">
             <h1 class="font-sans text-4xl md:text-5xl lg:text-6xl mb-6 font-medium tracking-tight pl-fade-up">Bộ Sưu Tập</h1>
             <p class="text-[#93c5fd] text-lg md:text-xl font-light pl-fade-up pl-delay-100 max-w-2xl mx-auto leading-relaxed">
-                Khám phá tinh hoa mỹ phẩm thiên nhiên, mang đến vẻ đẹp thuần khiết và rạng rỡ cho làn da của bạn.
+                Khám phá toàn bộ sản phẩm và gói dịch vụ của chúng tôi.
             </p>
         </div>
 
@@ -35,13 +35,13 @@
 
             <!-- Mobile Filter Overlay & Drawer -->
             <div id="pl-mobile-filter-overlay" class="fixed inset-0 bg-[#0A132B]/40 backdrop-blur-sm z-40 hidden lg:hidden transition-opacity opacity-0 duration-300"></div>
-            
+
             <aside id="pl-filter-sidebar" class="fixed inset-y-0 left-0 z-50 w-full max-w-[300px] bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(5,150,105,0.1)] transform -translate-x-full transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] lg:static lg:translate-x-0 lg:w-1/4 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:z-auto overflow-y-auto lg:overflow-visible flex flex-col h-full lg:h-auto rounded-r-[24px] lg:rounded-none">
                 
                 <!-- Filter Header (Mobile) -->
                 <div class="flex items-center justify-between p-6 lg:hidden border-b border-[#93c5fd]/30 bg-white/50 sticky top-0 z-10 rounded-tr-[24px]">
-                    <h2 class="font-sans text-2xl text-[#0A132B]">Bộ lọc</h2>
-                    <button id="pl-close-filter-btn" class="p-2 -mr-2 text-[#10B981] hover:text-[#2563eb] transition-colors rounded-full hover:bg-[#eff6ff]">
+                    <h2 class="font-sans text-xl text-[#0A132B]">Bộ lọc</h2>
+                    <button id="pl-close-filter-btn" class="p-2 -mr-2 text-[#2563eb] hover:text-[#2563eb] transition-colors rounded-full hover:bg-[#eff6ff]">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                 </div>
@@ -49,80 +49,64 @@
                 <!-- Filter Content -->
                 <div class="p-6 lg:p-0 flex-1 lg:sticky lg:top-28 space-y-10">
                     <!-- Category Filter -->
-                    <div class="pl-filter-group bg-white lg:bg-transparent p-0 lg:p-0 rounded-[24px]">
+                    {% if categories and categories.size > 0 %}
+                    <div class="pl-filter-group lg:bg-transparent p-0 lg:p-0 rounded-[24px]">
                         <h3 class="font-sans text-lg text-[#0A132B] mb-5 font-medium">Danh mục</h3>
                         <ul class="space-y-4 text-[#0A132B]/80">
+                            {% for category in categories %}
                             <li>
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#93c5fd] rounded-md group-hover:border-[#2563eb] transition-colors bg-white">
-                                        <input type="checkbox" class="peer sr-only">
-                                        <svg class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity absolute inset-0 m-auto z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                                        <div class="absolute inset-0 bg-[#2563eb] scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center rounded-sm"></div>
-                                    </div>
-                                    <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium">Chăm sóc da mặt</span>
-                                </label>
+                                <a href="/product/danh-muc/{{ category.slug }}" class="flex items-center justify-between gap-2 group hover:text-[#2563eb] transition-colors text-sm font-medium">
+                                    <span>{{ category.name }}</span>
+                                    <span class="text-xs text-[#0A132B]/40 group-hover:text-[#2563eb]/70">({{ category.itemCount }})</span>
+                                </a>
                             </li>
-                            <li>
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#93c5fd] rounded-md group-hover:border-[#2563eb] transition-colors bg-white">
-                                        <input type="checkbox" class="peer sr-only">
-                                        <svg class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity absolute inset-0 m-auto z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                                        <div class="absolute inset-0 bg-[#2563eb] scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center rounded-sm"></div>
-                                    </div>
-                                    <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium">Chăm sóc cơ thể</span>
-                                </label>
-                            </li>
-                            <li>
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#93c5fd] rounded-md group-hover:border-[#2563eb] transition-colors bg-white">
-                                        <input type="checkbox" class="peer sr-only">
-                                        <svg class="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity absolute inset-0 m-auto z-10 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-                                        <div class="absolute inset-0 bg-[#2563eb] scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center rounded-sm"></div>
-                                    </div>
-                                    <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium">Trang điểm</span>
-                                </label>
-                            </li>
+                            {% endfor %}
                         </ul>
                     </div>
+                    {% endif %}
+
+                    <!-- Brand Filter -->
+                    {% if brands and brands.size > 0 %}
+                    <div class="pl-filter-group pt-8 border-t border-[#93c5fd]/50">
+                        <h3 class="font-sans text-lg text-[#0A132B] mb-5 font-medium">Thương hiệu</h3>
+                        <ul class="space-y-4 text-[#0A132B]/80">
+                            {% for brand in brands %}
+                            <li>
+                                <a href="/product/thuong-hieu/{{ brand.slug }}" class="flex items-center justify-between gap-2 group hover:text-[#2563eb] transition-colors text-sm font-medium">
+                                    <span>{{ brand.name }}</span>
+                                    <span class="text-xs text-[#0A132B]/40 group-hover:text-[#2563eb]/70">({{ brand.itemCount }})</span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
 
                     <!-- Price Filter -->
                     <div class="pl-filter-group pt-8 border-t border-[#93c5fd]/50">
                         <h3 class="font-sans text-lg text-[#0A132B] mb-5 font-medium">Mức giá</h3>
                         <ul class="space-y-4 text-[#0A132B]/80">
-                            <li>
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#93c5fd] rounded-full group-hover:border-[#2563eb] transition-colors bg-white">
-                                        <input type="radio" name="price" class="peer sr-only">
-                                        <div class="w-2.5 h-2.5 bg-[#2563eb] rounded-full scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center"></div>
-                                    </div>
-                                    <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium">Dưới 500.000₫</span>
-                                </label>
-                            </li>
-                            <li>
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#93c5fd] rounded-full group-hover:border-[#2563eb] transition-colors bg-white">
-                                        <input type="radio" name="price" class="peer sr-only">
-                                        <div class="w-2.5 h-2.5 bg-[#2563eb] rounded-full scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center"></div>
-                                    </div>
-                                    <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium">500.000₫ - 1.000.000₫</span>
-                                </label>
-                            </li>
-                            <li>
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="relative flex items-center justify-center w-5 h-5 border-2 border-[#93c5fd] rounded-full group-hover:border-[#2563eb] transition-colors bg-white">
-                                        <input type="radio" name="price" class="peer sr-only">
-                                        <div class="w-2.5 h-2.5 bg-[#2563eb] rounded-full scale-0 peer-checked:scale-100 transition-transform duration-300 origin-center"></div>
-                                    </div>
-                                    <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium">Trên 1.000.000₫</span>
-                                </label>
-                            </li>
+                            {% assign price_buckets = "under500|Dưới 500.000₫,500to1000|500.000₫ - 1.000.000₫,over1000|Trên 1.000.000₫" | split: "," %}
+                            {% for bucket in price_buckets %}
+                                {% assign parts = bucket | split: "|" %}
+                                {% assign bucket_value = parts[0] %}
+                                {% assign bucket_label = parts[1] %}
+                                <li>
+                                    <a href="/products?price={{ bucket_value }}" class="flex items-center gap-3 cursor-pointer group">
+                                        <div class="relative flex items-center justify-center w-5 h-5 border-2 {% if currentPrice == bucket_value %}border-[#2563eb]{% else %}border-[#93c5fd]{% endif %} rounded-full group-hover:border-[#2563eb] transition-colors bg-white shrink-0">
+                                            <div class="w-2.5 h-2.5 bg-[#2563eb] rounded-full transition-transform duration-300 origin-center {% if currentPrice == bucket_value %}scale-100{% else %}scale-0{% endif %}"></div>
+                                        </div>
+                                        <span class="group-hover:text-[#2563eb] transition-colors text-sm font-medium {% if currentPrice == bucket_value %}text-[#2563eb]{% endif %}">{{ bucket_label }}</span>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                            {% if currentPrice %}
+                                <li>
+                                    <a href="/products" class="text-xs text-[#0A132B]/50 hover:text-[#2563eb] underline underline-offset-2">Bỏ lọc giá</a>
+                                </li>
+                            {% endif %}
                         </ul>
                     </div>
-                </div>
-                
-                <!-- Filter Footer (Mobile) -->
-                <div class="p-6 border-t border-[#93c5fd]/30 lg:hidden bg-white/90 backdrop-blur-md sticky bottom-0 z-10 rounded-br-[24px]">
-                    <button class="w-full bg-[#2563eb] text-white font-medium py-4 rounded-[24px] hover:bg-[#047857] transition-colors shadow-lg shadow-[#2563eb]/20 text-sm">Áp dụng bộ lọc</button>
                 </div>
             </aside>
 
@@ -136,7 +120,7 @@
                     </button>
                     
                     <div class="hidden lg:block text-[#0A132B]/70 text-sm font-medium">
-                        Hiển thị <span class="text-[#2563eb] font-bold">{{ products.size }}</span> sản phẩm
+                        Hiển thị <span class="text-[#2563eb] font-medium">{{ products.size }}</span> sản phẩm
                     </div>
                     
                     <div class="flex items-center gap-3 ml-auto lg:ml-0 bg-white px-4 py-2 rounded-[24px] shadow-sm border border-[#93c5fd]/50">
@@ -165,7 +149,7 @@
                                     {% if product.imageUrls[0] %}
                                         <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="w-full h-full object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-110" loading="lazy">
                                     {% else %}
-                                        <div class="w-full h-full flex items-center justify-center text-[#10B981]/50 text-sm">Chưa có ảnh</div>
+                                        <div class="w-full h-full flex items-center justify-center text-[#2563eb]/50 text-sm">Chưa có ảnh</div>
                                     {% endif %}
                                     
                                     <!-- Soft Overlay on Hover -->
@@ -173,7 +157,7 @@
                                     
                                     <!-- Badges -->
                                     {% if product.salePrice and product.salePrice < product.price %}
-                                        <div class="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-[#2563eb] text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full z-20 shadow-sm">Giảm giá</div>
+                                        <div class="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-[#2563eb] text-[10px] uppercase tracking-widest font-medium px-3 py-1.5 rounded-full z-20 shadow-sm">Giảm giá</div>
                                     {% endif %}
                                 </a>
 
@@ -184,15 +168,15 @@
                                     </h2>
                                     <div class="mt-auto pt-2 flex flex-wrap items-center justify-center gap-2.5 text-sm md:text-base">
                                         {% if product.salePrice and product.salePrice < product.price %}
-                                            <span class="text-[#DC2626] font-bold">{{ product.salePrice }}₫</span>
-                                            <span class="text-[#0A132B]/40 line-through text-xs md:text-sm font-medium">{{ product.price }}₫</span>
+                                            <span class="text-[#DC2626] font-medium">{{ product.salePrice | money }}</span>
+                                            <span class="text-[#0A132B]/40 line-through text-xs md:text-sm font-medium">{{ product.price | money }}</span>
                                         {% else %}
-                                            <span class="text-[#2563eb] font-bold">{{ product.price }}₫</span>
+                                            <span class="text-[#2563eb] font-medium">{{ product.price | money }}</span>
                                         {% endif %}
                                     </div>
                                     
                                     <!-- Quick Add Button with Animation Trigger -->
-                                    <button class="pl-add-to-cart-btn mt-5 w-full bg-[#eff6ff] text-[#2563eb] hover:bg-[#2563eb] hover:text-white rounded-[24px] py-3 transition-colors duration-300 font-medium text-sm flex items-center justify-center gap-2 group/btn" data-image="{{ product.imageUrls[0] }}">
+                                    <button class="pl-add-to-cart-btn mt-5 w-full bg-[#eff6ff] text-[#2563eb] hover:bg-[#2563eb] hover:text-white rounded-[24px] py-3 transition-colors duration-300 font-medium text-sm flex items-center justify-center gap-2 group/btn" data-product-id="{{ product.id }}" data-image="{{ product.imageUrls[0] }}">
                                         <svg class="w-5 h-5 transform group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
                                         Thêm vào giỏ
                                     </button>
@@ -201,7 +185,7 @@
                         {% endfor %}
                     {% else %}
                         <div class="col-span-full py-24 text-center flex flex-col items-center justify-center bg-white rounded-[24px] shadow-sm border border-[#93c5fd]/30">
-                            <div class="w-20 h-20 bg-[#eff6ff] rounded-full flex items-center justify-center mb-6 text-[#10B981]">
+                            <div class="w-20 h-20 bg-[#eff6ff] rounded-full flex items-center justify-center mb-6 text-[#2563eb]">
                                 <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
                             </div>
                             <h3 class="font-sans text-2xl text-[#0A132B] mb-3">Không tìm thấy sản phẩm</h3>
@@ -213,7 +197,7 @@
                 <!-- Pagination -->
                 {% if hasPrev or hasNext %}
                     <div class="mt-20 flex justify-center">
-                        {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+                        {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage, extraQuery: extraQuery %}
                     </div>
                 {% endif %}
             </div>

@@ -1,8 +1,8 @@
 {% comment %}
 @description: Chan trang.
-@required_substrings: site.siteName, footerMenu
+@required_substrings: site.siteName, footerMenu, year
 @required_ids:
-@notes: Nhan bien site va footerMenu (giong header.liquid), hien nam ban quyen + ten site. NÊN CÓ thêm: Cột nhập email đăng ký nhận bản tin (Newsletter subscription) và các icon mạng xã hội.
+@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ" hardcode toi /privacy va /terms - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 2 trang tinh (page.liquid) voi slug dung "privacy"/"terms" thi 2 link nay moi co noi dung, neu khong se ra 404. NÊN CÓ thêm: Cột nhập email đăng ký nhận bản tin (Newsletter subscription) và các icon mạng xã hội.
 {% endcomment %}
 <footer class="bg-brand-dark px-6 pb-10 pt-16 text-white/70">
     <div class="mx-auto max-w-[1200px]">
@@ -13,7 +13,7 @@
                     {% if site.logoUrl %}
                         <img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-7 w-7 rounded-lg object-contain">
                     {% else %}
-                        <span class="h-7 w-7 rounded-lg bg-brand flex items-center justify-center text-white font-bold text-xs">{{ site.siteName | slice: 0, 1 }}</span>
+                        <span class="h-7 w-7 rounded-lg bg-brand flex items-center justify-center text-white font-medium text-xs">{{ site.siteName | slice: 0, 1 }}</span>
                     {% endif %}
                     {{ site.siteName }}
                 </div>

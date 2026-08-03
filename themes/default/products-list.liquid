@@ -1,11 +1,8 @@
 {% comment %}
 @description: Danh sach san pham, co phan trang.
-@context_vars: products (Array), shop
-@responsibilities: Hiển thị toàn bộ sản phẩm của cửa hàng
-@structure_rules: Grid layout sản phẩm
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, products, product.id, hasNext, hasPrev
-@required_ids: 
-@notes: products[] co id/name/imageUrls/price/salePrice. NÊN CÓ thêm: Sidebar hoặc Dropdown bộ lọc (Filter) cơ bản và Sắp xếp (Sort: giá, mới nhất).
+@required_ids:
+@notes: products[] co id/name/imageUrls/price/salePrice. Route (src/routes/public/products.ts, dung chung moi theme) DA truyen san categories[]/brands[] (name/slug/itemCount - itemCount tinh san o Category.itemCount qua services/categoryCounts.ts, khong tu dem lai), co the dung de lam Sidebar bo loc Danh muc + Thuong hieu (hien so luong ke ten). BAT BUOC: khung anh san pham trong grid PHAI vuong 1:1 (class "aspect-square" hoac tuong duong, KHONG duoc doi ti le khac). NÊN CÓ thêm: Sắp xếp (Sort: giá, mới nhất).
 {% endcomment %}
 
 <!-- Giao diện trống -->

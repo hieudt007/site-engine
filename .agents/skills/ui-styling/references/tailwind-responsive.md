@@ -71,7 +71,7 @@ Tailwind uses mobile-first responsive design. Base styles apply to all screen si
 
 ```html
 <!-- Responsive text sizes -->
-<h1 class="text-2xl md:text-4xl lg:text-6xl font-bold">
+<h1 class="text-2xl md:text-4xl lg:text-6xl font-medium">
   Heading scales with screen size
 </h1>
 
@@ -145,7 +145,7 @@ Tailwind uses mobile-first responsive design. Base styles apply to all screen si
   <div class="container mx-auto px-4">
     <div class="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
       <div class="flex-1 text-center lg:text-left">
-        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-medium mb-4">
           Hero Title
         </h1>
         <p class="text-lg md:text-xl mb-6">
@@ -169,7 +169,7 @@ Tailwind uses mobile-first responsive design. Base styles apply to all screen si
 <nav class="bg-white shadow">
   <div class="container mx-auto px-4">
     <div class="flex items-center justify-between h-16">
-      <div class="text-xl font-bold">Logo</div>
+      <div class="text-xl font-medium">Logo</div>
 
       <!-- Desktop navigation -->
       <div class="hidden md:flex gap-6">

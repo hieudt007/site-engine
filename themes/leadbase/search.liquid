@@ -2,11 +2,11 @@
 @description: Trang tim kiem public cho bai viet, trang tinh va san pham.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, q, hasQuery, posts, pages, products, totalResults
 @required_ids: 
-@notes: Nhan q, hasQuery, totalResults, posts[], pages[], products[]. Nen dung components/post/card.liquid va components/product/card.liquid de hien ket qua, khong copy lai HTML card dai trong file search.
+@notes: Nhan q, hasQuery, totalResults, posts[], pages[], products[] (pages[] co san url tinh san tu search.ts, khong tu ghep "/" + slug). Nen dung components/post/card.liquid va components/product/card.liquid de hien ket qua, khong copy lai HTML card dai trong file search. QUAN TRONG: {% render %} cua LiquidJS CO LAP HOAN TOAN scope (da kiem chung thuc te) - KHONG tu thay bien global nhu postUrlPrefix/productUrlPrefix, PHAI truyen tay tung lan goi render (vd {% render 'components/product/card', product: product, productUrlPrefix: productUrlPrefix, variant: 'list' %}), thieu se lam link san pham/bai viet trong ket qua tim kiem bi gay.
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-<main class="min-h-screen bg-[#F9F9F7] text-slate-950 overflow-hidden pt-28 pb-20 relative">
+<main class="min-h-screen bg-[#eff6ff] text-slate-950 overflow-hidden pt-8 md:pt-10 pb-20 relative">
     <!-- Ambient Background -->
     <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[100px] animate-blob"></div>
@@ -34,7 +34,7 @@
                 placeholder="Tìm kiếm mỹ phẩm, bài viết, công thức..." 
                 class="w-full pl-16 pr-32 py-5 rounded-[24px] bg-white/80 backdrop-blur-xl border border-blue-600/10 shadow-[0_8px_32px_rgba(5,150,105,0.04)] focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600/40 transition-all duration-500 font-sans text-slate-950 placeholder:text-slate-900/40 text-lg sm:text-xl"
             >
-            <button type="submit" class="absolute inset-y-2 right-2 px-8 bg-blue-600 text-white rounded-[18px] hover:bg-blue-700 transition-all duration-300 font-sans text-sm tracking-[0.2em] uppercase shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 flex items-center justify-center">
+            <button type="submit" class="absolute inset-y-2 right-2 px-8 bg-blue-600 text-white rounded-[18px] hover:bg-blue-700 transition-all duration-300 font-sans text-sm tracking-[0.1em] uppercase shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 flex items-center justify-center">
                 Tìm
             </button>
         </form>
@@ -48,7 +48,7 @@
 
     <!-- Results Section -->
     {% if hasQuery %}
-        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section class="max-w-[1200px] mx-auto px-6">
             {% if totalResults == 0 %}
                 <div class="text-center py-24 fade-up">
                     <div class="inline-flex items-center justify-center w-24 h-24 rounded-[24px] bg-white/50 backdrop-blur-md mb-8 shadow-sm border border-blue-600/10">
@@ -69,7 +69,7 @@
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-8 md:gap-y-12">
                             {% for product in products %}
-                                {% render 'components/product/card', product: product %}
+                                {% render 'components/product/card', product: product, productUrlPrefix: productUrlPrefix, variant: 'list' %}
                             {% endfor %}
                         </div>
                     </div>
@@ -84,7 +84,7 @@
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {% for post in posts %}
-                                {% render 'components/post/card', post: post %}
+                                {% render 'components/post/card', post: post, postUrlPrefix: postUrlPrefix, variant: 'list' %}
                             {% endfor %}
                         </div>
                     </div>

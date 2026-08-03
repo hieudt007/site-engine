@@ -2,7 +2,7 @@
 @description: Trang chu — hero + bai viet moi + san pham moi.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, posts, products
 @required_ids:
-@notes: Nhan post[] (slug/title/excerpt/coverImage/publishedAt) va products[] (id/name/imageUrls/price/salePrice). Ca 2 co the rong — phai co fallback khi rong. NÊN CÓ thêm: Hero Banner (Slider hoặc ảnh lớn) với nút Call-to-Action, và Khối danh mục nổi bật.
+@notes: Nhan post[] (slug/title/excerpt/coverImage/publishedAt) va products[] (id/name/imageUrls/price/salePrice). Ca 2 co the rong — phai co fallback khi rong. Link san pham/bai viet PHAI dung {{ productUrlPrefix }}/{{ product.slug }} va {{ postUrlPrefix }}/{{ post.slug }} (bien global tu themeRenderer.ts, khong hardcode "/products/" hay "/blog/" vi site co the tuy chinh prefix). BAT BUOC: khung anh san pham (khoi "San pham moi") PHAI vuong 1:1 (aspect-square) - khoi "Bai viet moi" dung ti le anh khac (4:3) la binh thuong, chi anh SAN PHAM moi bat buoc vuong. NÊN CÓ thêm: Hero Banner (Slider hoặc ảnh lớn) với nút Call-to-Action, và Khối danh mục nổi bật.
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
@@ -13,7 +13,7 @@
         <span class="mb-6 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-4 py-1.5 text-[13px] font-medium text-brand">
             <span class="h-1.5 w-1.5 rounded-full bg-brand"></span> AI Business Operator
         </span>
-        <h1 class="text-[32px] font-bold leading-tight text-slate-900 md:text-[48px]">
+        <h1 class="text-[32px] font-medium leading-tight text-slate-900 md:text-[48px]">
             Không phải chatbot. Không phải <span class="text-brand">phần mềm quản lý bán hàng</span>.<br>
             Đây là <span class="text-brand">hệ vận hành doanh nghiệp bằng AI</span>.
         </h1>
@@ -58,7 +58,7 @@
         <div class="grid grid-cols-2 gap-6 md:grid-cols-4">
             {% if products and products.size > 0 %}
                 {% for product in products limit: 4 %}
-                    <a href="/products/{{ product.slug }}" class="group block">
+                    <a href="{{ productUrlPrefix }}/{{ product.slug }}" class="group block">
                         <div class="relative mb-3 aspect-square overflow-hidden rounded-2xl bg-slate-50 border border-slate-100">
                             {% if product.imageUrls and product.imageUrls.size > 0 %}
                                 <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
@@ -93,7 +93,7 @@
     <div class="mx-auto mt-12 grid max-w-[900px] gap-6 md:grid-cols-2">
         <div class="rounded-2xl border border-slate-200 bg-white p-8">
             <h3 class="text-lg font-semibold text-slate-900">Dùng thử</h3>
-            <p class="mt-2 text-3xl font-bold text-slate-900">0đ</p>
+            <p class="mt-2 text-3xl font-medium text-slate-900">0đ</p>
             <ul class="mt-6 space-y-3 text-sm text-slate-600">
                 <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> 1 kênh kết nối (Facebook/Zalo)</li>
                 <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> 1 AI Agent cơ bản</li>
@@ -103,7 +103,7 @@
         </div>
         <div class="rounded-2xl border-2 border-brand bg-white p-8 shadow-lg shadow-blue-100">
             <h3 class="text-lg font-semibold text-slate-900">Đầy đủ</h3>
-            <p class="mt-2 text-3xl font-bold text-slate-900">Liên hệ</p>
+            <p class="mt-2 text-3xl font-medium text-slate-900">Liên hệ</p>
             <ul class="mt-6 space-y-3 text-sm text-slate-600">
                 <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> Không giới hạn kênh kết nối</li>
                 <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> Nhiều AI Agent phối hợp</li>
@@ -124,7 +124,7 @@
         <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
             {% if posts and posts.size > 0 %}
                 {% for post in posts limit: 3 %}
-                    <a href="/blog/{{ post.slug }}" class="group block">
+                    <a href="{{ postUrlPrefix }}/{{ post.slug }}" class="group block">
                         <div class="mb-4 aspect-[4/3] overflow-hidden rounded-2xl bg-slate-50 border border-slate-100">
                             {% if post.coverImage %}
                                 <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">

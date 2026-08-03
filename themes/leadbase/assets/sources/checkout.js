@@ -5,6 +5,23 @@
 
   const CART_KEY = "site_engine_cart";
 
+  // Luong "Mua ngay" tu trang san pham chuyen sang day voi query param buyNowProductId/
+  // buyNowVariantId (xem product-detail.js initBuyNow) - khi co, trang nay CHI hien thi/dat hang
+  // dung 1 san pham nay (quantity luon 1), KHONG doc/ghi gio hang that qua readCart/writeCart o
+  // duoi (de tranh gop nham voi cac san pham khac dang co san). Truoc do initBuyNow da tu them
+  // san pham nay vao gio hang that roi (de neu khach roi trang ma khong dat hang thi van con trong
+  // gio) - khi dat hang THANH CONG o che do nay, tru dung 1 don vi khoi gio hang that (xem
+  // removeOneFromRealCart), khong dung writeCart([]) vi se xoa nham cac san pham khac/so luong con
+  // lai cua chinh san pham nay.
+  const buyNowParams = new URLSearchParams(window.location.search);
+  const buyNowProductId = buyNowParams.get("buyNowProductId");
+  const buyNowItem = buyNowProductId
+    ? { productId: buyNowProductId, variantId: buyNowParams.get("buyNowVariantId") || undefined, quantity: 1 }
+    : null;
+  if (buyNowItem) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   function formatMoney(amount) {
     return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
   }
@@ -19,6 +36,7 @@
   }
 
   function readCart() {
+    if (buyNowItem) return [buyNowItem];
     try {
       return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
     } catch {
@@ -27,7 +45,45 @@
   }
 
   function writeCart(items) {
+    if (buyNowItem) return;
     localStorage.setItem(CART_KEY, JSON.stringify(items));
+  }
+
+  function removeOneFromRealCart(item) {
+    let realCart;
+    try {
+      realCart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    } catch {
+      realCart = [];
+    }
+    const existing = realCart.find((c) => c.productId === item.productId && c.variantId === item.variantId);
+    if (!existing) return;
+    if (existing.quantity > 1) {
+      existing.quantity -= 1;
+    } else {
+      realCart = realCart.filter((c) => c !== existing);
+    }
+    localStorage.setItem(CART_KEY, JSON.stringify(realCart));
+  }
+
+  // Ma da ap dung thanh cong (preview qua /api/cart/apply-coupon, CHUA tang usedCount that su -
+  // xem docblock route). Bi xoa moi khi gio hang doi (xoa/sua so luong) de tranh hien so giam gia
+  // cu, sai so voi tong moi.
+  let appliedCoupon = null;
+  let currentSubtotal = 0;
+
+  function updateDiscountUI() {
+    const row = document.getElementById("discount-row");
+    const display = document.getElementById("discount-display");
+    if (!row || !display) return;
+    if (appliedCoupon) {
+      row.classList.remove("hidden");
+      row.classList.add("flex");
+      display.textContent = "-" + formatMoney(appliedCoupon.discountAmount);
+    } else {
+      row.classList.add("hidden");
+      row.classList.remove("flex");
+    }
   }
 
   function escapeHtml(str) {
@@ -98,16 +154,16 @@
       }
 
       if (!methods || methods.length === 0) {
-        list.innerHTML = "<p class='text-sm text-emerald-900/60'>Chưa có hình thức nhận hàng nào được bật.</p>";
+        list.innerHTML = "<p class='text-sm text-slate-900/60'>Chưa có hình thức nhận hàng nào được bật.</p>";
         return;
       }
 
       list.innerHTML = methods
         .map(
           (m, i) => `
-            <label class="custom-radio-label flex items-center p-4 border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50/80 rounded-[24px] transition-all cursor-pointer group mb-3 last:mb-0">
+            <label class="custom-radio-label flex items-center p-4 border border-blue-100 bg-blue-50/20 hover:bg-blue-50/80 rounded-[24px] transition-all cursor-pointer group mb-3 last:mb-0">
               <input type="radio" name="fulfillmentMethod" value="${m}" ${i === 0 ? "checked" : ""}>
-              <span class="font-medium text-emerald-900 text-sm group-hover:text-emerald-700 transition-colors">${FULFILLMENT_METHOD_LABELS[m] || m}</span>
+              <span class="font-medium text-slate-900 text-sm group-hover:text-blue-700 transition-colors">${FULFILLMENT_METHOD_LABELS[m] || m}</span>
             </label>
           `
         )
@@ -128,15 +184,15 @@
       const res = await fetch("/api/cart/payment-methods");
       const { methods } = await res.json();
       if (!methods || methods.length === 0) {
-        list.innerHTML = "<p class='text-sm text-emerald-900/60'>Chưa có phương thức thanh toán nào được bật.</p>";
+        list.innerHTML = "<p class='text-sm text-slate-900/60'>Chưa có phương thức thanh toán nào được bật.</p>";
         return;
       }
       list.innerHTML = methods
         .map(
           (m, i) => `
-            <label class="custom-radio-label flex items-center p-4 border border-emerald-100 bg-emerald-50/20 hover:bg-emerald-50/80 rounded-[24px] transition-all cursor-pointer group mb-3 last:mb-0">
+            <label class="custom-radio-label flex items-center p-4 border border-blue-100 bg-blue-50/20 hover:bg-blue-50/80 rounded-[24px] transition-all cursor-pointer group mb-3 last:mb-0">
               <input type="radio" name="paymentMethod" value="${m.method}" ${i === 0 ? "checked" : ""}>
-              <span class="font-medium text-emerald-900 text-sm group-hover:text-emerald-700 transition-colors">${PAYMENT_METHOD_LABELS[m.method] || m.method}</span>
+              <span class="font-medium text-slate-900 text-sm group-hover:text-blue-700 transition-colors">${PAYMENT_METHOD_LABELS[m.method] || m.method}</span>
             </label>
           `
         )
@@ -151,9 +207,9 @@
 
     if (cart.length === 0) {
       checkoutItems.innerHTML = `
-        <div class="text-center py-10 bg-emerald-50/50 rounded-[24px] border border-emerald-100">
-            <p class="text-emerald-900/60 mb-4">Giỏ hàng của bạn đang trống.</p>
-            <a href="/products" class="inline-block bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 rounded-[24px] px-6 py-2.5 transition-all text-sm font-medium">Tiếp tục mua sắm</a>
+        <div class="text-center py-10 bg-blue-50/50 rounded-[24px] border border-blue-100">
+            <p class="text-slate-900/60 mb-4">Giỏ hàng của bạn đang trống.</p>
+            <a href="/products" class="inline-block bg-white border border-blue-200 text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 rounded-[24px] px-6 py-2.5 transition-all text-sm font-medium">Tiếp tục mua sắm</a>
         </div>
       `;
       checkoutForm.classList.add("hidden");
@@ -192,31 +248,35 @@
 
         total += unitPrice * item.quantity;
         return `
-          <div class="flex justify-between items-start gap-4 py-4 border-b border-emerald-100/60 last:border-0 group">
+          <div class="flex justify-between items-start gap-4 py-4 border-b border-blue-100/60 last:border-0 group">
               <div class="flex-1 pr-4">
-                  <div class="font-medium text-emerald-900 text-sm leading-snug mb-1">${label}</div>
-                  ${attrText ? `<div class="text-xs text-emerald-700/60 mb-1">${escapeHtml(attrText)}</div>` : ''}
-                  <div class="text-xs text-emerald-900/50 bg-emerald-50 inline-block px-2 py-1 rounded-md">${formatMoney(unitPrice)} × ${item.quantity}</div>
+                  <div class="font-medium text-slate-900 text-sm leading-snug mb-1">${label}</div>
+                  ${attrText ? `<div class="text-xs text-blue-700/60 mb-1">${escapeHtml(attrText)}</div>` : ''}
+                  <div class="text-xs text-slate-900/50 bg-blue-50 inline-block px-2 py-1 rounded-md">${formatMoney(unitPrice)} × ${item.quantity}</div>
               </div>
               <div class="text-right flex flex-col items-end gap-2 shrink-0">
-                  <div class="font-medium text-emerald-900 text-sm">${formatMoney(unitPrice * item.quantity)}</div>
-                  <button type="button" data-index="${index}" class="cart-remove text-xs text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 hover:underline">Xoá</button>
+                  <div class="font-medium text-slate-900 text-sm">${formatMoney(unitPrice * item.quantity)}</div>
+                  ${buyNowItem ? '' : `<button type="button" data-index="${index}" class="cart-remove text-xs text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 hover:underline">Xoá</button>`}
               </div>
           </div>
         `;
       });
 
       checkoutItems.innerHTML = rows.join("");
-      document.getElementById("checkout-total").textContent = formatMoney(total);
+      currentSubtotal = total;
       const subtotalEl = document.getElementById("subtotal-display");
       if(subtotalEl) subtotalEl.textContent = formatMoney(total);
-      
+      const finalTotal = appliedCoupon ? Math.max(0, total - appliedCoupon.discountAmount) : total;
+      document.getElementById("checkout-total").textContent = formatMoney(finalTotal);
+      updateDiscountUI();
+
       checkoutForm.classList.remove("hidden");
 
       checkoutItems.querySelectorAll(".cart-remove").forEach((btn) => {
         btn.addEventListener("click", () => {
           const idx = Number(btn.dataset.index);
           writeCart(readCart().filter((_, i) => i !== idx));
+          appliedCoupon = null;
           render();
         });
       });
@@ -283,7 +343,11 @@
       }
 
       const { orderId, redirectUrl } = await res.json();
-      writeCart([]);
+      if (buyNowItem) {
+        removeOneFromRealCart(buyNowItem);
+      } else {
+        writeCart([]);
+      }
       window.location.href = redirectUrl || "/order-confirmation/" + orderId;
       
     } catch (e) {
@@ -298,9 +362,9 @@
   loadFulfillmentMethods();
   loadPaymentMethods();
 
-  // Fallback Add to Cart via URL
+  // Fallback Add to Cart via URL (khong ap dung khi dang o che do "Mua ngay" 1 san pham)
   const urlParams = new URLSearchParams(window.location.search);
-  const addProductId = urlParams.get("add_product_id");
+  const addProductId = buyNowItem ? null : urlParams.get("add_product_id");
   if (addProductId) {
     const addVariantId = urlParams.get("add_variant_id") || undefined;
     const addQuantity = parseInt(urlParams.get("quantity") || "1", 10);
@@ -316,6 +380,52 @@
     
     const newUrl = window.location.pathname;
     window.history.replaceState({}, document.title, newUrl);
+  }
+
+  const applyCouponBtn = document.getElementById("apply-coupon-btn");
+  const couponInput = document.getElementById("coupon-code-input");
+  const couponMessage = document.getElementById("coupon-message");
+
+  function showCouponMessage(text, isError) {
+    if (!couponMessage) return;
+    couponMessage.textContent = text;
+    couponMessage.classList.remove("hidden", "text-red-500", "text-blue-600");
+    couponMessage.classList.add(isError ? "text-red-500" : "text-blue-600");
+  }
+
+  if (applyCouponBtn && couponInput) {
+    applyCouponBtn.addEventListener("click", async () => {
+      const code = couponInput.value.trim();
+      if (!code) {
+        showCouponMessage("Vui lòng nhập mã giảm giá.", true);
+        return;
+      }
+      const originalText = applyCouponBtn.textContent;
+      applyCouponBtn.disabled = true;
+      applyCouponBtn.textContent = "Đang kiểm tra...";
+      try {
+        const res = await fetch("/api/cart/apply-coupon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, subtotal: currentSubtotal }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          appliedCoupon = null;
+          showCouponMessage(data.error || "Mã giảm giá không hợp lệ.", true);
+        } else {
+          appliedCoupon = { code, discountAmount: data.discountAmount };
+          showCouponMessage(`Áp dụng mã "${code}" thành công.`, false);
+        }
+      } catch (e) {
+        appliedCoupon = null;
+        showCouponMessage("Lỗi kết nối, vui lòng thử lại.", true);
+      } finally {
+        applyCouponBtn.disabled = false;
+        applyCouponBtn.textContent = originalText;
+        render();
+      }
+    });
   }
 
   render();

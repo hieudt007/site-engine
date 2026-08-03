@@ -11,8 +11,7 @@
 
 .product-title {
     opacity: 0;
-    /* Gradient xanh thẫm sang xanh ngọc cho cảm giác thiên nhiên cao cấp */
-    background: linear-gradient(135deg, #022c22 0%, #065f46 100%);
+    background: linear-gradient(135deg, #0A132B 0%, #2563eb 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

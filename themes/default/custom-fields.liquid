@@ -1,11 +1,8 @@
 {% comment %}
-@description: Partial hien bang key-value cho truong tuy bien admin tu dat.
-@context_vars: product (Object), page (Object)
-@responsibilities: Hiển thị các trường dữ liệu tùy chỉnh (custom fields)
-@structure_rules: Tùy biến theo data
+@description: Partial hien bang key-value cho truong tuy bien admin tu dat. Dung chung cho post/page/product/category (moi noi truyen fields khac nhau).
 @required_substrings: fields
-@required_ids: 
-@notes: Nhan fields (object string->string, co the null/rong — PHAI tu an neu rong). Loop qua tung cap [key,value].
+@required_ids:
+@notes: Nhan fields (object string->string, co the null/rong — PHAI tu an neu rong). Loop qua tung cap [key,value]. PHAI duoc goi tu MOI template hien noi dung chinh (blog-post.liquid, page.liquid, product-detail.liquid, product-category.liquid, blog-category.liquid, order-confirmation.liquid...) neu entity do co truong customFields trong DB, neu khong admin dat "Trường tuỳ biến" se khong bao gio hien ra cho khach (loi that da gap o page.liquid theme leadbase - route da co san du lieu, chi thieu dong render).
 {% endcomment %}
 
 <!-- Giao diện trống -->

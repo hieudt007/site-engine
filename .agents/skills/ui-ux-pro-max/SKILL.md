@@ -30,7 +30,7 @@ Hãy luôn áp dụng các nguyên tắc Tailwind CSS sau đây vào từng elem
 - Link (A tag): Chuyển màu mượt mà: `transition-colors duration-200 hover:text-indigo-600`.
 
 ## 5. Typography (Nghệ thuật chữ)
-- Các Tiêu đề (Heading H1, H2) phải dùng font dày, tracking hẹp (khoảng cách chữ): `font-bold tracking-tight text-slate-900`.
+- Các Tiêu đề (Heading H1, H2) phải dùng font dày, tracking hẹp (khoảng cách chữ): `font-medium tracking-tight text-slate-900`.
 - Có thể dùng hiệu ứng kẹp màu cho tiêu đề lớn: `bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500`.
 - Chữ mô tả (Paragraph) phải nhạt hơn, dễ đọc: `text-slate-500 leading-relaxed`.
 

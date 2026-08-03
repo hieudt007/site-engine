@@ -195,7 +195,7 @@ Organize CSS into layers:
 ```css
 @layer base {
   h1 {
-    @apply text-4xl font-bold tracking-tight;
+    @apply text-4xl font-medium tracking-tight;
   }
 
   h2 {

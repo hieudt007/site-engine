@@ -1,11 +1,8 @@
 {% comment %}
 @description: Khoi noi dung dai, thong so, FAQ, custom fields va danh gia cua san pham.
-@context_vars: product (Object)
-@responsibilities: Nội dung mô tả dài của sản phẩm (HTML)
-@structure_rules: Rộng (Full width) bên dưới khối chính
 @required_substrings: product.description, product.customFields, {% render "custom-fields", reviews, avgRating
 @required_ids: review-form, review-msg
-@notes: Nhan product, reviews va avgRating. Sua mo ta dai, thong so, FAQ, custom fields va danh gia/review o day. PHAI giu {% render "custom-fields", fields: product.customFields %}. JS gui danh gia doc form#review-form va #review-msg. Form can customerName, rating va comment. NÊN CÓ thêm: UI dạng Tabs hoặc Accordion để chứa gọn gàng phần mô tả, thông số và đánh giá.
+@notes: Nhan product, reviews va avgRating. Sua mo ta dai, thong so, custom fields va danh gia/review o day. PHAI giu {% render "custom-fields", fields: product.customFields %}. JS gui danh gia doc form#review-form va #review-msg. Form can customerName, rating va comment. NEN gioi han mo ta dai bang max-height + nut "Doc them" neu mo ta co the rat dai. FAQ co the giu trong file nay (product.faq[]) hoac tach rieng thanh components/product/faq.liquid (theme leadbase lam vay, tu an khi rong, JS toggle accordion co the gop chung vao content.js neu file rieng khong nam trong danh sach file duoc bundler gom - xem services/themeAssetBundler.ts). NÊN CÓ thêm: UI dạng Tabs hoặc Accordion để chứa gọn gàng phần mô tả, thông số và đánh giá.
 {% endcomment %}
 
 <!-- Giao diện trống -->

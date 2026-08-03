@@ -1,11 +1,8 @@
 {% comment %}
-@description: Bài viết liên quan
-@context_vars: posts (Array)
-@responsibilities: Bài viết liên quan
-@structure_rules: Grid
-@required_substrings: 
-@required_ids: 
-@notes: 
+@description: Danh sach bai viet lien quan, render o cuoi blog-post.liquid.
+@required_substrings: relatedPosts
+@required_ids:
+@notes: Nhan relatedPosts[] (slug/title/excerpt/coverImage/categories[]) tu blog.ts. Tu an hoan toan khi rong. Link bai viet PHAI dung {{ postUrlPrefix }}/{{ related.slug }} (bien global, ton trong postSlugPrefix tuy chinh) - KHONG hardcode "/blog/".
 {% endcomment %}
 
 <!-- Giao diện trống -->

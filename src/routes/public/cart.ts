@@ -13,6 +13,7 @@ import { buildVnpayPaymentUrl } from "../../services/vnpay.js";
 import { calculateShippingFee, findMatchingShippingRule, listShippingRules, VN_PROVINCES } from "../../services/shipping.js";
 import { buildFulfillmentNote, FULFILLMENT_METHOD_KEYS, isFulfillmentMethodEnabled, listEnabledStores, listFulfillmentMethods } from "../../services/fulfillment.js";
 import { incrementCouponUsage, validateCoupon } from "../../services/coupon.js";
+import { getUpsellProducts } from "../../services/productRecommendations.js";
 
 // Giỏ hàng sống ở localStorage phía trình duyệt (system_design.md task_list — "không cần DB
 // riêng cho cart trước khi checkout"), server chỉ tham gia ở 2 điểm: hydrate giá/tên thật cho
@@ -63,6 +64,25 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     });
     return { products };
   });
+
+  // Preview - CHUA tang usedCount (giong validateCoupon's own doc), chi de hien thi so tien giam
+  // truoc khi khach bam "Xac nhan don hang" that su. incrementCouponUsage() van chi goi luc
+  // /cart/checkout tao don thanh cong.
+  app.post<{ Body: { code?: string; subtotal?: number } }>(
+    "/api/cart/apply-coupon",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const { code, subtotal } = request.body ?? {};
+      if (!code || typeof subtotal !== "number" || subtotal < 0) {
+        return reply.code(400).send({ ok: false, error: "Thiếu mã giảm giá hoặc tổng đơn hàng" });
+      }
+      const result = await validateCoupon(code, subtotal);
+      if (!result.ok) {
+        return reply.code(422).send({ ok: false, error: result.error });
+      }
+      return { ok: true, discountAmount: result.discountAmount ?? 0 };
+    },
+  );
 
   // Cong khai - chi tra 'enabled' + config CONG KHAI (thong tin ngan hang de hien thi), KHONG
   // BAO GIO tra tmnCode/hashSecret cua vnpay (khac /admin/api/payment-methods, doi requireRole).
@@ -300,6 +320,45 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
     const allStores = await CacheService.getStores();
     const pickupStore = order.storeId ? allStores.find((s) => s.id === order.storeId) || null : null;
 
+    // San pham upsell cho DON HANG NAY - gop upsell (config + cung danh muc, xem
+    // services/productRecommendations.ts) cua TAT CA san pham trong don, loc trung, loai san pham
+    // da mua, toi da 8. Khong hien crossSell o day (chi upsell, theo yeu cau rieng cho trang nay).
+    const orderItems = order.items as Array<{ leadbaseProductId?: string }>;
+    const leadbaseProductIds = orderItems.map((i) => i.leadbaseProductId).filter((id): id is string => !!id);
+    const purchasedProducts = leadbaseProductIds.length
+      ? await prisma.productCache.findMany({
+          where: { leadbaseProductId: { in: leadbaseProductIds } },
+          include: { categories: { select: { id: true } } },
+        })
+      : [];
+    const purchasedIds = new Set(purchasedProducts.map((p) => p.id));
+
+    // Nut tai file san pham so - CHI hien khi da thanh toan xong that su (paymentStatus 'paid',
+    // xem docblock CartOrder.paymentStatus va routes/public/downloads.ts). cod/bank_transfer
+    // khong bao gio tu chuyen 'paid' o site-engine nen khach mua hang so qua 2 hinh thuc nay se
+    // khong thay nut tai - can thanh toan qua vnpay hoac duoc xac nhan thu cong (chua co UI, ngoai
+    // pham vi hien tai).
+    const downloadableItems =
+      order.paymentStatus === "paid"
+        ? purchasedProducts
+            .filter((p) => p.downloadFilePath)
+            .map((p) => ({ name: p.name, href: `/orders/${order.id}/download/${p.leadbaseProductId}` }))
+        : [];
+    const upsellByProduct = await Promise.all(
+      purchasedProducts.map((p) => getUpsellProducts(p, p.relatedProducts)),
+    );
+    const upsellProducts: Array<{ id: string }> = [];
+    const seenUpsellIds = new Set<string>();
+    for (const list of upsellByProduct) {
+      for (const p of list) {
+        if (seenUpsellIds.has(p.id) || purchasedIds.has(p.id)) continue;
+        seenUpsellIds.add(p.id);
+        upsellProducts.push(p);
+        if (upsellProducts.length >= 8) break;
+      }
+      if (upsellProducts.length >= 8) break;
+    }
+
     const html = await renderPublic("order-confirmation", {
       pageTitle: "Xác nhận đơn hàng",
       breadcrumbs: [
@@ -311,6 +370,8 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
       order,
       bankInfo,
       pickupStore,
+      upsellProducts,
+      downloadableItems,
     });
     return reply.type("text/html").send(html);
   });

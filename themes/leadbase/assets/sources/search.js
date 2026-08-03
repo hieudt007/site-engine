@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const img = card.querySelector('img');
         // Try to find the cart icon in the header (common selectors)
-        const cartIcon = document.querySelector('header svg, .cart-icon, [href*="cart"]');
+        const cartIcon = document.getElementById('cart-icon');
 
         if (img && cartIcon) {
             const imgRect = img.getBoundingClientRect();

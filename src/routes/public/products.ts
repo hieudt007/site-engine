@@ -7,6 +7,7 @@ import { renderNotFound } from "../../services/notFoundPage.js";
 import { buildProductSchema, buildBreadcrumbSchema } from "../../services/schema.js";
 import { brandPath, productCategoryPath, productPath } from "../../services/urlPaths.js";
 import { ensureProductSlug, ensureProductSlugs } from "../../services/productSlug.js";
+import { getCrossSellProducts, getUpsellProducts } from "../../services/productRecommendations.js";
 
 // URL tuyet doi cho JSON-LD (Product.url, BreadcrumbList.item...) - Schema.org yeu cau URL day du,
 // khong chap nhan duong dan tuong doi.
@@ -23,16 +24,48 @@ async function siteUrlConfig() {
 
 const PAGE_SIZE = 12;
 
+// 3 muc gia co dinh khop dung UI "Mức giá" cua products-list.liquid (duoi 500k / 500k-1tr / tren
+// 1tr). Loc theo GIA THAT khach tra: san pham co salePrice thi dung salePrice, khong thi dung
+// price - "OR" 2 nhanh vi Prisma khong ho tro COALESCE truc tiep trong where.
+function priceRangeWhere(bucket: string | undefined): Record<string, unknown> {
+  let min: number | undefined;
+  let max: number | undefined;
+  if (bucket === "under500") {
+    max = 500_000;
+  } else if (bucket === "500to1000") {
+    min = 500_000;
+    max = 1_000_000;
+  } else if (bucket === "over1000") {
+    min = 1_000_000;
+  } else {
+    return {};
+  }
+
+  const bounds = { ...(min != null ? { gte: min } : {}), ...(max != null ? { lte: max } : {}) };
+  return {
+    OR: [
+      { salePrice: { not: null, ...bounds } },
+      { salePrice: null, price: bounds },
+    ],
+  };
+}
+
 // Chỉ đọc ProductCache.status='published' (system_design.md §4.2/§8) — 'draft'/'pending_review'/
 // 'scheduled' (chưa tới giờ) không lộ ra public. scheduled tự chuyển 'published' qua cron
 // (services/publishScheduler.ts) nên ở đây chỉ cần lọc đúng 1 giá trị 'published'.
 export async function registerProductsPublicRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { page?: string } }>("/products", async (request, reply) => {
+  app.get<{ Querystring: { page?: string; price?: string } }>("/products", async (request, reply) => {
     const page = Math.max(1, Number(request.query.page ?? 1) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
-    const where = { status: "published" };
-    const [productsRaw, total] = await CacheService.getProductList(`all:${page}`, async () => {
+    // Loc theo GIA THAT KHACH TRA (salePrice neu co, khong thi price) - khong loc thang tren cot
+    // "price" vi 1 san pham dang giam gia manh (vd gia goc 1.2tr, sale con 400k) phai duoc tinh la
+    // "duoi 500k" theo cam nhan khach hang, khong phai theo gia niem yet cu.
+    const priceFilter = request.query.price;
+    const priceWhere = priceRangeWhere(priceFilter);
+
+    const where = { status: "published", ...priceWhere };
+    const [productsRaw, total] = await CacheService.getProductList(`all:${page}:${priceFilter ?? ""}`, async () => {
       return Promise.all([
         prisma.productCache.findMany({
           where,
@@ -45,7 +78,18 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       ]);
     });
     const products = await ensureProductSlugs(productsRaw as any);
+    const categories = await prisma.category.findMany({
+      where: { type: "product" },
+      select: { name: true, slug: true, itemCount: true },
+      orderBy: { name: "asc" },
+    });
+    const brands = await prisma.category.findMany({
+      where: { type: "brand" },
+      select: { name: true, slug: true, itemCount: true },
+      orderBy: { name: "asc" },
+    });
 
+    const priceQuery = priceFilter ? `&price=${encodeURIComponent(priceFilter)}` : "";
     const html = await renderPublic("products-list", {
       pageTitle: "Sản phẩm",
       breadcrumbs: [
@@ -54,12 +98,16 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
       ],
       breadcrumbVariant: "product",
       products,
+      categories,
+      brands,
+      currentPrice: priceFilter ?? null,
       hasPrev: page > 1,
       hasNext: skip + products.length < total,
       prevPage: page - 1,
       nextPage: page + 1,
       currentPage: page,
       totalPages: Math.ceil(total / PAGE_SIZE),
+      extraQuery: priceQuery,
     });
 
     return reply.type("text/html").send(html);
@@ -239,42 +287,10 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
         ...(product.categories[0] ? [{ name: product.categories[0].name, url: new URL(productCategoryPath(urlConfig ?? {}, product.categories[0].slug), base).toString() }] : []),
         { name: product.name, url: productUrl },
       ];
-      let upsellProducts: any[] = [];
-      let crossSellProducts: any[] = [];
-      
-      if (product.relatedProducts) {
-        const rp = product.relatedProducts as any;
-        
-        const fetchRelated = async (config: any) => {
-          if (!config) return [];
-          if (config.mode === 'specific' && Array.isArray(config.productIds) && config.productIds.length > 0) {
-            return await prisma.productCache.findMany({
-              where: { id: { in: config.productIds }, status: "published" },
-              select: { id: true, slug: true, name: true, price: true, salePrice: true, imageUrls: true, excerpt: true } as any
-            });
-          } else if (config.mode === 'category' && config.categoryId) {
-            const limit = config.limit || 4;
-            const inCategory = await prisma.productCache.findMany({
-              where: { categories: { some: { id: config.categoryId } }, status: "published", id: { not: product.id } },
-              select: { id: true }
-            });
-            if (inCategory.length === 0) return [];
-            // Pick random ids
-            const shuffled = inCategory.sort(() => 0.5 - Math.random());
-            const selectedIds = shuffled.slice(0, limit).map(x => x.id);
-            return await prisma.productCache.findMany({
-              where: { id: { in: selectedIds } },
-              select: { id: true, slug: true, name: true, price: true, salePrice: true, imageUrls: true, excerpt: true } as any
-            });
-          }
-          return [];
-        };
-
-        [upsellProducts, crossSellProducts] = await Promise.all([
-          fetchRelated(rp.upsell),
-          fetchRelated(rp.crossSell)
-        ]);
-      }
+      const [upsellProducts, crossSellProducts] = await Promise.all([
+        getUpsellProducts(product, product.relatedProducts),
+        getCrossSellProducts(product.relatedProducts, product.id),
+      ]);
 
       const schemas = [buildProductSchema(product, productUrl, reviews), buildBreadcrumbSchema(breadcrumbItems)];
       html = await renderPublic("product-detail", {

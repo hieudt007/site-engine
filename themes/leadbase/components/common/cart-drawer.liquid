@@ -2,7 +2,7 @@
 @description: Mini cart hien thi dang drawer hoac popup.
 @required_substrings: 
 @required_ids: cart-drawer, cart-drawer-items, cart-drawer-total, cart-drawer-close
-@notes: Giao dien giỏ hàng nhỏ gọn trượt từ cạnh bên hoac popup. JS se dung #cart-drawer de hien/an, render html danh sach vao #cart-drawer-items, hien tong tien vao #cart-drawer-total. Nút close dùng #cart-drawer-close. Phải có link tới /checkout.
+@notes: Giao dien giỏ hàng nhỏ gọn trượt từ cạnh bên hoac popup. JS se dung #cart-drawer de hien/an, render html danh sach vao #cart-drawer-items (moi item hien ten bien the vd "Đen / S" + gia dung theo bien the neu item.variantId co, khong phai gia goc san pham), hien tong tien vao #cart-drawer-total. Nút close dùng #cart-drawer-close. Phải có link tới /checkout.
 {% endcomment %}
 <div id="cart-drawer" class="fixed inset-0 z-[100] hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
   <!-- Background backdrop -->
@@ -21,7 +21,7 @@
 
             <!-- Header -->
             <div class="flex items-center justify-between px-4 py-6 sm:px-6 border-b border-slate-900/5 relative z-10 bg-white/40 backdrop-blur-md">
-              <h2 class="text-2xl font-heading text-slate-950" id="slide-over-title">Giỏ hàng</h2>
+              <h2 class="text-xl font-heading text-slate-950" id="slide-over-title">Giỏ hàng</h2>
               <div class="ml-3 flex h-7 items-center">
                 <button type="button" id="cart-drawer-close" class="relative -m-2 p-2 text-slate-900/50 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-300">
                   <span class="absolute -inset-0.5"></span>
@@ -44,7 +44,7 @@
             <div class="border-t border-slate-900/5 px-4 py-6 sm:px-6 bg-white/80 backdrop-blur-md relative z-10">
               <div class="flex justify-between text-lg font-medium text-slate-950 mb-2">
                 <p>Tổng cộng</p>
-                <p id="cart-drawer-total" class="font-heading font-bold text-xl text-blue-700">0₫</p>
+                <p id="cart-drawer-total" class="font-heading font-medium text-xl text-blue-700">0₫</p>
               </div>
               <p class="mt-0.5 text-sm text-slate-900/60 mb-6">Phí vận chuyển và thuế sẽ được tính khi thanh toán.</p>
               <div class="mt-6">

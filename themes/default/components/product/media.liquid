@@ -1,11 +1,8 @@
 {% comment %}
 @description: Khoi anh san pham.
-@context_vars: product (Object)
-@responsibilities: Khối hiển thị ảnh sản phẩm (Gallery, Thumbnail)
-@structure_rules: Sticky khi cuộn chuột nếu được phép
 @required_substrings: product.imageUrls, product.name
-@required_ids: 
-@notes: Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua. NÊN CÓ thêm: Image Gallery có ảnh chính lớn và danh sách ảnh thumbnail nhỏ bên dưới (hỗ trợ click đổi ảnh chính).
+@required_ids:
+@notes: Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua. NÊN CÓ thêm: Image Gallery có ảnh chính lớn và danh sách ảnh thumbnail nhỏ bên dưới (hỗ trợ click đổi ảnh chính). BAT BUOC: khung anh chinh PHAI vuong 1:1 (class "aspect-square" hoac tuong duong, KHONG duoc doi ti le khac), dung "object-cover" de crop dung khung du anh goc khong vuong; thumbnail cung nen gan vuong.
 {% endcomment %}
 
 <!-- Giao diện trống -->

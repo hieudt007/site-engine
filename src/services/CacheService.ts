@@ -220,11 +220,11 @@ export class CacheService {
       const product =
         (await prisma.productCache.findUnique({
           where: { slug: idOrSlug } as any,
-          include: { variants: true, categories: { select: { name: true, slug: true } } },
+          include: { variants: true, categories: { select: { id: true, name: true, slug: true } } },
         })) ??
         (await prisma.productCache.findUnique({
           where: { id: idOrSlug },
-          include: { variants: true, categories: { select: { name: true, slug: true } } },
+          include: { variants: true, categories: { select: { id: true, name: true, slug: true } } },
         }));
       return product;
     });

@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     // Thành công
                     btn.innerHTML = `<svg class="w-5 h-5 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-                    btn.classList.replace('bg-emerald-600', 'bg-emerald-500');
+                    btn.classList.replace('bg-blue-600', 'bg-blue-500');
                     
                     msgBox.textContent = 'Cảm ơn bạn đã đăng ký!';
                     msgBox.classList.remove('opacity-0', '-translate-y-2');
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Reset sau 3 giây
                     setTimeout(() => {
                         btn.innerHTML = originalBtnContent;
-                        btn.classList.replace('bg-emerald-500', 'bg-emerald-600');
+                        btn.classList.replace('bg-blue-500', 'bg-blue-600');
                         msgBox.classList.remove('opacity-100', 'translate-y-0');
                         msgBox.classList.add('opacity-0', '-translate-y-2');
                     }, 3000);

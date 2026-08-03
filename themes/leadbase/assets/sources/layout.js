@@ -34,7 +34,7 @@ document.addEventListener("submit", async (event) => {
 // Animation: Flying number to cart icon
 window.flyToCart = function(sourceElement) {
     // Try to find the cart icon in header or cart drawer trigger
-    const cartIcon = document.querySelector('[data-cart-drawer-trigger]') || document.querySelector('.cart-icon') || document.querySelector('header svg');
+    const cartIcon = document.getElementById('cart-icon');
     if (!cartIcon || !sourceElement) return;
 
     const sourceRect = sourceElement.getBoundingClientRect();

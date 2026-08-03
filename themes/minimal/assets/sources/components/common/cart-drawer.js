@@ -80,7 +80,7 @@
             <div class="text-sm text-gray-500">${unitPrice}₫ × ${item.quantity}</div>
           </div>
           <div class="flex items-center gap-3">
-            <div class="font-bold">${unitPrice * item.quantity}₫</div>
+            <div class="font-medium">${unitPrice * item.quantity}₫</div>
             <button data-index="${index}" class="cart-remove text-red-500 text-sm">Xoá</button>
           </div>
         </div>

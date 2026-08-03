@@ -1,11 +1,8 @@
 {% comment %}
 @description: Trang tinh (Gioi thieu, Lien he...).
-@context_vars: page (Object), shop
-@responsibilities: Hiển thị nội dung trang tĩnh (About us, Terms...)
-@structure_rules: Container tiêu chuẩn, có H1 tiêu đề
-@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, page.title, page.body
-@required_ids: 
-@notes: page.body la HTML da sanitize, render RAW.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, page.title, page.body, {% render "custom-fields", fields: page.customFields
+@required_ids:
+@notes: page.body la HTML da sanitize, render RAW. page la nguyen row Post tu CacheService.getPageBySlug (khong select-loc field) nen page.customFields luon co san du template co dung hay khong - PHAI giu {% render "custom-fields", fields: page.customFields %} (thieu dong nay se lam admin dat "Trường tuỳ biến" nhung khach khong bao gio thay duoc - loi that da gap o theme leadbase).
 {% endcomment %}
 
 <!-- Giao diện trống -->

@@ -11,7 +11,7 @@
       {% for c in product.categories %}<a href="{{ productCategoryPathPrefix }}/{{ c.slug }}" class="text-stone-500 hover:text-brand">{{ c.name | escape }}</a>{% unless forloop.last %}, {% endunless %}{% endfor %}
     </div>
   {% endif %}
-  <h1 class="font-serif text-3xl font-bold mb-4">{{ product.name | escape }}</h1>
+  <h1 class="font-serif text-3xl font-medium mb-4">{{ product.name | escape }}</h1>
 
   {% if product.hasVariants %}
     <div id="variant-picker" class="mb-4 flex flex-col items-center gap-2"></div>
@@ -24,10 +24,10 @@
   {% else %}
     <div class="mb-4">
       {% if product.salePrice %}
-        <span class="text-brand font-bold text-2xl">{{ product.salePrice }}₫</span>
+        <span class="text-brand font-medium text-2xl">{{ product.salePrice }}₫</span>
         <span class="text-stone-400 line-through ml-2">{{ product.price }}₫</span>
       {% else %}
-        <span class="font-bold text-2xl">{{ product.price }}₫</span>
+        <span class="font-medium text-2xl">{{ product.price }}₫</span>
       {% endif %}
     </div>
     {% if product.stock != nil and product.stock <= 0 %}
@@ -245,8 +245,8 @@
         return;
       }
       priceEl.innerHTML = v.salePrice
-        ? '<span class="text-brand font-bold text-2xl">' + v.salePrice + '₫</span> <span class="text-stone-400 line-through ml-2">' + v.price + '₫</span>'
-        : '<span class="font-bold text-2xl">' + v.price + '₫</span>';
+        ? '<span class="text-brand font-medium text-2xl">' + v.salePrice + '₫</span> <span class="text-stone-400 line-through ml-2">' + v.price + '₫</span>'
+        : '<span class="font-medium text-2xl">' + v.price + '₫</span>';
       const outOfStock = v.stock !== null && v.stock !== undefined && v.stock <= 0;
       stockEl.textContent = outOfStock ? "Hết hàng" : "";
       addBtn.disabled = outOfStock;

@@ -1,1 +1,7 @@
+{% comment %}
+@description: Layout "custom" cho bai viet/trang/san pham - van co header/footer/cart-drawer cua site (qua layout.liquid) nhung phan than bai render THO (HTML da sanitize server-side, KHONG qua khung tieu de/breadcrumb/category nhu blog-post.liquid/page.liquid).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, rawHtml
+@required_ids:
+@notes: Nhan rawHtml (String, DA SANITIZE o server - xem routes/public/blog.ts, pages.ts, products.ts goi renderPublic("custom-content", { rawHtml: post.body/page.body/product.description })). PHAI render {{ rawHtml }} RAW (KHONG escape). HIEN TRANG: file nay dang la stub placeholder "<div>...</div>", CHUA thuc su render rawHtml - can sua lai thanh {% layout "layout" %}{% block content %}{{ rawHtml }}{% endblock %} (co the boc them div container/padding co ban) truoc khi dung duoc, neu khong moi noi dung dat layoutMode='custom' se hien ra trang trong.
+{% endcomment %}
 <div>...</div>

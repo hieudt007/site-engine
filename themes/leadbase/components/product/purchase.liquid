@@ -1,16 +1,18 @@
 {% comment %}
 @description: Khoi mua hang, gia, bien the, them gio va mua ngay.
 @required_substrings: product.price, variantsJson
-@required_ids: add-to-cart, variant-picker, variant-price, variant-stock, variants-data, buy-now-btn, buy-now-form, buy-now-cancel, buy-now-error
-@notes: Sua gia, bien the, ton kho, them gio, mua ngay va form mua ngay o day. JS phia client doc cac ID nay. #add-to-cart can data-id khi khong co bien the; khi co bien the JS tu gan data-variant-id. #variants-data phai chua {{ variantsJson }} khi product.hasVariants. #buy-now-form phai co input customerName/customerPhone/customerAddress.
+@required_ids: add-to-cart, variant-picker, variant-price, variant-stock, variants-data, buy-now-trigger
+@notes: Sua gia, bien the, ton kho, them gio, mua ngay o day. JS phia client doc cac ID nay. #add-to-cart can data-id khi khong co bien the; khi co bien the JS tu gan data-variant-id. #variants-data phai chua {{ variantsJson }} khi product.hasVariants. #buy-now-trigger bam vao la chuyen thang sang /checkout?buyNowProductId=...&buyNowVariantId=... (xem product-detail.js initBuyNow) - khong con modal/form nhap thong tin rieng o day, checkout.liquid da co day du form.
 {% endcomment %}
 <div class="space-y-8 animate-fade-up" style="animation-delay: 200ms;">
   <!-- Price & Stock -->
   <div class="flex flex-col gap-3">
     <div class="flex items-baseline gap-4">
-      <p id="variant-price" class="text-3xl font-sans text-slate-950 tracking-tight">{{ product.price }}</p>
-      {% if product.compareAtPrice %}
-        <p class="text-lg text-slate-900/40 line-through decoration-1">{{ product.compareAtPrice }}</p>
+      {% if product.salePrice and product.salePrice < product.price %}
+        <p id="variant-price" class="text-3xl font-sans font-medium text-slate-950 tracking-tight">{{ product.salePrice | money }}</p>
+        <p class="text-lg text-slate-900/40 line-through decoration-1">{{ product.price | money }}</p>
+      {% else %}
+        <p id="variant-price" class="text-3xl font-sans font-medium text-slate-950 tracking-tight">{{ product.price | money }}</p>
       {% endif %}
     </div>
     <div class="flex items-center gap-2">
@@ -18,15 +20,21 @@
         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-40"></span>
         <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
       </span>
-      <p id="variant-stock" class="text-sm font-medium text-blue-800 uppercase tracking-wider">In Stock</p>
+      {% if product.stock and product.stock <= 0 %}
+        <p id="variant-stock" class="text-xs font-medium text-red-600 uppercase tracking-wider">Hết hàng</p>
+      {% elsif product.stock %}
+        <p id="variant-stock" class="text-xs font-medium text-blue-800 uppercase tracking-wider">Còn {{ product.stock }} sản phẩm</p>
+      {% else %}
+        <p id="variant-stock" class="text-xs font-medium text-blue-800 uppercase tracking-wider">Còn hàng</p>
+      {% endif %}
     </div>
   </div>
 
   <!-- Variants -->
   {% if product.hasVariants %}
-    <div class="space-y-4 border-t border-blue-50 pt-6">
+    <div class="space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="text-xs font-medium text-blue-800/60 uppercase tracking-widest">Select Variant</h3>
+        <h3 class="text-xs font-medium text-blue-800/60 uppercase tracking-widest">Chọn phân loại</h3>
       </div>
       <!-- Hidden elements required by contract -->
       <div id="variants-data" style="display: none;">{{ variantsJson }}</div>
@@ -48,67 +56,29 @@
 
   <!-- Action Buttons -->
   <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-blue-50">
-    <button id="add-to-cart" {% unless product.hasVariants %}data-id="{{ product.id }}"{% endunless %} class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-all duration-300 relative overflow-hidden group min-h-[56px] shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40">
+    <button id="add-to-cart" {% unless product.hasVariants %}data-id="{{ product.id }}" data-stock="{{ product.stock }}"{% endunless %} class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-all duration-300 relative overflow-hidden group min-h-[56px] shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40">
       <span class="relative z-10 flex items-center justify-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-        Add to Cart
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 3h1.386c.51 0 .955.343 1.087.836l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 1.994-4.708 2.602-7.201.232-.95-.611-1.85-1.593-1.85H5.106M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"></path></svg>
+        Thêm vào giỏ
       </span>
       <div class="absolute inset-0 bg-blue-800 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
     </button>
-    
+
     <button id="buy-now-trigger" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 px-8 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-all duration-300 border border-blue-200 hover:border-blue-300 min-h-[56px]">
-      Buy It Now
+      Mua ngay
     </button>
   </div>
 
   <!-- Additional Info (Trust badges) -->
-  <div class="grid grid-cols-2 gap-4 pt-6 text-center">
+  <div class="grid grid-cols-2 gap-4 pt-4 text-center">
     <div class="flex flex-col items-center gap-2 p-4 bg-blue-50/50 rounded-[24px]">
       <svg class="w-6 h-6 text-blue-600/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-      <span class="text-xs text-blue-800/60 uppercase tracking-wider">Fast Delivery</span>
+      <span class="text-xs text-blue-800/60 uppercase tracking-wider">Giao hàng nhanh</span>
     </div>
     <div class="flex flex-col items-center gap-2 p-4 bg-blue-50/50 rounded-[24px]">
       <svg class="w-6 h-6 text-blue-600/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-      <span class="text-xs text-blue-800/60 uppercase tracking-wider">Secure Payment</span>
+      <span class="text-xs text-blue-800/60 uppercase tracking-wider">Thanh toán an toàn</span>
     </div>
   </div>
 
-  <!-- Buy Now Form Modal -->
-  <div id="buy-now-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
-    <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity" id="buy-now-overlay"></div>
-    <div class="bg-white/95 backdrop-blur-xl p-8 w-full max-w-md relative z-10 shadow-2xl border border-blue-100 rounded-[24px]">
-      <div class="mb-6 flex justify-between items-center">
-        <h3 class="text-2xl font-sans text-slate-950">Express Checkout</h3>
-        <button type="button" id="buy-now-close" class="text-slate-900/40 hover:text-slate-900 transition-colors bg-blue-50 p-2 rounded-full">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
-      </div>
-      <form id="buy-now-form" class="space-y-5">
-        <div>
-          <label class="block text-xs font-medium text-blue-800/60 uppercase tracking-widest mb-2">Full Name</label>
-          <input type="text" name="customerName" required class="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all placeholder-slate-900/20 text-slate-950" placeholder="Jane Doe">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-blue-800/60 uppercase tracking-widest mb-2">Phone Number</label>
-          <input type="tel" name="customerPhone" required class="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all placeholder-slate-900/20 text-slate-950" placeholder="+1 (555) 000-0000">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-blue-800/60 uppercase tracking-widest mb-2">Delivery Address</label>
-          <input type="text" name="customerAddress" required class="w-full bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all placeholder-slate-900/20 text-slate-950" placeholder="123 Luxury Ave, Suite 100...">
-        </div>
-        
-        <div id="buy-now-error" class="hidden p-4 bg-red-50 text-red-600 text-sm border border-red-100 rounded-xl"></div>
-        
-        <div class="pt-4 flex flex-col gap-3">
-          <button id="buy-now-btn" type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-[24px] uppercase tracking-widest text-sm font-medium transition-colors relative overflow-hidden group min-h-[56px] shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40">
-            <span class="relative z-10">Confirm Order</span>
-            <div class="absolute inset-0 bg-blue-800 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-          </button>
-          <button id="buy-now-cancel" type="button" class="w-full px-6 py-3 text-blue-800/60 hover:text-slate-900 uppercase tracking-widest text-xs font-medium transition-colors rounded-[24px] hover:bg-blue-50">
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
 </div>

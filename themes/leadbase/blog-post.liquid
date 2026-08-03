@@ -2,11 +2,11 @@
 @description: Chi tiet 1 bai viet.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, post.title, post.body, post.customFields, {% render "components/blog/related"
 @required_ids: 
-@notes: post.body la HTML DA SANITIZE, PHAI render RAW (khong escape). PHAI giu {% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat). PHAI goi {% render "components/blog/related", relatedPosts: relatedPosts %} o duoi bai viet.
+@notes: post.body la HTML DA SANITIZE, PHAI render RAW (khong escape). PHAI giu {% render "custom-fields", fields: post.customFields %} o cuoi bai (hien truong tuy bien admin tu dat). PHAI goi {% render "components/blog/related", relatedPosts: relatedPosts, postUrlPrefix: postUrlPrefix %} o duoi bai viet - PHAI truyen postUrlPrefix (bien global cua root template, KHONG tu ke thua vao {% render %} vi LiquidJS co lap scope hoan toan, thieu se lam link bai lien quan bi gay - loi that da gap). relatedPosts[] uu tien bai cung chu de (Post.topicId), lap day bang bai cung danh muc neu chua du, toi da 6 bai (xem blog.ts).
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-<div class="bg-blue-50/30 min-h-screen pt-28 pb-16 relative overflow-hidden">
+<div class="bg-[#eff6ff] min-h-screen pt-8 md:pt-10 pb-16 relative overflow-hidden">
     <!-- Background Elements -->
     <div class="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-blue-600/5 to-transparent pointer-events-none"></div>
     <div class="absolute -top-40 -right-40 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none"></div>
@@ -18,9 +18,9 @@
         <!-- Header -->
         <header class="text-center mb-12 fade-up-item">
             <div class="inline-flex items-center justify-center space-x-2 text-sm text-slate-950/60 uppercase tracking-widest mb-6 font-sans">
-                <a href="/blogs" class="hover:text-blue-600 transition-colors">Blog</a>
+                <a href="/blog" class="hover:text-blue-600 transition-colors">Blog</a>
                 <span class="w-1 h-1 rounded-full bg-blue-600/30"></span>
-                <span>Article</span>
+                <span>Bài viết</span>
             </div>
             <h1 class="text-4xl md:text-5xl lg:text-6xl font-sans text-slate-950 leading-tight mb-8">
                 {{ post.title }}
@@ -37,7 +37,7 @@
         <footer class="mt-12 pt-8 border-t border-slate-950/10 fade-up-item delay-300">
             <div class="flex flex-col sm:flex-row justify-between items-center gap-6 mb-12">
                 <div class="flex items-center gap-4 w-full sm:w-auto justify-center sm:justify-start">
-                    <span class="text-sm font-medium text-slate-950 uppercase tracking-wider">Share</span>
+                    <span class="text-sm font-medium text-slate-950 uppercase tracking-wider">Chia sẻ</span>
                     <div class="flex gap-3">
                         <a href="#" class="share-btn w-10 h-10 rounded-full border border-slate-950/20 flex items-center justify-center text-slate-950 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300">
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/></svg>
@@ -59,14 +59,16 @@
     </article>
 </div>
 
+{% if relatedPosts and relatedPosts.size > 0 %}
 <!-- Related Posts Section -->
 <div class="bg-white py-20 border-t border-blue-100 relative z-20">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-[1200px] mx-auto px-6">
         <div class="text-center mb-12 fade-up-item">
-            <h2 class="text-3xl font-sans text-slate-950 mb-4">Read More</h2>
+            <h2 class="text-3xl font-sans text-slate-950 mb-4">Bài viết liên quan</h2>
             <div class="w-12 h-px bg-blue-600/30 mx-auto"></div>
         </div>
-        {% render "components/blog/related", relatedPosts: relatedPosts %}
+        {% render "components/blog/related", relatedPosts: relatedPosts, postUrlPrefix: postUrlPrefix %}
     </div>
 </div>
+{% endif %}
 {% endblock %}

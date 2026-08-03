@@ -1,11 +1,8 @@
 {% comment %}
 @description: Thanh dieu huong dau trang.
-@context_vars: shop, global_settings
-@responsibilities: Hiển thị đầu trang: Logo, Menu chính, Nút tìm kiếm, Nút giỏ hàng
-@structure_rules: Thẻ <header> bọc ngoài, dính (sticky) ở trên cùng
 @required_substrings: site.siteName, headerMenu
 @required_ids: cart-icon
-@notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
+@notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NEU header dat sticky (vd id chinh + "sticky top-0 z-50"), PHAI ghi ro z-index that dung o day trong comment nay - cac drawer/modal fixed toan man hinh o trang khac (vd filter sidebar mobile o products-list.liquid) can biet chinh xac gia tri de tu dat z-index cao hon, tranh bi header de len (loi that da gap o theme leadbase). NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer, thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
 {% endcomment %}
 
 <!-- Giao diện trống -->

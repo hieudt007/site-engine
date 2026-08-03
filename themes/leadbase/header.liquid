@@ -1,12 +1,12 @@
 {% comment %}
 @description: Thanh dieu huong dau trang.
 @required_substrings: site.siteName, headerMenu
-@required_ids: cart-icon
-@notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
+@required_ids: main-header, cart-icon, mobile-menu-toggle, mobile-menu, mobile-menu-close, mobile-menu-overlay
+@notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. #main-header PHAI giu "sticky top-0 z-50" - cac drawer/modal fixed toan man hinh o trang khac (vd filter sidebar mobile o products-list.liquid) can biet chinh xac z-index nay de tu dat z-index cao hon, tranh bi #main-header de len (da gap bug that). Da co san: form tim kiem (action="/search" input name="q"), #cart-icon mo mini cart drawer, mobile menu hamburger (#mobile-menu-toggle/#mobile-menu/#mobile-menu-close/#mobile-menu-overlay).
 {% endcomment %}
 <!-- Main Header -->
 <header id="main-header" class="sticky top-0 z-50 w-full transition-all duration-300 bg-white/90 backdrop-blur-md border-b border-slate-200/70">
-    <div class="container mx-auto px-4 md:px-8 h-[72px] flex items-center justify-between">
+    <div class="max-w-[1200px] mx-auto px-6 lg:px-0 h-[72px] flex items-center justify-between">
 
         <!-- Mobile Toggle (Left on mobile) -->
         <button id="mobile-menu-toggle" class="md:hidden p-2 -ml-2 text-slate-700 focus:outline-none" aria-label="Open menu">
@@ -21,7 +21,7 @@
                 {% if site.logoUrl %}
                     <img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-9 w-9 rounded-[10px] object-contain">
                 {% else %}
-                    <span class="h-9 w-9 rounded-[10px] bg-brand flex items-center justify-center text-white font-bold text-sm">{{ site.siteName | slice: 0, 1 }}</span>
+                    <span class="h-9 w-9 rounded-[10px] bg-brand flex items-center justify-center text-white font-medium text-sm">{{ site.siteName | slice: 0, 1 }}</span>
                 {% endif %}
                 <span class="text-[17px] font-semibold tracking-tight text-brand-dark">{{ site.siteName }}</span>
             </a>
@@ -78,7 +78,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
-                <span id="cart-badge" class="absolute top-0 right-0 bg-brand text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-white">0</span>
+                <span id="cart-badge" class="absolute top-0 right-0 bg-brand text-white text-[9px] font-medium h-4 w-4 rounded-full flex items-center justify-center border border-white hidden">0</span>
             </button>
 
             <!-- Auth CTA (desktop) -->

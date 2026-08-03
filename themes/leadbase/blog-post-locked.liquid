@@ -2,11 +2,11 @@
 @description: Man hinh nhap mat khau xem bai viet bi khoa.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, pageTitle
 @required_ids: unlock-form, password, unlock-error
-@notes: JS co san doc form#unlock-form, input#password, hien loi vao #unlock-error. KHONG duoc doi id 3 cai nay hoac form se khong hoat dong — chi duoc doi style/layout.
+@notes: JS co san doc form#unlock-form, input#password, hien loi vao #unlock-error. KHONG duoc doi id 3 cai nay hoac form se khong hoat dong — chi duoc doi style/layout. #unlock-form PHAI giu data-slug="{{ slug }}" - JS dung de goi dung POST /api/posts/{slug}/unlock (route that o blog.ts), KHONG duoc doi ve dung window.location.pathname vi URL trang co the co prefix khac /blog (postSlugPrefix tuy chinh) khong khop duong dan API that, request se roi vao 404 nhung van bi CSRF preHandler global chan truoc (hien nham "Invalid csrf token" thay vi 404).
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-<section class="min-h-[75vh] flex items-center justify-center relative overflow-hidden bg-blue-50/30 py-20 px-4 font-sans">
+<section class="min-h-[75vh] flex items-center justify-center relative overflow-hidden bg-[#eff6ff] py-20 px-4 font-sans">
     <!-- Background Organic Shapes -->
     <div class="absolute top-0 left-0 w-80 h-80 bg-blue-200/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
     <div class="absolute top-0 right-0 w-72 h-72 bg-blue-300/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
@@ -27,7 +27,7 @@
             Nội dung này được bảo mật và dành riêng cho khách hàng có quyền truy cập. Vui lòng nhập mật khẩu để tiếp tục khám phá.
         </p>
 
-        <form id="unlock-form" class="space-y-6">
+        <form id="unlock-form" class="space-y-6" data-slug="{{ slug }}">
             <div class="relative group">
                 <label for="password" class="sr-only">Mật khẩu</label>
                 <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors duration-300 group-focus-within:text-blue-600">

@@ -144,7 +144,7 @@ p + p { margin-top: 0; }
   --font-normal: 400;
   --font-medium: 500;
   --font-semibold: 600;
-  --font-bold: 700;
+  --font-medium: 700;
 
   /* Line Heights */
   --leading-none: 1;

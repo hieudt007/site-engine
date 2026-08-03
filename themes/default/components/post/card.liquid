@@ -1,11 +1,8 @@
 {% comment %}
-@description: Card bai viet dung chung cho home, blog list va blog category/topic.
-@context_vars: post (Object)
-@responsibilities: Thẻ bài viết thu gọn (Ảnh thumbnail, tiêu đề, tóm tắt)
-@structure_rules: Thẻ <article> hoặc <div> bo góc
+@description: Card bai viet dung chung cho home, blog list, blog category/topic va search.
 @required_substrings: post, postUrlPrefix, variant, post.title
-@required_ids: 
-@notes: Nhan post, postUrlPrefix, postCategoryPathPrefix va variant. Variant co the la 'home', 'list', 'category', 'related'. Duoc phep doi layout/style theo variant, nhung phai link den postUrlPrefix + slug va hien title/ngay/excerpt neu co.
+@required_ids:
+@notes: Nhan post, postUrlPrefix, postCategoryPathPrefix va variant. Variant co the la 'home', 'list', 'category', 'related'. Duoc phep doi layout/style theo variant, nhung phai link den postUrlPrefix + slug va hien title/ngay/excerpt neu co. QUAN TRONG: {% render %} cua LiquidJS co lap scope hoan toan (da kiem chung thuc te) - KHONG tu thay bien global nhu postUrlPrefix, MOI noi goi render component nay (vd search.liquid) PHAI truyen tay postUrlPrefix: postUrlPrefix, variant: '...', thieu se lam link bai viet bi gay (loi that da gap).
 {% endcomment %}
 
 <!-- Giao diện trống -->

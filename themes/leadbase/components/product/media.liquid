@@ -2,7 +2,7 @@
 @description: Khoi anh san pham.
 @required_substrings: product.imageUrls, product.name
 @required_ids: 
-@notes: Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua. NÊN CÓ thêm: Image Gallery có ảnh chính lớn và danh sách ảnh thumbnail nhỏ bên dưới (hỗ trợ click đổi ảnh chính).
+@notes: Nhan product. Sua anh/gallery/fallback anh o day. Khong chua gia, variant hay nut mua. NÊN CÓ thêm: Image Gallery có ảnh chính lớn và danh sách ảnh thumbnail nhỏ bên dưới (hỗ trợ click đổi ảnh chính). BAT BUOC: khung anh chinh (#gallery-main-image) PHAI vuong 1:1 (class "aspect-square", KHONG duoc doi ti le khac), dung "object-cover" de crop dung khung du anh goc khong vuong; thumbnail cung nen vuong (dang dung w-20 h-20/w-24 h-24, khong phai aspect-square nhung ty le gan vuong la du).
 {% endcomment %}
 <div class="product-media-gallery flex flex-col gap-4 lg:gap-6 w-full">
     <!-- Khối ảnh chính (Main Image) phong cách thiên nhiên -->

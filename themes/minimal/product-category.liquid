@@ -2,7 +2,7 @@
 {% block content %}
 <a href="{{ backHref | default: "/products" }}" class="text-stone-500 text-sm no-underline">← {{ backLabel | default: "Tất cả sản phẩm" }}</a>
 
-<h1 class="font-serif text-3xl font-bold mt-3 mb-2 text-center">{{ category.name | escape }}</h1>
+<h1 class="font-serif text-3xl font-medium mt-3 mb-2 text-center">{{ category.name | escape }}</h1>
 {% if category.excerpt %}<p class="text-stone-600 text-center">{{ category.excerpt | escape }}</p>{% endif %}
 {% if category.body %}<div class="font-serif leading-relaxed mb-8">{{ category.body }}</div>{% endif %}
 {% render "custom-fields", fields: category.customFields %}

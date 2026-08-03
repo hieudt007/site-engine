@@ -5,7 +5,7 @@
 @notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
 {% endcomment %}
 <!-- Announcement Bar -->
-<div class="bg-emerald-700 text-white text-[10px] sm:text-xs text-center py-2.5 uppercase tracking-[0.2em] font-body font-medium">
+<div class="bg-emerald-700 text-white text-[10px] sm:text-xs text-center py-2.5 uppercase tracking-[0.1em] font-body font-medium">
     Miễn phí vận chuyển cho đơn hàng từ 1.000.000đ
 </div>
 
@@ -98,7 +98,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
-                <span id="cart-badge" class="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-white">0</span>
+                <span id="cart-badge" class="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-medium h-4 w-4 rounded-full flex items-center justify-center border border-white">0</span>
             </button>
         </div>
     </div>
@@ -107,7 +107,7 @@
 <!-- Mobile Menu Drawer -->
 <div id="mobile-menu" class="fixed inset-y-0 left-0 z-50 w-4/5 max-w-sm bg-white transform -translate-x-full transition-transform duration-400 ease-in-out md:hidden flex flex-col shadow-2xl">
     <div class="h-20 flex items-center justify-between px-6 border-b border-emerald-100">
-        <span class="font-heading text-xl font-bold text-emerald-900 tracking-tight">{{ site.siteName }}</span>
+        <span class="font-heading text-xl font-medium text-emerald-900 tracking-tight">{{ site.siteName }}</span>
         <button id="mobile-menu-close" class="p-2 -mr-2 text-emerald-950 hover:text-emerald-600 focus:outline-none">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

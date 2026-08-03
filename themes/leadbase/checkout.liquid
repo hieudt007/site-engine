@@ -2,21 +2,21 @@
 @description: Trang thanh toán don hang (checkout).
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}
 @required_ids: checkout-items, checkout-form, checkout-total, checkout-error
-@notes: JS (giu nguyen) doc localStorage, bom danh sach sp tom tat vao #checkout-items, form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #checkout-total, loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd <input name="secondaryPhone">) - JS tu dong gop moi input NGOAI cac field chuan thanh customFields.
+@notes: JS (giu nguyen) doc localStorage, bom danh sach sp tom tat vao #checkout-items, form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #checkout-total, loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd <input name="secondaryPhone">) - JS tu dong gop moi input NGOAI cac field chuan thanh customFields. Khi URL co ?buyNowProductId=...&buyNowVariantId=... (luong "Mua ngay" tu trang san pham), JS CHI hien thi/dat hang dung 1 san pham nay, khong dong voi gio hang that trong localStorage - xem checkout.js va product-detail.js initBuyNow.
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-<div class="min-h-screen bg-[#F8FAFC] relative overflow-hidden pt-32 pb-20">
+<div class="min-h-screen bg-[#eff6ff] relative overflow-hidden pt-8 md:pt-10 pb-20">
     <!-- Background Organic Blobs -->
     <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
         <div class="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-200/30 rounded-full blur-[120px] mix-blend-multiply animate-pulse" style="animation-duration: 8s;"></div>
         <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-teal-200/30 rounded-full blur-[100px] mix-blend-multiply animate-pulse" style="animation-duration: 10s;"></div>
     </div>
 
-    <div class="container mx-auto px-4 max-w-6xl relative z-10">
+    <div class="max-w-[1200px] mx-auto px-6 relative z-10">
         <div class="text-center mb-12">
-            <h1 class="font-heading text-4xl md:text-5xl text-slate-900 mb-4">Thanh toán</h1>
-            <p class="text-blue-700/70 font-sans">Hoàn tất đơn hàng để trải nghiệm vẻ đẹp thiên nhiên</p>
+            <h1 class="font-sans text-4xl md:text-5xl text-slate-900 mb-4">Thanh toán</h1>
+            <p class="text-blue-700/70 font-sans">Kiểm tra lại thông tin đơn hàng trước khi hoàn tất</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -26,7 +26,7 @@
                     <!-- Contact Info -->
                     <div class="bg-white p-6 md:p-8 rounded-[24px] border border-blue-50 shadow-[0_8px_32px_rgba(5,150,105,0.06)] relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10 opacity-50"></div>
-                        <h2 class="font-heading text-2xl text-slate-900 mb-6 flex items-center gap-3">
+                        <h2 class="font-heading text-xl text-slate-900 mb-6 flex items-center gap-3">
                             <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium">1</span>
                             Thông tin liên hệ
                         </h2>
@@ -45,7 +45,7 @@
                     <!-- Fulfillment -->
                     <div class="bg-white p-6 md:p-8 rounded-[24px] border border-blue-50 shadow-[0_8px_32px_rgba(5,150,105,0.06)] relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10 opacity-50"></div>
-                        <h2 class="font-heading text-2xl text-slate-900 mb-6 flex items-center gap-3">
+                        <h2 class="font-heading text-xl text-slate-900 mb-6 flex items-center gap-3">
                             <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium">2</span>
                             Phương thức nhận hàng
                         </h2>
@@ -94,7 +94,7 @@
                     <!-- Payment -->
                     <div class="bg-white p-6 md:p-8 rounded-[24px] border border-blue-50 shadow-[0_8px_32px_rgba(5,150,105,0.06)] relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10 opacity-50"></div>
-                        <h2 class="font-heading text-2xl text-slate-900 mb-6 flex items-center gap-3">
+                        <h2 class="font-heading text-xl text-slate-900 mb-6 flex items-center gap-3">
                             <span class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium">3</span>
                             Phương thức thanh toán
                         </h2>
@@ -108,7 +108,7 @@
 
                     <!-- Extra Fields -->
                     <div class="bg-white p-6 md:p-8 rounded-[24px] border border-blue-50 shadow-[0_8px_32px_rgba(5,150,105,0.06)]">
-                        <h2 class="font-heading text-2xl text-slate-900 mb-6">Ghi chú đơn hàng (Tuỳ chọn)</h2>
+                        <h2 class="font-heading text-xl text-slate-900 mb-6">Ghi chú đơn hàng (Tuỳ chọn)</h2>
                         <textarea name="orderNote" rows="3" class="w-full px-5 py-4 bg-blue-50/50 border border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-slate-900 placeholder-slate-900/40 rounded-[24px] resize-none" placeholder="Ghi chú thêm về thời gian giao hàng, yêu cầu đóng gói..."></textarea>
                     </div>
 
@@ -127,7 +127,7 @@
             <!-- Right Column: Summary -->
             <div class="lg:col-span-5 relative">
                 <div class="bg-white p-6 md:p-8 rounded-[24px] border border-blue-50 shadow-[0_12px_40px_rgba(5,150,105,0.08)] lg:sticky lg:top-32">
-                    <h2 class="font-heading text-2xl text-slate-900 mb-6 border-b border-blue-100 pb-4">Tóm tắt đơn hàng</h2>
+                    <h2 class="font-heading text-xl text-slate-900 mb-6 border-b border-blue-100 pb-4">Tóm tắt đơn hàng</h2>
                     
                     <div id="checkout-items" class="space-y-1 mb-6 max-h-[40vh] overflow-y-auto pr-2 checkout-scrollbar">
                         <!-- JS renders items here -->
@@ -139,9 +139,10 @@
 
                     <div class="border-t border-blue-100 pt-6 mb-6">
                         <div class="flex gap-2">
-                            <input type="text" name="couponCode" form="checkout-form" placeholder="Mã giảm giá" class="flex-1 px-5 py-3.5 bg-blue-50/50 border border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-slate-900 text-sm rounded-[24px] placeholder-slate-900/40">
-                            <button type="button" class="bg-blue-50 text-blue-700 px-6 py-3.5 font-medium hover:bg-blue-600 hover:text-white rounded-[24px] transition-colors text-sm border border-blue-100 hover:border-blue-600">Áp dụng</button>
+                            <input type="text" id="coupon-code-input" name="couponCode" form="checkout-form" placeholder="Mã giảm giá" class="flex-1 px-5 py-3.5 bg-blue-50/50 border border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-slate-900 text-sm rounded-[24px] placeholder-slate-900/40">
+                            <button type="button" id="apply-coupon-btn" class="bg-blue-50 text-blue-700 px-6 py-3.5 font-medium hover:bg-blue-600 hover:text-white rounded-[24px] transition-colors text-sm border border-blue-100 hover:border-blue-600">Áp dụng</button>
                         </div>
+                        <p id="coupon-message" class="mt-2 text-sm hidden"></p>
                     </div>
 
                     <div class="border-t border-blue-100 pt-6">
@@ -149,13 +150,17 @@
                             <span>Tạm tính</span>
                             <span id="subtotal-display" class="font-medium text-slate-900">--</span>
                         </div>
+                        <div id="discount-row" class="hidden justify-between items-center mb-3 text-sm">
+                            <span class="text-blue-600">Giảm giá</span>
+                            <span id="discount-display" class="font-medium text-blue-600">--</span>
+                        </div>
                         <div class="flex justify-between items-center mb-4 text-slate-900/70 text-sm">
                             <span>Phí vận chuyển</span>
                             <span class="font-medium text-slate-900">Tính khi thanh toán</span>
                         </div>
                         <div class="flex justify-between items-end border-t border-blue-100 pt-5 mt-2">
                             <span class="font-heading text-xl text-slate-900">Tổng cộng</span>
-                            <span id="checkout-total" class="font-heading text-3xl text-blue-600 font-bold">0₫</span>
+                            <span id="checkout-total" class="font-heading text-3xl text-blue-600 font-medium">0₫</span>
                         </div>
                     </div>
                 </div>

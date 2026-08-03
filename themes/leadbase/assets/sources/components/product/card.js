@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const card = btnElement.closest('.product-card');
       const img = card ? card.querySelector('.product-image-target') : null;
       // Try to find cart icon in header (common selectors)
-      const cartIcon = document.querySelector('header [href*="/cart"], header .cart-icon, .cart-drawer-trigger, #cart-drawer-trigger');
+      const cartIcon = document.getElementById('cart-icon');
 
       if (img && cartIcon) {
         const imgRect = img.getBoundingClientRect();

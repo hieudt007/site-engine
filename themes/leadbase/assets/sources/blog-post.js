@@ -20,12 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             navigator.clipboard.writeText(window.location.href).then(() => {
                 const originalHTML = copyBtn.innerHTML;
-                copyBtn.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-                copyBtn.classList.add('border-emerald-600', 'bg-emerald-600/10');
+                copyBtn.innerHTML = `<svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+                copyBtn.classList.add('border-blue-600', 'bg-blue-600/10');
                 
                 setTimeout(() => {
                     copyBtn.innerHTML = originalHTML;
-                    copyBtn.classList.remove('border-emerald-600', 'bg-emerald-600/10');
+                    copyBtn.classList.remove('border-blue-600', 'bg-blue-600/10');
                 }, 2000);
             });
         });

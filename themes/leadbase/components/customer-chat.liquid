@@ -3,6 +3,11 @@ Widget live-chat AI CSKH (agent key="customer") - ban rieng cua theme leadbase, 
 dung chung o themes/default/components/customer-chat.liquid. JS chung (assets/customer-chat/
 chat-drawer.js) doc theo CLASS (khong phai id) cho phan lon phan tu - PHAI giu nguyen toan bo
 class .plugin-chat-* va cac id #plugin-chat-attach/file/preview*, khong duoc doi ten.
+BAT BUOC: noi goi {% render "components/customer-chat" %} (layout.liquid) PHAI truyen tay du
+site: site, chatSessionId: chatSessionId, chatHmacToken: chatHmacToken - {% render %} cua LiquidJS
+co lap scope hoan toan, KHONG tu ke thua bien global, thieu se lam avatar/ten site trong header
+rong VA data-session-id/data-hmac rong (chat-drawer.js dung 2 attribute nay lam fallback session
+khi localStorage chua co, thieu se anh huong that den xac thuc phien chat lan dau).
 {% endcomment %}
 <link rel="stylesheet" href="/assets/customer-chat/chat-drawer.css">
 <script src="/assets/customer-chat/chat-drawer.js" defer></script>
@@ -26,7 +31,7 @@ class .plugin-chat-* va cac id #plugin-chat-attach/file/preview*, khong duoc doi
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">{{ site.siteName | slice: 0, 1 }}</span>
         <div>
           <p class="text-sm font-semibold leading-tight">{{ site.siteName }}</p>
-          <p class="text-xs text-white/50 leading-tight">Thường trả lời trong vài phút</p>
+          <p class="text-xs text-white/50 leading-tight">Thường trả lời ngay</p>
         </div>
       </div>
       <button class="plugin-chat-close text-white/60 hover:text-white transition-colors">&times;</button>
@@ -43,7 +48,7 @@ class .plugin-chat-* va cac id #plugin-chat-attach/file/preview*, khong duoc doi
         <img id="plugin-chat-preview-img" class="h-10 w-10 rounded-lg border border-slate-200 object-cover" src="" alt="preview">
         <span id="plugin-chat-preview-name" class="max-w-[150px] truncate text-xs text-slate-500"></span>
       </div>
-      <button id="plugin-chat-preview-close" class="px-2 font-bold text-slate-400 hover:text-red-500">&times;</button>
+      <button id="plugin-chat-preview-close" class="px-2 font-medium text-slate-400 hover:text-red-500">&times;</button>
     </div>
 
     <form class="plugin-chat-form flex items-center gap-2 border-t border-slate-100 bg-white p-3">

@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 1. Cập nhật trạng thái active cho thumbnails
             thumbnails.forEach(t => {
                 // Xóa trạng thái active cũ
-                t.classList.remove('border-emerald-600', 'shadow-md', 'opacity-100');
+                t.classList.remove('border-blue-600', 'shadow-md', 'opacity-100');
                 t.classList.add('border-transparent', 'opacity-60');
                 const overlay = t.querySelector('.thumbnail-overlay');
                 if(overlay) overlay.classList.remove('opacity-0');
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Thêm trạng thái active cho thumbnail vừa click
             this.classList.remove('border-transparent', 'opacity-60');
-            this.classList.add('border-emerald-600', 'shadow-md', 'opacity-100');
+            this.classList.add('border-blue-600', 'shadow-md', 'opacity-100');
             const activeOverlay = this.querySelector('.thumbnail-overlay');
             if(activeOverlay) activeOverlay.classList.add('opacity-0');
 

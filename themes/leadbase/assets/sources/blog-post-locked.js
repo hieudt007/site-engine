@@ -32,7 +32,12 @@
     setLoadingState(true);
 
     try {
-      const res = await fetch(window.location.pathname + "/unlock", {
+      // Dung slug tu data-slug (khong dung window.location.pathname + "/unlock") vi URL trang
+      // hien tai co the co postSlugPrefix tuy chinh, khong khop duong dan API that
+      // /api/posts/:slug/unlock (blog.ts) - goi sai se roi vao 404 nhung bi CSRF preHandler global
+      // chan truoc, hien nham "Invalid csrf token".
+      const slug = form.dataset.slug;
+      const res = await fetch("/api/posts/" + encodeURIComponent(slug) + "/unlock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: passwordInput.value }),

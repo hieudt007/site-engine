@@ -23,20 +23,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         observer.observe(item);
     });
-
-    // Xử lý active state cho category pills (UI demo)
-    const categoryPills = document.querySelectorAll('.category-filters a');
-    categoryPills.forEach(pill => {
-        pill.addEventListener('click', (e) => {
-            e.preventDefault();
-            // Reset tất cả
-            categoryPills.forEach(p => {
-                p.classList.remove('bg-[#059669]', 'text-white');
-                p.classList.add('bg-[#E8F1F3]', 'text-[#64748B]', 'hover:bg-[#A7F3D0]', 'hover:text-[#064E3B]');
-            });
-            // Set active cho phần tử được click
-            e.target.classList.remove('bg-[#E8F1F3]', 'text-[#64748B]', 'hover:bg-[#A7F3D0]', 'hover:text-[#064E3B]');
-            e.target.classList.add('bg-[#059669]', 'text-white');
-        });
-    });
 });

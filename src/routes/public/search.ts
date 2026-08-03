@@ -3,6 +3,7 @@ import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { renderPublic } from "../../services/themeRenderer.js";
 import { ensureProductSlugs } from "../../services/productSlug.js";
+import { pagePath } from "../../services/urlPaths.js";
 
 const RESULT_LIMIT = 12;
 
@@ -63,7 +64,7 @@ export async function registerPublicSearchRoutes(app: FastifyInstance): Promise<
       ]);
 
       posts = postResults;
-      pages = pageResults;
+      pages = pageResults.map((p) => ({ ...p, url: pagePath(siteConfig ?? {}, p.slug) }));
       products = isBlog ? [] : await ensureProductSlugs(productResults as any);
     }
 

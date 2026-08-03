@@ -1,11 +1,8 @@
 {% comment %}
 @description: Man hinh nhap mat khau xem bai viet bi khoa.
-@context_vars: post (Object), shop
-@responsibilities: Hiển thị form nhập mật khẩu để xem bài viết
-@structure_rules: Bọc form trong thẻ <div> căn giữa
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, pageTitle
 @required_ids: unlock-form, password, unlock-error
-@notes: JS co san doc form#unlock-form, input#password, hien loi vao #unlock-error. KHONG duoc doi id 3 cai nay hoac form se khong hoat dong — chi duoc doi style/layout.
+@notes: JS co san doc form#unlock-form, input#password, hien loi vao #unlock-error. KHONG duoc doi id 3 cai nay hoac form se khong hoat dong — chi duoc doi style/layout. #unlock-form PHAI giu data-slug="{{ slug }}" - JS dung de goi dung POST /api/posts/{slug}/unlock (route that o blog.ts), KHONG duoc doi ve dung window.location.pathname vi URL trang co the co prefix khac /blog (postSlugPrefix tuy chinh) khong khop duong dan API that, request se roi vao 404 nhung van bi CSRF preHandler global chan truoc (hien nham "Invalid csrf token" thay vi 404 - loi that da gap).
 {% endcomment %}
 
 <!-- Giao diện trống -->

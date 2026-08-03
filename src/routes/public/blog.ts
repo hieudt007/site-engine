@@ -92,14 +92,39 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
     ];
     const schemas = [buildArticleSchema(post, site, postUrl), buildBreadcrumbSchema(breadcrumbItems)];
 
+    // Uu tien bai cung CHU DE (topicId, 1-1) truoc, sau do lap day bang bai cung DANH MUC (nhieu-
+    // nhieu) cho du toi da 6 bai - loc trung id (1 bai co the vua cung topic vua cung category).
+    const RELATED_POSTS_LIMIT = 6;
     let relatedPosts: any[] = [];
-    if (post.categories.length > 0) {
-      relatedPosts = await prisma.post.findMany({
-        where: { type: "post", status: "published", id: { not: post.id }, categories: { some: { slug: { in: post.categories.map(c => c.slug) } } } },
+    const seenIds = new Set<string>([post.id]);
+
+    if (post.topicId) {
+      const sameTopic = await prisma.post.findMany({
+        where: { type: "post", status: "published", id: { not: post.id }, topicId: post.topicId },
         orderBy: { publishedAt: "desc" },
-        take: 3,
-        include: { categories: { select: { name: true, slug: true } } }
+        take: RELATED_POSTS_LIMIT,
+        include: { categories: { select: { name: true, slug: true } } },
       });
+      for (const p of sameTopic) {
+        if (seenIds.has(p.id)) continue;
+        seenIds.add(p.id);
+        relatedPosts.push(p);
+      }
+    }
+
+    if (relatedPosts.length < RELATED_POSTS_LIMIT && post.categories.length > 0) {
+      const sameCategory = await prisma.post.findMany({
+        where: {
+          type: "post",
+          status: "published",
+          id: { notIn: [...seenIds] },
+          categories: { some: { slug: { in: post.categories.map((c) => c.slug) } } },
+        },
+        orderBy: { publishedAt: "desc" },
+        take: RELATED_POSTS_LIMIT - relatedPosts.length,
+        include: { categories: { select: { name: true, slug: true } } },
+      });
+      relatedPosts = relatedPosts.concat(sameCategory);
     }
 
     html = await renderPublic("blog-post", {
@@ -263,6 +288,11 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       }),
       prisma.post.count({ where }),
     ]);
+    const categories = await prisma.category.findMany({
+      where: { type: "post" },
+      select: { name: true, slug: true, itemCount: true },
+      orderBy: { name: "asc" },
+    });
 
     const html = await renderPublic("blog-list", {
       pageTitle: "Blog",
@@ -272,6 +302,8 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       ],
       breadcrumbVariant: "blog",
       posts,
+      categories,
+      totalPosts: total,
       hasPrev: page > 1,
       hasNext: skip + posts.length < total,
       prevPage: page - 1,

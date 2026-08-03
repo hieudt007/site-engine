@@ -1,11 +1,8 @@
 {% comment %}
 @description: Trang thanh toán don hang (checkout).
-@context_vars: cart (Object), shop
-@responsibilities: Hiển thị form thanh toán, danh sách sản phẩm trong giỏ, tổng tiền
-@structure_rules: Chia 2 cột: cột form điền thông tin và cột tổng kết đơn hàng
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}
 @required_ids: checkout-items, checkout-form, checkout-total, checkout-error
-@notes: JS (giu nguyen) doc localStorage, bom danh sach sp tom tat vao #checkout-items, form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #checkout-total, loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd <input name="secondaryPhone">) - JS tu dong gop moi input NGOAI cac field chuan thanh customFields.
+@notes: JS (giu nguyen) doc localStorage, bom danh sach sp tom tat vao #checkout-items, form#checkout-form co input[name=customerName]/customerPhone/customerAddress, hien tong vao #checkout-total, loi vao #checkout-error. DUOC PHEP them input dat ten tuy y vao form nay (vd <input name="secondaryPhone">) - JS tu dong gop moi input NGOAI cac field chuan thanh customFields. Khi URL co ?buyNowProductId=...&buyNowVariantId=... (luong "Mua ngay" tu trang san pham), JS CHI hien thi/dat hang dung 1 san pham nay, khong dong voi gio hang that trong localStorage - xem checkout.js va product-detail.js initBuyNow.
 {% endcomment %}
 
 <!-- Giao diện trống -->

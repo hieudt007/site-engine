@@ -81,10 +81,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Hiệu ứng bay vào giỏ hàng (Flying Cart Animation)
     const addToCartBtns = document.querySelectorAll('.pl-add-to-cart-btn');
     
+    const CART_KEY = 'site_engine_cart';
+
+    function addProductToCart(productId) {
+        let cart;
+        try {
+            cart = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+        } catch {
+            cart = [];
+        }
+        const existing = cart.find((c) => c.productId === productId && !c.variantId);
+        if (existing) {
+            existing.quantity += 1;
+        } else {
+            cart.push({ productId, quantity: 1 });
+        }
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+        window.dispatchEvent(new Event('cartUpdated'));
+    }
+
     addToCartBtns.forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault(); // Ngăn chặn hành vi mặc định nếu cần
-            
+
+            const productId = this.getAttribute('data-product-id');
+            if (productId) addProductToCart(productId);
+
             const imgUrl = this.getAttribute('data-image');
             if (!imgUrl) return;
 
@@ -112,8 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             document.body.appendChild(clone);
 
-            // Tìm icon giỏ hàng trên header (giả định thẻ a có href chứa /cart hoặc class header-cart)
-            const cartIcon = document.querySelector('a[href*="/cart"]') || document.querySelector('.header-cart');
+            const cartIcon = document.getElementById('cart-icon');
             
             // Vị trí mặc định nếu không tìm thấy giỏ hàng (góc trên phải)
             let targetX = window.innerWidth - 60;

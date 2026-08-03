@@ -1,4 +1,7 @@
-{% layout "layout" %}
-{% block content %}
+{% comment %}
+@description: Layout "landing" cho bai viet/trang/san pham - trang HOAN TOAN doc lap, KHONG header/footer/nav/breadcrumb/cart-drawer cua site (khac custom-content.liquid van giu header/footer). Dung cho landing page ban hang tu thiet ke rieng tu dau den cuoi.
+@required_substrings: rawHtml
+@required_ids:
+@notes: Nhan rawHtml (String, DA SANITIZE o server - xem routes/public/blog.ts, pages.ts, products.ts goi renderPublic("landing", { rawHtml: post.body/page.body/product.description })). File nay KHONG duoc {% layout "layout" %} (co chu dich - khong header/footer) nen PHAI tu viet du <!DOCTYPE html><html><head>...</head><body>{{ rawHtml }}</body></html> (kem <meta charset>/<meta viewport>, co the giu Tailwind CDN script giong layout.liquid neu rawHtml dung class Tailwind) roi render {{ rawHtml }} RAW (KHONG escape) trong <body>. HIEN TRANG: file nay dang la stub placeholder "<div>...</div>", CHUA co doctype/html/head/body gi ca va CHUA render rawHtml - can viet lai truoc khi dung duoc, neu khong moi noi dung dat layoutMode='landing' se hien ra trang trong khong co gi.
+{% endcomment %}
 <div>...</div>
-{% endblock %}

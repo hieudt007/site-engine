@@ -9,6 +9,7 @@ import { customFieldsSchema } from "../../services/customFields.js";
 import { slugify } from "../../services/slug.js";
 import { uniqueProductSlug } from "../../services/productSlug.js";
 import { analyzeProductSeo } from "../../services/seoAnalyzer.js";
+import { InvalidUploadError, saveProductDownloadFile } from "../../services/mediaStorage.js";
 
 // §5.2: sản phẩm thuộc nhóm "nội dung + sản phẩm" của manager — role "edit" KHÔNG được đụng vào
 // (khác Post, nơi edit tạo/sửa được bài nháp) — nên không có bước "nộp duyệt" như posts.ts,
@@ -73,6 +74,7 @@ const createProductSchema = z.object({
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
   layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
+  downloadFilePath: z.string().nullable().optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
   faq: faqSchema,
@@ -101,6 +103,7 @@ const updateContentSchema = z.object({
   description: z.string().optional(),
   imageUrls: z.array(z.string()).optional(),
   layoutMode: z.enum(["standard", "custom", "landing"]).optional(),
+  downloadFilePath: z.string().nullable().optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
   faq: faqSchema,
@@ -187,6 +190,30 @@ export async function registerProductRoutes(app: FastifyInstance): Promise<void>
       }
 
       return { product, resolvedRelatedProducts };
+    },
+  );
+
+  // Upload file tai ve (san pham so) - khong gan voi 1 productId cu the (san pham moi tao chua co
+  // id) - client luu "path" tra ve vao hidden input downloadFilePath, gui kem luc tao/sua san pham
+  // nhu binh thuong. Luu private-uploads/ (KHONG loi qua /uploads/*), xem mediaStorage.ts.
+  app.post(
+    "/admin/api/products/download-file",
+    { preHandler: requireRole("manager") },
+    async (request, reply) => {
+      const file = await request.file({ limits: { fileSize: 500 * 1024 * 1024 } });
+      if (!file) {
+        return reply.code(422).send({ error: "Thiếu file" });
+      }
+      const buffer = await file.toBuffer();
+      try {
+        const { relativePath, originalFilename } = await saveProductDownloadFile(buffer, file.filename || "file");
+        return reply.code(201).send({ path: relativePath, filename: originalFilename });
+      } catch (err) {
+        if (err instanceof InvalidUploadError) {
+          return reply.code(422).send({ error: err.message });
+        }
+        throw err;
+      }
     },
   );
 

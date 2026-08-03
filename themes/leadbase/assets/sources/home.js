@@ -33,10 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initAddToCartAnimation() {
     const cartButtons = document.querySelectorAll('.add-to-cart-quick');
-    // Find the cart icon in header (fallback to any svg if specific link not found)
-    const cartIcon = document.querySelector('header a[href="/cart"]') || 
-                     document.querySelector('header button[aria-controls*="cart"]') || 
-                     document.querySelector('header svg');
+    const cartIcon = document.getElementById('cart-icon');
 
     cartButtons.forEach(btn => {
         btn.addEventListener('click', function(e) {
@@ -88,7 +85,7 @@ function initAddToCartAnimation() {
                 // Bump effect
                 cartIcon.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 cartIcon.style.transform = 'scale(1.3)';
-                cartIcon.style.color = '#10B981'; // emerald-500
+                cartIcon.style.color = '#2563eb'; // blue-600
                 
                 setTimeout(() => {
                     cartIcon.style.transform = 'scale(1)';

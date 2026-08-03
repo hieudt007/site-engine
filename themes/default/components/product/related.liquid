@@ -1,11 +1,8 @@
 {% comment %}
 @description: Khoi san pham lien quan dung cho upsell/cross-sell.
-@context_vars: product (Object)
-@responsibilities: Khối sản phẩm liên quan trong trang chi tiết
-@structure_rules: Nằm dưới cùng của trang chi tiết
 @required_substrings: products, title
-@required_ids: 
-@notes: Nhan title, products[], productUrlPrefix. Sua block upsell/cross-sell/related trong trang chi tiet o day. Tu an khi products rong/null. Co the dung product-card neu phu hop.
+@required_ids:
+@notes: Nhan title, products[], productUrlPrefix. Sua block upsell/cross-sell/related trong trang chi tiet o day (product-detail.liquid) va goi y trong order-confirmation.liquid. Tu an khi products rong/null. Co the dung components/product/card.liquid neu phu hop. BAT BUOC: khung anh san pham PHAI vuong 1:1 (class "aspect-square" hoac tuong duong, KHONG duoc doi ti le khac).
 {% endcomment %}
 
 <!-- Giao diện trống -->

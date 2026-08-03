@@ -1,6 +1,12 @@
 {% comment %}
 Widget live-chat AI CSKH (agent key="customer") - core feature, dung chung cho moi theme (nam o
 themes/default/ nen luon co trong root fallback cua Liquid engine bat ke theme active la gi).
+BAT BUOC: noi goi {% render "components/customer-chat" %} (layout.liquid) PHAI truyen tay
+chatSessionId: chatSessionId, chatHmacToken: chatHmacToken (va site: site neu theme dung site de
+hien avatar/ten) - {% render %} cua LiquidJS co lap scope hoan toan, KHONG tu ke thua bien global,
+thieu se lam data-session-id/data-hmac rong tren #plugin-chat-drawer, anh huong that den xac thuc
+phien chat lan dau (chat-drawer.js dung 2 attribute nay lam fallback session khi localStorage
+chua co) - loi that da gap o theme leadbase.
 {% endcomment %}
 <link rel="stylesheet" href="/assets/customer-chat/chat-drawer.css">
 <script src="/assets/customer-chat/chat-drawer.js" defer></script>
@@ -12,7 +18,7 @@ themes/default/ nen luon co trong root fallback cua Liquid engine bat ke theme a
   </button>
 
   <div class="plugin-chat-drawer hidden absolute bottom-16 right-0 w-80 md:w-96 bg-white rounded-lg shadow-xl overflow-hidden flex-col border border-gray-200" style="height: 500px; max-height: calc(100vh - 100px);">
-    <div class="plugin-chat-header bg-blue-600 text-white p-4 font-bold flex justify-between items-center">
+    <div class="plugin-chat-header bg-blue-600 text-white p-4 font-medium flex justify-between items-center">
       <span>Live Chat Hỗ Trợ</span>
       <button class="plugin-chat-close text-white hover:text-gray-200">&times;</button>
     </div>
@@ -28,7 +34,7 @@ themes/default/ nen luon co trong root fallback cua Liquid engine bat ke theme a
         <img id="plugin-chat-preview-img" class="h-10 w-10 object-cover rounded border border-gray-300" src="" alt="preview">
         <span class="text-xs text-gray-600 truncate max-w-[150px]" id="plugin-chat-preview-name"></span>
       </div>
-      <button id="plugin-chat-preview-close" class="text-gray-500 hover:text-red-500 font-bold px-2">&times;</button>
+      <button id="plugin-chat-preview-close" class="text-gray-500 hover:text-red-500 font-medium px-2">&times;</button>
     </div>
     <form class="plugin-chat-form p-3 bg-white border-t border-gray-200 flex gap-2 items-center">
       <input type="file" id="plugin-chat-file" accept="image/jpeg, image/png, image/webp, image/gif" class="hidden">

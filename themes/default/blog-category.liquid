@@ -1,11 +1,8 @@
 {% comment %}
 @description: Trang phan loai bai viet (danh muc hoac chu de).
-@context_vars: category (Object), posts (Array), shop, global_settings
-@responsibilities: Hiển thị tên danh mục, danh sách bài viết thuộc danh mục
-@structure_rules: Sử dụng Grid/Flex để hiển thị danh sách
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, category.name, posts, category.customFields, categoryPath
-@required_ids: 
-@notes: Dung chung cho /danh-muc/:slug va /chu-de/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}.
+@required_ids:
+@notes: Dung chung cho /danh-muc/:slug va /chu-de/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}. posts[] chi co slug/title/excerpt/coverImage/publishedAt (KHONG co url/image/tags) - link bai viet PHAI dung {{ postUrlPrefix }}/{{ post.slug }} (bien global tu themeRenderer.ts, KHONG hardcode "/blog/" vi site co the tuy chinh postSlugPrefix), anh bia PHAI dung post.coverImage (khong phai post.image).
 {% endcomment %}
 
 <!-- Giao diện trống -->
