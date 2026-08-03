@@ -1,0 +1,17 @@
+{% comment %}
+@description: Trang tinh (Gioi thieu, Lien he...).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, page.title, page.body
+@required_ids:
+@notes: page.body la HTML da sanitize, render RAW.
+{% endcomment %}
+{% layout "layout" %}
+{% block content %}
+<main class="mx-auto max-w-[800px] px-6 py-20">
+    <header class="mb-12 text-center">
+        <h1 class="text-[32px] font-semibold text-slate-900 md:text-[40px]">{{ page.title }}</h1>
+    </header>
+    <article class="prose prose-slate max-w-none prose-headings:font-semibold prose-a:text-brand">
+        {{ page.body }}
+    </article>
+</main>
+{% endblock %}

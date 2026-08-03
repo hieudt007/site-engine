@@ -1,0 +1,125 @@
+{% comment %}
+@description: Thanh dieu huong dau trang.
+@required_substrings: site.siteName, headerMenu
+@required_ids: cart-icon
+@notes: Nhan bien site (logoUrl/siteName/tagline) va headerMenu (headerMenu.items, moi item co label/url). Neu headerMenu rong/null PHAI co fallback 3 link mac dinh: /products, /blog, /cart. NÊN CÓ thêm nút giỏ hàng có id='cart-icon' để JS mở mini cart drawer. NÊN CÓ thêm: Thanh tìm kiếm (form action='/search' method='GET' input name='q'), badge đếm số lượng giỏ hàng, và Mobile menu hamburger toggle.
+{% endcomment %}
+<!-- Main Header -->
+<header id="main-header" class="sticky top-0 z-50 w-full transition-all duration-300 bg-white/90 backdrop-blur-md border-b border-slate-200/70">
+    <div class="container mx-auto px-4 md:px-8 h-[72px] flex items-center justify-between">
+
+        <!-- Mobile Toggle (Left on mobile) -->
+        <button id="mobile-menu-toggle" class="md:hidden p-2 -ml-2 text-slate-700 focus:outline-none" aria-label="Open menu">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+        </button>
+
+        <!-- Logo -->
+        <div class="flex-1 md:flex-none flex justify-center md:justify-start">
+            <a href="/" class="flex items-center gap-2.5 flex-shrink-0">
+                {% if site.logoUrl %}
+                    <img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-9 w-9 rounded-[10px] object-contain">
+                {% else %}
+                    <span class="h-9 w-9 rounded-[10px] bg-brand flex items-center justify-center text-white font-bold text-sm">{{ site.siteName | slice: 0, 1 }}</span>
+                {% endif %}
+                <span class="text-[17px] font-semibold tracking-tight text-brand-dark">{{ site.siteName }}</span>
+            </a>
+        </div>
+
+        <!-- Desktop Navigation (Center) -->
+        <nav class="hidden md:flex flex-1 justify-center">
+            <ul class="flex items-center gap-7 text-[14px] font-medium text-slate-600">
+                {% if headerMenu and headerMenu.items.size > 0 %}
+                    {% for item in headerMenu.items %}
+                        <li>
+                            <a href="{{ item.url }}" class="hover:text-brand transition-colors duration-200">
+                                {{ item.label }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <li><a href="/products" class="hover:text-brand transition-colors duration-200">Sản phẩm</a></li>
+                    <li><a href="/blog" class="hover:text-brand transition-colors duration-200">Blog</a></li>
+                    <li><a href="/cart" class="hover:text-brand transition-colors duration-200">Giỏ hàng</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+
+        <!-- Icons: Search, Account, Cart (Right) -->
+        <div class="flex items-center justify-end gap-1 sm:gap-2 text-slate-600 flex-shrink-0">
+
+            <!-- Desktop Search Form -->
+            <form action="/search" method="GET" class="hidden md:flex items-center relative search-form">
+                <input type="text" name="q" placeholder="Tìm kiếm..." class="search-expand-input bg-slate-50 border border-transparent rounded-full focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none text-sm placeholder:text-slate-400 py-1.5">
+                <button type="submit" class="p-2 hover:text-brand transition-colors relative z-10" aria-label="Search">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                </button>
+            </form>
+
+            <!-- Mobile Search Icon -->
+            <a href="/search" class="md:hidden p-2 hover:text-brand transition-colors" aria-label="Search">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+            </a>
+
+            <!-- Account Icon -->
+            <a href="/account" class="p-2 hidden sm:block hover:text-brand transition-colors" aria-label="Account">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+            </a>
+
+            <!-- Cart Icon -->
+            <button id="cart-icon" class="p-2 relative flex items-center hover:text-brand transition-colors" aria-label="Cart">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                <span id="cart-badge" class="absolute top-0 right-0 bg-brand text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-white">0</span>
+            </button>
+
+            <!-- Auth CTA (desktop) -->
+            <a href="/account" class="hidden lg:inline-flex rounded-full bg-brand-dark px-5 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-brand-dark/85 ml-2">
+                Đăng nhập
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Mobile Menu Drawer -->
+<div id="mobile-menu" class="fixed inset-y-0 left-0 z-50 w-4/5 max-w-sm bg-white transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden flex flex-col shadow-2xl">
+    <div class="h-[72px] flex items-center justify-between px-6 border-b border-slate-100">
+        <span class="text-xl font-semibold text-brand-dark tracking-tight">{{ site.siteName }}</span>
+        <button id="mobile-menu-close" class="p-2 -mr-2 text-slate-700 hover:text-brand focus:outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto py-8 px-6">
+        <ul class="flex flex-col space-y-6 text-base font-medium text-slate-700">
+            {% if headerMenu and headerMenu.items.size > 0 %}
+                {% for item in headerMenu.items %}
+                    <li><a href="{{ item.url }}" class="block hover:text-brand transition-colors">{{ item.label }}</a></li>
+                {% endfor %}
+            {% else %}
+                <li><a href="/products" class="block hover:text-brand transition-colors">Sản phẩm</a></li>
+                <li><a href="/blog" class="block hover:text-brand transition-colors">Blog</a></li>
+                <li><a href="/cart" class="block hover:text-brand transition-colors">Giỏ hàng</a></li>
+            {% endif %}
+        </ul>
+
+        <div class="mt-10 pt-8 border-t border-slate-100 flex flex-col gap-3">
+            <a href="/account" class="rounded-full bg-brand-dark px-5 py-3 text-center text-[15px] font-medium text-white">
+                Đăng nhập
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Menu Overlay -->
+<div id="mobile-menu-overlay" class="fixed inset-0 bg-slate-900/40 z-40 hidden backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>

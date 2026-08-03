@@ -1,0 +1,70 @@
+{% comment %}
+@description: Khung bao ngoai moi trang — <head>, goi header/footer, cho block content chen vao giua.
+@required_substrings: {% block content %}{% endblock %}, cdn.tailwindcss.com, {% render "header", {% render "footer", {% render "components/common/breadcrumb", {% render "components/common/cart-drawer", /theme-assets/{{ themeSlug }}/assets/custom.css, /theme-assets/{{ themeSlug }}/assets/custom.js
+@required_ids:
+@notes: PHAI giu nguyen script Tailwind CDN (co the doi query plugin), PHAI giu {% block content %}{% endblock %} de noi dung tung trang chen vao, PHAI goi {% render "header", site: site, headerMenu: headerMenu %} va {% render "footer", site: site, footerMenu: footerMenu, year: year %}, PHAI giu {% render "components/common/breadcrumb", ... %} o trong layout de breadcrumb hien toan site khi route truyen breadcrumbs, PHAI goi {% render "components/common/cart-drawer" %} ngay truoc the dong body, PHAI giu the <link> toi /theme-assets/{{ themeSlug }}/assets/custom.css va <script> toi .../custom.js (CSS/JS tuy bien rieng cua theme, sinh/sua o buoc khac). Duoc tu do doi font (Google Fonts link), tailwind.config (mau sac, fontFamily), bo cuc <body> ngoai cac phan bat buoc tren.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ site.siteName }}</title>
+
+    <!-- Fonts: Poppins (mang chatbot-lite sang) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0A132B',   /* Navy dam - text/heading/footer */
+                            DEFAULT: '#2563eb', /* Blue-600 - nut/accent chinh */
+                            hover: '#1d4ed8',    /* Blue-700 - hover state */
+                            light: '#eff6ff',    /* Blue-50 - nen nhat */
+                            gray: '#64748B'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(37, 99, 235, 0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/custom.css">
+</head>
+<body class="font-sans text-slate-900 bg-white min-h-screen flex flex-col antialiased selection:bg-brand selection:text-white">
+
+    {% render "header", site: site, headerMenu: headerMenu %}
+
+    {% render "components/common/breadcrumb", breadcrumbs: breadcrumbs, breadcrumbVariant: "default" %}
+
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% render "components/common/cart-drawer" %}
+
+    {% render "footer", site: site, footerMenu: footerMenu, year: year %}
+
+    <!-- Live Chat -->
+    {% if site.cskhAgentId %}
+      {% render "components/customer-chat" %}
+    {% endif %}
+
+    <!-- Custom JS -->
+    <script src="/theme-assets/{{ themeSlug }}/assets/custom.js"></script>
+</body>
+</html>

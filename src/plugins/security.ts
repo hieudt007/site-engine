@@ -4,6 +4,7 @@ import fastifyCsrfProtection from "@fastify/csrf-protection";
 import { config } from "../config.js";
 import { CacheService } from "../services/CacheService.js";
 import { extractScriptDomains } from "../utils/cspParser.js";
+import { requireRole } from "./requireRole.js";
 
 export async function configureSecurity(app: FastifyInstance): Promise<void> {
   // 1. Helmet: Content-Security-Policy
@@ -93,7 +94,7 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
   // trong ~40 file route/template (moi trang goi renderAdmin() rieng), them 1 endpoint GET de
   // layout.liquid tu fetch token 1 lan roi patch window.fetch toan cuc - ap dung cho MOI trang
   // admin cung luc, khong dong vao renderAdmin()/cac route rieng le.
-  app.get("/admin/csrf-token", async (_request, reply) => {
+  app.get("/admin/csrf-token", { preHandler: requireRole("edit") }, async (_request, reply) => {
     const token = await reply.generateCsrf();
     return { token };
   });

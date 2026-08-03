@@ -1,0 +1,63 @@
+{% comment %}
+@description: Chan trang.
+@required_substrings: site.siteName, footerMenu
+@required_ids:
+@notes: Nhan bien site va footerMenu (giong header.liquid), hien nam ban quyen + ten site. NÊN CÓ thêm: Cột nhập email đăng ký nhận bản tin (Newsletter subscription) và các icon mạng xã hội.
+{% endcomment %}
+<footer class="bg-brand-dark px-6 pb-10 pt-16 text-white/70">
+    <div class="mx-auto max-w-[1200px]">
+        <div class="grid grid-cols-1 gap-10 md:grid-cols-4">
+            <!-- Brand -->
+            <div>
+                <div class="mb-4 flex items-center gap-2.5 text-sm font-semibold text-white">
+                    {% if site.logoUrl %}
+                        <img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="h-7 w-7 rounded-lg object-contain">
+                    {% else %}
+                        <span class="h-7 w-7 rounded-lg bg-brand flex items-center justify-center text-white font-bold text-xs">{{ site.siteName | slice: 0, 1 }}</span>
+                    {% endif %}
+                    {{ site.siteName }}
+                </div>
+                <p class="text-sm leading-relaxed text-white/50">{{ site.tagline | default: "Kết nối khách hàng, quản lý sản phẩm và vận hành bán hàng trên một nền tảng duy nhất." }}</p>
+            </div>
+
+            <!-- Footer Menu -->
+            <div>
+                <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Khám phá</h4>
+                <ul class="space-y-3 text-sm">
+                    {% if footerMenu and footerMenu.items.size > 0 %}
+                        {% for item in footerMenu.items %}
+                            <li><a href="{{ item.url }}" class="text-white/60 hover:text-white transition-colors">{{ item.label }}</a></li>
+                        {% endfor %}
+                    {% else %}
+                        <li><a href="/products" class="text-white/60 hover:text-white transition-colors">Sản phẩm</a></li>
+                        <li><a href="/blog" class="text-white/60 hover:text-white transition-colors">Blog</a></li>
+                        <li><a href="/cart" class="text-white/60 hover:text-white transition-colors">Giỏ hàng</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <!-- Support -->
+            <div>
+                <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Hỗ trợ</h4>
+                <ul class="space-y-3 text-sm">
+                    <li><a href="/account" class="text-white/60 hover:text-white transition-colors">Tài khoản</a></li>
+                    <li><a href="/privacy" class="text-white/60 hover:text-white transition-colors">Chính sách bảo mật</a></li>
+                    <li><a href="/terms" class="text-white/60 hover:text-white transition-colors">Điều khoản dịch vụ</a></li>
+                </ul>
+            </div>
+
+            <!-- Contact -->
+            <div>
+                <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Liên hệ</h4>
+                <ul class="space-y-3 text-sm text-white/60">
+                    <li>{{ site.domain }}</li>
+                    <li>hello@{{ site.siteName | downcase | replace: ' ', '' }}.com</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-xs text-white/40 md:flex-row">
+            <p>&copy; {{ year }} {{ site.siteName }}. Mọi quyền được bảo lưu.</p>
+        </div>
+    </div>
+</footer>

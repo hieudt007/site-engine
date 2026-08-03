@@ -1,0 +1,125 @@
+{% comment %}
+@description: Trang tim kiem public cho bai viet, trang tinh va san pham.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, q, hasQuery, posts, pages, products, totalResults
+@required_ids: 
+@notes: Nhan q, hasQuery, totalResults, posts[], pages[], products[]. Nen dung components/post/card.liquid va components/product/card.liquid de hien ket qua, khong copy lai HTML card dai trong file search.
+{% endcomment %}
+{% layout "layout" %}
+{% block content %}
+<main class="min-h-screen bg-[#F9F9F7] text-slate-950 overflow-hidden pt-28 pb-20 relative">
+    <!-- Ambient Background -->
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[100px] animate-blob"></div>
+        <div class="absolute bottom-[-10%] right-[-5%] w-[50%] h-[50%] rounded-full bg-blue-500/10 blur-[120px] animate-blob" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Hero / Search Input Section -->
+    <section class="relative px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center fade-up mb-16">
+        <h1 class="font-sans text-4xl md:text-5xl lg:text-6xl text-slate-900 mb-8 tracking-tight">
+            {% if hasQuery %}
+                Kết quả tìm kiếm
+            {% else %}
+                Khám phá
+            {% endif %}
+        </h1>
+
+        <form action="/search" method="GET" class="relative group w-full">
+            <div class="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none text-slate-900/40 group-focus-within:text-blue-600 transition-colors duration-300">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
+            <input 
+                type="text" 
+                name="q" 
+                value="{{ q | escape }}" 
+                placeholder="Tìm kiếm mỹ phẩm, bài viết, công thức..." 
+                class="w-full pl-16 pr-32 py-5 rounded-[24px] bg-white/80 backdrop-blur-xl border border-blue-600/10 shadow-[0_8px_32px_rgba(5,150,105,0.04)] focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600/40 transition-all duration-500 font-sans text-slate-950 placeholder:text-slate-900/40 text-lg sm:text-xl"
+            >
+            <button type="submit" class="absolute inset-y-2 right-2 px-8 bg-blue-600 text-white rounded-[18px] hover:bg-blue-700 transition-all duration-300 font-sans text-sm tracking-[0.2em] uppercase shadow-lg shadow-blue-600/20 hover:shadow-blue-600/40 flex items-center justify-center">
+                Tìm
+            </button>
+        </form>
+
+        {% if hasQuery %}
+            <p class="mt-8 text-slate-900/60 font-sans text-lg">
+                Tìm thấy <span class="font-medium text-slate-900">{{ totalResults }}</span> kết quả cho "<span class="font-medium text-slate-900 italic">{{ q | escape }}</span>"
+            </p>
+        {% endif %}
+    </section>
+
+    <!-- Results Section -->
+    {% if hasQuery %}
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {% if totalResults == 0 %}
+                <div class="text-center py-24 fade-up">
+                    <div class="inline-flex items-center justify-center w-24 h-24 rounded-[24px] bg-white/50 backdrop-blur-md mb-8 shadow-sm border border-blue-600/10">
+                        <svg class="w-10 h-10 text-blue-600/40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                    </div>
+                    <h2 class="font-sans text-3xl text-slate-900 mb-4">Không tìm thấy kết quả</h2>
+                    <p class="text-slate-900/60 font-sans text-lg max-w-md mx-auto leading-relaxed">Chúng tôi không thể tìm thấy nội dung phù hợp với từ khóa của bạn. Vui lòng thử lại với một thuật ngữ khác.</p>
+                </div>
+            {% else %}
+                <div class="space-y-20">
+                    
+                    <!-- Products -->
+                    {% if products.size > 0 %}
+                    <div class="fade-up">
+                        <div class="flex items-end justify-between mb-10 border-b border-slate-900/10 pb-4">
+                            <h2 class="font-sans text-3xl md:text-4xl text-slate-900">Sản phẩm</h2>
+                            <span class="text-slate-900/50 font-sans text-sm tracking-widest uppercase">{{ products.size }} kết quả</span>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-8 md:gap-y-12">
+                            {% for product in products %}
+                                {% render 'components/product/card', product: product %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Posts -->
+                    {% if posts.size > 0 %}
+                    <div class="fade-up">
+                        <div class="flex items-end justify-between mb-10 border-b border-slate-900/10 pb-4">
+                            <h2 class="font-sans text-3xl md:text-4xl text-slate-900">Bài viết</h2>
+                            <span class="text-slate-900/50 font-sans text-sm tracking-widest uppercase">{{ posts.size }} kết quả</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {% for post in posts %}
+                                {% render 'components/post/card', post: post %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Pages -->
+                    {% if pages.size > 0 %}
+                    <div class="fade-up">
+                        <div class="flex items-end justify-between mb-10 border-b border-slate-900/10 pb-4">
+                            <h2 class="font-sans text-3xl md:text-4xl text-slate-900">Trang thông tin</h2>
+                            <span class="text-slate-900/50 font-sans text-sm tracking-widest uppercase">{{ pages.size }} kết quả</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {% for page in pages %}
+                                <a href="{{ page.url }}" class="group block p-8 bg-white/60 backdrop-blur-lg rounded-[24px] border border-blue-600/10 shadow-[0_4px_20px_rgba(5,150,105,0.02)] hover:shadow-[0_8px_32px_rgba(5,150,105,0.08)] hover:border-blue-600/30 hover:-translate-y-1 transition-all duration-500">
+                                    <div class="w-12 h-12 rounded-[16px] bg-blue-50 flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500 text-blue-600">
+                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    </div>
+                                    <h3 class="font-sans text-xl text-slate-900 group-hover:text-blue-600 transition-colors mb-3">{{ page.title }}</h3>
+                                    {% if page.excerpt %}
+                                        <p class="text-slate-900/60 font-sans text-sm line-clamp-2 leading-relaxed">{{ page.excerpt | strip_html }}</p>
+                                    {% endif %}
+                                    <div class="mt-6 flex items-center text-sm font-sans tracking-wide text-slate-900/50 group-hover:text-blue-600 transition-colors">
+                                        <span class="relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-0 after:h-[1px] after:bg-blue-600 group-hover:after:w-full after:transition-all after:duration-300">Xem chi tiết</span>
+                                        <svg class="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            {% endif %}
+        </section>
+    {% endif %}
+</main>
+{% endblock %}

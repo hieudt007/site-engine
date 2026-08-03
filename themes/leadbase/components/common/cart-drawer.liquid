@@ -1,0 +1,74 @@
+{% comment %}
+@description: Mini cart hien thi dang drawer hoac popup.
+@required_substrings: 
+@required_ids: cart-drawer, cart-drawer-items, cart-drawer-total, cart-drawer-close
+@notes: Giao dien giỏ hàng nhỏ gọn trượt từ cạnh bên hoac popup. JS se dung #cart-drawer de hien/an, render html danh sach vao #cart-drawer-items, hien tong tien vao #cart-drawer-total. Nút close dùng #cart-drawer-close. Phải có link tới /checkout.
+{% endcomment %}
+<div id="cart-drawer" class="fixed inset-0 z-[100] hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+  <!-- Background backdrop -->
+  <div id="cart-drawer-backdrop" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm transition-opacity opacity-0 duration-500"></div>
+
+  <div class="fixed inset-0 overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+        <!-- Drawer panel -->
+        <div id="cart-drawer-panel" class="pointer-events-auto w-screen max-w-md transform transition duration-500 ease-in-out translate-x-full">
+          <div class="flex h-full flex-col bg-[#F8FAFC] shadow-[-8px_0_32px_rgba(4,47,46,0.1)] rounded-l-[24px] overflow-hidden relative">
+            
+            <!-- Organic background blobs -->
+            <div class="absolute top-0 right-0 w-64 h-64 bg-blue-200/40 rounded-full mix-blend-multiply filter blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
+            <div class="absolute bottom-1/4 left-0 w-48 h-48 bg-teal-200/40 rounded-full mix-blend-multiply filter blur-3xl pointer-events-none transform -translate-x-1/2"></div>
+
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 py-6 sm:px-6 border-b border-slate-900/5 relative z-10 bg-white/40 backdrop-blur-md">
+              <h2 class="text-2xl font-heading text-slate-950" id="slide-over-title">Giỏ hàng</h2>
+              <div class="ml-3 flex h-7 items-center">
+                <button type="button" id="cart-drawer-close" class="relative -m-2 p-2 text-slate-900/50 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-300">
+                  <span class="absolute -inset-0.5"></span>
+                  <span class="sr-only">Đóng</span>
+                  <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Items -->
+            <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 custom-scrollbar relative z-10">
+              <div id="cart-drawer-items" class="flow-root h-full">
+                <!-- JS renders items here -->
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="border-t border-slate-900/5 px-4 py-6 sm:px-6 bg-white/80 backdrop-blur-md relative z-10">
+              <div class="flex justify-between text-lg font-medium text-slate-950 mb-2">
+                <p>Tổng cộng</p>
+                <p id="cart-drawer-total" class="font-heading font-bold text-xl text-blue-700">0₫</p>
+              </div>
+              <p class="mt-0.5 text-sm text-slate-900/60 mb-6">Phí vận chuyển và thuế sẽ được tính khi thanh toán.</p>
+              <div class="mt-6">
+                <a href="/checkout" class="flex items-center justify-center rounded-[24px] bg-blue-600 px-6 py-4 text-base font-medium text-white shadow-[0_8px_20px_rgba(5,150,105,0.2)] hover:bg-blue-700 hover:shadow-[0_10px_25px_rgba(5,150,105,0.3)] hover:-translate-y-0.5 transition-all duration-300 w-full group overflow-hidden relative">
+                  <span class="relative z-10 flex items-center gap-2">
+                    Thanh toán
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                  </span>
+                  <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out rounded-[24px]"></div>
+                </a>
+              </div>
+              <div class="mt-6 flex justify-center text-center text-sm text-slate-900/60">
+                <p>
+                  hoặc
+                  <button type="button" class="font-medium text-blue-600 hover:text-blue-800 transition-colors underline underline-offset-4 decoration-blue-600/30 hover:decoration-blue-800" onclick="document.getElementById('cart-drawer-close').click()">
+                    Tiếp tục mua sắm
+                    <span aria-hidden="true"> &rarr;</span>
+                  </button>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
