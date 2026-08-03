@@ -2,7 +2,7 @@
 @description: Trang chu — port y het noi dung tu chatbot-lite/web/src/components/LandingPage.tsx (ban tieng Viet), giu nguyen cau truc 10 muc: Hero, Problem, Reframe, LoopExample, Features (4 khoi + mock UI), WhyChoose, Infrastructure, AudienceFit, Pricing, FAQ, CtaBand.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, posts, products
 @required_ids: how-it-works, features, pricing, faq
-@notes: Day la noi dung MARKETING TINH (khong doc post[]/products[] tu DB nhu ban home.liquid truoc day) - dung y nguyen van ban cua chatbot-lite, chi doi mau sac hardcode (blue-600/#0A132B/blue-50) sang token "brand"/"brand-dark"/"brand-light" da co san trong layout.liquid (trung mau 1:1). Link CTA "/auth/form" (route rieng cua chatbot-lite, khong ton tai o site-engine) doi thanh https://account.leadbase.vn (dung chung domain dang nhap that voi header.liquid/footer.liquid); "/images/app-icon.png" doi thanh {{ site.logoUrl }} (co dieu kien). Icon dung SVG inline (lucide paths), khong dung React/lucide-react. Neu can ghep lai post[]/products[] dong nhu ban cu, phai them section rieng - KHONG tu y xoa cac section marketing nay.
+@notes: Day la noi dung MARKETING TINH (khong doc post[]/products[] tu DB nhu ban home.liquid truoc day) - dung y nguyen van ban cua chatbot-lite, chi doi mau sac hardcode (blue-600/#0A132B/blue-50) sang token "brand"/"brand-dark"/"brand-light" da co san trong layout.liquid (trung mau 1:1). Link CTA "/auth/form" (route rieng cua chatbot-lite, khong ton tai o site-engine) doi thanh https://account.leadbase.vn/login/form - PHAI la "/login/form" (trang dang nhap that, gop ca form email/mat khau + Facebook + Google, xem omni-gateway/src/routes/formLogin.ts), KHONG duoc de troi domain (route "/" cua omni-gateway chi la 1 buoc "ket noi Facebook" don le, khong phai trang dang nhap - loi that da gap khi de nham domain troi); "/images/app-icon.png" doi thanh {{ site.logoUrl }} (co dieu kien). Icon dung SVG inline (lucide paths), khong dung React/lucide-react. Neu can ghep lai post[]/products[] dong nhu ban cu, phai them section rieng - KHONG tu y xoa cac section marketing nay.
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
@@ -20,7 +20,7 @@
         </h1>
         <p class="mx-auto mb-8 max-w-xl text-[17px] leading-relaxed text-slate-500">{{ site.siteName }} gom toàn bộ dữ liệu vận hành về một nơi, để các AI Agent tự suy luận và làm việc với nhau — trên hạ tầng riêng của chính bạn.</p>
         <div class="flex flex-wrap justify-center gap-3">
-            <a href="https://account.leadbase.vn" class="inline-flex items-center gap-1.5 rounded-full bg-brand px-6 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
+            <a href="https://account.leadbase.vn/login/form" class="inline-flex items-center gap-1.5 rounded-full bg-brand px-6 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
                 Dùng thử miễn phí
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </a>
@@ -469,7 +469,7 @@
                     <span class="text-4xl font-semibold text-slate-900">Miễn phí</span>
                     <span class="text-sm font-medium text-slate-500">+ $5 credit AI</span>
                 </div>
-                <a href="https://account.leadbase.vn" class="mb-7 block w-full rounded-full bg-brand py-3.5 text-center text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
+                <a href="https://account.leadbase.vn/login/form" class="mb-7 block w-full rounded-full bg-brand py-3.5 text-center text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
                     Dùng thử miễn phí
                 </a>
                 <div class="mb-3.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">Bao gồm</div>
@@ -543,7 +543,7 @@
         <h2 class="mb-3 text-3xl font-semibold text-white">Bắt đầu với {{ site.siteName }} hôm nay</h2>
         <p class="mx-auto mb-7 max-w-lg text-[15px] text-white/80">Trải nghiệm AI Agent vận hành thật với gói Dùng thử, hoặc gọi trực tiếp để được tư vấn hạ tầng riêng.</p>
         <div class="flex flex-wrap justify-center gap-3">
-            <a href="https://account.leadbase.vn" class="rounded-full bg-white px-6 py-3.5 text-[15px] font-medium text-blue-700 transition-colors hover:bg-slate-100">
+            <a href="https://account.leadbase.vn/login/form" class="rounded-full bg-white px-6 py-3.5 text-[15px] font-medium text-blue-700 transition-colors hover:bg-slate-100">
                 Dùng thử miễn phí
             </a>
             <a href="tel:02422141333" class="inline-flex items-center gap-2 rounded-full border border-white/40 px-6 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-white/10">
