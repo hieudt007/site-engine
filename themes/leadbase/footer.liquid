@@ -2,7 +2,7 @@
 @description: Chan trang.
 @required_substrings: site.siteName, footerMenu, year
 @required_ids:
-@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ" hardcode toi /privacy va /terms - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 2 trang tinh (page.liquid) voi slug dung "privacy"/"terms" thi 2 link nay moi co noi dung, neu khong se ra 404. NÊN CÓ thêm: Cột nhập email đăng ký nhận bản tin (Newsletter subscription) và các icon mạng xã hội.
+@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ" hardcode toi /privacy va /terms - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 2 trang tinh (page.liquid) voi slug dung "privacy"/"terms" thi 2 link nay moi co noi dung, neu khong se ra 404. Cot "Lien he" dung dung cac truong that tu SiteConfig (settings-general.liquid): site.contactEmail, site.contactPhone, site.contactAddress, site.businessLicense - PHAI bao {% if %} cho TUNG truong vi tat ca deu optional/co the rong (chua tung dien), khong duoc gia dinh luon co du lieu. Icon mang xa hoi (site.socialLinks JSON {facebook,zalo,tiktok,youtube} - xem routes/admin/settings.ts) dat o cot "Brand" (dau tien, duoi tagline) - KHONG dat o cot Lien he (da chuyen theo yeu cau). Bo cuc 4 cot mo phong chatbot-lite/web/src/components/PublicLayout.tsx (PublicFooter) nhung thay cong ty hardcode bang du lieu dong cua tenant.
 {% endcomment %}
 <footer class="bg-brand-dark px-6 pb-10 pt-16 text-white/70">
     <div class="mx-auto max-w-[1200px]">
@@ -18,6 +18,27 @@
                     {{ site.siteName }}
                 </div>
                 <p class="text-sm leading-relaxed text-white/50">{{ site.tagline | default: "Kết nối khách hàng, quản lý sản phẩm và vận hành bán hàng trên một nền tảng duy nhất." }}</p>
+
+                {% if site.socialLinks.facebook or site.socialLinks.zalo or site.socialLinks.tiktok or site.socialLinks.youtube %}
+                    <div class="mt-5 flex items-center gap-2.5">
+                        {% if site.socialLinks.facebook %}
+                            <a href="{{ site.socialLinks.facebook }}" target="_blank" rel="noopener" aria-label="Facebook" class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-[#1877f2] hover:text-white">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                            </a>
+                        {% endif %}
+                        {% if site.socialLinks.zalo %}
+                            <a href="{{ site.socialLinks.zalo }}" target="_blank" rel="noopener" aria-label="Zalo" class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white/70 transition-colors hover:bg-[#0068ff] hover:text-white">Z</a>
+                        {% endif %}
+                        {% if site.socialLinks.tiktok %}
+                            <a href="{{ site.socialLinks.tiktok }}" target="_blank" rel="noopener" aria-label="TikTok" class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold text-white/70 transition-colors hover:bg-black hover:text-white">T</a>
+                        {% endif %}
+                        {% if site.socialLinks.youtube %}
+                            <a href="{{ site.socialLinks.youtube }}" target="_blank" rel="noopener" aria-label="YouTube" class="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-[#ff0000] hover:text-white">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Footer Menu -->
@@ -50,8 +71,33 @@
             <div>
                 <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Liên hệ</h4>
                 <ul class="space-y-3 text-sm text-white/60">
-                    <li>{{ site.domain }}</li>
-                    <li>hello@{{ site.siteName | downcase | replace: ' ', '' }}.com</li>
+                    {% if site.contactEmail %}
+                        <li class="flex items-start gap-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-white/40"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                            <a href="mailto:{{ site.contactEmail }}" class="hover:text-white transition-colors">{{ site.contactEmail }}</a>
+                        </li>
+                    {% endif %}
+                    {% if site.contactPhone %}
+                        <li class="flex items-start gap-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-white/40"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                            <a href="tel:{{ site.contactPhone }}" class="hover:text-white transition-colors">{{ site.contactPhone }}</a>
+                        </li>
+                    {% endif %}
+                    {% if site.contactAddress %}
+                        <li class="flex items-start gap-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-white/40"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                            <span>{{ site.contactAddress }}</span>
+                        </li>
+                    {% endif %}
+                    {% if site.businessLicense %}
+                        <li class="flex items-start gap-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-white/40"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></svg>
+                            <span>Số ĐKKD: {{ site.businessLicense }}</span>
+                        </li>
+                    {% endif %}
+                    {% if not site.contactEmail and not site.contactPhone and not site.contactAddress and not site.businessLicense %}
+                        <li>{{ site.domain }}</li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
