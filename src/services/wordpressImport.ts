@@ -105,7 +105,12 @@ function deriveExcerpt(text: string, maxLen = 200): string {
 }
 
 function metaValue(postmeta: WpPostMeta[] | undefined, key: string): string | undefined {
-  return postmeta?.find((m) => m["wp:meta_key"] === key)?.["wp:meta_value"];
+  // fast-xml-parser tu dong parse noi dung CDATA toan so (vd "126") thanh kieu number, du khai bao
+  // kieu string - neu khong ep String() lai, cac cho dung ket qua nay lam khoa Map (attachmentUrlById,
+  // key la string tu wp:post_id) se KHONG khop duoc (126 !== "126"), lam _thumbnail_id/anh dai dien
+  // luon bi mat (loi that da gap: coverImage NULL cho toan bo bai da import).
+  const value = postmeta?.find((m) => m["wp:meta_key"] === key)?.["wp:meta_value"];
+  return value == null ? undefined : String(value);
 }
 
 function asArray<T>(value: T | T[] | undefined): T[] {
