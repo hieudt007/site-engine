@@ -4,3 +4,4 @@ dist/
 *.log
 site-engine.zip
 uploads/
+private-uploads/

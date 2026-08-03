@@ -458,6 +458,13 @@ model ProductCache {
   description String?
   imageUrls   String[]
 
+  // Duong dan TUONG DOI (KHONG phai URL cong khai) toi file tai ve cho san pham so
+  // (ebook/phan mem/license...), luu tren dia o private-uploads/product-downloads/ - thu muc nay
+  // KHONG dang ky voi @fastify/static (khac uploads/ cho anh), chi doc duoc qua
+  // routes/public/downloads.ts sau khi kiem tra CartOrder.paymentStatus === 'paid' va don hang co
+  // dung san pham nay. Chi hien nut tai o trang order-confirmation khi da thanh toan xong.
+  downloadFilePath String?
+
   // Cung y nghia voi Post.layoutMode (xem docblock o do) - 'standard' | 'custom' | 'landing'.
   layoutMode String @default("standard")
 

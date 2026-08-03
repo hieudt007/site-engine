@@ -8,8 +8,15 @@ import { fileTypeFromBuffer } from "file-type";
 // @fastify/static dang ky trong server.ts (uploads/ -> /uploads/*).
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
+// File tai ve san pham so (ebook/phan mem/license...) - luu O RIENG thu muc nay (NGANG HANG
+// uploads/, KHONG phai con cua no) vi khong duoc dang ky voi @fastify/static o server.ts - chi doc
+// duoc qua routes/public/downloads.ts sau khi kiem tra don hang da thanh toan. Neu vo tinh dat
+// trong uploads/ se bi lo cong khai qua /uploads/*, pha vo toan bo muc dich cua route bao ve rieng.
+const PRODUCT_DOWNLOADS_DIR = path.join(process.cwd(), "private-uploads", "product-downloads");
+
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8MB, khop convention product-images ben lead-base
+const MAX_DOWNLOAD_SIZE_BYTES = 500 * 1024 * 1024; // 500MB - file san pham so co the la ebook/phan mem lon
 
 export class InvalidUploadError extends Error {}
 
@@ -79,6 +86,41 @@ export async function saveAiChatImage(
   await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
 
   return { url: `/uploads/${subDir}/${filename}`, filename };
+}
+
+// Khong gioi han dinh dang nhu anh (file san pham so co the la pdf/zip/epub/exe...) - chi chan
+// file rong va qua lon. Ten goc cua khach hang (vd "Ebook.pdf") duoc giu lai trong Content-
+// Disposition luc tai (xem routes/public/downloads.ts), KHONG dung lam ten file that tren dia (de
+// tranh path traversal/ky tu la) - ten that tren dia luon la {uuid}, anh xa qua originalFilename
+// tra ve o day, ProductCache.downloadFilePath chi luu "{subDir}/{uuid}".
+export async function saveProductDownloadFile(
+  buffer: Buffer,
+  originalFilename: string,
+): Promise<{ relativePath: string; originalFilename: string }> {
+  if (buffer.length === 0) {
+    throw new InvalidUploadError("File rỗng");
+  }
+  if (buffer.length > MAX_DOWNLOAD_SIZE_BYTES) {
+    throw new InvalidUploadError("File vượt quá 500MB");
+  }
+
+  const subDir = yearMonthDir();
+  await fs.mkdir(path.join(PRODUCT_DOWNLOADS_DIR, subDir), { recursive: true });
+
+  const ext = path.extname(originalFilename).slice(0, 20); // gioi han do dai, tranh lam dung
+  const filename = `${randomUUID()}${ext}`;
+  const relativePath = `${subDir}/${filename}`;
+  await fs.writeFile(path.join(PRODUCT_DOWNLOADS_DIR, relativePath), buffer);
+
+  return { relativePath, originalFilename };
+}
+
+// Chuyen downloadFilePath (luu trong DB) thanh duong dan tuyet doi tren dia de stream trong
+// routes/public/downloads.ts. Chan ".." de phong truong hop gia tri trong DB bi thao tung
+// (khong tin tuyet doi input du la server tu sinh ra).
+export function resolveProductDownloadPath(relativePath: string): string | null {
+  if (relativePath.includes("..")) return null;
+  return path.join(PRODUCT_DOWNLOADS_DIR, relativePath);
 }
 
 export async function deleteUploadedFile(url: string): Promise<void> {

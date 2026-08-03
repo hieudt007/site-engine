@@ -1,11 +1,8 @@
 {% comment %}
 @description: Trang xac nhan sau khi dat hang thanh cong.
-@context_vars: order (Object), shop
-@responsibilities: Hiển thị lời cảm ơn, mã đơn hàng, thông tin đã đặt
-@structure_rules: Căn giữa trang, nổi bật lời cảm ơn
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, order.id, order.items, order.total, order.customFields
-@required_ids: 
-@notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).
+@required_ids:
+@notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout). Nhan them upsellProducts[] (san pham goi y dua tren cac san pham da mua trong don, xem services/productRecommendations.ts) - render qua components/product/related, tu an khi rong. Nhan them downloadableItems[] (name/href) - CHI co gia tri khi CartOrder.paymentStatus === 'paid' (dung nghia "thanh toan thanh cong" duy nhat xac thuc duoc trong he thong nay - cod/bank_transfer khong tu chuyen 'paid'), tu an khi rong; href da la link tai an toan qua routes/public/downloads.ts (KHONG can/duoc doi thanh URL khac).
 {% endcomment %}
 
 <!-- Giao diện trống -->

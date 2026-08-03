@@ -60,6 +60,18 @@
     </div>
 
     <div class="card">
+      <h3 class="edit-card-title">File tải về (sản phẩm số)</h3>
+      <div class="field-hint" style="margin-top:0;margin-bottom:0.6rem;">Nếu có, khách hàng sẽ thấy nút tải file này ở trang xác nhận đơn hàng SAU KHI đơn hàng đã thanh toán xong.</div>
+      <input type="hidden" id="downloadFilePath" name="downloadFilePath" value="{% if product.downloadFilePath %}{{ product.downloadFilePath | escape }}{% endif %}">
+      <div id="download-file-current" style="display:{% if product.downloadFilePath %}flex{% else %}none{% endif %};align-items:center;gap:0.6rem;margin-bottom:0.6rem;padding:0.6rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;">
+        <span id="download-file-name" style="flex:1;font-size:0.85rem;">{% if product.downloadFilePath %}{{ product.downloadFilePath | escape }}{% endif %}</span>
+        <button type="button" class="btn btn-danger" id="download-file-remove">Xoá</button>
+      </div>
+      <input type="file" id="download-file-input">
+      <div id="download-file-status" style="font-size:0.8rem;color:#777;margin-top:0.4rem;"></div>
+    </div>
+
+    <div class="card">
       <h3 class="edit-card-title">Thông số sản phẩm</h3>
       <div id="specs-rows">
         {% if product and product.specs %}
@@ -470,6 +482,49 @@
       .filter((s) => s.label && s.value);
   }
 
+  // Upload file tai ve (san pham so) - upload NGAY khi chon file (khong doi den luc bam Luu san
+  // pham), luu path tra ve vao hidden input #downloadFilePath. fetch() da duoc layout.liquid patch
+  // toan cuc de tu gan header csrf-token, khong can tu lam o day.
+  const downloadFileInput = document.getElementById("download-file-input");
+  const downloadFilePathInput = document.getElementById("downloadFilePath");
+  const downloadFileCurrent = document.getElementById("download-file-current");
+  const downloadFileName = document.getElementById("download-file-name");
+  const downloadFileStatus = document.getElementById("download-file-status");
+  const downloadFileRemoveBtn = document.getElementById("download-file-remove");
+
+  if (downloadFileInput) {
+    downloadFileInput.addEventListener("change", async () => {
+      const file = downloadFileInput.files[0];
+      if (!file) return;
+      downloadFileStatus.textContent = "Đang tải lên...";
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      try {
+        const res = await fetch("/admin/api/products/download-file", { method: "POST", body: formData });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          downloadFileStatus.textContent = typeof body.error === "string" ? body.error : "Tải lên thất bại";
+          return;
+        }
+        const { path, filename } = await res.json();
+        downloadFilePathInput.value = path;
+        downloadFileName.textContent = filename;
+        downloadFileCurrent.style.display = "flex";
+        downloadFileStatus.textContent = "";
+        downloadFileInput.value = "";
+      } catch (e) {
+        downloadFileStatus.textContent = "Lỗi kết nối, vui lòng thử lại.";
+      }
+    });
+  }
+
+  if (downloadFileRemoveBtn) {
+    downloadFileRemoveBtn.addEventListener("click", () => {
+      downloadFilePathInput.value = "";
+      downloadFileCurrent.style.display = "none";
+    });
+  }
+
   const faqRows = document.getElementById("faq-rows");
   const faqAddBtn = document.getElementById("faq-add-btn");
   const newFaqQ = document.getElementById("new-faq-q");
@@ -597,6 +652,7 @@
       stock: form.stock && form.stock.value ? Number(form.stock.value) : null,
       sku: form.sku ? form.sku.value : undefined,
       imageUrls: currentImageUrls(),
+      downloadFilePath: form.downloadFilePath.value || null,
       layoutMode: form.layoutMode.value,
       status: document.getElementById("status-select").value,
       seo: {
@@ -658,7 +714,10 @@
 
     const { product } = await res.json();
     const newId = productId || product.id;
-    
+    // Da luu noi dung chinh thanh cong tu day tro di - tat canh bao "unsaved changes"
+    // (layout.liquid) TRUOC khi co the redirect, xem ghi chu chi tiet o post-edit.liquid.
+    if (window.markFormSaved) window.markFormSaved();
+
     const selectedStatus = document.getElementById("status-select").value;
     if (newId && selectedStatus !== status) {
       let actionEndpoint = null;
@@ -791,10 +850,10 @@
       const q = e.target.value.trim();
       if (!q) { searchResults.style.display = "none"; return; }
       timeoutId = setTimeout(async () => {
-        const res = await fetch(`/admin/api/search?q=${encodeURIComponent(q)}&type=product`);
+        const res = await fetch(`/admin/api/search?q=${encodeURIComponent(q)}&excludeId=${encodeURIComponent(productId)}`);
         if (res.ok) {
-          const { results } = await res.json();
-          searchResults.innerHTML = results.map(r => 
+          const { products } = await res.json();
+          searchResults.innerHTML = products.map(r =>
             `<div class="ac-item" style="padding:0.5rem; cursor:pointer; border-bottom:1px solid #eee;" data-id="${r.id}" data-name="${r.name}">${r.name}</div>`
           ).join("");
           searchResults.style.display = "block";
@@ -827,8 +886,8 @@
       timeoutId = setTimeout(async () => {
         const res = await fetch(`/admin/api/search?q=${encodeURIComponent(q)}&type=category`);
         if (res.ok) {
-          const { results } = await res.json();
-          catResults.innerHTML = results.filter(r => r.entityType === "product").map(r => 
+          const { categories } = await res.json();
+          catResults.innerHTML = categories.map(r =>
             `<div class="ac-item" style="padding:0.5rem; cursor:pointer; border-bottom:1px solid #eee;" data-id="${r.id}" data-name="${r.name}">${r.name}</div>`
           ).join("");
           catResults.style.display = "block";

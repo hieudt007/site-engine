@@ -2,11 +2,11 @@
 @description: Trang xac nhan sau khi dat hang thanh cong.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, order.id, order.items, order.total, order.customFields
 @required_ids: 
-@notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout).
+@notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout). Nhan them upsellProducts[] (san pham goi y dua tren cac san pham da mua trong don, xem services/productRecommendations.ts) - render qua components/product/related, tu an khi rong. Nhan them downloadableItems[] (name/href) - CHI co gia tri khi CartOrder.paymentStatus === 'paid' (xem routes/public/cart.ts va routes/public/downloads.ts), tu an khi rong; href da la link tai an toan (KHONG can/duoc doi thanh URL khac).
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-<div class="relative min-h-screen py-16 lg:py-24 overflow-hidden bg-blue-50/30">
+<div class="relative min-h-screen py-16 lg:py-24 overflow-hidden bg-[#eff6ff]">
     <!-- Organic Background Blobs -->
     <div class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-200/40 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob"></div>
     <div class="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-teal-200/40 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-2000"></div>
@@ -103,6 +103,30 @@
             </div>
         </div>
 
+        <!-- Digital Downloads -->
+        {% if downloadableItems and downloadableItems.size > 0 %}
+        <div class="bg-white/80 backdrop-blur-xl p-6 md:p-8 rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.05)] border border-blue-50 fade-up-element delay-250 mt-8">
+            <h2 class="font-sans text-2xl text-slate-950 mb-6 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-full bg-blue-100/50 flex items-center justify-center text-blue-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </span>
+                Tải file sản phẩm số
+            </h2>
+            <ul class="space-y-3">
+                {% for item in downloadableItems %}
+                <li class="flex justify-between items-center gap-4 bg-blue-50/50 p-4 rounded-[20px] border border-blue-100/30">
+                    <span class="font-medium text-slate-900">{{ item.name }}</span>
+                    <a href="{{ item.href }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-[16px] hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap">
+                        Tải xuống
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
         <!-- Action -->
         <div class="text-center mt-12 fade-up-element delay-300">
             <a href="/" class="inline-flex items-center justify-center px-10 py-4 bg-blue-600 text-white rounded-[24px] hover:bg-blue-700 transition-all duration-400 shadow-[0_8px_32px_rgba(5,150,105,0.25)] hover:shadow-[0_8px_32px_rgba(5,150,105,0.4)] hover:-translate-y-1 font-medium tracking-wide">
@@ -113,5 +137,7 @@
             </a>
         </div>
     </div>
+
+    {% render "components/product/related", title: "Có thể bạn quan tâm", products: upsellProducts, productUrlPrefix: productUrlPrefix %}
 </div>
 {% endblock %}
