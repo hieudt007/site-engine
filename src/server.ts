@@ -20,6 +20,7 @@ import { registerPageRoutes } from "./routes/admin/pages.js";
 import { registerPagesUiRoutes } from "./routes/admin/pagesUi.js";
 import { registerPostCategoryRoutes } from "./routes/admin/postCategories.js";
 import { registerPostCategoriesUiRoutes } from "./routes/admin/postCategoriesUi.js";
+import { registerImportWordpressRoutes } from "./routes/admin/importWordpress.js";
 import { registerProductCategoryRoutes } from "./routes/admin/productCategories.js";
 import { registerProductCategoriesUiRoutes } from "./routes/admin/productCategoriesUi.js";
 import { registerTopicRoutes } from "./routes/admin/topics.js";
@@ -70,6 +71,7 @@ import { registerHomeRoutes } from "./routes/public/home.js";
 import { registerThemeAssetsRoutes } from "./routes/public/themeAssets.js";
 import { renderNotFound } from "./services/notFoundPage.js";
 import { registerBlogRoutes } from "./routes/public/blog.js";
+import { registerDownloadRoutes } from "./routes/public/downloads.js";
 import { registerPagesPublicRoutes } from "./routes/public/pages.js";
 import { registerCartRoutes } from "./routes/public/cart.js";
 
@@ -264,6 +266,7 @@ async function start(): Promise<void> {
   await registerPagesUiRoutes(app);
   await registerPostCategoryRoutes(app);
   await registerPostCategoriesUiRoutes(app);
+  await registerImportWordpressRoutes(app);
   await registerProductCategoryRoutes(app);
   await registerProductCategoriesUiRoutes(app);
   await registerTopicRoutes(app);
@@ -312,6 +315,7 @@ async function start(): Promise<void> {
   await registerHomeRoutes(app);
   await registerThemeAssetsRoutes(app);
   await registerBlogRoutes(app);
+  await registerDownloadRoutes(app);
   await registerPagesPublicRoutes(app);
   await registerProductsPublicRoutes(app);
   await registerPublicSearchRoutes(app);
