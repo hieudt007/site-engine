@@ -20,6 +20,7 @@ model SiteConfig {
   tagline         String?
   logoUrl         String?
   faviconUrl      String?
+  companyName     String? // Tên pháp nhân đầy đủ (VD "CÔNG TY TNHH ..."), hiện ở footer cạnh businessLicense — khác siteName (tên thương hiệu ngắn)
   contactEmail    String?
   contactPhone    String?
   contactAddress  String?

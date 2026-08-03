@@ -10,6 +10,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ pageTitle | default: site.siteName }}</title>
+    {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
     {% if metaDescription %}<meta name="description" content="{{ metaDescription | escape }}">{% endif %}
     {% if noindex %}<meta name="robots" content="noindex">{% endif %}
     {% for schema in schemas %}<script type="application/ld+json">{{ schema | json }}</script>{% endfor %}

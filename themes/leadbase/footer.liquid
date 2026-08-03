@@ -2,7 +2,7 @@
 @description: Chan trang.
 @required_substrings: site.siteName, footerMenu, year
 @required_ids:
-@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ" hardcode toi /privacy va /terms - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 2 trang tinh (page.liquid) voi slug dung "privacy"/"terms" thi 2 link nay moi co noi dung, neu khong se ra 404. Cot "Lien he" dung dung cac truong that tu SiteConfig (settings-general.liquid): site.contactEmail, site.contactPhone, site.contactAddress, site.businessLicense - PHAI bao {% if %} cho TUNG truong vi tat ca deu optional/co the rong (chua tung dien), khong duoc gia dinh luon co du lieu. Icon mang xa hoi (site.socialLinks JSON {facebook,zalo,tiktok,youtube} - xem routes/admin/settings.ts) dat o cot "Brand" (dau tien, duoi tagline) - KHONG dat o cot Lien he (da chuyen theo yeu cau). Bo cuc 4 cot mo phong chatbot-lite/web/src/components/PublicLayout.tsx (PublicFooter) nhung thay cong ty hardcode bang du lieu dong cua tenant.
+@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ" hardcode toi /privacy va /terms - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 2 trang tinh (page.liquid) voi slug dung "privacy"/"terms" thi 2 link nay moi co noi dung, neu khong se ra 404. Cot "Lien he" dung dung cac truong that tu SiteConfig (settings-general.liquid): site.companyName (ten phap nhan day du, khac site.siteName la ten thuong hieu ngan), site.contactEmail, site.contactPhone, site.contactAddress, site.businessLicense - PHAI bao {% if %} cho TUNG truong vi tat ca deu optional/co the rong (chua tung dien), khong duoc gia dinh luon co du lieu. Icon mang xa hoi (site.socialLinks JSON {facebook,zalo,tiktok,youtube} - xem routes/admin/settings.ts) dat o cot "Brand" (dau tien, duoi tagline) - KHONG dat o cot Lien he (da chuyen theo yeu cau). "Khám phá"+"Hỗ trợ" duoc boc trong 1 div "grid grid-cols-2 md:contents" de hien 1 hang 2 cot tren mobile nhung van tro thanh 2 item rieng cua grid cha o desktop (giu dung bo cuc 4 cot ngang hang). Bo cuc mo phong chatbot-lite/web/src/components/PublicLayout.tsx (PublicFooter) nhung thay cong ty hardcode bang du lieu dong cua tenant.
 {% endcomment %}
 <footer class="bg-brand-dark px-6 pb-10 pt-16 text-white/70">
     <div class="mx-auto max-w-[1200px]">
@@ -41,36 +41,46 @@
                 {% endif %}
             </div>
 
-            <!-- Footer Menu -->
-            <div>
-                <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Khám phá</h4>
-                <ul class="space-y-3 text-sm">
-                    {% if footerMenu and footerMenu.items.size > 0 %}
-                        {% for item in footerMenu.items %}
-                            <li><a href="{{ item.url }}" class="text-white/60 hover:text-white transition-colors">{{ item.label }}</a></li>
-                        {% endfor %}
-                    {% else %}
-                        <li><a href="/products" class="text-white/60 hover:text-white transition-colors">Sản phẩm</a></li>
-                        <li><a href="/blog" class="text-white/60 hover:text-white transition-colors">Blog</a></li>
-                        <li><a href="/cart" class="text-white/60 hover:text-white transition-colors">Giỏ hàng</a></li>
-                    {% endif %}
-                </ul>
-            </div>
+            <!-- Khám phá + Hỗ trợ: 1 hàng 2 cột tren mobile (md:contents go 2 khoi nay tro lai
+            thanh 2 item rieng cua grid cha o desktop, giu dung bo cuc 4 cot ngang hang cu) -->
+            <div class="grid grid-cols-2 gap-6 md:contents">
+                <!-- Footer Menu -->
+                <div>
+                    <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Khám phá</h4>
+                    <ul class="space-y-3 text-sm">
+                        {% if footerMenu and footerMenu.items.size > 0 %}
+                            {% for item in footerMenu.items %}
+                                <li><a href="{{ item.url }}" class="text-white/60 hover:text-white transition-colors">{{ item.label }}</a></li>
+                            {% endfor %}
+                        {% else %}
+                            <li><a href="/products" class="text-white/60 hover:text-white transition-colors">Sản phẩm</a></li>
+                            <li><a href="/blog" class="text-white/60 hover:text-white transition-colors">Blog</a></li>
+                            <li><a href="/cart" class="text-white/60 hover:text-white transition-colors">Giỏ hàng</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
 
-            <!-- Support -->
-            <div>
-                <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Hỗ trợ</h4>
-                <ul class="space-y-3 text-sm">
-                    <li><a href="https://account.leadbase.vn" class="text-white/60 hover:text-white transition-colors">Tài khoản</a></li>
-                    <li><a href="/privacy" class="text-white/60 hover:text-white transition-colors">Chính sách bảo mật</a></li>
-                    <li><a href="/terms" class="text-white/60 hover:text-white transition-colors">Điều khoản dịch vụ</a></li>
-                </ul>
+                <!-- Support -->
+                <div>
+                    <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Hỗ trợ</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li><a href="https://account.leadbase.vn" class="text-white/60 hover:text-white transition-colors">Tài khoản</a></li>
+                        <li><a href="/privacy" class="text-white/60 hover:text-white transition-colors">Chính sách bảo mật</a></li>
+                        <li><a href="/terms" class="text-white/60 hover:text-white transition-colors">Điều khoản dịch vụ</a></li>
+                    </ul>
+                </div>
             </div>
 
             <!-- Contact -->
             <div>
                 <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Liên hệ</h4>
                 <ul class="space-y-3 text-sm text-white/60">
+                    {% if site.companyName %}
+                        <li class="flex items-start gap-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-white/40"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+                            <span>{{ site.companyName }}</span>
+                        </li>
+                    {% endif %}
                     {% if site.contactEmail %}
                         <li class="flex items-start gap-2">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-white/40"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
@@ -95,7 +105,7 @@
                             <span>Số ĐKKD: {{ site.businessLicense }}</span>
                         </li>
                     {% endif %}
-                    {% if not site.contactEmail and not site.contactPhone and not site.contactAddress and not site.businessLicense %}
+                    {% if not site.companyName and not site.contactEmail and not site.contactPhone and not site.contactAddress and not site.businessLicense %}
                         <li>{{ site.domain }}</li>
                     {% endif %}
                 </ul>

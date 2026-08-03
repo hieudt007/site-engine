@@ -13,6 +13,7 @@ const updateSettingsSchema = z
     tagline: z.string().optional(),
     logoUrl: z.string().optional(),
     faviconUrl: z.string().optional(),
+    companyName: z.string().optional(),
     contactEmail: z.string().optional(),
     contactPhone: z.string().optional(),
     contactAddress: z.string().optional(),

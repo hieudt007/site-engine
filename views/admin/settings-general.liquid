@@ -87,6 +87,9 @@
       {% render "components/image-picker", id: "defaultOgImage", name: "defaultOgImage", value: defaultOgImage, width: "120px", height: "120px" %}
 
       <h3 style="margin-top:2rem;font-size:1.05rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;color:#333;">Liên hệ & Mạng xã hội</h3>
+      <label for="companyName">Tên công ty (pháp nhân đầy đủ)</label>
+      <input type="text" id="companyName" name="companyName" placeholder="VD: Công ty TNHH ...">
+
       <label for="contactEmail">Email liên hệ</label>
       <input type="text" id="contactEmail" name="contactEmail">
 
@@ -251,7 +254,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "companyName", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
       if(form[key]) form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -284,6 +287,7 @@
       logoUrl: document.getElementById("logoUrl").value || undefined,
       faviconUrl: document.getElementById("faviconUrl").value || undefined,
       defaultOgImage: document.getElementById("defaultOgImage").value || undefined,
+      companyName: form.companyName.value || undefined,
       contactEmail: form.contactEmail.value || undefined,
       contactPhone: form.contactPhone.value || undefined,
       contactAddress: form.contactAddress.value || undefined,
