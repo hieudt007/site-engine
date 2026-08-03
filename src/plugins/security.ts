@@ -110,9 +110,18 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
     if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return done();
     
     const pathname = request.url.split("?")[0];
-    // Bỏ qua CSRF cho webhook và API (thường gọi từ LeadBase Node bằng token/api-key riêng)
-    if (pathname.startsWith("/webhooks/") || pathname.startsWith("/api/")) {
-      return done(); 
+    // Bỏ qua CSRF cho webhook và API (thường gọi từ LeadBase Node bằng token/api-key riêng).
+    // Cung bo qua /cart/checkout va /products/:id/reviews - form cong khai cho KHACH VANG LAI
+    // (khong dang nhap, khong co session/token CSRF nao ca), da co rate-limit + zod validate rieng
+    // (xem cart.ts, reviews.ts). Thieu dong nay lam review/checkout luon 403 (dung bug da gap 2 lan
+    // o lead-base-node/chatbot-lite, xem ghi chu ben tren).
+    if (
+      pathname.startsWith("/webhooks/") ||
+      pathname.startsWith("/api/") ||
+      pathname === "/cart/checkout" ||
+      /^\/products\/[^/]+\/reviews$/.test(pathname)
+    ) {
+      return done();
     }
 
     // app.csrfProtection sẽ tự gọi done() hoặc ném lỗi nếu CSRF token sai

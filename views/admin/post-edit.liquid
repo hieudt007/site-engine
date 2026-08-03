@@ -31,7 +31,10 @@
       </div>
 
       <label for="body">Nội dung</label>
-      <textarea id="body" name="body" required>{% if post %}{{ post.body }}{% endif %}</textarea>
+      <!-- KHONG duoc them "required": rich editor (layout.liquid initRichEditor) an textarea nay
+      qua display:none, browser khong the focus field an de hien validation -> submit bi chan cau
+      (khong loi, khong phan hoi). Server da validate body.min(1) o posts.ts roi. -->
+      <textarea id="body" name="body">{% if post %}{{ post.body }}{% endif %}</textarea>
     </div>
 
     <div class="card">
@@ -494,7 +497,12 @@
 
     const { post } = await res.json();
     const newId = postId || post.id;
-    
+    // Da luu noi dung chinh thanh cong tu day tro di (du cac buoc doi trang thai ben duoi co that
+    // bai hay khong) - tat canh bao "unsaved changes" (layout.liquid) TRUOC khi co the redirect,
+    // vi cac fetch/DOM update phia sau co the vo tinh lam isDirty bi bat lai truoc luc trinh duyet
+    // kip xu ly navigation, hien nham dialog xac nhan roi trang du da luu xong.
+    if (window.markFormSaved) window.markFormSaved();
+
     // Nếu có đổi trạng thái thì gọi thêm endpoint chuyển trạng thái (cần quyền tương ứng)
     const selectedStatus = document.getElementById("status-select").value;
     if (newId && selectedStatus !== status) {

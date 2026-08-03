@@ -31,7 +31,10 @@
       </div>
 
       <label for="body">Nội dung</label>
-      <textarea id="body" name="body" required>{% if page %}{{ page.body }}{% endif %}</textarea>
+      <!-- KHONG duoc them "required": rich editor (layout.liquid initRichEditor) an textarea nay
+      qua display:none, browser khong the focus field an de hien validation -> submit bi chan cau
+      (khong loi, khong phan hoi). Server da validate body.min(1) o pages.ts roi. -->
+      <textarea id="body" name="body">{% if page %}{{ page.body }}{% endif %}</textarea>
     </div>
 
     <div class="card">
@@ -107,6 +110,10 @@
           <option value="published" {% if page.status == 'published' %}selected{% endif %}>Đã xuất bản</option>
         </select>
         <button type="submit" class="btn btn-primary">Lưu</button>
+        <span id="submit-slot"></span>
+        <span id="publish-slot"></span>
+        <span id="schedule-slot"></span>
+        <span id="unpublish-slot"></span>
       </div>
       {% if page and page.publishedAt %}
         <div style="margin-top:0.5rem;font-size:0.8rem;color:#666;">Đã xuất bản: {{ page.publishedAt | date: "%d/%m/%Y %H:%M" }}</div>
@@ -382,7 +389,10 @@
 
     const { page } = await res.json();
     const newId = pageId || page.id;
-    
+    // Da luu noi dung chinh thanh cong tu day tro di - tat canh bao "unsaved changes"
+    // (layout.liquid) TRUOC khi co the redirect, xem ghi chu chi tiet o post-edit.liquid.
+    if (window.markFormSaved) window.markFormSaved();
+
     const selectedStatus = document.getElementById("status-select").value;
     if (newId && selectedStatus !== status) {
       let actionEndpoint = null;
