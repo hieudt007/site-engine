@@ -87,6 +87,17 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
     },
   });
 
+  // views/admin/*.liquid CHUA TUNG gan CSRF token vao fetch() nao ca (khong tim thay 1 dong
+  // nao trong toan bo views/assets) - moi POST/PUT/PATCH/DELETE vao /admin/* deu thieu token,
+  // luon nem "Missing csrf secret" du session/CSRF da dang ky dung thu tu. Thay vi sua tung 1
+  // trong ~40 file route/template (moi trang goi renderAdmin() rieng), them 1 endpoint GET de
+  // layout.liquid tu fetch token 1 lan roi patch window.fetch toan cuc - ap dung cho MOI trang
+  // admin cung luc, khong dong vao renderAdmin()/cac route rieng le.
+  app.get("/admin/csrf-token", async (_request, reply) => {
+    const token = await reply.generateCsrf();
+    return { token };
+  });
+
   // QUAN TRONG: PHAI dung "preHandler" (KHONG duoc "onRequest") - getToken() o tren doc
   // req.body?._token/_csrf khi khong co header. "onRequest" chay TRUOC khi Fastify parse body
   // (request.body luon undefined o giai doan do) nen fallback nay se LUON LUON fail cho bat ky

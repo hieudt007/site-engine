@@ -3,14 +3,40 @@ import { prisma } from '../db.js';
 import { logger } from '../logger.js';
 import { config } from '../config.js';
 
-const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-export const redis = new Redis(redisUrl, {
-  lazyConnect: true,
-});
+// Giong pattern DISABLE_QUEUE cua lead-base-node/src/redis.ts - moi truong local KHONG co
+// Redis chay co the tat han ket noi that (tranh ioredis retry toi 20 lan/request roi moi bo
+// cuoc, khien MOI request luu bai viet/san pham/danh muc bi treo rat lau du van thanh cong -
+// bug thuc te da gap). CHI dung DISABLE_QUEUE, KHONG check NODE_ENV==='test' nhu lead-base-node
+// - CI cua site-engine (.github/workflows) chay Redis that (service container) + NODE_ENV=test
+// cung luc, vd cacheServiceInstanceIsolation.test.ts can Redis THAT de kiem tra cache isolation
+// giua cac instance - mock se lam sai lech ket qua test do (da gap: assertion fail that su).
+const isDisabled = process.env.DISABLE_QUEUE === 'true';
 
-redis.on('error', (err: any) => {
-  logger.error(err, '[Redis] Connection error');
-});
+function createMockRedis(): Redis {
+  return {
+    on: () => {},
+    once: () => {},
+    get: async () => null,
+    set: async () => 'OK',
+    del: async () => 1,
+    scan: async () => ['0', []],
+    quit: async () => 'OK',
+    disconnect: () => {},
+  } as unknown as Redis;
+}
+
+const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+export const redis = isDisabled
+  ? createMockRedis()
+  : new Redis(redisUrl, {
+      lazyConnect: true,
+    });
+
+if (!isDisabled) {
+  redis.on('error', (err: any) => {
+    logger.error(err, '[Redis] Connection error');
+  });
+}
 
 // Use a specific prefix to avoid colliding with lead-base-node, PLUS the per-instance id so
 // multiple site-engine instances sharing this same Redis (all fall back to the same REDIS_URL

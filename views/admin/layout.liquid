@@ -16,6 +16,43 @@
       document.documentElement.classList.add("sidebar-collapsed-init");
     }
   </script>
+  <script>
+    // Cac trang admin (post-edit.liquid, product-edit.liquid, v.v.) tu goi fetch() de luu
+    // nhung KHONG tung gan CSRF token nao ca - moi request co body deu bi chan "Missing csrf
+    // secret" o server (xem plugins/security.ts). Thay vi sua ~40 file rieng le, lay token 1
+    // lan qua /admin/csrf-token roi patch window.fetch toan cuc de tu dong gan header cho MOI
+    // request co body toi cung origin - ap dung ngay cho tat ca trang admin dung chung layout.
+    (function () {
+      let csrfTokenPromise = null;
+      function getCsrfToken() {
+        if (!csrfTokenPromise) {
+          csrfTokenPromise = fetch("/admin/csrf-token", { credentials: "same-origin" })
+            .then(function (res) { return res.json(); })
+            .then(function (data) { return data.token; });
+        }
+        return csrfTokenPromise;
+      }
+
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = function (input, init) {
+        const method = (init && init.method ? init.method : "GET").toUpperCase();
+        if (["GET", "HEAD", "OPTIONS"].includes(method)) {
+          return originalFetch(input, init);
+        }
+        const url = typeof input === "string" ? input : input.url;
+        // Chi gan token cho request cung origin (khong ro ri token sang domain khac).
+        if (/^https?:\/\//i.test(url) && !url.startsWith(window.location.origin)) {
+          return originalFetch(input, init);
+        }
+        return getCsrfToken().then(function (token) {
+          const nextInit = Object.assign({}, init);
+          nextInit.credentials = nextInit.credentials || "same-origin";
+          nextInit.headers = Object.assign({}, init && init.headers, token ? { "csrf-token": token } : {});
+          return originalFetch(input, nextInit);
+        });
+      };
+    })();
+  </script>
   <style>
     .sidebar-collapsed-init .sidebar { width: 0 !important; padding: 0 !important; overflow: hidden; }
     .sidebar-collapsed-init #sidebar-toggle { left: 14px !important; }
