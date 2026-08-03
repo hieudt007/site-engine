@@ -21,6 +21,24 @@ async function sendAsset(reply: import("fastify").FastifyReply, slug: string, fi
   return reply.type(contentType).send(content);
 }
 
+// Ban vendor tinh (khong tu dong cap nhat) cua https://cdn.tailwindcss.com, tai ve luu san trong
+// themes/{slug}/assets/tailwind.js - tu theme khong con phai nhung <script src="https://
+// cdn.tailwindcss.com"> nua (domain do PHAI whitelist rieng trong CSP script-src, moi lan quen la
+// mat sach style + "tailwind is not defined", da gap loi that nhieu lan). Serve y het co che
+// custom.js/custom.css o tren, KHONG dung sendAsset() chung vi file nay lon (~400-500KB), doc/tra
+// ve dang Buffer thay vi ep utf-8 string cho nhanh hon mot chut.
+async function sendTailwindVendor(reply: import("fastify").FastifyReply, slug: string) {
+  if (!SLUG_PATTERN.test(slug)) {
+    return reply.code(404).send();
+  }
+  const filePath = path.join(THEMES_ROOT, slug, "assets", "tailwind.js");
+  const content = await fs.readFile(filePath).catch(() => null);
+  if (content === null) {
+    return reply.code(404).send();
+  }
+  return reply.type("application/javascript").send(content);
+}
+
 // Anh xem truoc theme (themes/{slug}/screenshot.png, KHONG nam trong assets/) - tuy chon, dung
 // cho /admin/settings/theme hien preview. Binary (Buffer, KHONG doc utf-8 nhu sendAsset o tren -
 // se hong file anh). File nao khong ton tai thi 404 binh thuong, UI tu an (xem
@@ -44,6 +62,10 @@ export async function registerThemeAssetsRoutes(app: FastifyInstance): Promise<v
 
   app.get<{ Params: { slug: string } }>("/theme-assets/:slug/assets/custom.js", async (request, reply) => {
     return sendAsset(reply, request.params.slug, "custom.js", "application/javascript");
+  });
+
+  app.get<{ Params: { slug: string } }>("/theme-assets/:slug/assets/tailwind.js", async (request, reply) => {
+    return sendTailwindVendor(reply, request.params.slug);
   });
 
   app.get<{ Params: { slug: string } }>("/theme-assets/:slug/screenshot.png", async (request, reply) => {

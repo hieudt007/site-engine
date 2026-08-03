@@ -21,6 +21,12 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
               "https://www.google-analytics.com",
               "https://connect.facebook.net",
               "'unsafe-inline'", // Site builder/CMS thường sinh CSS/JS inline
+              // Tailwind CDN JIT compiler dung eval() de bien dich class luc runtime - van can du
+              // sau khi tu host (themes/{slug}/assets/tailwind.js, xem themeAssets.ts) vi ban than
+              // NOI DUNG file .js do van goi eval() ben trong, khong lien quan domain phuc vu no.
+              // KHONG con can whitelist "https://cdn.tailwindcss.com" nua (da bo, xem ghi chu o
+              // layout.liquid tung theme) - moi theme gio load tailwind.js tu chinh domain minh
+              // ('self'), khong con phu thuoc/goi ra domain ngoai nay nua.
               "'unsafe-eval'",
             ],
             frameSrc: ["'self'", "https://challenges.cloudflare.com"],
