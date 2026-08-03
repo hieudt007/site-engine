@@ -20,7 +20,7 @@ export async function renderAdmin(template: string, data: Record<string, unknown
     siteType: siteConfig?.siteType ?? "ecommerce",
     siteDomain: siteConfig?.domain ?? "domain.com",
     postSlugPrefix: siteConfig?.postSlugPrefix ?? "blog",
-    pageSlugPrefix: siteConfig?.pageSlugPrefix ?? "page",
+    pageSlugPrefix: siteConfig?.pageSlugPrefix ?? "p",
     productSlugPrefix: siteConfig?.productSlugPrefix ?? "product",
     adminChatAgentId: siteConfig?.adminChatAgentId ?? null,
     ...data,
