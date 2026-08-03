@@ -1,0 +1,112 @@
+{% layout "layout" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+  <h1 style="margin:0;">Import từ WordPress</h1>
+</div>
+
+<div id="flash"></div>
+
+<div class="card" style="max-width:640px;">
+  <p style="margin-top:0;color:#555;font-size:0.9rem;">
+    Tải lên file export WordPress (Tools &rarr; Export, định dạng <code>.xml</code>).
+    Hệ thống tự nhận diện và nhập <strong>bài viết</strong>, <strong>trang tĩnh</strong> và <strong>sản phẩm (WooCommerce)</strong> có trong file —
+    tiêu đề/nội dung, ảnh (giữ nguyên URL gốc), chuyên mục, giá/tồn kho (với sản phẩm), mô tả SEO (Rank Math nếu có).
+    Bản ghi đã tồn tại (trùng slug/ID) sẽ được <strong>cập nhật</strong> thay vì tạo bản sao.
+    Trang mặc định của WordPress/WooCommerce (giỏ hàng, thanh toán, tài khoản...) và trang dùng page-builder không thể chuyển đổi sẽ tự động bị bỏ qua.
+  </p>
+
+  <label for="wxr-file">File .xml</label>
+  <input type="file" id="wxr-file" accept=".xml,text/xml,application/xml">
+
+  <button type="button" class="btn btn-primary" id="import-btn" style="margin-top:1rem;">Bắt đầu import</button>
+  <div id="import-status" style="font-size:0.85rem;color:#777;margin-top:0.6rem;"></div>
+</div>
+
+<div id="import-result" style="max-width:640px;margin-top:1.2rem;"></div>
+
+<script>
+(function () {
+  const fileInput = document.getElementById("wxr-file");
+  const importBtn = document.getElementById("import-btn");
+  const status = document.getElementById("import-status");
+  const resultBox = document.getElementById("import-result");
+  const flash = document.getElementById("flash");
+
+  function showFlash(message, ok) {
+    flash.textContent = message;
+    flash.className = ok ? "success" : "error";
+  }
+
+  function typeRow(label, t) {
+    if (!t || t.total === 0) return "";
+    return (
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--color-border);">' +
+      "<strong>" + label + " (" + t.total + ")</strong>" +
+      '<div style="display:flex;gap:1.2rem;font-size:0.85rem;color:#555;">' +
+      "<span>Tạo mới: <strong>" + t.created + "</strong></span>" +
+      "<span>Cập nhật: <strong>" + t.updated + "</strong></span>" +
+      "<span>Bỏ qua: <strong>" + t.skipped + "</strong></span>" +
+      "</div></div>"
+    );
+  }
+
+  importBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      showFlash("Vui lòng chọn file .xml", false);
+      return;
+    }
+
+    importBtn.disabled = true;
+    status.textContent = "Đang xử lý, có thể mất vài giây tuỳ số lượng nội dung...";
+    resultBox.innerHTML = "";
+
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+
+    try {
+      const res = await fetch("/admin/api/import/wordpress", { method: "POST", body: formData });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        showFlash(typeof body.error === "string" ? body.error : "Import thất bại", false);
+        status.textContent = "";
+        return;
+      }
+
+      const s = body.summary;
+      const totalItems = s.posts.total + s.pages.total + s.products.total;
+      showFlash("Đã xử lý xong " + totalItems + " mục trong file.", true);
+      status.textContent = "";
+
+      let errorsHtml = "";
+      if (s.errors && s.errors.length > 0) {
+        errorsHtml =
+          '<div style="margin-top:1rem;"><strong style="color:var(--color-danger);">Ghi chú / Lỗi (' + s.errors.length + "):</strong><ul style=\"margin:0.4rem 0 0;padding-left:1.2rem;font-size:0.85rem;\">" +
+          s.errors.map((e) => "<li><strong>" + e.title.replace(/</g, "&lt;") + "</strong>: " + e.message.replace(/</g, "&lt;") + "</li>").join("") +
+          "</ul></div>";
+      }
+
+      resultBox.innerHTML =
+        '<div class="card">' +
+        '<h3 class="edit-card-title">Kết quả</h3>' +
+        typeRow("Bài viết", s.posts) +
+        typeRow("Trang", s.pages) +
+        typeRow("Sản phẩm", s.products) +
+        errorsHtml +
+        '<div style="margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;">' +
+        '<a href="/admin/posts" class="btn">Xem bài viết</a>' +
+        '<a href="/admin/pages" class="btn">Xem trang</a>' +
+        '<a href="/admin/products" class="btn">Xem sản phẩm</a>' +
+        "</div>" +
+        "</div>";
+    } catch (e) {
+      showFlash("Lỗi kết nối, vui lòng thử lại.", false);
+      status.textContent = "";
+    } finally {
+      importBtn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

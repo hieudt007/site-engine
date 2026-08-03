@@ -363,6 +363,7 @@
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/settings/general" %} active{% endif %}" href="/admin/settings/general">{% render "components/icon", name: "settings" %}<span>Cài đặt chung</span></a>{% endif %}
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/redirects" %} active{% endif %}" href="/admin/redirects">{% render "components/icon", name: "route" %}<span>Chuyển hướng</span></a>{% endif %}
         <a class="sidebar-link{% if currentPath contains "/admin/automations" %} active{% endif %}" href="/admin/automations">{% render "components/icon", name: "zap" %}<span>AI Automation</span></a>
+        <a class="sidebar-link{% if currentPath contains "/admin/import" %} active{% endif %}" href="/admin/import">{% render "components/icon", name: "upload" %}<span>Import</span></a>
       </div>
     {% endif %}
 
@@ -1477,6 +1478,14 @@
     if (form) {
       form.addEventListener('input', () => { isDirty = true; });
       form.addEventListener('change', () => { isDirty = true; });
+
+      // Goi truoc khi redirect sau khi luu thanh cong (vd window.location.href = "/admin/posts/"
+      // + newId trong post-edit.liquid/page-edit.liquid/product-edit.liquid). KHONG duoc dua vao
+      // rieng MutationObserver theo doi class "success" cua #flash nua - da bi bao loi that: cac
+      // fetch tuan tu sau khi luu (doi trang thai, load lai revisions...) co the phat sinh them
+      // 'input'/'change' tren form TRUOC khi trinh duyet kip xu ly redirect, lam isDirty bi bat
+      // lai thanh true dung luc beforeunload chay, hien dialog xac nhan roi trang dù da luu xong.
+      window.markFormSaved = function () { isDirty = false; };
 
       const flashEl = document.getElementById('flash');
       if (flashEl) {

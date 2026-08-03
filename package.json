@@ -32,6 +32,7 @@
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^2.4.3",
     "clean-css": "^5.3.3",
+    "fast-xml-parser": "^5.10.1",
     "fastify": "^5.2.1",
     "file-type": "^22.0.1",
     "ioredis": "^6.0.0",
