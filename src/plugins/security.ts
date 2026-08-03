@@ -20,6 +20,12 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
               "https://www.googletagmanager.com",
               "https://www.google-analytics.com",
               "https://connect.facebook.net",
+              // views/admin/layout.liquid nap thang 2 thu vien nay tu CDN (html2canvas - chup anh
+              // man hinh, dung o theme-chat/export; sortablejs qua jsdelivr - keo tha sap xep khoi
+              // trong page/post/product-edit.liquid) - thieu 2 dong nay CSP chan sach, cac tinh
+              // nang do ngung hoat dong khong 1 dong loi ro rang tren UI (loi that da gap).
+              "https://html2canvas.hertzen.com",
+              "https://cdn.jsdelivr.net",
               "'unsafe-inline'", // Site builder/CMS thường sinh CSS/JS inline
               // Tailwind CDN JIT compiler dung eval() de bien dich class luc runtime - van can du
               // sau khi tu host (themes/{slug}/assets/tailwind.js, xem themeAssets.ts) vi ban than
@@ -29,7 +35,18 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
               // ('self'), khong con phu thuoc/goi ra domain ngoai nay nua.
               "'unsafe-eval'",
             ],
-            frameSrc: ["'self'", "https://challenges.cloudflare.com"],
+            // Helmet mac dinh "script-src-attr 'none'" neu khong khai bao rieng (KHAC voi
+            // scriptSrc co 'unsafe-inline' o tren - script-src-attr la directive rieng, chi ap
+            // dung cho onclick="..."/cac inline event handler attribute, khong thua huong tu
+            // scriptSrc) - views/admin/*.liquid dung onclick="..." khap noi, thieu dong nay se bi
+            // chan voi loi "Executing inline event handler violates ... script-src-attr 'none'"
+            // (loi that da gap).
+            scriptSrcAttr: ["'unsafe-inline'"],
+            // views/admin/layout.liquid co tinh nang nhung video YouTube (dan link youtube.com/
+            // youtu.be vao trinh soan thao -> tu dong tao <iframe src="https://www.youtube.com/
+            // embed/...">) - ca trong preview admin lan noi dung cong khai (post/page.body la HTML
+            // tho, co the chua iframe nay) deu can whitelist domain nay o frame-src.
+            frameSrc: ["'self'", "https://challenges.cloudflare.com", "https://www.youtube.com"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             imgSrc: ["'self'", "data:", "https:", "blob:"],
             connectSrc: ["'self'", "https:", "wss:"],
