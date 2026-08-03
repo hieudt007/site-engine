@@ -105,12 +105,17 @@ const app = Fastify({
 // Global Error Handler - Chống rò rỉ Stack Trace
 app.setErrorHandler((error: any, request, reply) => {
   request.log.error(error);
+  // Frontend (views/admin/*.liquid) doc field "error" (vd showFlash(body.error ...)) - handler
+  // nay truoc chi tra "message", khien MOI exception khong bat try/catch rieng deu roi vao
+  // fallback chung chung "Luu noi dung that bai" tren toan bo admin UI, che mat loi that (ke
+  // ca dev_details/stack van dang duoc gui ve nhung khong ai doc dung field). Tra ca 2 key.
   if (error.statusCode) {
-    return reply.code(error.statusCode).send({ message: error.message });
+    return reply.code(error.statusCode).send({ error: error.message, message: error.message });
   }
   // Ẩn hoàn toàn chi tiết lỗi 5xx trên môi trường Production
   const isDev = process.env.NODE_ENV !== "production";
   return reply.code(500).send({
+    error: isDev ? error.message : "Internal Server Error",
     message: "Internal Server Error",
     ...(isDev && { dev_details: error.message, stack: error.stack })
   });
@@ -206,6 +211,12 @@ app.setNotFoundHandler(async (request, reply) => {
 });
 
 async function start(): Promise<void> {
+  // QUAN TRONG: registerSession() PHAI chay TRUOC configureSecurity() - CSRF plugin dung
+  // sessionPlugin: "@fastify/session" (xem plugins/security.ts) de luu secret vao session, nen
+  // session PHAI da duoc dang ky/decorate truoc do. Dao nguoc thu tu nay khien CSRF khong bao
+  // gio doc/ghi dung secret, gay "Missing csrf secret" tren MOI request co body (bug thuc te da
+  // gap: luu bai viet/san pham/danh muc deu loi).
+  await registerSession(app);
   await configureSecurity(app);
 
   const uploadsDir = path.join(process.cwd(), "uploads");
@@ -223,8 +234,6 @@ async function start(): Promise<void> {
     prefix: "/assets/",
     decorateReply: false,
   });
-
-  await registerSession(app);
 
   // Dev-only backdoor de test /admin ma khong can dang nhap that qua LeadBase OAuth - CHI bat
   // khi khong phai production. Set session qua chinh @fastify/session (Set-Cookie header that,
