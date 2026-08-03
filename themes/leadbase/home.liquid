@@ -1,31 +1,30 @@
 {% comment %}
-@description: Trang chu — hero + bai viet moi + san pham moi.
+@description: Trang chu — port y het noi dung tu chatbot-lite/web/src/components/LandingPage.tsx (ban tieng Viet), giu nguyen cau truc 10 muc: Hero, Problem, Reframe, LoopExample, Features (4 khoi + mock UI), WhyChoose, Infrastructure, AudienceFit, Pricing, FAQ, CtaBand.
 @required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, posts, products
-@required_ids:
-@notes: Nhan post[] (slug/title/excerpt/coverImage/publishedAt) va products[] (id/name/imageUrls/price/salePrice). Ca 2 co the rong — phai co fallback khi rong. Link san pham/bai viet PHAI dung {{ productUrlPrefix }}/{{ product.slug }} va {{ postUrlPrefix }}/{{ post.slug }} (bien global tu themeRenderer.ts, khong hardcode "/products/" hay "/blog/" vi site co the tuy chinh prefix). BAT BUOC: khung anh san pham (khoi "San pham moi") PHAI vuong 1:1 (aspect-square) - khoi "Bai viet moi" dung ti le anh khac (4:3) la binh thuong, chi anh SAN PHAM moi bat buoc vuong. NÊN CÓ thêm: Hero Banner (Slider hoặc ảnh lớn) với nút Call-to-Action, và Khối danh mục nổi bật.
+@required_ids: how-it-works, features, pricing, faq
+@notes: Day la noi dung MARKETING TINH (khong doc post[]/products[] tu DB nhu ban home.liquid truoc day) - dung y nguyen van ban cua chatbot-lite, chi doi mau sac hardcode (blue-600/#0A132B/blue-50) sang token "brand"/"brand-dark"/"brand-light" da co san trong layout.liquid (trung mau 1:1). Link CTA "/auth/form" (route rieng cua chatbot-lite, khong ton tai o site-engine) doi thanh https://account.leadbase.vn (dung chung domain dang nhap that voi header.liquid/footer.liquid); "/images/app-icon.png" doi thanh {{ site.logoUrl }} (co dieu kien). Icon dung SVG inline (lucide paths), khong dung React/lucide-react. Neu can ghep lai post[]/products[] dong nhu ban cu, phai them section rieng - KHONG tu y xoa cac section marketing nay.
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
 
 <!-- Hero -->
-<section class="relative overflow-hidden bg-[radial-gradient(circle_at_1px_1px,#e2e8f0_1px,transparent_0)] [background-size:24px_24px]">
-    <div class="mx-auto max-w-[900px] px-6 pb-16 pt-20 text-center md:pt-28">
-        <span class="mb-6 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-4 py-1.5 text-[13px] font-medium text-brand">
+<section class="px-6 py-16 md:py-24" style="background-image: radial-gradient(60% 55% at 50% 0%, rgba(22,119,255,.10), transparent 65%), radial-gradient(circle, rgba(13,71,161,.10) 1px, transparent 1px); background-size: auto, 22px 22px;">
+    <div class="mx-auto max-w-[860px] text-center">
+        <span class="mb-5 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[13px] font-medium text-brand">
             <span class="h-1.5 w-1.5 rounded-full bg-brand"></span> AI Business Operator
         </span>
-        <h1 class="text-[32px] font-medium leading-tight text-slate-900 md:text-[48px]">
-            Không phải chatbot. Không phải <span class="text-brand">phần mềm quản lý bán hàng</span>.<br>
+        <h1 class="mb-5 text-4xl font-semibold leading-tight tracking-tight md:text-[46px]">
+            Không phải chatbot. Không phải <span class="text-brand">phần mềm quản lý bán hàng</span>.
+            <br>
             Đây là <span class="text-brand">hệ vận hành doanh nghiệp bằng AI</span>.
         </h1>
-        <p class="mx-auto mt-5 max-w-xl text-[16px] leading-relaxed text-slate-500">
-            {{ site.siteName }} gom toàn bộ dữ liệu vận hành về một nơi, để các AI Agent tự suy luận và làm việc với nhau — trên hạ tầng riêng của chính bạn.
-        </p>
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <a href="/account" class="inline-flex items-center gap-1.5 rounded-full bg-brand px-6 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
+        <p class="mx-auto mb-8 max-w-xl text-[17px] leading-relaxed text-slate-500">{{ site.siteName }} gom toàn bộ dữ liệu vận hành về một nơi, để các AI Agent tự suy luận và làm việc với nhau — trên hạ tầng riêng của chính bạn.</p>
+        <div class="flex flex-wrap justify-center gap-3">
+            <a href="https://account.leadbase.vn" class="inline-flex items-center gap-1.5 rounded-full bg-brand px-6 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
                 Dùng thử miễn phí
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3l5 5-5 5"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </a>
-            <a href="#how-it-works" class="inline-flex items-center rounded-full border border-slate-200 px-6 py-3.5 text-[15px] font-medium text-slate-700 transition-colors hover:bg-slate-50">
+            <a href="#how-it-works" class="rounded-full border border-slate-300 px-6 py-3.5 text-[15px] font-medium text-slate-700 transition-colors hover:bg-slate-50">
                 Xem cách hoạt động
             </a>
         </div>
@@ -33,130 +32,524 @@
 </section>
 
 <!-- Problem -->
-<section class="border-t border-slate-100 bg-slate-50/60 px-6 py-20">
-    <div class="mx-auto max-w-[1000px] text-center">
-        <h2 class="text-[26px] font-semibold text-slate-900 md:text-[32px]">Bạn đang vận hành bằng bao nhiêu phần mềm rời rạc?</h2>
-        <p class="mx-auto mt-4 max-w-2xl text-[15px] text-slate-500">CRM, tổng đài, kho hàng, kế toán, quảng cáo — mỗi nơi một mảnh dữ liệu, không ai nhìn thấy bức tranh toàn cảnh, và mọi việc vẫn phải làm thủ công giữa các hệ thống.</p>
+<section class="border-y border-slate-100 bg-slate-50 px-6 py-16 md:py-20">
+    <div class="mx-auto max-w-[900px] text-center">
+        <h2 class="mb-10 text-3xl font-semibold tracking-tight">Bạn đang vận hành bằng bao nhiêu phần mềm rời rạc?</h2>
+        <div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div class="flex flex-col items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-6">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                <span class="text-[13px] font-medium leading-snug text-slate-600">1 tool chat với khách</span>
+            </div>
+            <div class="flex flex-col items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-6">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                <span class="text-[13px] font-medium leading-snug text-slate-600">1 tool quản lý đơn hàng</span>
+            </div>
+            <div class="flex flex-col items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-6">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+                <span class="text-[13px] font-medium leading-snug text-slate-600">1 file Excel quản lý kho</span>
+            </div>
+            <div class="flex flex-col items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-4 py-6">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                <span class="text-[13px] font-medium leading-snug text-slate-600">1 tool chạy quảng cáo riêng</span>
+            </div>
+        </div>
+        <p class="text-[15px] font-medium text-slate-500">Không cái nào thấy cái nào. Chatbot bạn đang thuê chỉ trả lời tin nhắn — nó không biết đơn hôm qua, không biết ads đang lỗ.</p>
     </div>
 </section>
 
 <!-- Reframe -->
-<section id="how-it-works" class="px-6 py-20">
-    <div class="mx-auto max-w-[1000px] text-center">
-        <h2 class="text-[26px] font-semibold text-slate-900 md:text-[32px]">Dữ liệu tập trung. AI Agent phối hợp. Vận hành tự động.</h2>
-        <p class="mx-auto mt-4 max-w-2xl text-[15px] text-slate-500">{{ site.siteName }} không thay thế đội ngũ của bạn — nó là lớp vận hành đứng giữa, để các AI Agent chuyên biệt (bán hàng, chăm sóc khách, kho vận) cùng đọc chung một nguồn dữ liệu và tự phối hợp xử lý công việc.</p>
+<section id="how-it-works" class="px-6 py-16 md:py-20">
+    <div class="mx-auto max-w-[1100px]">
+        <h2 class="mb-12 text-center text-3xl font-semibold tracking-tight">Dữ liệu tập trung. AI Agent vận hành, không chỉ trả lời.</h2>
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 bg-white p-6">
+                <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+                </div>
+                <h3 class="mb-2 text-base font-semibold">Dữ liệu tập trung</h3>
+                <p class="text-sm leading-relaxed text-slate-500">Khách hàng, đơn hàng, hội thoại, ads, chi phí trong một hệ duy nhất.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-6">
+                <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </div>
+                <h3 class="mb-2 text-base font-semibold">AI Agent theo cơ chế loop</h3>
+                <p class="text-sm leading-relaxed text-slate-500">Quan sát → suy luận → hành động → học — không chỉ trả lời theo kịch bản.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-6">
+                <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
+                </div>
+                <h3 class="mb-2 text-base font-semibold">Đa-agent phối hợp</h3>
+                <p class="text-sm leading-relaxed text-slate-500">Sales, Marketing, CSKH, Vận hành làm việc với nhau như một đội ngũ số.</p>
+            </div>
+        </div>
     </div>
 </section>
 
-<!-- New Products -->
-<section class="border-t border-slate-100 px-6 py-20">
-    <div class="mx-auto max-w-[1200px]">
-        <div class="mb-10 flex items-end justify-between">
-            <h2 class="text-[26px] font-semibold text-slate-900">Sản phẩm mới</h2>
-            <a href="/products" class="hidden text-sm font-medium text-brand hover:text-brand-hover md:inline-block">Xem tất cả &rarr;</a>
+<!-- Loop Example -->
+<section class="bg-[#0A132B] px-6 py-16 text-white md:py-20">
+    <div class="mx-auto max-w-[1100px]">
+        <h2 class="mb-2 text-center text-3xl font-semibold tracking-tight text-white">1 tình huống, nhiều Agent cùng xử lý</h2>
+        <p class="mb-12 text-center text-[15px] text-white/60">Đây là "loop" — không phải khái niệm, mà là cách các Agent thực sự làm việc.</p>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div class="relative rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 text-xs font-semibold text-white">1</div>
+                <h3 class="mb-1.5 text-[14px] font-semibold text-white">Khách hỏi giá</h3>
+                <p class="text-[13px] leading-relaxed text-white/60">Tin nhắn tới từ Facebook/Zalo, vào thẳng hộp thoại chung.</p>
+            </div>
+            <div class="relative rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 text-xs font-semibold text-white">2</div>
+                <h3 class="mb-1.5 text-[14px] font-semibold text-white">Agent tra tồn kho + lịch sử khách</h3>
+                <p class="text-[13px] leading-relaxed text-white/60">Đọc dữ liệu sản phẩm, tồn kho và lịch sử mua hàng của khách đó.</p>
+            </div>
+            <div class="relative rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 text-xs font-semibold text-white">3</div>
+                <h3 class="mb-1.5 text-[14px] font-semibold text-white">Tự chọn sản phẩm, tạo đơn</h3>
+                <p class="text-[13px] leading-relaxed text-white/60">Agent quyết định gợi ý sản phẩm phù hợp và tạo đơn ngay trong hội thoại.</p>
+            </div>
+            <div class="relative rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 text-xs font-semibold text-white">4</div>
+                <h3 class="mb-1.5 text-[14px] font-semibold text-white">Dữ liệu phản hồi ngược cho Agent Marketing</h3>
+                <p class="text-[13px] leading-relaxed text-white/60">Agent Marketing dùng dữ liệu đơn mới để điều chỉnh ads đang chạy.</p>
+            </div>
         </div>
-        <div class="grid grid-cols-2 gap-6 md:grid-cols-4">
-            {% if products and products.size > 0 %}
-                {% for product in products limit: 4 %}
-                    <a href="{{ productUrlPrefix }}/{{ product.slug }}" class="group block">
-                        <div class="relative mb-3 aspect-square overflow-hidden rounded-2xl bg-slate-50 border border-slate-100">
-                            {% if product.imageUrls and product.imageUrls.size > 0 %}
-                                <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
-                            {% else %}
-                                <div class="flex h-full items-center justify-center text-slate-300 text-sm">Không có ảnh</div>
-                            {% endif %}
-                        </div>
-                        <h3 class="truncate text-[14px] font-medium text-slate-800 group-hover:text-brand">{{ product.name }}</h3>
-                        <div class="mt-1 flex items-center gap-2">
-                            {% if product.salePrice and product.salePrice < product.price %}
-                                <span class="text-[14px] font-semibold text-brand">{{ product.salePrice | money }}</span>
-                                <span class="text-[13px] text-slate-400 line-through">{{ product.price | money }}</span>
-                            {% else %}
-                                <span class="text-[14px] font-semibold text-slate-800">{{ product.price | money }}</span>
-                            {% endif %}
-                        </div>
-                    </a>
-                {% endfor %}
-            {% else %}
-                <div class="col-span-2 md:col-span-4 rounded-2xl border border-dashed border-slate-200 py-16 text-center text-sm text-slate-400">Chưa có sản phẩm nào.</div>
-            {% endif %}
+    </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+    <div class="px-6 pb-14 pt-16 md:pt-20">
+        <div class="mx-auto mb-2 max-w-xl text-center">
+            <div class="mb-2.5 text-[13px] font-semibold uppercase tracking-wide text-brand">Tính năng nổi bật</div>
+            <h2 class="text-3xl font-semibold tracking-tight">Không chỉ là ý tưởng — đây là cách AI vận hành thật</h2>
         </div>
+    </div>
+
+    <!-- Feature 1: Chat da kenh AI -->
+    <div class="border-t border-slate-200 bg-white">
+        <div class="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
+            <div class="grid items-center gap-12 md:grid-cols-2 md:gap-16">
+                <div>
+                    <div class="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-brand">Chat đa kênh AI</div>
+                    <h3 class="mb-4 text-2xl font-semibold leading-snug tracking-tight md:text-[26px]">Facebook Messenger &amp; Zalo, AI trả lời real-time</h3>
+                    <ul class="flex flex-col gap-2.5">
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Tin nhắn & bình luận đồng bộ theo thời gian thực</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>AI trả lời theo đúng kịch bản của shop</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Không bỏ sót hội thoại nào, dù đa kênh</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <!-- InboxMock -->
+                    <div class="rounded-[20px] border border-slate-100 bg-white p-5 shadow-xl">
+                        <div class="mb-3.5 flex items-center justify-between border-b border-slate-100 pb-3">
+                            <span class="text-sm font-semibold">Hộp thoại</span>
+                            <span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-brand">2 chưa đọc</span>
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <div class="flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50">
+                                <div class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-brand">
+                                    H
+                                    <span class="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-semibold text-white bg-[#1877f2]">f</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="truncate text-[13px] font-medium">Ngọc Hân</div>
+                                    <div class="truncate text-xs text-slate-500">Shop còn mẫu áo hôm qua không ạ?</div>
+                                </div>
+                                <span class="shrink-0 text-[11px] text-slate-400">1 phút</span>
+                            </div>
+                            <div class="flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50">
+                                <div class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-brand">
+                                    B
+                                    <span class="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-semibold text-white bg-[#0068ff]">Z</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="truncate text-[13px] font-medium">Trọng Bách</div>
+                                    <div class="truncate text-xs text-slate-500">Mình chốt đơn màu đen nhé</div>
+                                </div>
+                                <span class="shrink-0 text-[11px] text-slate-400">4 phút</span>
+                            </div>
+                            <div class="flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50">
+                                <div class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-brand">
+                                    A
+                                    <span class="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-semibold text-white bg-[#1877f2]">f</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="truncate text-[13px] font-medium">Quế Anh</div>
+                                    <div class="truncate text-xs text-slate-500">Bình luận: giá bao nhiêu vậy shop</div>
+                                </div>
+                                <span class="shrink-0 text-[11px] text-slate-400">9 phút</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 2: Ket noi AI van hanh tu xa (reverse) -->
+    <div class="border-t border-slate-200 bg-slate-50">
+        <div class="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
+            <div class="grid items-center gap-12 md:grid-cols-2 md:gap-16">
+                <div class="md:order-2">
+                    <div class="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-brand">Kết nối AI vận hành từ xa</div>
+                    <h3 class="mb-4 text-2xl font-semibold leading-snug tracking-tight md:text-[26px]">Vận hành doanh nghiệp qua MCP</h3>
+                    <ul class="flex flex-col gap-2.5">
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Hỏi báo cáo, tra cứu khách hàng ngay trong hội thoại với AI</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Tạo đơn hàng, xử lý tác vụ mà không cần mở app</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Xác thực riêng cho AI, bảo mật tuyệt đối</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="md:order-1">
+                    <!-- McpMock -->
+                    <div class="rounded-[20px] border border-slate-100 bg-white p-5 shadow-xl">
+                        <div class="mb-4 flex items-center gap-2.5 border-b border-slate-100 pb-3.5">
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 text-white">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                            </div>
+                            <div>
+                                <div class="text-sm font-semibold">Claude · kết nối qua MCP</div>
+                                <div class="flex items-center gap-1 text-xs text-green-600">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-green-600"></span> Đã kết nối {{ site.siteName }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2.5 ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-brand px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">
+                            Doanh thu tuần này bao nhiêu, có đơn nào đang chờ giao không?
+                        </div>
+                        <div class="mb-3 max-w-[90%] rounded-2xl rounded-bl-sm bg-slate-100 px-3.5 py-2.5 text-[13.5px] leading-relaxed text-slate-900">
+                            Tuần này doanh thu 84.200.000đ (+18%). Có 6 đơn đang chờ giao, 2 đơn trễ hẹn quá 24h.
+                        </div>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[12px] font-medium text-brand">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>
+                            Nhắc giao 2 đơn trễ
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 3: Don hang, van chuyen, kho tu dong -->
+    <div class="border-t border-slate-200 bg-white">
+        <div class="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
+            <div class="grid items-center gap-12 md:grid-cols-2 md:gap-16">
+                <div>
+                    <div class="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-brand">Đơn hàng, vận chuyển, kho tự động</div>
+                    <h3 class="mb-4 text-2xl font-semibold leading-snug tracking-tight md:text-[26px]">Orders, Customers, Shipments, Invoices</h3>
+                    <ul class="flex flex-col gap-2.5">
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Kết nối đa hãng vận chuyển (GHTK, GHN, Viettel Post...)</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Theo dõi trạng thái vận đơn tập trung</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Theo dõi tồn kho và hoá đơn tập trung</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <!-- OrdersMock -->
+                    <div class="rounded-[20px] border border-slate-100 bg-white p-5 shadow-xl">
+                        <div class="mb-3.5 flex items-center justify-between border-b border-slate-100 pb-3">
+                            <span class="text-sm font-semibold">Vận đơn gần đây</span>
+                            <span class="inline-flex items-center gap-1 text-[11px] font-medium text-brand">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                                3 hãng vận chuyển
+                            </span>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
+                                <div>
+                                    <div class="text-[13px] font-medium text-slate-900">DH-1042</div>
+                                    <div class="text-xs text-slate-500">GHTK</div>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50">Đang giao</span>
+                            </div>
+                            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
+                                <div>
+                                    <div class="text-[13px] font-medium text-slate-900">DH-1041</div>
+                                    <div class="text-xs text-slate-500">GHN</div>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold text-green-700 bg-green-50">Đã giao</span>
+                            </div>
+                            <div class="flex items-center justify-between rounded-xl bg-slate-50 px-3.5 py-2.5">
+                                <div>
+                                    <div class="text-[13px] font-medium text-slate-900">DH-1040</div>
+                                    <div class="text-xs text-slate-500">Viettel Post</div>
+                                </div>
+                                <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-50">Chờ lấy hàng</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature 4: CRM & phan quyen doi nhom (reverse) -->
+    <div class="border-t border-slate-200 bg-slate-50">
+        <div class="mx-auto max-w-[1200px] px-6 py-14 md:py-20">
+            <div class="grid items-center gap-12 md:grid-cols-2 md:gap-16">
+                <div class="md:order-2">
+                    <div class="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-brand">CRM &amp; phân quyền đội nhóm</div>
+                    <h3 class="mb-4 text-2xl font-semibold leading-snug tracking-tight md:text-[26px]">Quản lý khách hàng theo vai trò &amp; đội nhóm</h3>
+                    <ul class="flex flex-col gap-2.5">
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Lưu lịch sử mua hàng & chăm sóc theo từng khách</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Phân quyền truy cập theo vai trò: Admin, Sale, CSKH</span>
+                        </li>
+                        <li class="flex items-start gap-2.5 text-sm text-slate-700">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0 text-brand"><path d="M20 6 9 17l-5-5"/></svg>
+                            <span>Gán đúng nhân viên phụ trách từng khách hàng</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="md:order-1">
+                    <!-- CrmMock -->
+                    <div class="rounded-[20px] border border-slate-100 bg-white p-5 shadow-xl">
+                        <div class="mb-3.5 flex items-center justify-between border-b border-slate-100 pb-3">
+                            <span class="text-sm font-semibold">Đội ngũ & phân quyền</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+                        </div>
+                        <div class="flex flex-col gap-2.5">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white bg-brand">M</div>
+                                <div class="min-w-0 flex-1 text-[13px] font-medium text-slate-900">Minh Anh</div>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">Quản trị viên</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white bg-cyan-500">T</div>
+                                <div class="min-w-0 flex-1 text-[13px] font-medium text-slate-900">Tuấn Minh</div>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">Sale</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white bg-slate-400">H</div>
+                                <div class="min-w-0 flex-1 text-[13px] font-medium text-slate-900">Hoàng Nam</div>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">CSKH</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Choose -->
+<section class="px-6 py-16 md:py-20">
+    <div class="mx-auto max-w-[1200px] overflow-hidden rounded-[28px] bg-gradient-to-br from-blue-600 to-[#0A132B] px-6 py-14 text-white md:px-12 md:py-16">
+        <div class="mx-auto mb-12 max-w-xl text-center">
+            <span class="mb-4 inline-flex items-center rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold uppercase tracking-wide text-white">Vì sao chọn {{ site.siteName }}</span>
+            <h2 class="text-3xl font-semibold tracking-tight text-white">Tất cả trong một nền tảng — thay vì quản trị rời rạc</h2>
+        </div>
+
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-4">
+            <div class="flex flex-col items-center justify-center rounded-2xl bg-white p-8 text-center text-slate-900">
+                <div class="relative mb-5 flex h-28 w-28 items-center justify-center">
+                    <span class="absolute left-0 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#1877f2] text-white">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                    </span>
+                    <span class="absolute right-0 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[#0068ff] text-[11px] font-semibold text-white">Zalo</span>
+                    {% if site.logoUrl %}
+                        <img src="{{ site.logoUrl }}" alt="{{ site.siteName }}" class="relative h-12 w-12 rounded-[12px] object-contain ring-4 ring-blue-50">
+                    {% endif %}
+                </div>
+                <h3 class="mb-1.5 text-base font-semibold">Hợp nhất mọi kênh</h3>
+                <p class="text-[13px] leading-relaxed text-slate-500">Một dữ liệu cho toàn bộ hoạt động chăm sóc khách hàng</p>
+            </div>
+
+            <div class="rounded-2xl bg-white/10 p-6">
+                <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </div>
+                <h3 class="mb-2 text-[15px] font-semibold text-white">Không bỏ lỡ khách hàng nào</h3>
+                <p class="text-[13px] leading-relaxed text-white/65">AI trả lời tức thì trên cả Facebook & Zalo, không lệch múi giờ, không bỏ sót tin nhắn.</p>
+            </div>
+            <div class="rounded-2xl bg-white/10 p-6">
+                <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+                </div>
+                <h3 class="mb-2 text-[15px] font-semibold text-white">Quản lý tập trung tại một nơi duy nhất</h3>
+                <p class="text-[13px] leading-relaxed text-white/65">Khách hàng, đơn hàng, hội thoại, kho và hoá đơn đồng bộ tại một hệ thống, không phải ghép nối nhiều tool.</p>
+            </div>
+            <div class="rounded-2xl bg-white/10 p-6">
+                <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
+                </div>
+                <h3 class="mb-2 text-[15px] font-semibold text-white">Từ tư vấn đến giao hàng liền mạch</h3>
+                <p class="text-[13px] leading-relaxed text-white/65">AI xử lý xuyên suốt từ trả lời, tạo đơn đến theo dõi vận chuyển — không đứt quãng giữa các bước.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Infrastructure -->
+<section class="px-6 py-16 md:py-20">
+    <div class="mx-auto max-w-[1100px]">
+        <h2 class="mb-12 text-center text-3xl font-semibold tracking-tight">Server riêng. Database riêng. Tên miền riêng.</h2>
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 text-center">
+                <div class="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+                </div>
+                <h3 class="mb-2 text-base font-semibold">Không chung hạ tầng với ai</h3>
+                <p class="text-sm leading-relaxed text-slate-500">Máy chủ riêng, không dùng chung tài nguyên với tenant khác.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 text-center">
+                <div class="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <h3 class="mb-2 text-base font-semibold">Không sợ khoá tài khoản</h3>
+                <p class="text-sm leading-relaxed text-slate-500">Bạn kiểm soát hệ thống của mình, không phụ thuộc chính sách nhà cung cấp.</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 text-center">
+                <div class="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+                </div>
+                <h3 class="mb-2 text-base font-semibold">Dữ liệu là của bạn</h3>
+                <p class="text-sm leading-relaxed text-slate-500">Database riêng, tên miền riêng — không phải đi thuê chung.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Audience Fit -->
+<section class="border-y border-slate-100 bg-slate-50 px-6 py-14">
+    <div class="mx-auto max-w-[760px] text-center">
+        <p class="text-[16px] font-medium leading-relaxed text-slate-700">
+            Dành cho doanh nghiệp đã thử qua chatbot/CRM rời rạc và cần một hệ thống thật sự <span class="font-semibold text-blue-700">vận hành</span>, không phải thêm một app nữa.
+        </p>
     </div>
 </section>
 
 <!-- Pricing -->
-<section id="pricing" class="border-t border-slate-100 bg-slate-50/60 px-6 py-20">
-    <div class="mx-auto max-w-[1000px] text-center">
-        <h2 class="text-[26px] font-semibold text-slate-900 md:text-[32px]">Bảng giá</h2>
-        <p class="mt-3 text-[15px] text-slate-500">Bắt đầu miễn phí, nâng cấp khi cần vận hành thật.</p>
-    </div>
-    <div class="mx-auto mt-12 grid max-w-[900px] gap-6 md:grid-cols-2">
-        <div class="rounded-2xl border border-slate-200 bg-white p-8">
-            <h3 class="text-lg font-semibold text-slate-900">Dùng thử</h3>
-            <p class="mt-2 text-3xl font-medium text-slate-900">0đ</p>
-            <ul class="mt-6 space-y-3 text-sm text-slate-600">
-                <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> 1 kênh kết nối (Facebook/Zalo)</li>
-                <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> 1 AI Agent cơ bản</li>
-                <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> Giới hạn tin nhắn/tháng</li>
-            </ul>
-            <a href="/account" class="mt-8 block rounded-full border border-slate-200 px-6 py-3 text-center text-sm font-medium text-slate-700 hover:bg-slate-50">Bắt đầu miễn phí</a>
-        </div>
-        <div class="rounded-2xl border-2 border-brand bg-white p-8 shadow-lg shadow-blue-100">
-            <h3 class="text-lg font-semibold text-slate-900">Đầy đủ</h3>
-            <p class="mt-2 text-3xl font-medium text-slate-900">Liên hệ</p>
-            <ul class="mt-6 space-y-3 text-sm text-slate-600">
-                <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> Không giới hạn kênh kết nối</li>
-                <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> Nhiều AI Agent phối hợp</li>
-                <li class="flex items-start gap-2"><span class="mt-1 text-brand">✓</span> Hạ tầng riêng, không giới hạn tin nhắn</li>
-            </ul>
-            <a href="/account" class="mt-8 block rounded-full bg-brand px-6 py-3 text-center text-sm font-medium text-white hover:bg-brand-hover">Liên hệ tư vấn</a>
-        </div>
-    </div>
-</section>
-
-<!-- Latest Posts -->
-<section class="px-6 py-20">
+<section id="pricing" class="bg-slate-50 px-6 py-16 md:py-20">
     <div class="mx-auto max-w-[1200px]">
-        <div class="mb-10 flex items-end justify-between">
-            <h2 class="text-[26px] font-semibold text-slate-900">Bài viết mới</h2>
-            <a href="/blog" class="hidden text-sm font-medium text-brand hover:text-brand-hover md:inline-block">Xem tất cả &rarr;</a>
+        <div class="mx-auto mb-12 max-w-xl text-center">
+            <div class="mb-2.5 text-[13px] font-semibold uppercase tracking-wide text-brand">Bảng giá</div>
+            <h2 class="mb-3 text-3xl font-semibold tracking-tight">Chi phí hợp lý, bắt đầu dễ dàng</h2>
+            <p class="text-[15px] text-slate-500">Dùng thử miễn phí với $5 credit AI. Không cần thẻ tín dụng.</p>
         </div>
-        <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {% if posts and posts.size > 0 %}
-                {% for post in posts limit: 3 %}
-                    <a href="{{ postUrlPrefix }}/{{ post.slug }}" class="group block">
-                        <div class="mb-4 aspect-[4/3] overflow-hidden rounded-2xl bg-slate-50 border border-slate-100">
-                            {% if post.coverImage %}
-                                <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
-                            {% else %}
-                                <div class="flex h-full items-center justify-center text-slate-300 text-sm">Không có ảnh</div>
-                            {% endif %}
-                        </div>
-                        <p class="text-xs text-slate-400">{{ post.publishedAt | date: "%d/%m/%Y" }}</p>
-                        <h3 class="mt-1 text-[16px] font-semibold text-slate-900 group-hover:text-brand line-clamp-2">{{ post.title }}</h3>
-                        <p class="mt-2 text-sm text-slate-500 line-clamp-2">{{ post.excerpt }}</p>
-                    </a>
-                {% endfor %}
-            {% else %}
-                <div class="md:col-span-3 rounded-2xl border border-dashed border-slate-200 py-16 text-center text-sm text-slate-400">Chưa có bài viết nào.</div>
-            {% endif %}
+
+        <div class="mx-auto grid max-w-[900px] grid-cols-1 gap-6 md:grid-cols-2">
+            <div class="relative overflow-hidden rounded-[20px] border-2 border-brand bg-white p-8 shadow-xl">
+                <div class="mb-1 flex items-center gap-2.5">
+                    <h3 class="text-xl font-semibold">Dùng thử</h3>
+                    <span class="rounded-full bg-brand px-2.5 py-1 text-[11px] font-semibold text-white">PHỔ BIẾN</span>
+                </div>
+                <p class="mb-6 text-sm text-slate-500">Phù hợp shop nhỏ mới bắt đầu</p>
+                <div class="mb-6 flex items-baseline gap-1.5">
+                    <span class="text-4xl font-semibold text-slate-900">Miễn phí</span>
+                    <span class="text-sm font-medium text-slate-500">+ $5 credit AI</span>
+                </div>
+                <a href="https://account.leadbase.vn" class="mb-7 block w-full rounded-full bg-brand py-3.5 text-center text-[15px] font-medium text-white transition-colors hover:bg-brand-hover">
+                    Dùng thử miễn phí
+                </a>
+                <div class="mb-3.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">Bao gồm</div>
+                <ul class="flex flex-col gap-3 text-sm text-slate-700">
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Live chat đa kênh Facebook & Zalo</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>AI Agent tư vấn tự động</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Tự động lên đơn ngay trong chat</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Tự động bám đuổi khách hàng</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Quản lý sản phẩm & đơn hàng</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Hạ tầng dùng chung</span></li>
+                </ul>
+            </div>
+
+            <div class="rounded-[20px] border border-slate-200 bg-white p-8">
+                <h3 class="mb-1 text-xl font-semibold">Đầy đủ</h3>
+                <p class="mb-6 text-sm text-slate-500">Tuỳ chỉnh cho quy mô lớn</p>
+                <div class="mb-6 text-4xl font-semibold text-slate-900">Liên hệ</div>
+                <a href="tel:02422141333" class="mb-7 block w-full rounded-full border-2 border-brand py-3.5 text-center text-[15px] font-medium text-brand transition-colors hover:bg-blue-50">
+                    Liên hệ tư vấn
+                </a>
+                <div class="mb-3.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">Mọi thứ ở gói Dùng thử, cộng thêm</div>
+                <ul class="flex flex-col gap-3 text-sm text-slate-700">
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Máy chủ riêng, không dùng chung</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Database riêng</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Tên miền riêng theo thương hiệu</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>AI sử dụng không giới hạn</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Đa-agent phối hợp theo vai trò</span></li>
+                    <li class="flex items-start gap-2.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-1 shrink-0 text-brand"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span>Tư vấn setup và đồng hành triển khai</span></li>
+                </ul>
+            </div>
         </div>
+        <p class="mt-8 text-center text-xs text-slate-400">Giá tham khảo · tuỳ chỉnh theo nhu cầu hạ tầng và mức sử dụng AI. Liên hệ để báo giá chính xác.</p>
     </div>
 </section>
 
 <!-- FAQ -->
-<section class="border-t border-slate-100 bg-slate-50/60 px-6 py-20">
-    <div class="mx-auto max-w-[720px]">
-        <h2 class="mb-10 text-center text-[26px] font-semibold text-slate-900 md:text-[32px]">Câu hỏi thường gặp</h2>
-        <div class="space-y-4">
-            <details class="group rounded-xl border border-slate-200 bg-white p-5">
-                <summary class="cursor-pointer text-[15px] font-medium text-slate-800">{{ site.siteName }} có phải chatbot không?</summary>
-                <p class="mt-3 text-sm leading-relaxed text-slate-500">Không. Chatbot chỉ trả lời tin nhắn; {{ site.siteName }} là hệ vận hành — kết nối dữ liệu, điều phối AI Agent, và tự động hoá công việc thật giữa các phòng ban.</p>
+<section id="faq" class="px-6 py-16 md:py-20">
+    <div class="mx-auto max-w-[1200px]">
+        <div class="mx-auto mb-12 max-w-xl text-center">
+            <div class="mb-2.5 text-[13px] font-semibold uppercase tracking-wide text-brand">Câu hỏi thường gặp</div>
+            <h2 class="text-3xl font-semibold tracking-tight">Còn thắc mắc gì không?</h2>
+        </div>
+        <div class="mx-auto max-w-[760px]">
+            <details class="border-b border-slate-200 py-4" open>
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium marker:content-none">{{ site.siteName }} khác gì với chatbot AI thông thường?</summary>
+                <p class="mt-3 text-sm leading-relaxed text-slate-500">Chatbot thông thường chỉ trả lời tin nhắn theo kịch bản. {{ site.siteName }} gom toàn bộ dữ liệu vận hành (khách hàng, đơn hàng, ads, chi phí) về một nơi để các AI Agent tự suy luận và hành động, không chỉ trả lời.</p>
             </details>
-            <details class="group rounded-xl border border-slate-200 bg-white p-5">
-                <summary class="cursor-pointer text-[15px] font-medium text-slate-800">Có cần đội kỹ thuật riêng để triển khai không?</summary>
-                <p class="mt-3 text-sm leading-relaxed text-slate-500">Không bắt buộc. Gói Dùng thử có thể tự thiết lập trong vài phút; gói Đầy đủ được đội ngũ hỗ trợ triển khai trên hạ tầng riêng của bạn.</p>
+            <details class="border-b border-slate-200 py-4">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium marker:content-none">"Loop" và "đa-agent" nghĩa là gì?</summary>
+                <p class="mt-3 text-sm leading-relaxed text-slate-500">Loop là chu trình quan sát → suy luận → hành động → học của mỗi Agent. Đa-agent nghĩa là các Agent theo vai trò (Sales, Marketing, CSKH, Vận hành) chia sẻ dữ liệu và phối hợp với nhau thay vì hoạt động độc lập.</p>
             </details>
+            <details class="border-b border-slate-200 py-4">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium marker:content-none">Vì sao cần hạ tầng riêng thay vì dùng chung?</summary>
+                <p class="mt-3 text-sm leading-relaxed text-slate-500">Hạ tầng riêng (server, database, tên miền) đảm bảo dữ liệu của bạn không nằm chung với tenant khác, không phụ thuộc chính sách nhà cung cấp, và bạn kiểm soát toàn bộ hệ thống của mình.</p>
+            </details>
+            <details class="border-b border-slate-200 py-4">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium marker:content-none">Gói dùng thử có những tính năng gì?</summary>
+                <p class="mt-3 text-sm leading-relaxed text-slate-500">Live chat, AI tư vấn, tự động lên đơn, tự động bám đuổi khách hàng, quản lý sản phẩm và đơn hàng — dùng hạ tầng chung, AI có hạn mức theo $5 credit miễn phí.</p>
+            </details>
+            <details class="border-b border-slate-200 py-4">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium marker:content-none">Khi nào nên chuyển sang gói Đầy đủ?</summary>
+                <p class="mt-3 text-sm leading-relaxed text-slate-500">Khi bạn cần AI sử dụng không giới hạn và hạ tầng riêng (server, database, tên miền) để vận hành độc lập, không còn phù hợp với giới hạn của gói dùng thử.</p>
+            </details>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Band -->
+<section class="px-6 pb-10 pt-16">
+    <div class="mx-auto max-w-[1200px] overflow-hidden rounded-[24px] bg-gradient-to-br from-blue-600 to-[#0A132B] px-8 py-12 text-center md:px-14">
+        <h2 class="mb-3 text-3xl font-semibold text-white">Bắt đầu với {{ site.siteName }} hôm nay</h2>
+        <p class="mx-auto mb-7 max-w-lg text-[15px] text-white/80">Trải nghiệm AI Agent vận hành thật với gói Dùng thử, hoặc gọi trực tiếp để được tư vấn hạ tầng riêng.</p>
+        <div class="flex flex-wrap justify-center gap-3">
+            <a href="https://account.leadbase.vn" class="rounded-full bg-white px-6 py-3.5 text-[15px] font-medium text-blue-700 transition-colors hover:bg-slate-100">
+                Dùng thử miễn phí
+            </a>
+            <a href="tel:02422141333" class="inline-flex items-center gap-2 rounded-full border border-white/40 px-6 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-white/10">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                024 2214 1333
+            </a>
         </div>
     </div>
 </section>
