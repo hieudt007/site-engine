@@ -2,7 +2,7 @@
 @description: Chan trang.
 @required_substrings: site.siteName, footerMenu, year
 @required_ids:
-@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ" hardcode toi /privacy va /terms - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 2 trang tinh (page.liquid) voi slug dung "privacy"/"terms" thi 2 link nay moi co noi dung, neu khong se ra 404. Cot "Lien he" dung dung cac truong that tu SiteConfig (settings-general.liquid): site.companyName (ten phap nhan day du, khac site.siteName la ten thuong hieu ngan), site.contactEmail, site.contactPhone, site.contactAddress, site.businessLicense - PHAI bao {% if %} cho TUNG truong vi tat ca deu optional/co the rong (chua tung dien), khong duoc gia dinh luon co du lieu. Icon mang xa hoi (site.socialLinks JSON {facebook,zalo,tiktok,youtube} - xem routes/admin/settings.ts) dat o cot "Brand" (dau tien, duoi tagline) - KHONG dat o cot Lien he (da chuyen theo yeu cau). "Khám phá"+"Hỗ trợ" duoc boc trong 1 div "grid grid-cols-2 md:contents" de hien 1 hang 2 cot tren mobile nhung van tro thanh 2 item rieng cua grid cha o desktop (giu dung bo cuc 4 cot ngang hang). Bo cuc mo phong chatbot-lite/web/src/components/PublicLayout.tsx (PublicFooter) nhung thay cong ty hardcode bang du lieu dong cua tenant.
+@notes: Nhan bien site, footerMenu (giong header.liquid) va year (nam hien tai, dung cho dong ban quyen). Link "Chính sách bảo mật"/"Điều khoản dịch vụ"/"Hướng dẫn xoá dữ liệu" hardcode toi /p/privacy, /p/terms, /p/data-deletion - day la QUY UOC co chu dich (khong tra theo Page that trong DB), admin PHAI tu tao 3 trang tinh (page.liquid) voi slug dung "privacy"/"terms"/"data-deletion" thi 3 link nay moi co noi dung, neu khong se ra 404. Trang tinh (page.liquid) luon nam duoi prefix "/p/<slug>", KHONG PHAI "/<slug>" - xem routes/public/pages.ts ("/p/:slug"). Cot "Lien he" dung dung cac truong that tu SiteConfig (settings-general.liquid): site.companyName (ten phap nhan day du, khac site.siteName la ten thuong hieu ngan), site.contactEmail, site.contactPhone, site.contactAddress, site.businessLicense - PHAI bao {% if %} cho TUNG truong vi tat ca deu optional/co the rong (chua tung dien), khong duoc gia dinh luon co du lieu. Icon mang xa hoi (site.socialLinks JSON {facebook,zalo,tiktok,youtube} - xem routes/admin/settings.ts) dat o cot "Brand" (dau tien, duoi tagline) - KHONG dat o cot Lien he (da chuyen theo yeu cau). "Khám phá"+"Hỗ trợ" duoc boc trong 1 div "grid grid-cols-2 md:contents" de hien 1 hang 2 cot tren mobile nhung van tro thanh 2 item rieng cua grid cha o desktop (giu dung bo cuc 4 cot ngang hang). Bo cuc mo phong chatbot-lite/web/src/components/PublicLayout.tsx (PublicFooter) nhung thay cong ty hardcode bang du lieu dong cua tenant.
 {% endcomment %}
 <footer class="bg-brand-dark px-6 pb-10 pt-16 text-white/70">
     <div class="mx-auto max-w-[1200px]">
@@ -65,8 +65,9 @@
                     <h4 class="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">Hỗ trợ</h4>
                     <ul class="space-y-3 text-sm">
                         <li><a href="https://account.leadbase.vn" class="text-white/60 hover:text-white transition-colors">Tài khoản</a></li>
-                        <li><a href="/privacy" class="text-white/60 hover:text-white transition-colors">Chính sách bảo mật</a></li>
-                        <li><a href="/terms" class="text-white/60 hover:text-white transition-colors">Điều khoản dịch vụ</a></li>
+                        <li><a href="/p/privacy" class="text-white/60 hover:text-white transition-colors">Chính sách bảo mật</a></li>
+                        <li><a href="/p/terms" class="text-white/60 hover:text-white transition-colors">Điều khoản dịch vụ</a></li>
+                        <li><a href="/p/data-deletion" class="text-white/60 hover:text-white transition-colors">Hướng dẫn xoá dữ liệu</a></li>
                     </ul>
                 </div>
             </div>

@@ -1,7 +1,39 @@
 {% comment %}
-@description: Layout "landing" cho bai viet/trang/san pham - trang HOAN TOAN doc lap, KHONG header/footer/nav/breadcrumb/cart-drawer cua site (khac custom-content.liquid van giu header/footer). Dung cho landing page ban hang tu thiet ke rieng tu dau den cuoi.
-@required_substrings: rawHtml
+@description: Layout "landing" cho bai viet/trang/san pham - trang HOAN TOAN doc lap, KHONG header/footer/nav/breadcrumb/cart-drawer cua site (khac custom-content.liquid van giu header/footer). Dung cho landing page ban hang thiet ke rieng tu dau den cuoi.
+@required_substrings: rawHtml, </head>, </body>
 @required_ids:
-@notes: Nhan rawHtml (String, DA SANITIZE o server - xem routes/public/blog.ts, pages.ts, products.ts goi renderPublic("landing", { rawHtml: post.body/page.body/product.description })). File nay KHONG duoc {% layout "layout" %} (co chu dich - khong header/footer) nen PHAI tu viet du <!DOCTYPE html><html><head>...</head><body>{{ rawHtml }}</body></html> (kem <meta charset>/<meta viewport>, co the giu Tailwind CDN script giong layout.liquid neu rawHtml dung class Tailwind) roi render {{ rawHtml }} RAW (KHONG escape) trong <body>. HIEN TRANG: file nay dang la stub placeholder "<div>...</div>", CHUA co doctype/html/head/body gi ca va CHUA render rawHtml - can viet lai truoc khi dung duoc, neu khong moi noi dung dat layoutMode='landing' se hien ra trang trong khong co gi.
+@notes: File nay KHONG {% layout "layout" %} (co chu dich - khong header/footer). rawHtml DA duoc Liquid-compile boi services/themeRenderer.ts:157-165 truoc khi toi day (admin viet duoc tag/bien Liquid trong noi dung) - o day chi render {{ rawHtml }} RAW trong <body>. PHAI GIU nguyen van chuoi "</head>" va "</body>" that su xuat hien trong HTML sau khi Liquid render xong (khong duoc dung comment/bien che di) - themeRenderer.ts chen JSON-LD schema + analytics scripts (GA/FB Pixel/customHeadScript) bang string-replace ngay TRUOC "</head>", va customFooterScript ngay TRUOC "</body>", AP DUNG CHO MOI TEMPLATE (khong rieng gi layout.liquid) - thieu 1 trong 2 the dong nay se lam site rot schema/tracking/script tuy bien tren landing page. Tailwind self-host giong layout.liquid (script + tailwind.config mau brand) de rawHtml dung class Tailwind van chay dung - neu rawHtml tu viet CSS rieng thi script nay khong gay hai gi (chi khong dung toi).
 {% endcomment %}
-<div>...</div>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ pageTitle | default: site.siteName }}</title>
+    {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
+    {% if metaDescription %}<meta name="description" content="{{ metaDescription | escape }}">{% endif %}
+    {% if noindex %}<meta name="robots" content="noindex">{% endif %}
+
+    <script src="/theme-assets/{{ themeSlug }}/assets/tailwind.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0A132B',
+                            DEFAULT: '#2563eb',
+                            hover: '#1d4ed8',
+                            light: '#eff6ff',
+                            gray: '#64748B'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+{{ rawHtml }}
+</body>
+</html>
