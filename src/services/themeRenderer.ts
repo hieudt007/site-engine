@@ -4,7 +4,7 @@ import { CacheService } from "./CacheService.js";
 import crypto from "node:crypto";
 import { logger } from "../logger.js";
 import { config as appConfig } from "../config.js";
-import { buildOrganizationSchema } from "./schema.js";
+import { absoluteUrl, buildMetaTags, buildOrganizationSchema } from "./schema.js";
 import { pagePrefix, prefixPath, postPrefix, productPrefix } from "./urlPaths.js";
 
 // Render trang PUBLIC bằng theme đang active (system_design.md §10, tech_doc.md §3). Theme
@@ -169,8 +169,23 @@ export async function renderPublic(template: string, data: RenderData, themeSlug
   const allSchemas = [buildOrganizationSchema({ siteName: site.siteName, logoUrl: site.logoUrl, domain: site.domain }), ...(schemas ?? [])];
   const withSchemas = injectSchemas(html, allSchemas);
 
+  // Canonical/Open Graph/Twitter Card/article:* - xay TU allSchemas (da "phan loai trang" san qua
+  // @type: "BlogPosting"/"Product", xem buildMetaTags trong schema.ts), khong can route nao tu
+  // truyen rieng ogType/ogImage. canonicalUrl lay tu breadcrumbs[cuoi cung].url - MOI route public
+  // co breadcrumb da tu dat dung URL trang hien tai lam phan tu cuoi (xem routes/public/*.ts), chi
+  // trang khong co breadcrumb (home.ts) moi fallback ve "/".
+  const breadcrumbs = (restData as { breadcrumbs?: { name: string; url: string }[] }).breadcrumbs;
+  const canonicalPath = breadcrumbs && breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].url : "/";
+  const canonicalUrl = absoluteUrl(site.domain, canonicalPath);
+  const pageTitle = (restData as { pageTitle?: string }).pageTitle || site.siteName;
+  const metaDescription = (restData as { metaDescription?: string }).metaDescription;
+  const metaTagsHtml = buildMetaTags(allSchemas, site as unknown as { siteName: string; domain: string; defaultOgImage?: string | null; socialLinks?: { facebook?: string } | null }, pageTitle, metaDescription, canonicalUrl);
+  const withMetaTags = withSchemas.includes("</head>")
+    ? withSchemas.replace("</head>", metaTagsHtml + "\n</head>")
+    : withSchemas + metaTagsHtml;
+
   const analyticsScripts = buildAnalyticsScripts(site);
-  let finalHtml = withSchemas;
+  let finalHtml = withMetaTags;
 
   if (analyticsScripts) {
     finalHtml = finalHtml.includes("</head>")

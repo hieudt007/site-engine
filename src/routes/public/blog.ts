@@ -90,7 +90,7 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
       ...(post.categories[0] ? [{ name: post.categories[0].name, url: new URL(postCategoryPath(urlConfig ?? {}, post.categories[0].slug), site.baseUrl).toString() }] : []),
       { name: post.title, url: postUrl },
     ];
-    const schemas = [buildArticleSchema(post, site, postUrl), buildBreadcrumbSchema(breadcrumbItems)];
+    const schemas = [buildArticleSchema(post, site, postUrl, post.categories[0]?.name), buildBreadcrumbSchema(breadcrumbItems)];
 
     // Uu tien bai cung CHU DE (topicId, 1-1) truoc, sau do lap day bang bai cung DANH MUC (nhieu-
     // nhieu) cho du toi da 6 bai - loc trung id (1 bai co the vua cung topic vua cung category).
@@ -639,7 +639,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
         ...(post.categories[0] ? [{ name: post.categories[0].name, url: new URL(postCategoryPath(urlConfig ?? {}, post.categories[0].slug), site.baseUrl).toString() }] : []),
         { name: post.title, url: postUrl },
       ];
-      const schemas = [buildArticleSchema(post, site, postUrl), buildBreadcrumbSchema(breadcrumbItems)];
+      const schemas = [buildArticleSchema(post, site, postUrl, post.categories[0]?.name), buildBreadcrumbSchema(breadcrumbItems)];
       html = await renderPublic("blog-post", {
         ...pageData,
         breadcrumbs: [
