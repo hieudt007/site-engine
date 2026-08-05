@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import TurndownService from "turndown";
+import { CacheService } from "./CacheService.js";
 
 const markdownCache = new Map<string, { hash: string; markdown: string; wordCount: number }>();
 
@@ -131,10 +132,11 @@ export function registerGeoMarkdownHook(app: FastifyInstance): void {
     if (!html || !/<html|<body|<main|<article|<section|<h1|<p[\s>]/i.test(html)) return payload;
 
     const { markdown, contentHash, wordCount: count } = htmlToMarkdown(request.url, html, absoluteRequestUrl(request));
+    const siteConfig = await CacheService.getSiteConfig();
     appendVary(reply, "Accept");
     reply.header("Content-Type", "text/markdown; charset=utf-8");
     reply.header("ETag", `"geo-${contentHash.slice(0, 32)}"`);
-    reply.header("X-Markdown-Generator", "Site Engine GEO");
+    reply.header("X-Markdown-Generator", `${siteConfig.siteName} GEO`);
     reply.header("X-Markdown-Word-Count", String(count));
     if (!reply.getHeader("cache-control")) {
       reply.header("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
