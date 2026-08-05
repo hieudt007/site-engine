@@ -225,7 +225,21 @@ async function start(): Promise<void> {
   fs.mkdirSync(uploadsDir, { recursive: true }); // @fastify/static doi root ton tai luc dang ky
 
   await app.register(fastifyMultipart, { limits: { fileSize: 8 * 1024 * 1024 } });
-  await app.register(fastifyRateLimit, { global: false, errorResponseBuilder: (_request, _context) => ({ error: "Vượt quá giới hạn request, vui lòng thử lại sau." }) });
+  // BUG that da gap: @fastify/rate-limit THROW ket qua tra ve cua errorResponseBuilder nguyen van
+  // (xem node_modules/@fastify/rate-limit/index.js: "throw params.errorResponseBuilder(...)") - neu
+  // object tra ve KHONG co "statusCode", app.setErrorHandler() o tren (chi doc error.statusCode) se
+  // roi vao nhanh fallback 500 thay vi 429 that su. Object mac dinh cua chinh thu vien co gan
+  // statusCode (xem defaultErrorResponse), nhung builder tuy chinh nay truoc gio quen gan lai nen
+  // MOI route co rate limit (cart/checkout, customer-chat, reviews...) tu truoc gio deu tra 500 sai
+  // thay vi 429 dung khi khach thuc su bi chan - client (browser/script) khong phan biet duoc voi
+  // loi server that, khong biet ma retry sau dung nghia.
+  await app.register(fastifyRateLimit, {
+    global: false,
+    errorResponseBuilder: (_request, context) => ({
+      statusCode: context.statusCode,
+      error: "Vượt quá giới hạn request, vui lòng thử lại sau.",
+    }),
+  });
   await app.register(fastifyStatic, {
     root: uploadsDir,
     prefix: "/uploads/",
