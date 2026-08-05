@@ -418,6 +418,10 @@
                 finalMsgs.forEach(msg => appendMessage(msg, false));
               }
               messagesEl.scrollTop = messagesEl.scrollHeight;
+
+              // Token Turnstile dung 1 lan - reset ngay sau khi gui thanh cong de tin nhan TIEP THEO
+              // co token moi (khong reset thi tin thu 2 se gui lai token cu da dung, bi tu choi).
+              if (window.turnstile) window.turnstile.reset();
             }
           }
         }

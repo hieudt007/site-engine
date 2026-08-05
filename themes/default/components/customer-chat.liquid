@@ -10,7 +10,9 @@ chua co) - loi that da gap o theme leadbase.
 {% endcomment %}
 <link rel="stylesheet" href="/assets/customer-chat/chat-drawer.css">
 <script src="/assets/customer-chat/chat-drawer.js" defer></script>
+{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
 <div id="plugin-chat-drawer" class="plugin-chat-container fixed bottom-4 right-4 z-50" data-session-id="{{ chatSessionId | escape }}" data-hmac="{{ chatHmacToken | escape }}">
+  {% if site.turnstileSiteKey %}<div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-size="invisible"></div>{% endif %}
   <button class="plugin-chat-toggle bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 transition">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
