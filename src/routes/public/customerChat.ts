@@ -120,8 +120,13 @@ export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Pr
         return reply.code(429).send({ error: "Bạn đã vượt quá số lượng tin nhắn cho phép. Vui lòng quay lại sau." });
       }
 
-      const spamRecords = await prisma.customerChatMessage.count({ where: { sessionId, role: "error" } });
-      if (spamRecords > 2) {
+      // Dem chung 2 loai "vi pham": "error" (AI xu ly bi exception that su) VA "spam" (AI TU nhan
+      // dien qua tool mark_as_spam - xem duoi). Truoc day chi dem "error", con "spam" chi tra ve
+      // FE qua field isSpam ma KHONG luu DB/khong dem gi ca - tool mark_as_spam vi vay chua he co
+      // tac dung khoa session that su, chi la 1 loi khuyen suong cho AI tu choi lich su. Gio gop
+      // chung 1 nguong de tool nay co hieu luc thuc te.
+      const abuseRecords = await prisma.customerChatMessage.count({ where: { sessionId, role: { in: ["error", "spam"] } } });
+      if (abuseRecords > 2) {
         return reply.code(403).send({ error: "Phiên chat của bạn đã bị ngưng phục vụ do phát hiện nhiều nội dung không hợp lệ." });
       }
 
@@ -244,6 +249,17 @@ export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Pr
             ...(metadata ? { metadata } : {}),
           },
         });
+
+        // Ghi rieng 1 ban ghi role="spam" khi AI goi mark_as_spam - CHI de dem cho nguong
+        // abuseRecords o tren (khong anh huong lich su hoi thoai hien thi lai cho AI, vi
+        // formatHistoryBlock/vong lap build "history" phia tren chi doc role "user"/"assistant").
+        // Tin nhan tu choi cua AI (messagesOut) van duoc luu binh thuong o tren nhu 1 luot assistant,
+        // ban ghi nay chi la "the bao pham loi" rieng.
+        if (isSpam) {
+          await prisma.customerChatMessage.create({
+            data: { sessionId, agentKey, role: "spam", message: messagesOut.join("\n") || "(AI flagged this message as spam)" },
+          });
+        }
 
         sseWrite({ step: "done", payload: { messages: messagesOut, agent: { name: agent.name }, isSpam } });
       } catch (err: any) {
