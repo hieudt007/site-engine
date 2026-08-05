@@ -2,16 +2,32 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileTypeFromBuffer } from "file-type";
+import sharp from "sharp";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { CacheService } from "./CacheService.js";
 import { prisma } from "../db.js";
 import { rewriteMediaUrlReferences } from "./mediaUsage.js";
 import { decryptNodeString } from "../nodeCrypt.js";
 
-// Luu file that tren dia VPS o uploads/ (sibling dist/) - KHONG resize/optimize (bo qua sharp,
-// tranh phu thuoc native binary kho cai tren VPS - don gian hoa co chu dich). Serve qua
-// @fastify/static dang ky trong server.ts (uploads/ -> /uploads/*).
+// Luu file that tren dia VPS o uploads/ (sibling dist/), serve qua @fastify/static dang ky trong
+// server.ts (uploads/ -> /uploads/*). Anh duoc toi uu (resize + nen) bang sharp truoc khi luu -
+// xem optimizeImageBuffer().
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+
+// Toi uu anh: tu xoay theo EXIF, resize GIU TY LE ve toi da 1920px (chieu dai nhat), khong phong
+// to anh nho hon, nen lai theo dung dinh dang goc (quality ~82, can bang chat luong/dung luong).
+// Bo qua GIF (resize se lam mat animation, giu nguyen buffer goc).
+const MAX_DIMENSION = 1920;
+async function optimizeImageBuffer(buffer: Buffer, mimeType: string): Promise<Buffer> {
+  if (mimeType === "image/gif") return buffer;
+
+  let pipeline = sharp(buffer).rotate().resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true });
+  if (mimeType === "image/png") pipeline = pipeline.png({ quality: 82 });
+  else if (mimeType === "image/webp") pipeline = pipeline.webp({ quality: 82 });
+  else pipeline = pipeline.jpeg({ quality: 82 });
+
+  return pipeline.toBuffer();
+}
 
 // Cloudflare R2 (S3-compatible) - cau hinh qua trang Cai dat (SiteConfig.r2*, KHONG dung env, xem
 // ghi chu trong schema.prisma) chu khong hard-code o day, vi moi site-engine instance la 1 tenant
@@ -123,17 +139,18 @@ export async function saveUploadedFile(
   _clientMimeType: string,
 ): Promise<{ url: string; filename: string; cdnUrl?: string }> {
   const verifiedMimeType = await validateBuffer(buffer);
+  const optimized = await optimizeImageBuffer(buffer, verifiedMimeType);
   const subDir = yearMonthDir();
   const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
 
   const r2 = await getR2Config();
   if (r2) {
-    const cdnUrl = await uploadToR2(r2, subDir, filename, buffer, verifiedMimeType);
+    const cdnUrl = await uploadToR2(r2, subDir, filename, optimized, verifiedMimeType);
     return { url: cdnUrl, filename, cdnUrl };
   }
 
   await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
-  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
+  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), optimized);
   return { url: `/uploads/${subDir}/${filename}`, filename };
 }
 
@@ -142,17 +159,18 @@ export async function saveAiChatImage(
   _clientMimeType: string,
 ): Promise<{ url: string; filename: string; cdnUrl?: string }> {
   const verifiedMimeType = await validateBuffer(buffer);
+  const optimized = await optimizeImageBuffer(buffer, verifiedMimeType);
   const subDir = "ai-chat";
   const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
 
   const r2 = await getR2Config();
   if (r2) {
-    const cdnUrl = await uploadToR2(r2, subDir, filename, buffer, verifiedMimeType);
+    const cdnUrl = await uploadToR2(r2, subDir, filename, optimized, verifiedMimeType);
     return { url: cdnUrl, filename, cdnUrl };
   }
 
   await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
-  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
+  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), optimized);
   return { url: `/uploads/${subDir}/${filename}`, filename };
 }
 

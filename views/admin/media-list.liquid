@@ -196,8 +196,15 @@
   });
 
   fileInput.addEventListener("change", async () => {
-    const files = [...fileInput.files];
+    let files = [...fileInput.files];
     if (!files.length) return;
+
+    // Chi hien popup crop khi upload DUNG 1 anh - xem window.openCropModal trong layout.liquid.
+    if (files.length === 1) {
+      const cropped = await window.openCropModal(files[0]);
+      if (!cropped) { fileInput.value = ""; return; } // bam Huỷ
+      files = [cropped];
+    }
 
     let uploaded = 0;
     const failed = [];
@@ -205,14 +212,14 @@
     for (const file of files) {
       status.textContent = "Đang tải lên " + (uploaded + 1) + "/" + files.length + "...";
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", file, file.name || "image.png");
 
       const res = await fetch("/admin/api/media", { method: "POST", body: formData });
       if (res.ok) {
         uploaded++;
       } else {
         const body = await res.json().catch(() => ({}));
-        failed.push(file.name + (typeof body.error === "string" ? ": " + body.error : ""));
+        failed.push((file.name || "ảnh") + (typeof body.error === "string" ? ": " + body.error : ""));
       }
     }
 

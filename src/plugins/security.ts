@@ -47,7 +47,9 @@ export async function configureSecurity(app: FastifyInstance): Promise<void> {
             // embed/...">) - ca trong preview admin lan noi dung cong khai (post/page.body la HTML
             // tho, co the chua iframe nay) deu can whitelist domain nay o frame-src.
             frameSrc: ["'self'", "https://challenges.cloudflare.com", "https://www.youtube.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            // cdn.jsdelivr.net: Cropper.js CSS (views/admin/layout.liquid - crop anh khi upload),
+            // cung domain da tin cho script (sortablejs), gio can them cho stylesheet.
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
             imgSrc: ["'self'", "data:", "https:", "blob:"],
             connectSrc: ["'self'", "https:", "wss:"],
             fontSrc: ["'self'", "data:", "https:", "https://fonts.gstatic.com"],
