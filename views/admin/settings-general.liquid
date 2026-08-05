@@ -169,6 +169,24 @@
       <label for="turnstileSecretKey">Secret Key</label>
       <input type="text" id="turnstileSecretKey" name="turnstileSecretKey" placeholder="0x4A...">
       <p class="field-hint">Dùng để xác thực request ở Backend. Để trống nếu tắt bảo vệ.</p>
+
+      <h2 style="font-size:1.1rem;margin-bottom:1rem;margin-top:2rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Lưu trữ ảnh (Cloudflare R2)</h2>
+      <p class="field-hint" style="margin-top:-0.5rem;">Để trống toàn bộ để tiếp tục lưu ảnh trên ổ đĩa server (mặc định). Điền đủ 5 trường bên dưới để tự động chuyển sang lưu trên Cloudflare R2.</p>
+
+      <label for="r2AccountId">Account ID</label>
+      <input type="text" id="r2AccountId" name="r2AccountId" placeholder="VD: 38267dcaa86e14664ed5d7d372f48f9c">
+
+      <label for="r2AccessKeyId">Access Key ID</label>
+      <input type="text" id="r2AccessKeyId" name="r2AccessKeyId" autocomplete="off">
+
+      <label for="r2SecretAccessKey">Secret Access Key</label>
+      <input type="text" id="r2SecretAccessKey" name="r2SecretAccessKey" autocomplete="off">
+
+      <label for="r2BucketName">Tên Bucket</label>
+      <input type="text" id="r2BucketName" name="r2BucketName" placeholder="VD: lead-base-storage">
+
+      <label for="r2PublicUrl">Domain public (Custom Domain hoặc Public Development URL)</label>
+      <input type="text" id="r2PublicUrl" name="r2PublicUrl" placeholder="VD: https://media.leadbase.vn">
     </div>
 
     <div id="tab-ai" class="tab-pane">
@@ -254,7 +272,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "companyName", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "companyName", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "r2AccountId", "r2AccessKeyId", "r2SecretAccessKey", "r2BucketName", "r2PublicUrl", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
       if(form[key]) form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -299,6 +317,11 @@
       gscVerificationId: form.gscVerificationId.value.trim(),
       turnstileSiteKey: form.turnstileSiteKey.value.trim(),
       turnstileSecretKey: form.turnstileSecretKey.value.trim(),
+      r2AccountId: form.r2AccountId.value.trim(),
+      r2AccessKeyId: form.r2AccessKeyId.value.trim(),
+      r2SecretAccessKey: form.r2SecretAccessKey.value.trim(),
+      r2BucketName: form.r2BucketName.value.trim(),
+      r2PublicUrl: form.r2PublicUrl.value.trim(),
       adminChatAgentId: form.adminChatAgentId.value || undefined,
       cskhAgentId: form.cskhAgentId.value || undefined,
       socialLinks: {

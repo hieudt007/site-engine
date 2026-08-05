@@ -2,11 +2,49 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileTypeFromBuffer } from "file-type";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { CacheService } from "./CacheService.js";
 
 // Luu file that tren dia VPS o uploads/ (sibling dist/) - KHONG resize/optimize (bo qua sharp,
 // tranh phu thuoc native binary kho cai tren VPS - don gian hoa co chu dich). Serve qua
 // @fastify/static dang ky trong server.ts (uploads/ -> /uploads/*).
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+
+// Cloudflare R2 (S3-compatible) - cau hinh qua trang Cai dat (SiteConfig.r2*, KHONG dung env, xem
+// ghi chu trong schema.prisma) chu khong hard-code o day, vi moi site-engine instance la 1 tenant
+// rieng voi bucket/token rieng cua ho. Neu chua cau hinh du 5 truong -> fallback ghi dia local
+// (uploadImageLocally/saveUploadedFile cu) nhu truoc gio, KHONG lam gay site chua co R2.
+type R2Config = { accountId: string; accessKeyId: string; secretAccessKey: string; bucketName: string; publicUrl: string };
+
+async function getR2Config(): Promise<R2Config | null> {
+  const config = await CacheService.getSiteConfig();
+  const { r2AccountId, r2AccessKeyId, r2SecretAccessKey, r2BucketName, r2PublicUrl } = config as unknown as {
+    r2AccountId?: string | null;
+    r2AccessKeyId?: string | null;
+    r2SecretAccessKey?: string | null;
+    r2BucketName?: string | null;
+    r2PublicUrl?: string | null;
+  };
+  if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey || !r2BucketName || !r2PublicUrl) {
+    return null;
+  }
+  return { accountId: r2AccountId, accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey, bucketName: r2BucketName, publicUrl: r2PublicUrl };
+}
+
+// 1 S3Client theo 1 bo credential - cache theo accountId+accessKeyId de tu tao lai khi admin doi
+// key trong trang Cai dat (khong giu client cu voi secret da thu hoi).
+let cachedClient: { key: string; client: S3Client } | null = null;
+function getR2Client(r2: R2Config): S3Client {
+  const key = `${r2.accountId}:${r2.accessKeyId}`;
+  if (cachedClient?.key === key) return cachedClient.client;
+  const client = new S3Client({
+    region: "auto",
+    endpoint: `https://${r2.accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId: r2.accessKeyId, secretAccessKey: r2.secretAccessKey },
+  });
+  cachedClient = { key, client };
+  return client;
+}
 
 // File tai ve san pham so (ebook/phan mem/license...) - luu O RIENG thu muc nay (NGANG HANG
 // uploads/, KHONG phai con cua no) vi khong duoc dang ky voi @fastify/static o server.ts - chi doc
@@ -58,33 +96,52 @@ async function validateBuffer(buffer: Buffer): Promise<string> {
   return fileType.mime;
 }
 
+// Day buffer len R2 (key = "{subDir}/{filename}"), tra ve URL cong khai qua r2PublicUrl. Khong
+// dat ACL (R2 khong ho tro ACL kieu S3 that - public phai bat qua Public Development URL/Custom
+// Domain o cap bucket, xem huong dan trong Cai dat).
+async function uploadToR2(r2: R2Config, subDir: string, filename: string, buffer: Buffer, mimeType: string): Promise<string> {
+  const key = `${subDir}/${filename}`;
+  await getR2Client(r2).send(
+    new PutObjectCommand({ Bucket: r2.bucketName, Key: key, Body: buffer, ContentType: mimeType }),
+  );
+  return `${r2.publicUrl.replace(/\/+$/, "")}/${key}`;
+}
+
 export async function saveUploadedFile(
   buffer: Buffer,
   _clientMimeType: string,
-): Promise<{ url: string; filename: string }> {
+): Promise<{ url: string; filename: string; cdnUrl?: string }> {
   const verifiedMimeType = await validateBuffer(buffer);
-
   const subDir = yearMonthDir();
-  await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
-
   const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
-  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
 
+  const r2 = await getR2Config();
+  if (r2) {
+    const cdnUrl = await uploadToR2(r2, subDir, filename, buffer, verifiedMimeType);
+    return { url: cdnUrl, filename, cdnUrl };
+  }
+
+  await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
+  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
   return { url: `/uploads/${subDir}/${filename}`, filename };
 }
 
 export async function saveAiChatImage(
   buffer: Buffer,
   _clientMimeType: string,
-): Promise<{ url: string; filename: string }> {
+): Promise<{ url: string; filename: string; cdnUrl?: string }> {
   const verifiedMimeType = await validateBuffer(buffer);
-
   const subDir = "ai-chat";
-  await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
-
   const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
-  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
 
+  const r2 = await getR2Config();
+  if (r2) {
+    const cdnUrl = await uploadToR2(r2, subDir, filename, buffer, verifiedMimeType);
+    return { url: cdnUrl, filename, cdnUrl };
+  }
+
+  await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
+  await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), buffer);
   return { url: `/uploads/${subDir}/${filename}`, filename };
 }
 
@@ -124,6 +181,16 @@ export function resolveProductDownloadPath(relativePath: string): string | null 
 }
 
 export async function deleteUploadedFile(url: string): Promise<void> {
+  // url dang CDN (khong bat dau bang "/uploads/") -> xoa tren R2 thay vi dia local.
+  if (!url.startsWith("/uploads/")) {
+    const r2 = await getR2Config();
+    if (!r2) return; // URL CDN nhung R2 chua/khong con cau hinh - khong biet key that, bo qua an toan
+    const key = url.replace(`${r2.publicUrl.replace(/\/+$/, "")}/`, "");
+    if (key.includes("..")) return;
+    await getR2Client(r2).send(new DeleteObjectCommand({ Bucket: r2.bucketName, Key: key })).catch(() => {});
+    return;
+  }
+
   // url luu nguyen dang "/uploads/2026/07/{uuid}.ext" (hoac dang phang cu truoc khi co thu muc
   // nam/thang, van xoa dung vi relativePath luc do chi la ten file) - bo tien to "/uploads/" la
   // ra dung duong dan tren dia. Chan "..": phong truong hop du chi server tu sinh url, khong tin

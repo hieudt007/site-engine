@@ -39,6 +39,11 @@ const updateSettingsSchema = z
     turnstileSiteKey: z.string().optional(),
     turnstileSecretKey: z.string().optional(),
     goongApiKey: z.string().optional(),
+    r2AccountId: z.string().optional(),
+    r2AccessKeyId: z.string().optional(),
+    r2SecretAccessKey: z.string().optional(),
+    r2BucketName: z.string().optional(),
+    r2PublicUrl: z.string().optional(),
     adminChatAgentId: z.string().optional(),
     cskhAgentId: z.string().optional(),
   })

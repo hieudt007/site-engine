@@ -63,6 +63,15 @@ model SiteConfig {
   // API Key cho Goong Autocomplete
   goongApiKey String?
 
+  // Cloudflare R2 (luu tru anh/media) - nhap qua trang Cai dat, KHONG dung env (moi site-engine
+  // instance la 1 tenant rieng, moi tenant tu co bucket/token rieng cua ho). Neu r2AccessKeyId
+  // rong -> mediaStorage.ts fallback ghi dia local nhu truoc gio (xem services/mediaStorage.ts).
+  r2AccountId       String?
+  r2AccessKeyId     String?
+  r2SecretAccessKey String?
+  r2BucketName      String?
+  r2PublicUrl       String? // domain cong khai de doc lai anh, vd https://media.leadbase.vn
+
   adminChatAgentId String?
   cskhAgentId      String?
 
@@ -753,7 +762,8 @@ model CustomTheme {
 model Media {
   id               String   @id @default(cuid())
   filename         String // tên file gốc lúc upload, chỉ để hiển thị
-  url              String // /uploads/{uuid}.{ext} — dùng thẳng trong coverImage/imageUrls/body
+  url              String // /uploads/{uuid}.{ext} (local) hoặc URL CDN đầy đủ nếu đã cấu hình R2 — dùng thẳng trong coverImage/imageUrls/body
+  cdnUrl           String? // URL CDN (R2 public domain) khi file được upload lên Cloudflare R2 — null nếu đang lưu local disk
   mimeType         String
   size             Int // bytes
   // Thuoc tinh alt cho <img> - admin tu nhap sau khi upload (routes/admin/media.ts PATCH), tu dong

@@ -47,13 +47,14 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
     const buffer = await file.toBuffer();
 
     try {
-      const { url, filename } = await saveUploadedFile(buffer, file.mimetype);
+      const { url, filename, cdnUrl } = await saveUploadedFile(buffer, file.mimetype);
       const userId = request.session.get("userId")!;
 
       const media = await prisma.media.create({
         data: {
           filename: file.filename || filename,
           url,
+          cdnUrl: cdnUrl ?? null,
           mimeType: file.mimetype,
           size: buffer.length,
           uploadedByUserId: userId,
