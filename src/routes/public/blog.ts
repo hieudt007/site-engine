@@ -265,8 +265,13 @@ export async function renderTopicBySlug(slug: string, request: FastifyRequest<{ 
 
 // Route public — chỉ hiện bài status='published' (system_design.md §10). Không yêu cầu đăng
 // nhập, khác hoàn toàn /admin/posts (§5, quản trị nội bộ).
+// Ap dung cung 1 muc voi /search (10/phut/IP) cho cac route LIET KE/LOC bai viet - khong dang
+// nhap, moi lan goi deu truy van DB that (khong co index dac biet cho phan trang/loc danh muc lon),
+// truoc day khong co rate limit nao ca giong /search (xem ghi chu trong search.ts).
+const LISTING_RATE_LIMIT = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
+
 export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: { page?: string } }>("/blog", async (request, reply) => {
+  app.get<{ Querystring: { page?: string } }>("/blog", LISTING_RATE_LIMIT, async (request, reply) => {
     const page = Math.max(1, Number(request.query.page ?? 1) || 1);
     const skip = (page - 1) * PAGE_SIZE;
 
@@ -317,6 +322,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/danh-muc/:slug",
+    LISTING_RATE_LIMIT,
     async (request, reply) => {
       const allCategories = await CacheService.getCategories();
       const category = allCategories.find((c: any) => c.type === "post" && c.slug === request.params.slug);
@@ -380,6 +386,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/blog/danh-muc/:slug",
+    LISTING_RATE_LIMIT,
     async (request, reply) => {
       const target = postCategoryPath((await siteUrlConfig()) ?? {}, request.params.slug);
       if (target !== `/blog/danh-muc/${request.params.slug}`) {
@@ -391,6 +398,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/chu-de/:slug",
+    LISTING_RATE_LIMIT,
     async (request, reply) => {
       const topic = await prisma.topic.findUnique({ where: { slug: request.params.slug } });
       if (!topic) {
@@ -457,6 +465,7 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Params: { slug: string }; Querystring: { page?: string } }>(
     "/blog/chu-de/:slug",
+    LISTING_RATE_LIMIT,
     async (request, reply) => {
       const target = topicUrlPath((await siteUrlConfig()) ?? {}, request.params.slug);
       if (target !== `/blog/chu-de/${request.params.slug}`) {
