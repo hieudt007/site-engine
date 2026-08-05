@@ -5,6 +5,15 @@
 
   const CART_KEY = "site_engine_cart";
 
+  // Cloudflare Turnstile (chi hien khi SiteConfig.turnstileSiteKey da cau hinh - xem widget
+  // ".cf-turnstile" trong checkout.liquid, chi render khi co site.turnstileSiteKey). Backend
+  // (/cart/checkout) da luon kiem tra turnstileToken tu truoc, nhung KHONG theme nao render widget
+  // hay gui token ca - moi checkout se bi 403 ngay khi admin bat Turnstile. Callback ten global vi
+  // Cloudflare goi qua data-callback="..." tren the div, khong the goi thang ham cuc bo trong IIFE.
+  let checkoutTurnstileToken = "";
+  window.onCheckoutTurnstileSuccess = function (token) { checkoutTurnstileToken = token; };
+  window.onCheckoutTurnstileExpired = function () { checkoutTurnstileToken = ""; };
+
   // Luong "Mua ngay" tu trang san pham chuyen sang day voi query param buyNowProductId/
   // buyNowVariantId (xem product-detail.js initBuyNow) - khi co, trang nay CHI hien thi/dat hang
   // dung 1 san pham nay (quantity luon 1), KHONG doc/ghi gio hang that qua readCart/writeCart o
@@ -305,6 +314,12 @@
       return;
     }
 
+    const turnstileEl = document.querySelector(".cf-turnstile");
+    if (turnstileEl && !checkoutTurnstileToken) {
+      errorEl.textContent = "Vui lòng đợi xác thực Captcha rồi thử lại.";
+      return;
+    }
+
     // Loading state
     const originalBtnContent = submitBtn.innerHTML;
     submitBtn.disabled = true;
@@ -326,6 +341,7 @@
           storeId: fulfillmentMethod === "pickup" ? (form.storeId ? form.storeId.value : undefined) : undefined,
           paymentMethod,
           couponCode: form.couponCode ? form.couponCode.value : undefined,
+          turnstileToken: checkoutTurnstileToken || undefined,
           customFields: collectExtraFields(form, [
             "customerName", "customerPhone", "customerAddress", "customerProvince",
             "fulfillmentMethod", "storeId", "paymentMethod", "couponCode",
@@ -339,6 +355,10 @@
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnContent;
         submitBtn.classList.remove('opacity-80', 'cursor-not-allowed');
+        // Token Turnstile dung 1 lan - reset de lan thu lai tiep theo lay token moi, khong gui lai
+        // token da het hieu luc (Cloudflare se tu goi lai onCheckoutTurnstileSuccess sau reset).
+        checkoutTurnstileToken = "";
+        if (window.turnstile) window.turnstile.reset();
         return;
       }
 
@@ -355,6 +375,8 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnContent;
       submitBtn.classList.remove('opacity-80', 'cursor-not-allowed');
+      checkoutTurnstileToken = "";
+      if (window.turnstile) window.turnstile.reset();
     }
   });
 

@@ -6,6 +6,7 @@
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
+{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
 <div class="min-h-screen bg-[#eff6ff] relative overflow-hidden pt-8 md:pt-10 pb-20">
     <!-- Background Organic Blobs -->
     <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
@@ -111,6 +112,12 @@
                         <h2 class="font-heading text-xl text-slate-900 mb-6">Ghi chú đơn hàng (Tuỳ chọn)</h2>
                         <textarea name="orderNote" rows="3" class="w-full px-5 py-4 bg-blue-50/50 border border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-slate-900 placeholder-slate-900/40 rounded-[24px] resize-none" placeholder="Ghi chú thêm về thời gian giao hàng, yêu cầu đóng gói..."></textarea>
                     </div>
+
+                    {% if site.turnstileSiteKey %}
+                    <div class="flex justify-center">
+                        <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-callback="onCheckoutTurnstileSuccess" data-expired-callback="onCheckoutTurnstileExpired" data-error-callback="onCheckoutTurnstileExpired" data-action="checkout"></div>
+                    </div>
+                    {% endif %}
 
                     <div id="checkout-error" class="text-red-500 text-sm font-medium text-center min-h-[20px]"></div>
 

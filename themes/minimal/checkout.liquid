@@ -1,5 +1,6 @@
 {% layout "layout" %}
 {% block content %}
+{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
 <h1 class="font-serif text-3xl font-medium text-center mb-10">Thanh toán</h1>
 
 <div id="checkout-items"></div>
@@ -12,6 +13,11 @@
     <input type="text" name="customerAddress" placeholder="Địa chỉ giao hàng" class="px-3 py-2.5 border border-stone-300 rounded-md">
   </div>
   <div id="checkout-total" class="my-4 font-medium text-lg text-center"></div>
+  {% if site.turnstileSiteKey %}
+  <div class="flex justify-center mb-4">
+    <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-callback="onCheckoutTurnstileSuccess" data-expired-callback="onCheckoutTurnstileExpired" data-error-callback="onCheckoutTurnstileExpired" data-action="checkout"></div>
+  </div>
+  {% endif %}
   <div class="text-center">
     <button type="submit" class="bg-brand hover:bg-brand-dark text-white border-none px-6 py-2.5 text-[0.95rem] cursor-pointer">Đặt hàng</button>
   </div>
@@ -21,6 +27,15 @@
 <script>
 (function () {
   const CART_KEY = "site_engine_cart";
+
+  // Cloudflare Turnstile (chi hien khi SiteConfig.turnstileSiteKey da cau hinh - xem widget
+  // ".cf-turnstile" o tren, chi render khi co site.turnstileSiteKey). Backend (/cart/checkout) da
+  // luon kiem tra turnstileToken tu truoc, nhung theme nay chua tung render widget hay gui token -
+  // moi checkout se bi 403 ngay khi admin bat Turnstile. Callback ten global vi Cloudflare goi qua
+  // data-callback="..." tren the div, khong the goi thang ham cuc bo trong IIFE.
+  let checkoutTurnstileToken = "";
+  window.onCheckoutTurnstileSuccess = function (token) { checkoutTurnstileToken = token; };
+  window.onCheckoutTurnstileExpired = function () { checkoutTurnstileToken = ""; };
 
   // Field NGOAI danh sach known tren form checkout tu dong duoc gop thanh customFields gui len
   // server - vd them 1 <input name="secondaryPhone"> vao form nay se TU DONG duoc luu vao don
@@ -116,6 +131,12 @@
     const errorEl = document.getElementById("checkout-error");
     errorEl.textContent = "";
 
+    const turnstileEl = document.querySelector(".cf-turnstile");
+    if (turnstileEl && !checkoutTurnstileToken) {
+      errorEl.textContent = "Vui lòng đợi xác thực Captcha rồi thử lại.";
+      return;
+    }
+
     const cart = readCart();
     const res = await fetch("/cart/checkout", {
       method: "POST",
@@ -125,12 +146,15 @@
         customerName: form.customerName.value,
         customerPhone: form.customerPhone.value,
         customerAddress: form.customerAddress.value || undefined,
+        turnstileToken: checkoutTurnstileToken || undefined,
         customFields: collectExtraFields(form, ["customerName", "customerPhone", "customerAddress"]),
       }),
     });
 
     if (!res.ok) {
       errorEl.textContent = "Đặt hàng thất bại, vui lòng thử lại.";
+      checkoutTurnstileToken = "";
+      if (window.turnstile) window.turnstile.reset();
       return;
     }
 
