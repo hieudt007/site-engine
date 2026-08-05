@@ -1,4 +1,5 @@
 import { prisma } from "../db.js";
+import { CacheService } from "./CacheService.js";
 
 // Cac noi trong DB co the chua 1 URL anh (Media.url) o dang chuoi tho (KHONG phai foreign key -
 // xem ghi chu trong Media.url + mediaStorage.ts) - dung chung cho ca "kiem tra dang dung o dau"
@@ -115,6 +116,10 @@ export async function rewriteMediaUrlReferences(oldUrl: string, newUrl: string):
     if (siteConfig.defaultOgImage === oldUrl) data.defaultOgImage = newUrl;
     if (Object.keys(data).length > 0) {
       await prisma.siteConfig.update({ where: { id: "singleton" }, data });
+      // BUG that: gia tri DB da doi dung nhung CacheService.getSiteConfig() cache 24h (xem
+      // DEFAULT_TTL) - khong xoa cache thi site van hien logo/favicon/OG cu (URL local da mat)
+      // toi khi cache tu het han. Phai xoa NGAY sau khi ghi de site thay doi tuc thi.
+      await CacheService.forget("global:site_config");
     }
   }
 }
