@@ -5,10 +5,14 @@ import type { AgentContext } from "../agents/core/BaseAgent.js";
 import { AutomationRegistry } from "../jobs/AutomationRegistry.js";
 import { logger } from "../logger.js";
 
-// Worker chay dung hen cac ban ghi Automation (mau publishScheduler.ts) - quet moi phut, luon chay
-// qua agent "automation" (key co dinh, allowedTools/allowedAgents bi gioi han chat che - xem
-// seedAgents.ts + comment tren model Automation trong schema.prisma) vi day la hanh dong TU DONG,
-// KHONG AI GIAM SAT luc chay.
+// Worker chay dung hen cac ban ghi Automation (mau publishScheduler.ts) - quet moi phut. Chay dung
+// AGENT MA ADMIN DA CHON trong dropdown "Chon AI Agent" luc tao lich (Automation.aiAgentId, FK toi
+// Agent.id - xem schema.prisma), giong dung mo hinh lead-base-node (jobs/automationWorker.ts). Moi
+// agent tu gioi han allowedTools/allowedAgents rieng cua no (seedAgents.ts) - day van la hanh dong
+// TU DONG KHONG AI GIAM SAT luc chay, nhung gioi han quyen nam o TUNG agent duoc chon, khong phai o
+// viec ep cung 1 agent "automation" cho moi lich (da tung la bug: aiAgentId truyen thang vao
+// AgentFactory.create() von tra cuu theo "key" chu khong phai id, nen luon fallback am tham ve
+// agent "automation" bat ke admin chon gi - xem runDueAutomations() ben duoi).
 export function startAutomationScheduler(): void {
   cron.schedule("* * * * *", () => {
     runDueAutomations().catch((err) => logger.error(err, "automationScheduler: lỗi không mong đợi"));
@@ -35,15 +39,25 @@ export async function runDueAutomations(): Promise<void> {
         const fnResult = await fn();
         resultText = fnResult || `Function ${fnName} executed successfully`;
       } else {
-        const agentKey = item.aiAgentId || "automation"; // fallback to automation
-        let agent;
-        try {
-           agent = await AgentFactory.create(agentKey);
-        } catch {
-           agent = await AgentFactory.create("automation"); // try fallback if db ID doesn't exist
+        // BUG that da gap: Automation.aiAgentId luu ID that cua Agent (cuid, dung khi admin chon
+        // trong dropdown "Chon AI Agent" o UI - xem automations.liquid), nhung AgentFactory.create()
+        // tra cuu theo "key" (vd "automation", "content_writer"), KHONG PHAI theo id. Truyen thang
+        // aiAgentId vao create() gan nhu khong bao gio khop, roi am tham fallback ve agent
+        // "automation" MOI LAN - admin chon agent nao trong UI cung vo nghia, luon chay dung 1
+        // agent hardcode. Phai tra ra Agent record TRUOC (theo id) de lay dung "key" cua no, giong
+        // dung pattern cua lead-base-node (jobs/automationWorker.ts: tra record theo id, lay
+        // agent_key, roi moi goi AgentFactory.create(agent_key)) - khong con fallback am tham nua,
+        // bao loi ro rang de admin biet ma sua lai lich thay vi tuong nham dang chay dung agent da chon.
+        if (!item.aiAgentId) {
+          throw new Error("Chưa chọn AI Agent cho automation này.");
         }
+        const agentRecord = await prisma.agent.findUnique({ where: { id: item.aiAgentId } });
+        if (!agentRecord || !agentRecord.key) {
+          throw new Error(`AI Agent (ID ${item.aiAgentId}) không tồn tại hoặc thiếu key.`);
+        }
+        const agent = await AgentFactory.create(agentRecord.key);
         if (!agent) {
-          throw new Error(`Agent "${agentKey}" không tồn tại hoặc đang tắt.`);
+          throw new Error(`Agent "${agentRecord.key}" không tồn tại hoặc đang tắt.`);
         }
         const context: AgentContext = {
           meta: { userId: item.createdBy ?? undefined },
