@@ -38,7 +38,17 @@
           </button>
         </div>
       </div>
-      
+
+      <div id="modal-cdn-row" style="display:none;">
+        <label>CDN URL</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="modal-cdn-url" readonly style="flex:1; background: #f9fafb;">
+          <button type="button" class="btn btn-icon" id="modal-cdn-copy-btn" title="Copy CDN URL">
+            <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        </div>
+      </div>
+
       <div>
         <label>Mô tả ảnh (Alt text)</label>
         <input type="text" id="modal-alt" placeholder="Nhập mô tả...">
@@ -121,8 +131,11 @@
   const modalImg = document.getElementById("modal-img");
   const modalFilename = document.getElementById("modal-filename");
   const modalUrl = document.getElementById("modal-url");
+  const modalCdnRow = document.getElementById("modal-cdn-row");
+  const modalCdnUrl = document.getElementById("modal-cdn-url");
   const modalAlt = document.getElementById("modal-alt");
   const modalCopyBtn = document.getElementById("modal-copy-btn");
+  const modalCdnCopyBtn = document.getElementById("modal-cdn-copy-btn");
   const modalSaveBtn = document.getElementById("modal-save-btn");
 
   let currentPage = 1;
@@ -230,7 +243,16 @@
         editingMediaId = media.id;
         modalImg.src = media.url;
         modalFilename.textContent = media.filename;
-        modalUrl.value = location.origin + media.url;
+        // media.url là URL đầy đủ (CDN) khi đã lên R2, hoặc đường dẫn tương đối "/uploads/..."
+        // khi còn lưu local - chỉ ghép location.origin cho trường hợp local.
+        modalUrl.value = /^https?:\/\//i.test(media.url) ? media.url : location.origin + media.url;
+        if (media.cdnUrl) {
+          modalCdnRow.style.display = "";
+          modalCdnUrl.value = media.cdnUrl;
+        } else {
+          modalCdnRow.style.display = "none";
+          modalCdnUrl.value = "";
+        }
         modalAlt.value = media.alt || "";
         modal.showModal();
       }
@@ -242,6 +264,13 @@
     const oldHtml = modalCopyBtn.innerHTML;
     modalCopyBtn.innerHTML = '<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="stroke: green;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
     setTimeout(() => { modalCopyBtn.innerHTML = oldHtml; }, 1200);
+  });
+
+  modalCdnCopyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(modalCdnUrl.value);
+    const oldHtml = modalCdnCopyBtn.innerHTML;
+    modalCdnCopyBtn.innerHTML = '<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="stroke: green;"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    setTimeout(() => { modalCdnCopyBtn.innerHTML = oldHtml; }, 1200);
   });
 
   modalSaveBtn.addEventListener("click", async () => {
