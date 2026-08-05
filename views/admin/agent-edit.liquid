@@ -76,7 +76,7 @@
 
       <div id="agent-fields-right">
         <label for="apiKey">API key</label>
-        <input type="password" id="apiKey" name="apiKey" autocomplete="off" placeholder="{% if agent.apiKey %}Đã cấu hình, để trống nếu giữ nguyên{% else %}sk-...{% endif %}">
+        <input type="password" id="apiKey" name="apiKey" autocomplete="off" value="{{ agent.apiKey | escape }}" placeholder="sk-...">
 
         <label for="systemPrompt">System prompt</label>
         <textarea id="systemPrompt" name="systemPrompt" style="min-height:140px;">{% if agent and agent.type != "skill" %}{{ agent.systemPrompt }}{% endif %}</textarea>

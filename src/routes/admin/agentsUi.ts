@@ -45,7 +45,17 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
     // /videos/generations, /embeddings cua 9Router) - luu duoi dang Agent row rieng type="tool"
     // (seedAgents.ts), khac voi allTools o tren la danh sach tool CODE lap trinh cung. Nhung tool
     // nay CO the sua qua popup (tool-config-modal.liquid), khong chi doc.
-    const dbTools = await prisma.agent.findMany({ where: { type: "tool" }, orderBy: { name: "asc" } });
+    const rawDbTools = await prisma.agent.findMany({ where: { type: "tool" }, orderBy: { name: "asc" } });
+    // apiKey luu ma hoa - giai ma truoc khi nhet vao trang (dung de auto-fill form khi mo popup
+    // sua tool trong tool-config-modal.liquid), giong agent-edit.liquid.
+    const dbTools = rawDbTools.map((tool) => {
+      if (!tool.apiKey) return tool;
+      try {
+        return { ...tool, apiKey: decryptNodeString(tool.apiKey) };
+      } catch {
+        return { ...tool, apiKey: "" };
+      }
+    });
     const html = await renderAdmin("agents-list", {
       allTools,
       skillAssignableTools,

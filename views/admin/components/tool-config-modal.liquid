@@ -135,6 +135,7 @@
     title.textContent = "Cấu hình: " + (tool.name || tool.key);
     form.id.value = tool.id;
     form.model.value = tool.model || "";
+    form.apiKey.value = tool.apiKey || "";
     endpointInput.value = tool.endpoint || "";
     form.isActive.checked = tool.isActive !== false;
 
