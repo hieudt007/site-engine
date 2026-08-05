@@ -4,6 +4,23 @@ import { renderAdmin } from "../../services/adminView.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { ToolRegistry, MCPTool } from "../../agents/core/ToolRegistry.js";
 import { toolLabelVi } from "../../agents/tools/toolLabels.js";
+import { decryptNodeString } from "../../nodeCrypt.js";
+
+// SiteConfig.aiProviderKeys luu ma hoa tung gia tri trong map (provider -> ciphertext) - giai ma
+// truoc khi nhet vao trang (agent-edit.liquid dung de auto-fill o input#apiKey khi doi provider),
+// khong thi JS se dien nham chuoi ma hoa vao o thay vi key that.
+function decryptProviderKeys(keys: Record<string, string> | null | undefined): Record<string, string> {
+  if (!keys) return {};
+  const result: Record<string, string> = {};
+  for (const [provider, value] of Object.entries(keys)) {
+    try {
+      result[provider] = decryptNodeString(value);
+    } catch {
+      result[provider] = ""; // gia tri cu truoc khi co ma hoa (neu con sot) - khong crash trang
+    }
+  }
+  return result;
+}
 
 // Gan "label" (ten tieng Viet, chi de HIEN THI) len tung tool truoc khi render - khong dung trong
 // "name" thuc gui cho AI, xem toolLabels.ts.
@@ -54,7 +71,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       const html = await renderAdmin("agent-edit", {
         agent: null,
         defaultType: request.query.type === "skill" ? "skill" : "agent",
-        aiProviderKeys: config?.aiProviderKeys || {},
+        aiProviderKeys: decryptProviderKeys(config?.aiProviderKeys as Record<string, string> | null | undefined),
         allTools,
         skillAssignableTools,
         allSkills,
@@ -98,7 +115,7 @@ export async function registerAgentsUiRoutes(app: FastifyInstance): Promise<void
       const html = await renderAdmin("agent-edit", {
         agent,
         defaultType: agent.type,
-        aiProviderKeys: config?.aiProviderKeys || {},
+        aiProviderKeys: decryptProviderKeys(config?.aiProviderKeys as Record<string, string> | null | undefined),
         allTools,
         skillAssignableTools,
         allSkills,

@@ -4,13 +4,28 @@ import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
-import { encryptNodeString } from "../../nodeCrypt.js";
+import { encryptNodeString, decryptNodeString } from "../../nodeCrypt.js";
 
-// Cac truong credential THAT (khong phai site key public/ten bucket/domain) - ma hoa truoc khi
-// luu (giong Agent.apiKey), va KHONG BAO GIO tra ve gia tri that qua GET (xem registerSettingsRoutes
-// GET handler) - frontend chi biet "da co" qua cac co has* de hien placeholder, khong hien lai gia
-// tri cu. Bo trong luc PATCH = giu nguyen gia tri cu (khong xoa).
+// Cac truong credential THAT (khong phai site key public/ten bucket/domain) - ma hoa TRONG DB
+// (giong Agent.apiKey), nhung van tra gia tri THAT (da giai ma) ve cho form Cai dat - UI da dung
+// input type="password" de che tren man hinh, khong can giau them o tang API. Bo trong luc PATCH
+// = giu nguyen gia tri cu (khong xoa).
 const SECRET_FIELDS = ["turnstileSecretKey", "r2AccessKeyId", "r2SecretAccessKey"] as const;
+
+function decryptSecretFieldsForResponse(row: Record<string, unknown>): Record<string, unknown> {
+  const settings = { ...row };
+  for (const field of SECRET_FIELDS) {
+    const value = settings[field];
+    if (typeof value === "string" && value) {
+      try {
+        settings[field] = decryptNodeString(value);
+      } catch {
+        settings[field] = ""; // gia tri cu truoc khi co ma hoa (neu con sot) - khong crash trang Cai dat
+      }
+    }
+  }
+  return settings;
+}
 
 // Cài đặt chung của CHÍNH website đang chạy (system_design.md §10.1) - đúng 1 row "singleton".
 // §5.2: settings là quyền admin duy nhất, manager/edit không đụng được.
@@ -83,16 +98,7 @@ const updateSettingsSchema = z
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/settings", { preHandler: requireRole("admin") }, async (request) => {
     const raw = await getOrCreateSiteConfig(request.hostname);
-    // Khong bao gio tra gia tri credential that ve browser (da ma hoa trong DB, nhung van la
-    // "biet duoc" neu gui ve nguyen van roi FE tu hien lai) - chi bao "da co" qua co has* de FE
-    // hien placeholder, gia tri that CHI dung noi server (cart.ts/customerChat.ts/mediaStorage.ts).
-    const settings = { ...raw } as Record<string, unknown>;
-    const has: Record<string, boolean> = {};
-    for (const field of SECRET_FIELDS) {
-      has[`has${field[0].toUpperCase()}${field.slice(1)}`] = Boolean(settings[field]);
-      settings[field] = "";
-    }
-    return { settings: { ...settings, ...has } };
+    return { settings: decryptSecretFieldsForResponse(raw as unknown as Record<string, unknown>) };
   });
 
   app.patch("/admin/api/settings", { preHandler: requireRole("admin") }, async (request, reply) => {
@@ -154,12 +160,6 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       });
     }
 
-    const settings = { ...updated } as Record<string, unknown>;
-    const has: Record<string, boolean> = {};
-    for (const field of SECRET_FIELDS) {
-      has[`has${field[0].toUpperCase()}${field.slice(1)}`] = Boolean(settings[field]);
-      settings[field] = "";
-    }
-    return { settings: { ...settings, ...has } };
+    return { settings: decryptSecretFieldsForResponse(updated as unknown as Record<string, unknown>) };
   });
 }

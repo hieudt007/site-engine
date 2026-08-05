@@ -5,7 +5,19 @@ import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { stripSystemResources } from "../../agents/core/agentPermissions.js";
 import { assertSafeOutboundUrl, UnsafeOutboundUrlError } from "../../security/ssrfGuard.js";
-import { encryptNodeString } from "../../nodeCrypt.js";
+import { encryptNodeString, decryptNodeString } from "../../nodeCrypt.js";
+
+// apiKey luu ma hoa trong DB nhung tra ve gia tri THAT (da giai ma) cho form Cai dat Agent - UI
+// da dung input type="password" de che tren man hinh, khong can giau them o tang API (giong
+// SiteConfig.turnstileSecretKey/r2*, xem routes/admin/settings.ts).
+function withDecryptedApiKey<T extends { apiKey: string | null }>(agent: T): T {
+  if (!agent.apiKey) return agent;
+  try {
+    return { ...agent, apiKey: decryptNodeString(agent.apiKey) };
+  } catch {
+    return { ...agent, apiKey: "" }; // gia tri cu truoc khi co ma hoa (neu con sot) - khong crash trang Agent
+  }
+}
 
 const PROVIDERS = ["openai", "anthropic", "google", "deepseek", "openrouter", "ai-router", "custom"] as const;
 
@@ -87,7 +99,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { type?: string } }>("/admin/api/agents", { preHandler: requireRole("admin") }, async (request) => {
     const type = request.query.type === "skill" ? "skill" : request.query.type === "tool" ? "tool" : "agent";
     const agents = await prisma.agent.findMany({ where: { type }, orderBy: { name: "asc" } });
-    return { agents };
+    return { agents: agents.map(withDecryptedApiKey) };
   });
 
   app.get<{ Params: { id: string } }>(
@@ -98,7 +110,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       if (!agent) {
         return reply.code(404).send({ error: "Không tìm thấy agent" });
       }
-      return { agent };
+      return { agent: withDecryptedApiKey(agent) };
     },
   );
 
@@ -133,7 +145,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    return reply.code(201).send({ agent });
+    return reply.code(201).send({ agent: withDecryptedApiKey(agent) });
   });
 
   app.patch<{ Params: { id: string } }>(
@@ -179,7 +191,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      return { agent: updated };
+      return { agent: withDecryptedApiKey(updated) };
     },
   );
 
