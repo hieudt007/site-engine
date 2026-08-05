@@ -17,7 +17,6 @@ data-size (chi nhan "normal"/"compact"/"flexible", loi that da gap: "Invalid val
 size" tren console) - muon widget an di khi khong can xac thuc them thi dung data-appearance=
 "interaction-only" (chi hien khi Cloudflare thay nghi ngo can nguoi dung tuong tac). {% endcomment %}
 <div id="plugin-chat-drawer" class="plugin-chat-container fixed bottom-5 right-5 z-50" data-session-id="{{ chatSessionId | escape }}" data-hmac="{{ chatHmacToken | escape }}">
-  {% if site.turnstileSiteKey %}<div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-appearance="interaction-only"></div>{% endif %}
 
   <!-- Tooltip goi y -->
   <div class="plugin-chat-tooltip hidden absolute bottom-[76px] right-0 w-max max-w-[220px] rounded-2xl rounded-br-md bg-white px-4 py-3 text-sm text-slate-700 shadow-lg border border-slate-100">
@@ -56,6 +55,12 @@ size" tren console) - muon widget an di khi khong can xac thuc them thi dung dat
       </div>
       <button id="plugin-chat-preview-close" class="px-2 font-medium text-slate-400 hover:text-red-500">&times;</button>
     </div>
+
+    {% if site.turnstileSiteKey %}
+    <div class="flex justify-center border-t border-slate-100 bg-white px-3 pt-2">
+      <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-appearance="interaction-only"></div>
+    </div>
+    {% endif %}
 
     <form class="plugin-chat-form flex items-center gap-2 border-t border-slate-100 bg-white p-3">
       <input type="file" id="plugin-chat-file" accept="image/jpeg, image/png, image/webp, image/gif" class="hidden">
