@@ -4,7 +4,7 @@ import { webFetchTool } from "./webFetchTool.js";
 import { generateImageTool } from "./generateImageTool.js";
 import { generateVideoTool } from "./generateVideoTool.js";
 import { createEmbeddingTool } from "./createEmbeddingTool.js";
-import { readFieldsTool, fillFormTool, requestVisualQaTool, getCurrentPageTool, getChatHistoryTool, finishSubtaskTool, getMemoryTool, saveMemoryTool } from "./assistantTools.js";
+import { readFieldsTool, fillFormTool, requestVisualQaTool, getCurrentPageTool, getChatHistoryTool, finishSubtaskTool, getMemoryTool, saveMemoryTool, getMenuHelpTool, getWebsiteInfoTool } from "./assistantTools.js";
 import { visualQaTool, analyzeLayoutTool, getDesignSystemTool } from "./uiuxTools.js";
 import { getPostTool, createDraftPostTool } from "./contentTools.js";
 import { createAutomationTool, updateAutomationTool, deleteAutomationTool, listAutomationsTool } from "./automationTools.js";
@@ -26,6 +26,8 @@ const allTools = [
   finishSubtaskTool,
   getMemoryTool,
   saveMemoryTool,
+  getMenuHelpTool,
+  getWebsiteInfoTool,
   callAgentTool,
   useSkillTool,
   requestVisualQaTool,

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { MCPTool } from "../core/ToolRegistry.js";
 import type { ChatHistoryItem } from "../../services/themeChat.js";
@@ -177,5 +178,103 @@ export const saveMemoryTool: MCPTool = {
     if (!content) return "Error: missing content.";
     await prisma.user.update({ where: { leadbaseUserId: Number(userId) }, data: { memories: content } });
     return "Memory saved.";
+  },
+};
+
+// File tra cuu nhanh - moi heading "## " PHAI viet giong het nhan menu sidebar (views/admin/
+// layout.liquid), xem ghi chu dau file docs/admin-menu-help.md. Doc lai tu dia MOI LAN goi (khong
+// cache): file rat nho, va cho phep sua noi dung help ma khong can restart server.
+const MENU_HELP_DOC_PATH = path.join(process.cwd(), "docs", "admin-menu-help.md");
+
+async function loadMenuHelpSections(): Promise<Map<string, string> | null> {
+  let markdown: string;
+  try {
+    markdown = await fsp.readFile(MENU_HELP_DOC_PATH, "utf-8");
+  } catch {
+    return null;
+  }
+
+  const sections = new Map<string, string>();
+  let currentHeading: string | null = null;
+  let buffer: string[] = [];
+  const flush = () => {
+    if (currentHeading !== null) sections.set(currentHeading, buffer.join("\n").trim());
+    buffer = [];
+  };
+  for (const line of markdown.split("\n")) {
+    const match = line.match(/^##\s+(.+?)\s*$/);
+    if (match) {
+      flush();
+      currentHeading = match[1];
+    } else if (currentHeading !== null) {
+      buffer.push(line);
+    }
+  }
+  flush();
+  return sections;
+}
+
+export const getMenuHelpTool: MCPTool = {
+  name: "get_menu_help",
+  description:
+    'Look up the feature description + short usage guide for 1 item in the admin sidebar menu (docs/admin-menu-help.md). The "heading" must be written EXACTLY like the menu label the user sees (e.g. "Bài viết", "Cài đặt chung"). {"heading": "Bài viết"} - call with an empty/missing heading to list all available headings first if unsure of the exact label.',
+  execute: async (args) => {
+    const sections = await loadMenuHelpSections();
+    if (!sections) return "Error: help doc (docs/admin-menu-help.md) not found.";
+
+    const heading = String(args.heading || "").trim();
+    if (!heading) {
+      return `Available menu headings:\n${Array.from(sections.keys()).join("\n")}`;
+    }
+
+    const exact = sections.get(heading);
+    if (exact !== undefined) return `## ${heading}\n${exact}`;
+
+    // Khong khop tuyet doi (vd AI go sai hoa/thuong hoac thua khoang trang) - thu khop khoan dung,
+    // khong doan mo sang heading khac de tranh tra loi lac de.
+    const normalized = heading.toLowerCase();
+    for (const [key, content] of sections) {
+      if (key.toLowerCase() === normalized) return `## ${key}\n${content}`;
+    }
+
+    return `Error: no menu heading matches "${heading}". Available headings: ${Array.from(sections.keys()).join(", ")}`;
+  },
+};
+
+// Thong tin CONG KHAI ve website (KHONG bao gio tra secret: bo qua turnstileSecretKey/
+// aiProviderKeys/goongApiKey/r2*/customHeadScript-FooterScript/adminChatAgentId/cskhAgentId - day
+// la tool AI tro ly co the goi tu do, khong duoc lam kenh lo bi mat cau hinh).
+export const getWebsiteInfoTool: MCPTool = {
+  name: "get_website_info",
+  description:
+    "Get basic public info about this website: domain, name, tagline, contact info, social links, site type (blog/ecommerce), URL prefixes, and content counts. Empty args.",
+  execute: async () => {
+    const site = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+    if (!site) return "Error: site chưa được cấu hình (chưa có SiteConfig).";
+
+    const [totalPosts, totalPages, totalProducts] = await Promise.all([
+      prisma.post.count({ where: { type: "post" } }),
+      prisma.post.count({ where: { type: "page" } }),
+      site.siteType === "ecommerce" ? prisma.productCache.count() : Promise.resolve(null),
+    ]);
+
+    return JSON.stringify({
+      domain: site.domain,
+      siteName: site.siteName,
+      tagline: site.tagline,
+      companyName: site.companyName,
+      contactEmail: site.contactEmail,
+      contactPhone: site.contactPhone,
+      contactAddress: site.contactAddress,
+      socialLinks: site.socialLinks,
+      businessLicense: site.businessLicense,
+      siteType: site.siteType,
+      postSlugPrefix: site.postSlugPrefix,
+      pageSlugPrefix: site.pageSlugPrefix,
+      productSlugPrefix: site.productSlugPrefix,
+      totalPosts,
+      totalPages,
+      totalProducts,
+    });
   },
 };

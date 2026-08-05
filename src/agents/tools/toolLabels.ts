@@ -15,6 +15,8 @@ export const TOOL_LABELS_VI: Record<string, string> = {
   finish_subtask: "Hoàn tất bước công việc",
   get_memory: "Đọc ghi nhớ về người dùng",
   save_memory: "Lưu ghi nhớ về người dùng",
+  get_menu_help: "Tra cứu hướng dẫn menu admin",
+  get_website_info: "Lấy thông tin website",
   call_agent: "Gọi agent khác",
   use_skill: "Dùng kỹ năng",
   request_visual_qa: "Yêu cầu kiểm tra giao diện",

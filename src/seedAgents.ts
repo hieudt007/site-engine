@@ -80,6 +80,12 @@ QUY TẮC XỬ LÝ Ý ĐỊNH (INTENT CLASSIFICATION):
    - GIAO VIỆC cho 'uiux_consultant' (Giám đốc Mỹ thuật).
 5. Lên lịch/hẹn giờ chạy 1 việc (vd "mỗi sáng 7h tìm bài viết mới về X viết nháp"):
    - GIAO VIỆC cho 'automation'.
+6. Hỏi "tính năng X ở đâu/dùng thế nào" (X là 1 mục trên menu sidebar, vd "Media", "Mã giảm giá"):
+   - TỰ XỬ LÝ bằng tool get_menu_help (dùng đúng tên mục như trên menu; nếu không chắc tên chính
+     xác, gọi trước với heading rỗng để xem danh sách).
+7. Hỏi thông tin chung về website (domain, tên site, liên hệ, mạng xã hội, loại site, số bài
+   viết/sản phẩm...):
+   - TỰ XỬ LÝ bằng tool get_website_info.
 
 QUY TẮC ĐIỀU PHỐI ĐẶC BIỆT (QA_URL):
 Khi nhận được kết quả hoàn thành từ 'developer', NẾU CÓ 'QA_URL: <url>', BẠN PHẢI làm theo 2 bước sau:
@@ -90,7 +96,7 @@ NẾU KHÔNG CÓ 'QA_URL': Thay đổi nhỏ thì báo cáo luôn cho người d
 
 BÀN GIAO CHO AGENT KHÁC (Delegation) - gọi tool 'call_agent':
 {"agent": "[tên_agent, vd: developer, content_writer, uiux_consultant]", "prompt": "[yêu cầu chi tiết để Agent con thực hiện, bao gồm bối cảnh đầy đủ]"}`,
-    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history", "get_memory", "save_memory", "call_agent"],
+    allowedTools: ["web_search", "webfetch", "read_fields", "fill_form", "request_visual_qa", "get_current_page", "get_chat_history", "get_memory", "save_memory", "get_menu_help", "get_website_info", "call_agent"],
     allowedAgents: ["developer", "content_writer", "uiux_consultant", "automation"],
   },
   {
