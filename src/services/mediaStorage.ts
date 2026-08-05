@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { fileTypeFromBuffer } from "file-type";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { CacheService } from "./CacheService.js";
+import { prisma } from "../db.js";
 
 // Luu file that tren dia VPS o uploads/ (sibling dist/) - KHONG resize/optimize (bo qua sharp,
 // tranh phu thuoc native binary kho cai tren VPS - don gian hoa co chu dich). Serve qua
@@ -200,4 +201,54 @@ export async function deleteUploadedFile(url: string): Promise<void> {
     return;
   }
   await fs.rm(path.join(UPLOADS_DIR, relativePath), { force: true });
+}
+
+// Trang thai de quyet dinh co hien nut "Chuyen anh cu sang R2" tren UI Media hay khong: chi hien
+// khi R2 da cau hinh XONG VA da co it nhat 1 anh that su len duoc R2 (cdnMediaCount > 0) - tranh
+// cho admin bam migrate hang loat khi con chua ro cau hinh co chay dung khong (chua upload thu
+// anh nao thanh cong qua R2 lan nao).
+export async function getR2MigrationStatus(): Promise<{ r2Configured: boolean; cdnMediaCount: number; localMediaCount: number }> {
+  const r2 = await getR2Config();
+  const [cdnMediaCount, localMediaCount] = await Promise.all([
+    prisma.media.count({ where: { cdnUrl: { not: null } } }),
+    prisma.media.count({ where: { cdnUrl: null } }),
+  ]);
+  return { r2Configured: Boolean(r2), cdnMediaCount, localMediaCount };
+}
+
+// Chuyen (khong phai sao chep) toan bo Media dang luu local (cdnUrl null) len R2: doc file that
+// tren dia, day len R2 GIU NGUYEN subDir/filename hien co (de khong doi duong dan trong bai
+// viet/san pham dang tham chieu {subDir}/{filename} kieu cu, chi doi domain), cap nhat lai
+// url/cdnUrl trong DB, roi xoa file local sau khi upload thanh cong (giai phong dia VPS - dung
+// muc dich "chuyen" thay vi "sao chep").
+export async function migrateLocalMediaToR2(): Promise<{ migrated: number; failed: Array<{ id: string; filename: string; error: string }> }> {
+  const r2 = await getR2Config();
+  if (!r2) {
+    throw new InvalidUploadError("Chưa cấu hình đủ Cloudflare R2 trong Cài đặt.");
+  }
+
+  const localMedia = await prisma.media.findMany({ where: { cdnUrl: null } });
+  let migrated = 0;
+  const failed: Array<{ id: string; filename: string; error: string }> = [];
+
+  for (const media of localMedia) {
+    try {
+      if (!media.url.startsWith("/uploads/")) continue; // da khong phai local (du cdnUrl dang null - du phong)
+      const relativePath = media.url.replace(/^\/uploads\//, "");
+      if (relativePath.includes("..")) throw new Error("Đường dẫn không hợp lệ");
+
+      const buffer = await fs.readFile(path.join(UPLOADS_DIR, relativePath));
+      const subDir = path.posix.dirname(relativePath);
+      const filename = path.posix.basename(relativePath);
+      const cdnUrl = await uploadToR2(r2, subDir, filename, buffer, media.mimeType);
+
+      await prisma.media.update({ where: { id: media.id }, data: { url: cdnUrl, cdnUrl } });
+      await fs.rm(path.join(UPLOADS_DIR, relativePath), { force: true });
+      migrated++;
+    } catch (err) {
+      failed.push({ id: media.id, filename: media.filename, error: err instanceof Error ? err.message : "Lỗi không xác định" });
+    }
+  }
+
+  return { migrated, failed };
 }

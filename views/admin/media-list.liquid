@@ -4,6 +4,10 @@
   <h1 style="margin:0;">Media</h1>
   <div style="display:flex; align-items:center; gap: 0.5rem;">
     <input type="search" id="media-search" placeholder="Tìm ảnh..." style="width: 220px;">
+    <button type="button" class="btn btn-secondary" id="migrate-r2-btn" style="display:none;">
+      <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="margin-right: 4px;"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+      Chuyển ảnh cũ sang R2
+    </button>
     <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()">
       <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
       Tải lên
@@ -292,6 +296,40 @@
       showError("Lưu thất bại");
     }
   });
+
+  const migrateBtn = document.getElementById("migrate-r2-btn");
+  if (canDelete) {
+    fetch("/admin/api/media/r2-status")
+      .then((res) => res.json())
+      .then((s) => {
+        if (s.r2Configured && s.cdnMediaCount > 0 && s.localMediaCount > 0) {
+          migrateBtn.style.display = "";
+        }
+      })
+      .catch(() => {});
+
+    migrateBtn.addEventListener("click", async () => {
+      if (!confirm("Chuyển toàn bộ ảnh đang lưu local trên VPS sang Cloudflare R2? File local sẽ bị xoá sau khi chuyển thành công.")) return;
+      migrateBtn.disabled = true;
+      migrateBtn.textContent = "Đang chuyển...";
+      try {
+        const res = await fetch("/admin/api/media/migrate-to-r2", { method: "POST" });
+        const body = await res.json();
+        if (!res.ok) {
+          showError(body.error || "Chuyển thất bại");
+        } else if (body.failed.length) {
+          showError(`Đã chuyển ${body.migrated} ảnh, lỗi ${body.failed.length} ảnh: ${body.failed.map((f) => f.filename).join(", ")}`);
+        } else {
+          showSuccess(`Đã chuyển ${body.migrated} ảnh sang R2 thành công!`);
+          migrateBtn.style.display = "none";
+        }
+        load();
+      } finally {
+        migrateBtn.disabled = false;
+        migrateBtn.innerHTML = '<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="margin-right: 4px;"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>Chuyển ảnh cũ sang R2';
+      }
+    });
+  }
 
   load();
 })();

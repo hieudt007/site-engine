@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { deleteUploadedFile, InvalidUploadError, saveUploadedFile } from "../../services/mediaStorage.js";
+import { deleteUploadedFile, getR2MigrationStatus, InvalidUploadError, migrateLocalMediaToR2, saveUploadedFile } from "../../services/mediaStorage.js";
 
 const updateMediaSchema = z.object({ alt: z.string().max(300).optional() });
 
@@ -62,6 +62,24 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       });
 
       return reply.code(201).send({ media });
+    } catch (err) {
+      if (err instanceof InvalidUploadError) {
+        return reply.code(422).send({ error: err.message });
+      }
+      throw err;
+    }
+  });
+
+  // Cho UI biet co nen hien nut "Chuyen anh cu sang R2" hay khong (xem ghi chu trong
+  // getR2MigrationStatus - chi hien khi da cau hinh R2 VA da co it nhat 1 anh len R2 thanh cong).
+  app.get("/admin/api/media/r2-status", { preHandler: requireRole("edit") }, async () => {
+    return getR2MigrationStatus();
+  });
+
+  app.post("/admin/api/media/migrate-to-r2", { preHandler: requireRole("manager") }, async (_request, reply) => {
+    try {
+      const result = await migrateLocalMediaToR2();
+      return result;
     } catch (err) {
       if (err instanceof InvalidUploadError) {
         return reply.code(422).send({ error: err.message });
