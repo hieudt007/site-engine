@@ -13,9 +13,10 @@ export const getPostTool: MCPTool = {
 };
 
 // Tool AN TOAN duy nhat de tao Post - LUON status="draft" (KHONG NHAN tham so status tu AI), khong
-// co tool sua/xoa/publish di kem trong bo nay - danh rieng cho agent "automation" (chay tu dong,
-// khong ai giam sat, xem prisma/schema.prisma comment tren model Automation) can 1 hanh dong CHAC
-// CHAN khong pha huy/khong tu cong khai noi dung. Muon sua/publish phai qua UI that, co nguoi duyet.
+// co tool sua/xoa/publish di kem trong bo nay - danh rieng cho agent chay qua lich tu dong (vd
+// "assistant" khi duoc goi lai boi services/automationScheduler.ts, khong ai giam sat, xem
+// prisma/schema.prisma comment tren model Automation) can 1 hanh dong CHAC CHAN khong pha huy/khong
+// tu cong khai noi dung. Muon sua/publish phai qua UI that, co nguoi duyet.
 export const createDraftPostTool: MCPTool = {
   name: "create_draft_post",
   description:

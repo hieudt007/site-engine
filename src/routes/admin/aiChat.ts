@@ -75,7 +75,7 @@ export async function registerAiChatRoutes(app: FastifyInstance): Promise<void> 
   // Chay qua BaseAgent/ToolRegistry/MarkdownParser (luong MCP dung chung voi routes/public/
   // customerChat.ts, routes/admin/mcpChat.ts). Agent dieu phoi lay tu SiteConfig.adminChatAgentId
   // (Cai dat chung > AI & Tu dong hoa) - agent do tu quyet dinh AGENT_CALL sang developer/
-  // content_writer/uiux_consultant hay tu tra loi, khong con danh sach sub-agent hardcode o day.
+  // content/design hay tu tra loi, khong con danh sach sub-agent hardcode o day.
   app.post(
     "/admin/api/ai-chat/messages",
     { preHandler: requireRole("admin") },

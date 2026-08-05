@@ -1,9 +1,11 @@
 import { MCPTool } from "../core/ToolRegistry.js";
 import { prisma } from "../../db.js";
 
-// 4 tool de agent "automation" TU QUAN LY lich cua chinh no (tao/sua/xoa/liet ke ban ghi trong bang
-// Automation) - CHI thao tac tren du lieu "khi nao chay + prompt gi", KHONG tu thuc thi gi ca (viec
-// chay that do services/automationScheduler.ts - worker cron rieng - dam nhan). Xem comment tren
+// 4 tool de agent "assistant" TU QUAN LY lich tu dong (tao/sua/xoa/liet ke ban ghi trong bang
+// Automation) - truoc day tach rieng 1 agent "automation" cho viec nay, da gop chung vao
+// "assistant" (xem seedAgents.ts). CHI thao tac tren du lieu "khi nao chay + prompt gi", KHONG tu
+// thuc thi gi ca (viec chay that do services/automationScheduler.ts - worker cron rieng - dam
+// nhan, tu tra ve dung Agent (theo Automation.aiAgentId) de chay prompt da luu). Xem comment tren
 // model Automation (schema.prisma) cho ly do vi sao tach biet nghiem ngat nhu vay.
 
 const VALID_RECURRENCE = new Set(["once", "daily"]);
