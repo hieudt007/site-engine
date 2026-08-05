@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { deleteUploadedFile, getR2MigrationStatus, InvalidUploadError, migrateLocalMediaToR2, saveUploadedFile } from "../../services/mediaStorage.js";
+import { findMediaUsage } from "../../services/mediaUsage.js";
 
 const updateMediaSchema = z.object({ alt: z.string().max(300).optional() });
 
@@ -112,6 +113,14 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       const media = await prisma.media.findUnique({ where: { id: request.params.id } });
       if (!media) {
         return reply.code(404).send({ error: "Không tìm thấy file" });
+      }
+
+      const usages = await findMediaUsage(media.url);
+      if (usages.length > 0) {
+        return reply.code(409).send({
+          error: `Ảnh đang được dùng ở ${usages.length} nơi, không thể xoá: ${usages.map((u) => `${u.model} "${u.label}"`).join(", ")}`,
+          usages,
+        });
       }
 
       await deleteUploadedFile(media.url);

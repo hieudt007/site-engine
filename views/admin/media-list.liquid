@@ -230,10 +230,11 @@
     const deleteBtn = event.target.closest("button[data-delete-id]");
     if (deleteBtn) {
       event.stopPropagation();
-      if (!confirm("Xoá file này? Nếu đang dùng trong bài viết/sản phẩm, ảnh sẽ mất.")) return;
+      if (!confirm("Xoá file này?")) return;
       const res = await fetch("/admin/api/media/" + deleteBtn.dataset.deleteId, { method: "DELETE" });
       if (!res.ok) {
-        showError("Xoá thất bại");
+        const body = await res.json().catch(() => ({}));
+        showError(body.error || "Xoá thất bại");
         return;
       }
       load();

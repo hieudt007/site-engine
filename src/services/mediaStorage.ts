@@ -5,6 +5,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { CacheService } from "./CacheService.js";
 import { prisma } from "../db.js";
+import { rewriteMediaUrlReferences } from "./mediaUsage.js";
 
 // Luu file that tren dia VPS o uploads/ (sibling dist/) - KHONG resize/optimize (bo qua sharp,
 // tranh phu thuoc native binary kho cai tren VPS - don gian hoa co chu dich). Serve qua
@@ -242,6 +243,9 @@ export async function migrateLocalMediaToR2(): Promise<{ migrated: number; faile
       const filename = path.posix.basename(relativePath);
       const cdnUrl = await uploadToR2(r2, subDir, filename, buffer, media.mimeType);
 
+      // Doi het cac cho dang tham chieu url cu (coverImage/body/imageUrls/logo...) sang url moi
+      // TRUOC khi xoa file local, de khong bao gio co khoang thoi gian anh gay tren site that.
+      await rewriteMediaUrlReferences(media.url, cdnUrl);
       await prisma.media.update({ where: { id: media.id }, data: { url: cdnUrl, cdnUrl } });
       await fs.rm(path.join(UPLOADS_DIR, relativePath), { force: true });
       migrated++;
