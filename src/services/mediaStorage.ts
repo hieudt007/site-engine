@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { fileTypeFromBuffer } from "file-type";
 import sharp from "sharp";
+import AdmZip from "adm-zip";
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { CacheService } from "./CacheService.js";
 import { prisma } from "../db.js";
@@ -282,4 +283,117 @@ export async function migrateLocalMediaToR2(): Promise<{ migrated: number; faile
   }
 
   return { migrated, failed };
+}
+
+// Import hang loat anh tu 1 file .zip (vd nen thu muc "wp-content/uploads" tai ve tu site
+// WordPress cu) - giai nen thang vao uploads/ CUA SERVER NAY, giu nguyen cau truc con "{nam}/
+// {thang}/{ten file}" cua WordPress khi phat hien duoc (bo phan tien to "wp-content/uploads/"),
+// de URL sinh ra ("/uploads/{nam}/{thang}/{file}") KHOP CHINH XAC voi URL da duoc
+// localizeWpContentUrls() rewrite luc import file .xml (xem wordpressImport.ts) - anh se hien
+// dung ngay ma khong can doi chieu/thay the gi them.
+export interface ZipImportSummary {
+  imported: number;
+  skipped: number;
+  rejected: { name: string; reason: string }[];
+}
+
+const MAX_ZIP_SIZE_BYTES = 300 * 1024 * 1024; // 300MB file .zip nen (anh da nen san nen it khi can hon)
+const MAX_ZIP_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024; // 1GB tong dung luong sau giai nen - chan "zip bomb"
+const MAX_ZIP_ENTRIES = 20000;
+
+// Chi lay phan duong dan SAU "wp-content/uploads/" (neu co) de giu nguyen cau truc nam/thang goc
+// cua WordPress; neu khong co (file .zip nen tay, khong theo cau truc WP) thi bo tien to "uploads/"
+// thua (neu co) roi dung phan con lai. path.posix.normalize() + kiem tra ".." /duong dan tuyet doi
+// de chan "zip slip" (entry ten kieu "../../etc/passwd" ghi de file ngoai uploads/ - lo hong that
+// da biet cua dinh dang zip, khong tin tuyet doi ten entry ben trong file nguoi dung tai len).
+function safeRelativePathFromZipEntry(entryName: string): string | null {
+  const normalized = entryName.replace(/\\/g, "/");
+  const marker = "wp-content/uploads/";
+  const idx = normalized.toLowerCase().indexOf(marker);
+  const afterMarker = idx >= 0 ? normalized.slice(idx + marker.length) : normalized.replace(/^\/?(uploads\/)?/i, "");
+  const posixNormalized = path.posix.normalize(afterMarker);
+  if (!posixNormalized || posixNormalized === "." || posixNormalized.startsWith("..") || path.posix.isAbsolute(posixNormalized)) {
+    return null;
+  }
+  return posixNormalized;
+}
+
+export async function importMediaZip(buffer: Buffer, uploadedByUserId: number): Promise<ZipImportSummary> {
+  if (buffer.length > MAX_ZIP_SIZE_BYTES) {
+    throw new InvalidUploadError("File .zip vượt quá 300MB");
+  }
+
+  let zip: AdmZip;
+  try {
+    zip = new AdmZip(buffer);
+  } catch {
+    throw new InvalidUploadError("Không đọc được file - kiểm tra đây có đúng là file .zip không.");
+  }
+
+  const entries = zip.getEntries().filter((e) => !e.isDirectory);
+  if (entries.length > MAX_ZIP_ENTRIES) {
+    throw new InvalidUploadError(`File .zip chứa quá nhiều file (tối đa ${MAX_ZIP_ENTRIES}).`);
+  }
+
+  const summary: ZipImportSummary = { imported: 0, skipped: 0, rejected: [] };
+  let totalUncompressed = 0;
+
+  for (const entry of entries) {
+    const entryName = entry.entryName.replace(/\\/g, "/");
+    const baseName = path.posix.basename(entryName);
+    // Rac he thong thuong gap trong zip nen tu macOS/Windows - bo qua am tham, khong tinh la loi.
+    if (entryName.includes("__MACOSX/") || baseName.startsWith(".") || baseName === "Thumbs.db") continue;
+
+    const relativePath = safeRelativePathFromZipEntry(entryName);
+    if (!relativePath) {
+      summary.rejected.push({ name: entryName, reason: "Đường dẫn không hợp lệ" });
+      continue;
+    }
+
+    totalUncompressed += entry.header.size;
+    if (totalUncompressed > MAX_ZIP_UNCOMPRESSED_BYTES) {
+      throw new InvalidUploadError("Tổng dung lượng sau giải nén vượt quá 1GB, đã huỷ import.");
+    }
+
+    let raw: Buffer;
+    try {
+      raw = entry.getData();
+    } catch {
+      summary.rejected.push({ name: entryName, reason: "Không giải nén được entry này" });
+      continue;
+    }
+
+    // Kham xet Magic Bytes that su (khong tin duoi file trong ten entry) - dung y het validateBuffer()
+    // dung cho upload tay tung anh, chan file .php/.exe doi ten thanh .jpg nhet vao zip.
+    let mimeType: string;
+    try {
+      mimeType = await validateBuffer(raw);
+    } catch (err) {
+      summary.rejected.push({ name: entryName, reason: err instanceof Error ? err.message : "Định dạng không hợp lệ" });
+      continue;
+    }
+
+    const url = `/uploads/${relativePath}`;
+    const existing = await prisma.media.findFirst({ where: { url } });
+    if (existing) {
+      summary.skipped++;
+      continue;
+    }
+
+    try {
+      const optimized = await optimizeImageBuffer(raw, mimeType);
+      const destPath = path.join(UPLOADS_DIR, relativePath);
+      await fs.mkdir(path.dirname(destPath), { recursive: true });
+      await fs.writeFile(destPath, optimized);
+
+      await prisma.media.create({
+        data: { filename: baseName, url, mimeType, size: optimized.length, uploadedByUserId },
+      });
+      summary.imported++;
+    } catch (err) {
+      summary.rejected.push({ name: entryName, reason: err instanceof Error ? err.message : "Lỗi không xác định" });
+    }
+  }
+
+  return summary;
 }

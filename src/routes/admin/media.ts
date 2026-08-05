@@ -2,7 +2,14 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
-import { deleteUploadedFile, getR2MigrationStatus, InvalidUploadError, migrateLocalMediaToR2, saveUploadedFile } from "../../services/mediaStorage.js";
+import {
+  deleteUploadedFile,
+  getR2MigrationStatus,
+  importMediaZip,
+  InvalidUploadError,
+  migrateLocalMediaToR2,
+  saveUploadedFile,
+} from "../../services/mediaStorage.js";
 import { findMediaUsage } from "../../services/mediaUsage.js";
 
 const updateMediaSchema = z.object({ alt: z.string().max(300).optional() });
@@ -68,6 +75,32 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(422).send({ error: err.message });
       }
       throw err;
+    }
+  });
+
+  // Import hang loat anh tu 1 file .zip (vd nen thu muc "wp-content/uploads" tai tu site WordPress
+  // cu) - "manager" tro len (giong quyen import XML), vi day la thao tac ghi hang loat vao dia VPS.
+  app.post("/admin/api/media/import-zip", { preHandler: requireRole("manager") }, async (request, reply) => {
+    const file = await request.file({ limits: { fileSize: 300 * 1024 * 1024 } });
+    if (!file) {
+      return reply.code(422).send({ error: "Thiếu file .zip" });
+    }
+    if (file.mimetype !== "application/zip" && file.mimetype !== "application/x-zip-compressed" && !file.filename?.toLowerCase().endsWith(".zip")) {
+      return reply.code(422).send({ error: "Chỉ chấp nhận file .zip" });
+    }
+
+    const buffer = await file.toBuffer();
+    const userId = request.session.get("userId")!;
+
+    try {
+      const summary = await importMediaZip(buffer, userId);
+      return reply.send({ summary });
+    } catch (err) {
+      if (err instanceof InvalidUploadError) {
+        return reply.code(422).send({ error: err.message });
+      }
+      request.log.error(err);
+      return reply.code(422).send({ error: "Không đọc được file - kiểm tra đây có đúng là file .zip hợp lệ không." });
     }
   });
 

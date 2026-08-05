@@ -98,6 +98,17 @@ function htmlToPlainTextWithBreaks(html: string): string {
     .trim();
 }
 
+// WordPress luu URL anh KEM DOMAIN CU + "/wp-content/uploads/..." (ca trong wp:attachment_url lan
+// nhung the <img>/<a href> nhung san trong noi dung bai/san pham) - khi admin da giai nen file
+// .zip chua thu muc uploads that (xem importMediaZip trong mediaStorage.ts, GIU NGUYEN cau truc
+// "{year}/{month}/{file}" cua WordPress vao uploads/ cua server nay), chi can bo phan domain +
+// "/wp-content" la URL tro dung ve file that vua giai nen - 2 tinh nang (import XML + import zip
+// anh) PHAI dong bo cung 1 quy uoc duong dan de anh khong bi gay sau khi import. Neu URL KHONG co
+// "/wp-content/uploads/" (anh ngoai, CDN rieng cua ho...) thi giu nguyen, khong doan mo doi.
+function localizeWpContentUrls(text: string): string {
+  return text.replace(/https?:\/\/[^\s"'<>]+?\/wp-content\/uploads\//gi, "/uploads/");
+}
+
 function deriveExcerpt(text: string, maxLen = 200): string {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat.length <= maxLen) return flat;
@@ -167,7 +178,7 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
   for (const item of items) {
     if (item["wp:post_type"] === "attachment" && item["wp:post_id"] != null) {
       const url = item["wp:attachment_url"];
-      if (url) attachmentUrlById.set(String(item["wp:post_id"]), url);
+      if (url) attachmentUrlById.set(String(item["wp:post_id"]), localizeWpContentUrls(url));
     }
   }
 
@@ -193,7 +204,7 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
       }
 
       const slug = capSlugLength((item["wp:post_name"] || slugify(title)).trim() || slugify(title));
-      const rawBody = stripGutenbergComments(item["content:encoded"] ?? "");
+      const rawBody = stripGutenbergComments(localizeWpContentUrls(item["content:encoded"] ?? ""));
       const body = sanitizePostBody(rawBody);
       if (!body) {
         summary.posts.skipped++;
@@ -271,7 +282,7 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
       }
       const slug = capSlugLength(rawSlug);
 
-      const cleaned = stripShortcodes(stripGutenbergComments(item["content:encoded"] ?? ""));
+      const cleaned = stripShortcodes(stripGutenbergComments(localizeWpContentUrls(item["content:encoded"] ?? "")));
       const body = sanitizePostBody(cleaned);
       if (!body) {
         summary.pages.skipped++;
@@ -344,7 +355,7 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
       // mua hang/gia/variant cua product-detail.liquid) - KHONG duoc luu HTML tho vao day, neu
       // khong se bi escape hien nguyen the <p> ra man hinh. Doi lai layoutMode='custom' se lam mat
       // toan bo UI mua hang (chi con dump mo ta), khong phu hop cho san pham that.
-      const rawDescription = stripShortcodes(stripGutenbergComments(item["content:encoded"] ?? ""));
+      const rawDescription = stripShortcodes(stripGutenbergComments(localizeWpContentUrls(item["content:encoded"] ?? "")));
       const description = htmlToPlainTextWithBreaks(rawDescription);
       const rawExcerpt = stripShortcodes(stripGutenbergComments(item["excerpt:encoded"] ?? ""));
       const excerpt = rawExcerpt ? deriveExcerpt(stripHtmlToText(rawExcerpt)) : deriveExcerpt(description);
