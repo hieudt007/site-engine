@@ -6,7 +6,8 @@
 {% endcomment %}
 {% layout "layout" %}
 {% block content %}
-{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
+{% comment %} Script api.js da nap 1 lan duy nhat o layout.liquid (dung chung voi widget chat) - o
+day chi con lai div ".cf-turnstile" de script do tu quet/render. {% endcomment %}
 <div class="min-h-screen bg-[#eff6ff] relative overflow-hidden pt-8 md:pt-10 pb-20">
     <!-- Background Organic Blobs -->
     <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
@@ -116,7 +117,7 @@
                     <div class="space-y-3">
                         {% if site.turnstileSiteKey %}
                         <div class="flex justify-center">
-                            <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-callback="onCheckoutTurnstileSuccess" data-expired-callback="onCheckoutTurnstileExpired" data-error-callback="onCheckoutTurnstileExpired" data-action="checkout"></div>
+                            <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-appearance="interaction-only" data-callback="onCheckoutTurnstileSuccess" data-expired-callback="onCheckoutTurnstileExpired" data-error-callback="onCheckoutTurnstileExpired" data-action="checkout"></div>
                         </div>
                         {% endif %}
 

@@ -10,9 +10,15 @@ chua co) - loi that da gap o theme leadbase.
 {% endcomment %}
 <link rel="stylesheet" href="/assets/customer-chat/chat-drawer.css">
 <script src="/assets/customer-chat/chat-drawer.js" defer></script>
-{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
+{% comment %} Script api.js phai duoc nap 1 LAN DUY NHAT cho ca trang (o layout.liquid cua theme
+dang active) - nap them o day se gay loi console that "Turnstile has already been loaded". Widget
+".cf-turnstile" o duoi van dung binh thuong du script nap tu noi khac, vi api.js tu quet toan bo
+DOM luc no chay xong, khong quan tam script tag o dau. "invisible" KHONG PHAI gia tri hop le cho
+data-size (chi nhan "normal"/"compact"/"flexible", loi that da gap: "Invalid value for parameter
+size" tren console) - muon widget an di khi khong can xac thuc them thi dung data-appearance=
+"interaction-only" (chi hien khi Cloudflare thay nghi ngo can nguoi dung tuong tac). {% endcomment %}
 <div id="plugin-chat-drawer" class="plugin-chat-container fixed bottom-4 right-4 z-50" data-session-id="{{ chatSessionId | escape }}" data-hmac="{{ chatHmacToken | escape }}">
-  {% if site.turnstileSiteKey %}<div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-size="invisible"></div>{% endif %}
+  {% if site.turnstileSiteKey %}<div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-appearance="interaction-only"></div>{% endif %}
   <button class="plugin-chat-toggle bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 transition">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>

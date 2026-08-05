@@ -11,9 +11,13 @@ khi localStorage chua co, thieu se anh huong that den xac thuc phien chat lan da
 {% endcomment %}
 <link rel="stylesheet" href="/assets/customer-chat/chat-drawer.css">
 <script src="/assets/customer-chat/chat-drawer.js" defer></script>
-{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
+{% comment %} Script api.js da nap 1 lan duy nhat o layout.liquid (dung chung voi widget checkout
+neu co) - o day chi con lai div ".cf-turnstile". "invisible" KHONG PHAI gia tri hop le cho
+data-size (chi nhan "normal"/"compact"/"flexible", loi that da gap: "Invalid value for parameter
+size" tren console) - muon widget an di khi khong can xac thuc them thi dung data-appearance=
+"interaction-only" (chi hien khi Cloudflare thay nghi ngo can nguoi dung tuong tac). {% endcomment %}
 <div id="plugin-chat-drawer" class="plugin-chat-container fixed bottom-5 right-5 z-50" data-session-id="{{ chatSessionId | escape }}" data-hmac="{{ chatHmacToken | escape }}">
-  {% if site.turnstileSiteKey %}<div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-size="invisible"></div>{% endif %}
+  {% if site.turnstileSiteKey %}<div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-appearance="interaction-only"></div>{% endif %}
 
   <!-- Tooltip goi y -->
   <div class="plugin-chat-tooltip hidden absolute bottom-[76px] right-0 w-max max-w-[220px] rounded-2xl rounded-br-md bg-white px-4 py-3 text-sm text-slate-700 shadow-lg border border-slate-100">

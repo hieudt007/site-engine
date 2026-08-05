@@ -1,6 +1,7 @@
 {% layout "layout" %}
 {% block content %}
-{% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
+{% comment %} Script api.js da nap 1 lan duy nhat o layout.liquid - o day chi con lai div
+".cf-turnstile" de script do tu quet/render. {% endcomment %}
 <h1 class="font-serif text-3xl font-medium text-center mb-10">Thanh toán</h1>
 
 <div id="checkout-items"></div>
@@ -15,7 +16,7 @@
   <div id="checkout-total" class="my-4 font-medium text-lg text-center"></div>
   {% if site.turnstileSiteKey %}
   <div class="flex justify-center mb-4">
-    <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-callback="onCheckoutTurnstileSuccess" data-expired-callback="onCheckoutTurnstileExpired" data-error-callback="onCheckoutTurnstileExpired" data-action="checkout"></div>
+    <div class="cf-turnstile" data-sitekey="{{ site.turnstileSiteKey | escape }}" data-appearance="interaction-only" data-callback="onCheckoutTurnstileSuccess" data-expired-callback="onCheckoutTurnstileExpired" data-error-callback="onCheckoutTurnstileExpired" data-action="checkout"></div>
   </div>
   {% endif %}
   <div class="text-center">

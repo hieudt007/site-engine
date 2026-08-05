@@ -7,6 +7,11 @@
   {% if metaDescription %}<meta name="description" content="{{ metaDescription }}">{% endif %}
   {% if noindex %}<meta name="robots" content="noindex">{% endif %}
   {% if site.faviconUrl %}<link rel="icon" href="{{ site.faviconUrl }}">{% endif %}
+  {% comment %} Load DUY NHAT 1 lan o day cho toan trang - checkout.liquid + components/customer-
+  chat.liquid (fallback tu theme default) co the CUNG co widget ".cf-turnstile" tren CUNG 1 trang.
+  1 script api.js tu quet/render MOI div ".cf-turnstile" no thay (implicit rendering) - nap 2 lan
+  gay loi console "Turnstile has already been loaded". {% endcomment %}
+  {% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
   <link rel="alternate" type="application/rss+xml" title="{{ site.siteName }} RSS" href="/feed.xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

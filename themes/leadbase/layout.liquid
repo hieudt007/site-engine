@@ -14,6 +14,12 @@
     {% if metaDescription %}<meta name="description" content="{{ metaDescription | escape }}">{% endif %}
     {% if noindex %}<meta name="robots" content="noindex">{% endif %}
     {% for schema in schemas %}<script type="application/ld+json">{{ schema | json }}</script>{% endfor %}
+    {% comment %} Load DUY NHAT 1 lan o day cho toan trang - checkout.liquid + components/customer-
+    chat.liquid CUNG co the co widget ".cf-turnstile" tren CUNG 1 trang (chat hien moi trang qua
+    layout.liquid). 1 script api.js tu quet/render MOI div ".cf-turnstile" no thay (implicit
+    rendering) - khong can nap them lan nao nua, nap 2 lan gay loi that console "Turnstile has
+    already been loaded" va co the lam 1 trong 2 widget khong hoat dong. {% endcomment %}
+    {% if site.turnstileSiteKey %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
 
     <!-- Fonts: Poppins (mang chatbot-lite sang) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
