@@ -6,6 +6,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client
 import { CacheService } from "./CacheService.js";
 import { prisma } from "../db.js";
 import { rewriteMediaUrlReferences } from "./mediaUsage.js";
+import { decryptNodeString } from "../nodeCrypt.js";
 
 // Luu file that tren dia VPS o uploads/ (sibling dist/) - KHONG resize/optimize (bo qua sharp,
 // tranh phu thuoc native binary kho cai tren VPS - don gian hoa co chu dich). Serve qua
@@ -30,7 +31,15 @@ async function getR2Config(): Promise<R2Config | null> {
   if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey || !r2BucketName || !r2PublicUrl) {
     return null;
   }
-  return { accountId: r2AccountId, accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey, bucketName: r2BucketName, publicUrl: r2PublicUrl };
+  // r2AccessKeyId/r2SecretAccessKey duoc ma hoa (encryptNodeString) truoc khi luu DB (xem
+  // routes/admin/settings.ts) - giai ma o day, diem DUY NHAT thuc su can gia tri that de goi R2.
+  return {
+    accountId: r2AccountId,
+    accessKeyId: decryptNodeString(r2AccessKeyId),
+    secretAccessKey: decryptNodeString(r2SecretAccessKey),
+    bucketName: r2BucketName,
+    publicUrl: r2PublicUrl,
+  };
 }
 
 // 1 S3Client theo 1 bo credential - cache theo accountId+accessKeyId de tu tao lai khi admin doi

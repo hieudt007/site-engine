@@ -4,6 +4,13 @@ import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
+import { encryptNodeString } from "../../nodeCrypt.js";
+
+// Cac truong credential THAT (khong phai site key public/ten bucket/domain) - ma hoa truoc khi
+// luu (giong Agent.apiKey), va KHONG BAO GIO tra ve gia tri that qua GET (xem registerSettingsRoutes
+// GET handler) - frontend chi biet "da co" qua cac co has* de hien placeholder, khong hien lai gia
+// tri cu. Bo trong luc PATCH = giu nguyen gia tri cu (khong xoa).
+const SECRET_FIELDS = ["turnstileSecretKey", "r2AccessKeyId", "r2SecretAccessKey"] as const;
 
 // Cài đặt chung của CHÍNH website đang chạy (system_design.md §10.1) - đúng 1 row "singleton".
 // §5.2: settings là quyền admin duy nhất, manager/edit không đụng được.
@@ -75,8 +82,17 @@ const updateSettingsSchema = z
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/api/settings", { preHandler: requireRole("admin") }, async (request) => {
-    const settings = await getOrCreateSiteConfig(request.hostname);
-    return { settings };
+    const raw = await getOrCreateSiteConfig(request.hostname);
+    // Khong bao gio tra gia tri credential that ve browser (da ma hoa trong DB, nhung van la
+    // "biet duoc" neu gui ve nguyen van roi FE tu hien lai) - chi bao "da co" qua co has* de FE
+    // hien placeholder, gia tri that CHI dung noi server (cart.ts/customerChat.ts/mediaStorage.ts).
+    const settings = { ...raw } as Record<string, unknown>;
+    const has: Record<string, boolean> = {};
+    for (const field of SECRET_FIELDS) {
+      has[`has${field[0].toUpperCase()}${field.slice(1)}`] = Boolean(settings[field]);
+      settings[field] = "";
+    }
+    return { settings: { ...settings, ...has } };
   });
 
   app.patch("/admin/api/settings", { preHandler: requireRole("admin") }, async (request, reply) => {
@@ -106,12 +122,23 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       return reply.code(422).send({ error: "Prefix trang không được trùng prefix sản phẩm" });
     }
 
+    // SECRET_FIELDS: bo qua neu rong/khong gui (giu nguyen gia tri cu), ma hoa truoc khi luu neu
+    // co gia tri moi - khong bao gio ghi de bang chuoi rong/plaintext (xem ghi chu SECRET_FIELDS).
+    const secretUpdates: Record<string, string> = {};
+    for (const field of SECRET_FIELDS) {
+      const value = parsed.data[field];
+      if (value) secretUpdates[field] = encryptNodeString(value);
+    }
+    const dataWithoutSecrets = { ...parsed.data };
+    for (const field of SECRET_FIELDS) delete dataWithoutSecrets[field];
+
     let updated;
     try {
       updated = await prisma.siteConfig.update({
         where: { id: "singleton" },
         data: {
-          ...parsed.data,
+          ...dataWithoutSecrets,
+          ...secretUpdates,
           ...(parsed.data.postSlugPrefix !== undefined ? { postSlugPrefix: parsed.data.postSlugPrefix.trim() } : {}),
           ...(parsed.data.pageSlugPrefix !== undefined ? { pageSlugPrefix: parsed.data.pageSlugPrefix.trim() } : {}),
           ...(parsed.data.productSlugPrefix !== undefined ? { productSlugPrefix: parsed.data.productSlugPrefix.trim() } : {}),
@@ -127,6 +154,12 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       });
     }
 
-    return { settings: updated };
+    const settings = { ...updated } as Record<string, unknown>;
+    const has: Record<string, boolean> = {};
+    for (const field of SECRET_FIELDS) {
+      has[`has${field[0].toUpperCase()}${field.slice(1)}`] = Boolean(settings[field]);
+      settings[field] = "";
+    }
+    return { settings: { ...settings, ...has } };
   });
 }

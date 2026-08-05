@@ -7,6 +7,7 @@ import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
 import { BaseAgent, AgentContext } from "../../agents/core/BaseAgent.js";
 import type { ChatHistoryItem } from "../../services/themeChat.js";
 import { saveAiChatImage } from "../../services/mediaStorage.js";
+import { decryptNodeString } from "../../nodeCrypt.js";
 
 // Live-chat AI CSKH (agent key="customer") - truoc day la plugin "customer-support", gio la core
 // feature (khong con chay code khong sandbox cua "plugin" nua, xem quyet dinh go bo plugin system).
@@ -94,7 +95,7 @@ export async function registerCustomerChatPublicRoutes(app: FastifyInstance): Pr
         const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ secret: siteConfig.turnstileSecretKey, response: turnstileToken }).toString(),
+          body: new URLSearchParams({ secret: decryptNodeString(siteConfig.turnstileSecretKey), response: turnstileToken }).toString(),
         });
         const verifyData = (await verifyRes.json()) as any;
         if (!verifyData.success) return reply.code(403).send({ error: "Xác thực Captcha thất bại, vui lòng thử lại." });

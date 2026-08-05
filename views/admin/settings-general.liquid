@@ -167,8 +167,8 @@
       <p class="field-hint">Site Key lấy từ dashboard Cloudflare Turnstile.</p>
 
       <label for="turnstileSecretKey">Secret Key</label>
-      <input type="text" id="turnstileSecretKey" name="turnstileSecretKey" placeholder="0x4A...">
-      <p class="field-hint">Dùng để xác thực request ở Backend. Để trống nếu tắt bảo vệ.</p>
+      <input type="password" id="turnstileSecretKey" name="turnstileSecretKey" autocomplete="off" placeholder="0x4A...">
+      <p class="field-hint" id="turnstileSecretKey-hint">Dùng để xác thực request ở Backend. Để trống nếu tắt bảo vệ.</p>
 
       <h2 style="font-size:1.1rem;margin-bottom:1rem;margin-top:2rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Lưu trữ ảnh (Cloudflare R2)</h2>
       <p class="field-hint" style="margin-top:-0.5rem;">Để trống toàn bộ để tiếp tục lưu ảnh trên ổ đĩa server (mặc định). Điền đủ 5 trường bên dưới để tự động chuyển sang lưu trên Cloudflare R2.</p>
@@ -177,10 +177,12 @@
       <input type="text" id="r2AccountId" name="r2AccountId" placeholder="VD: 38267dcaa86e14664ed5d7d372f48f9c">
 
       <label for="r2AccessKeyId">Access Key ID</label>
-      <input type="text" id="r2AccessKeyId" name="r2AccessKeyId" autocomplete="off">
+      <input type="password" id="r2AccessKeyId" name="r2AccessKeyId" autocomplete="off">
+      <p class="field-hint" id="r2AccessKeyId-hint"></p>
 
       <label for="r2SecretAccessKey">Secret Access Key</label>
-      <input type="text" id="r2SecretAccessKey" name="r2SecretAccessKey" autocomplete="off">
+      <input type="password" id="r2SecretAccessKey" name="r2SecretAccessKey" autocomplete="off">
+      <p class="field-hint" id="r2SecretAccessKey-hint"></p>
 
       <label for="r2BucketName">Tên Bucket</label>
       <input type="text" id="r2BucketName" name="r2BucketName" placeholder="VD: lead-base-storage">
@@ -280,6 +282,20 @@
       form[key].value = social[key] ?? "";
     });
 
+    // Cac truong secret (GET khong bao gio tra gia tri that - chi co co "has*") - hien placeholder
+    // bao "da co san, de trong = giu nguyen" thay vi hien gia tri (xem routes/admin/settings.ts).
+    ["turnstileSecretKey", "r2AccessKeyId", "r2SecretAccessKey"].forEach((key) => {
+      const hasKey = "has" + key[0].toUpperCase() + key.slice(1);
+      const input = document.getElementById(key);
+      const hint = document.getElementById(key + "-hint");
+      if (settings[hasKey]) {
+        input.placeholder = "•••••••• (đã lưu - để trống nếu không muốn đổi)";
+        if (hint) hint.textContent = "Đã lưu trước đó, không hiển thị lại vì lý do bảo mật. Chỉ điền khi muốn thay giá trị mới.";
+      } else if (hint) {
+        hint.textContent = key === "turnstileSecretKey" ? "Dùng để xác thực request ở Backend. Để trống nếu tắt bảo vệ." : "";
+      }
+    });
+
     // Cập nhật giao diện ảnh (Image pickers)
     document.querySelectorAll(".image-picker-box").forEach(box => {
       const input = box.querySelector("input");
@@ -316,10 +332,11 @@
       customFooterScript: form.customFooterScript.value.trim(),
       gscVerificationId: form.gscVerificationId.value.trim(),
       turnstileSiteKey: form.turnstileSiteKey.value.trim(),
-      turnstileSecretKey: form.turnstileSecretKey.value.trim(),
+      // De trong = giu nguyen gia tri da luu (khong gui field len het, xem routes/admin/settings.ts).
+      turnstileSecretKey: form.turnstileSecretKey.value.trim() || undefined,
       r2AccountId: form.r2AccountId.value.trim(),
-      r2AccessKeyId: form.r2AccessKeyId.value.trim(),
-      r2SecretAccessKey: form.r2SecretAccessKey.value.trim(),
+      r2AccessKeyId: form.r2AccessKeyId.value.trim() || undefined,
+      r2SecretAccessKey: form.r2SecretAccessKey.value.trim() || undefined,
       r2BucketName: form.r2BucketName.value.trim(),
       r2PublicUrl: form.r2PublicUrl.value.trim(),
       adminChatAgentId: form.adminChatAgentId.value || undefined,

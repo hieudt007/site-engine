@@ -8,6 +8,7 @@ import { renderNotFound } from "../../services/notFoundPage.js";
 import { sendOrderToLeadbase, LeadbaseOrderError, OrderItemPayload } from "../../services/leadbaseClient.js";
 import { getOrCreateSiteConfig } from "../../services/siteConfig.js";
 import { customFieldsSchema } from "../../services/customFields.js";
+import { decryptNodeString } from "../../nodeCrypt.js";
 import { getPaymentMethod, listPaymentMethods, PAYMENT_METHOD_KEYS, VnpayConfig } from "../../services/paymentMethods.js";
 import { buildVnpayPaymentUrl } from "../../services/vnpay.js";
 import { calculateShippingFee, findMatchingShippingRule, listShippingRules, VN_PROVINCES } from "../../services/shipping.js";
@@ -140,7 +141,7 @@ export async function registerCartRoutes(app: FastifyInstance): Promise<void> {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          secret: siteConfig.turnstileSecretKey,
+          secret: decryptNodeString(siteConfig.turnstileSecretKey),
           response: token,
         }).toString(),
       });
