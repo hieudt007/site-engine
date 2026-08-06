@@ -260,13 +260,32 @@
       } else {
         html += '<span class="disabled">&laquo;</span>';
       }
+      
+      let pages = [];
+      const delta = 2;
       for (let i = 1; i <= totalPages; i++) {
-        if (i === currentPage) {
-          html += '<span class="active">' + i + '</span>';
-        } else {
-          html += '<a href="#" data-page="' + i + '">' + i + '</a>';
+        if (i == 1 || i == totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+          pages.push(i);
         }
       }
+
+      let last = 0;
+      for (let p of pages) {
+        if (last) {
+          if (p - last === 2) {
+            html += '<a href="#" data-page="' + (last + 1) + '">' + (last + 1) + '</a>';
+          } else if (p - last !== 1) {
+            html += '<span class="disabled">...</span>';
+          }
+        }
+        if (p === currentPage) {
+          html += '<span class="active">' + p + '</span>';
+        } else {
+          html += '<a href="#" data-page="' + p + '">' + p + '</a>';
+        }
+        last = p;
+      }
+
       if (currentPage < totalPages) {
         html += '<a href="#" data-page="' + (currentPage + 1) + '">&raquo;</a>';
       } else {

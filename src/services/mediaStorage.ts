@@ -374,21 +374,20 @@ export async function importMediaZip(buffer: Buffer, uploadedByUserId: number): 
     }
 
     const url = `/uploads/${relativePath}`;
-    const existing = await prisma.media.findFirst({ where: { url } });
-    if (existing) {
+    const destPath = path.join(UPLOADS_DIR, relativePath);
+    try {
+      await fs.access(destPath);
       summary.skipped++;
       continue;
+    } catch {
+      // file không tồn tại, tiếp tục
     }
 
     try {
       const optimized = await optimizeImageBuffer(raw, mimeType);
-      const destPath = path.join(UPLOADS_DIR, relativePath);
       await fs.mkdir(path.dirname(destPath), { recursive: true });
       await fs.writeFile(destPath, optimized);
 
-      await prisma.media.create({
-        data: { filename: baseName, url, mimeType, size: optimized.length, uploadedByUserId },
-      });
       summary.imported++;
     } catch (err) {
       summary.rejected.push({ name: entryName, reason: err instanceof Error ? err.message : "Lỗi không xác định" });

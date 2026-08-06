@@ -8,11 +8,7 @@
       <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="margin-right: 4px;"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
       <span id="migrate-r2-btn-label">Chuyển ảnh sang R2</span>
     </button>
-    <button type="button" class="btn btn-secondary" id="import-zip-btn" style="display:none;" title="Nhập hàng loạt ảnh từ file .zip (vd nén thư mục wp-content/uploads từ site cũ)">
-      <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="margin-right: 4px;"><path d="M21 8v13H3V8"></path><path d="M1 3h22v5H1z"></path><path d="M10 12h4"></path></svg>
-      Nhập từ .zip
-    </button>
-    <input type="file" id="import-zip-input" accept=".zip,application/zip,application/x-zip-compressed" style="display:none;">
+
     <button type="button" class="btn btn-primary" onclick="document.getElementById('file-input').click()">
       <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" style="margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
       Tải lên
@@ -310,44 +306,7 @@
     }
   });
 
-  const importZipBtn = document.getElementById("import-zip-btn");
-  const importZipInput = document.getElementById("import-zip-input");
-  if (canDelete) {
-    importZipBtn.style.display = "";
-    importZipBtn.addEventListener("click", () => importZipInput.click());
 
-    importZipInput.addEventListener("change", async () => {
-      const file = importZipInput.files[0];
-      if (!file) return;
-      if (!confirm(`Nhập toàn bộ ảnh trong "${file.name}" vào Media? File .zip nên nén thư mục "uploads" (hoặc "wp-content/uploads") để giữ đúng cấu trúc, khớp với link ảnh khi nhập file .xml WordPress.`)) {
-        importZipInput.value = "";
-        return;
-      }
-      status.textContent = "Đang giải nén và nhập ảnh, có thể mất vài phút với file lớn...";
-      importZipBtn.disabled = true;
-      try {
-        const formData = new FormData();
-        formData.append("file", file, file.name);
-        const res = await fetch("/admin/api/media/import-zip", { method: "POST", body: formData });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          showError(body.error || "Nhập file .zip thất bại");
-        } else {
-          const s = body.summary;
-          let message = `Đã nhập ${s.imported} ảnh` + (s.skipped ? `, bỏ qua ${s.skipped} ảnh đã có` : "") + ".";
-          if (s.rejected.length) message += ` Từ chối ${s.rejected.length} file không hợp lệ: ${s.rejected.slice(0, 5).map((r) => r.name).join(", ")}${s.rejected.length > 5 ? "…" : ""}`;
-          if (s.rejected.length) showError(message); else showSuccess(message);
-          load();
-        }
-      } catch (err) {
-        showError("Lỗi khi tải file .zip lên: " + err.message);
-      } finally {
-        status.textContent = "";
-        importZipBtn.disabled = false;
-        importZipInput.value = "";
-      }
-    });
-  }
 
   const migrateBtn = document.getElementById("migrate-r2-btn");
   const migrateBtnLabel = document.getElementById("migrate-r2-btn-label");

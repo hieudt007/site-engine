@@ -6,11 +6,27 @@
 
 <div id="flash"></div>
 
+<div class="card" style="max-width:640px;margin-bottom:1.2rem;">
+  <h3 style="margin-top:0;">Bước 1: Import Ảnh (Bắt buộc làm trước)</h3>
+  <p style="margin-top:0;color:#555;font-size:0.9rem;">
+    Cài đặt plugin <strong>File Manager</strong> (hoặc truy cập qua FTP/CPanel) trên website WordPress cũ. Tìm đến thư mục <code>wp-content/uploads</code>, nén toàn bộ thư mục <code>uploads</code> đó thành 1 file <code>.zip</code>.
+    <br><br>
+    Tải file <code>.zip</code> đó lên đây để hệ thống lưu trữ ảnh gốc trước khi import nội dung. Nếu bỏ qua bước này, bài viết sẽ không có ảnh đính kèm.
+  </p>
+
+  <label for="media-zip-file">File .zip (Thư mục uploads)</label>
+  <input type="file" id="media-zip-file" accept=".zip,application/zip,application/x-zip-compressed">
+
+  <button type="button" class="btn btn-primary" id="import-media-btn" style="margin-top:1rem;">Import Ảnh</button>
+  <div id="import-media-status" style="font-size:0.85rem;color:#777;margin-top:0.6rem;"></div>
+</div>
+
 <div class="card" style="max-width:640px;">
+  <h3 style="margin-top:0;">Bước 2: Import Nội dung (XML)</h3>
   <p style="margin-top:0;color:#555;font-size:0.9rem;">
     Tải lên file export WordPress (Tools &rarr; Export, định dạng <code>.xml</code>).
     Hệ thống tự nhận diện và nhập <strong>bài viết</strong>, <strong>trang tĩnh</strong> và <strong>sản phẩm (WooCommerce)</strong> có trong file —
-    tiêu đề/nội dung, ảnh (giữ nguyên URL gốc), chuyên mục, giá/tồn kho (với sản phẩm), mô tả SEO (Rank Math nếu có).
+    tiêu đề/nội dung, ảnh (nếu đã làm Bước 1), chuyên mục, giá/tồn kho (với sản phẩm), mô tả SEO (Rank Math nếu có).
     Bản ghi đã tồn tại (trùng slug/ID) sẽ được <strong>cập nhật</strong> thay vì tạo bản sao.
     Trang mặc định của WordPress/WooCommerce (giỏ hàng, thanh toán, tài khoản...) và trang dùng page-builder không thể chuyển đổi sẽ tự động bị bỏ qua.
   </p>
@@ -32,6 +48,10 @@
   const resultBox = document.getElementById("import-result");
   const flash = document.getElementById("flash");
 
+  const mediaZipInput = document.getElementById("media-zip-file");
+  const importMediaBtn = document.getElementById("import-media-btn");
+  const importMediaStatus = document.getElementById("import-media-status");
+
   function showFlash(message, ok) {
     flash.textContent = message;
     flash.className = ok ? "success" : "error";
@@ -49,6 +69,41 @@
       "</div></div>"
     );
   }
+
+  importMediaBtn.addEventListener("click", async () => {
+    const file = mediaZipInput.files[0];
+    if (!file) {
+      showFlash("Vui lòng chọn file .zip chứa thư mục uploads", false);
+      return;
+    }
+
+    importMediaBtn.disabled = true;
+    importMediaStatus.textContent = "Đang giải nén và lưu ảnh, có thể mất vài phút với file lớn...";
+    
+    const formData = new FormData();
+    formData.append("file", file, file.name);
+
+    try {
+      const res = await fetch("/admin/api/media/import-zip", { method: "POST", body: formData });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        showFlash(typeof body.error === "string" ? body.error : "Import ảnh thất bại", false);
+        importMediaStatus.textContent = "";
+        return;
+      }
+
+      const s = body.summary;
+      showFlash(`Đã xử lý file zip: Lưu thành công ${s.imported} ảnh, bỏ qua ${s.skipped} ảnh (đã tồn tại).`, true);
+      importMediaStatus.textContent = "";
+      mediaZipInput.value = "";
+    } catch (e) {
+      showFlash("Lỗi kết nối, vui lòng thử lại.", false);
+      importMediaStatus.textContent = "";
+    } finally {
+      importMediaBtn.disabled = false;
+    }
+  });
 
   importBtn.addEventListener("click", async () => {
     const file = fileInput.files[0];

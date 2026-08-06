@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { XMLParser } from "fast-xml-parser";
 import { prisma } from "../db.js";
 import { slugify } from "./slug.js";
@@ -178,7 +180,31 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
   for (const item of items) {
     if (item["wp:post_type"] === "attachment" && item["wp:post_id"] != null) {
       const url = item["wp:attachment_url"];
-      if (url) attachmentUrlById.set(String(item["wp:post_id"]), localizeWpContentUrls(url));
+      if (url) {
+        const localUrl = localizeWpContentUrls(url);
+        attachmentUrlById.set(String(item["wp:post_id"]), localUrl);
+        
+        const localPath = path.join(process.cwd(), decodeURI(localUrl).replace(/^\/+/, ""));
+        if (fs.existsSync(localPath)) {
+          const existing = await prisma.media.findFirst({ where: { url: localUrl } });
+          if (!existing) {
+            try {
+              const stats = fs.statSync(localPath);
+              await prisma.media.create({
+                data: {
+                  filename: path.posix.basename(localUrl),
+                  url: localUrl,
+                  mimeType: "application/octet-stream",
+                  size: stats.size,
+                  uploadedByUserId: authorId,
+                }
+              });
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      }
     }
   }
 

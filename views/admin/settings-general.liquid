@@ -102,6 +102,7 @@
       <label for="businessLicense">Số ĐKKD</label>
       <input type="text" id="businessLicense" name="businessLicense">
 
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
         <div>
           <label for="facebook">Facebook</label>
@@ -160,7 +161,12 @@
     </div>
 
     <div id="tab-security" class="tab-pane">
-      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Chống Bot (Cloudflare Turnstile)</h2>
+      <h2 style="margin-top:0;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">API Bản Đồ (Goong Maps)</h2>
+      <label for="goongApiKey">Khóa API (Autocomplete)</label>
+      <input type="text" id="goongApiKey" name="goongApiKey" placeholder="Nhập mã API để bật tự động điền địa chỉ...">
+      <p class="field-hint">Dùng cho chức năng tự động gợi ý địa chỉ ở giỏ hàng.</p>
+
+      <h2 style="margin-top:2rem;font-size:1.1rem;margin-bottom:1rem;border-bottom:1px solid #eee;padding-bottom:0.5rem;">Chống Bot (Cloudflare Turnstile)</h2>
 
       <label for="turnstileSiteKey">Site Key</label>
       <input type="text" id="turnstileSiteKey" name="turnstileSiteKey" placeholder="0x4A...">
@@ -272,7 +278,7 @@
       return;
     }
     const { settings } = await res.json();
-    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "companyName", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "r2AccountId", "r2AccessKeyId", "r2SecretAccessKey", "r2BucketName", "r2PublicUrl", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
+    ["siteType", "postSlugPrefix", "productSlugPrefix", "pageSlugPrefix", "siteName", "tagline", "logoUrl", "faviconUrl", "companyName", "contactEmail", "contactPhone", "contactAddress", "businessLicense", "goongApiKey", "defaultOgImage", "gaId", "fbPixelId", "customHeadScript", "customFooterScript", "gscVerificationId", "turnstileSiteKey", "turnstileSecretKey", "r2AccountId", "r2AccessKeyId", "r2SecretAccessKey", "r2BucketName", "r2PublicUrl", "adminChatAgentId", "cskhAgentId"].forEach((key) => {
       if(form[key]) form[key].value = settings[key] ?? "";
     });
     const social = settings.socialLinks || {};
@@ -311,6 +317,7 @@
       contactPhone: form.contactPhone.value || undefined,
       contactAddress: form.contactAddress.value || undefined,
       businessLicense: form.businessLicense.value || undefined,
+      goongApiKey: form.goongApiKey.value.trim() || undefined,
       gaId: form.gaId.value.trim(),
       fbPixelId: form.fbPixelId.value.trim(),
       customHeadScript: form.customHeadScript.value.trim(),
