@@ -40,7 +40,7 @@ export async function getCrossSellProducts(relatedProducts: unknown, excludeId: 
   return fetchByConfig((relatedProducts as { crossSell?: RelatedConfig } | null)?.crossSell, excludeId);
 }
 
-const MAX_UPSELL = 8;
+const MAX_UPSELL = 4;
 
 // "Co the ban quan tam" = san pham tu config upsell admin da chon (neu co) + san pham CUNG DANH
 // MUC voi san pham hien tai (tu dong, khong can cau hinh gi them) - gop lai, loc trung theo id,
@@ -55,11 +55,18 @@ export async function getUpsellProducts(
   const categoryIds = (product.categories ?? []).map((c) => c.id);
   let sameCategoryResults: RecommendedProduct[] = [];
   if (categoryIds.length > 0) {
-    sameCategoryResults = await prisma.productCache.findMany({
+    const inCategory = await prisma.productCache.findMany({
       where: { categories: { some: { id: { in: categoryIds } } }, status: "published", id: { not: product.id } },
-      select: PRODUCT_SELECT,
-      take: MAX_UPSELL,
+      select: { id: true },
     });
+    if (inCategory.length > 0) {
+      const shuffled = inCategory.sort(() => 0.5 - Math.random());
+      const selectedIds = shuffled.slice(0, MAX_UPSELL).map((x) => x.id);
+      sameCategoryResults = await prisma.productCache.findMany({
+        where: { id: { in: selectedIds } },
+        select: PRODUCT_SELECT,
+      });
+    }
   }
 
   const merged: RecommendedProduct[] = [];

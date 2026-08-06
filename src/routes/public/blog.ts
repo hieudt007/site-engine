@@ -99,32 +99,44 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
     const seenIds = new Set<string>([post.id]);
 
     if (post.topicId) {
-      const sameTopic = await prisma.post.findMany({
+      const topicIds = await prisma.post.findMany({
         where: { type: "post", status: "published", id: { not: post.id }, topicId: post.topicId },
-        orderBy: { publishedAt: "desc" },
-        take: RELATED_POSTS_LIMIT,
-        include: { categories: { select: { name: true, slug: true } } },
+        select: { id: true },
       });
-      for (const p of sameTopic) {
-        if (seenIds.has(p.id)) continue;
-        seenIds.add(p.id);
-        relatedPosts.push(p);
+      if (topicIds.length > 0) {
+        const shuffled = topicIds.sort(() => 0.5 - Math.random());
+        const selectedIds = shuffled.slice(0, RELATED_POSTS_LIMIT).map((x) => x.id);
+        const sameTopic = await prisma.post.findMany({
+          where: { id: { in: selectedIds } },
+          include: { categories: { select: { name: true, slug: true } } },
+        });
+        for (const p of sameTopic) {
+          if (seenIds.has(p.id)) continue;
+          seenIds.add(p.id);
+          relatedPosts.push(p);
+        }
       }
     }
 
     if (relatedPosts.length < RELATED_POSTS_LIMIT && post.categories.length > 0) {
-      const sameCategory = await prisma.post.findMany({
+      const categoryIds = await prisma.post.findMany({
         where: {
           type: "post",
           status: "published",
           id: { notIn: [...seenIds] },
           categories: { some: { slug: { in: post.categories.map((c) => c.slug) } } },
         },
-        orderBy: { publishedAt: "desc" },
-        take: RELATED_POSTS_LIMIT - relatedPosts.length,
-        include: { categories: { select: { name: true, slug: true } } },
+        select: { id: true },
       });
-      relatedPosts = relatedPosts.concat(sameCategory);
+      if (categoryIds.length > 0) {
+        const shuffled = categoryIds.sort(() => 0.5 - Math.random());
+        const selectedIds = shuffled.slice(0, RELATED_POSTS_LIMIT - relatedPosts.length).map((x) => x.id);
+        const sameCategory = await prisma.post.findMany({
+          where: { id: { in: selectedIds } },
+          include: { categories: { select: { name: true, slug: true } } },
+        });
+        relatedPosts = relatedPosts.concat(sameCategory);
+      }
     }
 
     html = await renderPublic("blog-post", {
