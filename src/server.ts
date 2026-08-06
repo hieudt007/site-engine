@@ -352,7 +352,23 @@ async function start(): Promise<void> {
     startAutomationScheduler();
   }
 
-  await app.listen({ port: config.port, host: "0.0.0.0" });
+  let currentPort = config.port;
+  while (true) {
+    try {
+      await app.listen({ port: currentPort, host: "0.0.0.0" });
+      if (currentPort !== config.port) {
+        app.log.info(`Port ${config.port} in use, automatically switched to ${currentPort}`);
+      }
+      break;
+    } catch (err: any) {
+      if (err.code === "EADDRINUSE" && currentPort < config.port + 100) {
+        app.log.warn(`Port ${currentPort} is in use, trying ${currentPort + 1}...`);
+        currentPort++;
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
 start().catch((err) => {

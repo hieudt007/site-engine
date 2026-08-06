@@ -61,7 +61,11 @@
         <p style="color:#777;font-size:0.85rem;margin:0;max-width:600px;">
           Chọn theme hiển thị cho site public. Mỗi theme là 1 bộ template độc lập — đổi qua lại không mất dữ liệu bài viết/sản phẩm.
         </p>
-        <button class="btn btn-primary" id="open-theme-modal" style="white-space:nowrap;">+ Tạo theme mới</button>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <input type="file" id="upload-theme-zip" accept=".zip,application/zip" style="display:none;">
+          <button class="btn" id="upload-theme-btn" style="white-space:nowrap;">Upload Theme (.zip)</button>
+          <button class="btn btn-primary" id="open-theme-modal" style="white-space:nowrap;">+ Tạo theme mới</button>
+        </div>
       </div>
 
       <div id="theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-bottom:1.5rem;">
@@ -170,11 +174,12 @@
     const screenshot = theme.hasScreenshot
       ? '<img src="/theme-assets/' + theme.slug + '/screenshot.png" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:0.6rem;">'
       : "";
+    const downloadBtn = '<a class="btn btn-icon" href="/admin/api/themes/' + theme.slug + '/export" style="margin-top:0.4rem;margin-left:0.4rem;" title="Tải về (ZIP)" aria-label="Tải về">' + window.adminIcon("download") + '</a>';
     return (
       '<div class="card">' + screenshot +
       '<div style="font-weight:600;margin-bottom:0.3rem;">' + escapeHtml(theme.name) + '</div>' +
       '<div style="font-size:0.78rem;color:#999;margin-bottom:0.7rem;">' + (SOURCE_LABEL[theme.source] || theme.source) + '</div>' +
-      badge + editBtn + deleteBtn + '</div>'
+      badge + editBtn + downloadBtn + deleteBtn + '</div>'
     );
   }
 
@@ -225,6 +230,39 @@
   const themeModal = document.getElementById("theme-modal");
   document.getElementById("open-theme-modal").addEventListener("click", () => themeModal.showModal());
   document.getElementById("close-theme-modal").addEventListener("click", () => themeModal.close());
+
+  const uploadBtn = document.getElementById("upload-theme-btn");
+  const uploadInput = document.getElementById("upload-theme-zip");
+  uploadBtn.addEventListener("click", () => uploadInput.click());
+  uploadInput.addEventListener("change", async () => {
+    const file = uploadInput.files[0];
+    if (!file) return;
+    
+    uploadBtn.disabled = true;
+    const originalText = uploadBtn.textContent;
+    uploadBtn.textContent = "Đang tải lên...";
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      
+      const res = await fetch("/admin/api/themes/upload-zip", { method: "POST", body: formData });
+      const body = await res.json().catch(() => ({}));
+      
+      if (!res.ok) {
+        showFlash(typeof body.error === "string" ? body.error : "Upload theme thất bại", false);
+      } else {
+        showFlash("Đã upload và giải nén theme thành công.", true);
+        loadThemes();
+      }
+    } catch (err) {
+      showFlash("Lỗi mạng khi tải lên theme.", false);
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = originalText;
+      uploadInput.value = "";
+    }
+  });
 
   document.getElementById("create-btn").addEventListener("click", async () => {
     const baseSlug = document.getElementById("base-theme").value;

@@ -11,7 +11,7 @@
   <div class="absolute top-0 left-1/4 w-[40rem] h-[40rem] bg-brand/10 rounded-[40%_60%_70%_30%] blur-[100px] mix-blend-multiply pointer-events-none animate-[spin_20s_linear_infinite]"></div>
   <div class="absolute bottom-0 right-1/4 w-[35rem] h-[35rem] bg-[#87CEEB]/10 rounded-[60%_40%_30%_70%] blur-[120px] mix-blend-multiply pointer-events-none animate-[spin_25s_linear_infinite_reverse]"></div>
 
-  <article data-product-id="{{ product.id }}" class="max-w-[1200px] mx-auto px-6 relative z-10 product-detail-animate mb-10">
+  <article data-product-id="{{ product.id }}" class="max-w-[1200px] mx-auto px-4 relative z-10 product-detail-animate mb-10">
 
     <!-- Top Section: Media & Info -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 relative">
@@ -38,7 +38,7 @@
 
   {% render "components/product/related", title: "Mua kèm ưu đãi", products: crossSellProducts, productUrlPrefix: productUrlPrefix %}
 
-  <section class="max-w-[1200px] mx-auto px-6 py-6 relative z-10">
+  <section class="max-w-[1200px] mx-auto px-4 py-6 relative z-10">
     <!-- Bottom Section: Content & Reviews -->
     {% render "components/product/content", product: product, reviews: reviews, avgRating: avgRating %}
   </section>

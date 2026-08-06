@@ -3,6 +3,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import AdmZip from "adm-zip";
 import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
 import { requireRole } from "../../plugins/requireRole.js";
@@ -194,6 +195,86 @@ export async function registerThemeRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return reply.code(mode === "create" ? 201 : 200).send({ theme, activated: activate });
+    } finally {
+      await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  });
+
+  app.get<{ Params: { slug: string } }>("/admin/api/themes/:slug/export", { preHandler: requireRole("admin") }, async (request, reply) => {
+    const { slug } = request.params;
+    const themeDir = path.join(THEMES_ROOT, slug);
+    if (!fs.existsSync(themeDir)) {
+      return reply.code(404).send({ error: "Không tìm thấy theme" });
+    }
+
+    const zip = new AdmZip();
+    zip.addLocalFolder(themeDir);
+    const buffer = zip.toBuffer();
+
+    reply.header("Content-Type", "application/zip");
+    reply.header("Content-Disposition", `attachment; filename=theme-${slug}.zip`);
+    return reply.send(buffer);
+  });
+
+  app.post("/admin/api/themes/upload-zip", { preHandler: requireRole("admin") }, async (request, reply) => {
+    const file = await request.file({ limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB
+    if (!file) {
+      return reply.code(400).send({ error: "Không có file" });
+    }
+
+    let slug = file.filename.replace(/\.zip$/i, "").replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+    // Default fallback if slug ends up empty
+    if (!slug || slug.length < 3) {
+      slug = `theme-${Date.now()}`;
+    }
+
+    const tmpDir = path.join(THEMES_ROOT, `.upload-${slug}-${Date.now()}`);
+    let zipBuffer: Buffer;
+    try {
+      zipBuffer = await file.toBuffer();
+    } catch (e) {
+      return reply.code(400).send({ error: "Lỗi đọc file zip" });
+    }
+
+    try {
+      const zip = new AdmZip(zipBuffer);
+      // Giữ nguyên cấu trúc của zip, extract vào tmpDir
+      zip.extractAllTo(tmpDir, true);
+
+      // Nếu thư mục zip có duy nhất 1 thư mục con (ví dụ "my-theme/"), chuyển nội dung ra ngoài
+      const entries = await fsp.readdir(tmpDir, { withFileTypes: true });
+      if (entries.length === 1 && entries[0].isDirectory()) {
+        const rootFolder = path.join(tmpDir, entries[0].name);
+        const subEntries = await fsp.readdir(rootFolder);
+        for (const sub of subEntries) {
+          await fsp.rename(path.join(rootFolder, sub), path.join(tmpDir, sub));
+        }
+        await fsp.rm(rootFolder, { recursive: true, force: true });
+      }
+
+      // Kiểm tra tính hợp lệ của theme
+      const validationErrors = await validateImportedThemeDir(tmpDir);
+      if (validationErrors.length) {
+        return reply.code(422).send({ error: "Theme không hợp lệ", errors: validationErrors });
+      }
+
+      const themeDir = path.join(THEMES_ROOT, slug);
+      if (fs.existsSync(themeDir)) {
+        // Tạm thời nếu tồn tại thì không cho ghi đè để tránh mất theme cũ
+        return reply.code(422).send({ error: `Theme có mã "${slug}" đã tồn tại. Đổi tên file zip hoặc xoá theme cũ trước.` });
+      }
+
+      await fsp.rename(tmpDir, themeDir);
+      await ensureThemeMd(slug);
+      await rebuildThemeAssets(slug);
+
+      const theme = await prisma.customTheme.create({
+        data: { slug, name: slug, source: "uploaded" },
+      });
+
+      return reply.code(201).send({ theme });
+    } catch (e: any) {
+      return reply.code(422).send({ error: "Không thể giải nén hoặc lưu theme: " + e.message });
     } finally {
       await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
     }
