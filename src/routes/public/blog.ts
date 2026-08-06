@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
-import { renderPublic } from "../../services/themeRenderer.js";
+import { renderPublic, renderPartial } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
 import { buildArticleSchema, buildBreadcrumbSchema, buildProductSchema } from "../../services/schema.js";
@@ -37,6 +37,57 @@ function queryString(url: string): string {
 // đúng mật khẩu, chỉ đơn giản là "đã từng nhập đúng", không phải token đăng nhập thật.
 function unlockCookieName(postId: string): string {
   return `post_unlock_${postId}`;
+}
+
+async function getRelatedPosts(
+  post: { id: string; topicId?: string | null; categories: { slug: string; name: string }[] },
+  excludeIds: string[] = []
+) {
+  const RELATED_POSTS_LIMIT = 6;
+  let relatedPosts: any[] = [];
+  const seenIds = new Set<string>([post.id, ...excludeIds]);
+
+  if (post.topicId) {
+    const topicIds = await prisma.post.findMany({
+      where: { type: "post", status: "published", id: { notIn: [...seenIds] }, topicId: post.topicId },
+      select: { id: true },
+    });
+    if (topicIds.length > 0) {
+      const shuffled = topicIds.sort(() => 0.5 - Math.random());
+      const selectedIds = shuffled.slice(0, RELATED_POSTS_LIMIT).map((x) => x.id);
+      const sameTopic = await prisma.post.findMany({
+        where: { id: { in: selectedIds } },
+        include: { categories: { select: { name: true, slug: true } } },
+      });
+      for (const p of sameTopic) {
+        if (seenIds.has(p.id)) continue;
+        seenIds.add(p.id);
+        relatedPosts.push(p);
+      }
+    }
+  }
+
+  if (relatedPosts.length < RELATED_POSTS_LIMIT && post.categories.length > 0) {
+    const categoryIds = await prisma.post.findMany({
+      where: {
+        type: "post",
+        status: "published",
+        id: { notIn: [...seenIds] },
+        categories: { some: { slug: { in: post.categories.map((c) => c.slug) } } },
+      },
+      select: { id: true },
+    });
+    if (categoryIds.length > 0) {
+      const shuffled = categoryIds.sort(() => 0.5 - Math.random());
+      const selectedIds = shuffled.slice(0, RELATED_POSTS_LIMIT - relatedPosts.length).map((x) => x.id);
+      const sameCategory = await prisma.post.findMany({
+        where: { id: { in: selectedIds } },
+        include: { categories: { select: { name: true, slug: true } } },
+      });
+      relatedPosts = relatedPosts.concat(sameCategory);
+    }
+  }
+  return relatedPosts;
 }
 
 export async function renderPostBySlug(slug: string, request: FastifyRequest, reply: FastifyReply) {
@@ -92,52 +143,7 @@ export async function renderPostBySlug(slug: string, request: FastifyRequest, re
     ];
     const schemas = [buildArticleSchema(post, site, postUrl, post.categories[0]?.name), buildBreadcrumbSchema(breadcrumbItems)];
 
-    // Uu tien bai cung CHU DE (topicId, 1-1) truoc, sau do lap day bang bai cung DANH MUC (nhieu-
-    // nhieu) cho du toi da 6 bai - loc trung id (1 bai co the vua cung topic vua cung category).
-    const RELATED_POSTS_LIMIT = 6;
-    let relatedPosts: any[] = [];
-    const seenIds = new Set<string>([post.id]);
-
-    if (post.topicId) {
-      const topicIds = await prisma.post.findMany({
-        where: { type: "post", status: "published", id: { not: post.id }, topicId: post.topicId },
-        select: { id: true },
-      });
-      if (topicIds.length > 0) {
-        const shuffled = topicIds.sort(() => 0.5 - Math.random());
-        const selectedIds = shuffled.slice(0, RELATED_POSTS_LIMIT).map((x) => x.id);
-        const sameTopic = await prisma.post.findMany({
-          where: { id: { in: selectedIds } },
-          include: { categories: { select: { name: true, slug: true } } },
-        });
-        for (const p of sameTopic) {
-          if (seenIds.has(p.id)) continue;
-          seenIds.add(p.id);
-          relatedPosts.push(p);
-        }
-      }
-    }
-
-    if (relatedPosts.length < RELATED_POSTS_LIMIT && post.categories.length > 0) {
-      const categoryIds = await prisma.post.findMany({
-        where: {
-          type: "post",
-          status: "published",
-          id: { notIn: [...seenIds] },
-          categories: { some: { slug: { in: post.categories.map((c) => c.slug) } } },
-        },
-        select: { id: true },
-      });
-      if (categoryIds.length > 0) {
-        const shuffled = categoryIds.sort(() => 0.5 - Math.random());
-        const selectedIds = shuffled.slice(0, RELATED_POSTS_LIMIT - relatedPosts.length).map((x) => x.id);
-        const sameCategory = await prisma.post.findMany({
-          where: { id: { in: selectedIds } },
-          include: { categories: { select: { name: true, slug: true } } },
-        });
-        relatedPosts = relatedPosts.concat(sameCategory);
-      }
-    }
+    const relatedPosts = await getRelatedPosts(post);
 
     html = await renderPublic("blog-post", {
       ...pageData,
@@ -691,4 +697,57 @@ export async function registerBlogRoutes(app: FastifyInstance): Promise<void> {
       return { success: true };
     },
   );
+
+  app.get<{ Params: { id: string }, Querystring: { excludeIds?: string } }>("/api/public/posts/:id/related", async (request, reply) => {
+    const post = await prisma.post.findUnique({ where: { id: request.params.id }, include: { categories: { select: { id: true, name: true, slug: true } } } });
+    if (!post || post.status !== "published") return reply.status(404).send("");
+
+    const excludeIds = request.query.excludeIds ? request.query.excludeIds.split(",").filter(Boolean) : [];
+    const relatedPosts = await getRelatedPosts(post, excludeIds);
+
+    if (relatedPosts.length === 0) return reply.send("");
+
+    const urlConfig = await siteUrlConfig();
+    const postUrlPrefix = urlConfig?.postSlugPrefix ? `/${urlConfig.postSlugPrefix}` : "/blog";
+
+    // Vì blog related không dùng thẻ card riêng biệt mà viết thẳng trong `components/blog/related.liquid`,
+    // chúng ta sẽ tự tạo ra HTML tương đương hoặc chỉ trả JSON? Nhưng yêu cầu là trả HTML để giữ giao diện.
+    // Cách tốt nhất là render 1 đoạn code Liquid chứa các bài viết này.
+    const chunkHtml = `
+      {% for related in relatedPosts %}
+      <li data-id="{{ related.id }}" style="flex: 1 1 30%; min-width: 250px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        {% if related.coverImage %}
+        <a href="{{ postUrlPrefix }}/{{ related.slug }}" style="display: block; height: 160px; overflow: hidden;">
+          <img src="{{ related.coverImage }}" alt="{{ related.title | escape }}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+        </a>
+        {% endif %}
+        <div style="padding: 1rem;">
+          {% if related.categories.size > 0 %}
+          <span style="font-size: 0.8rem; color: #666; display: block; margin-bottom: 0.5rem;">{{ related.categories[0].name }}</span>
+          {% endif %}
+          <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; line-height: 1.4;">
+            <a href="{{ postUrlPrefix }}/{{ related.slug }}" style="color: #333; text-decoration: none;">{{ related.title }}</a>
+          </h3>
+          <p style="margin: 0; font-size: 0.9rem; color: #666; line-height: 1.5;">{{ related.excerpt | truncate: 100 }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    `;
+
+    // Render partial inline 
+    const fs = (await import("fs/promises"));
+    const crypto = (await import("crypto"));
+    const tmpName = "tmp-related-" + crypto.randomUUID() + ".liquid";
+    const tmpPath = (await import("path")).join(process.cwd(), "themes", "default", tmpName);
+    await fs.writeFile(tmpPath, chunkHtml);
+    
+    let html = "";
+    try {
+      html = await renderPartial(tmpName, { relatedPosts, postUrlPrefix });
+    } finally {
+      await fs.unlink(tmpPath).catch(() => {});
+    }
+
+    return reply.type("text/html").send(html);
+  });
 }

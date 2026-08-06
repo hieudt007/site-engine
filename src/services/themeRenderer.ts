@@ -75,6 +75,24 @@ export function buildAnalyticsScripts(site: { gaId?: string | null; fbPixelId?: 
 // themeSlugOverride: dung cho preview 1 theme CHUA active (trang editor theme, xem
 // routes/admin/themePreview.ts) - khong doi ThemeConfig, chi doi ROOT cua Liquid engine cho 1
 // lan render nay thoi.
+export async function renderPartial(template: string, data: Record<string, unknown>, themeSlugOverride?: string): Promise<string> {
+  const slug = themeSlugOverride ?? (await activeThemeSlug());
+  const engine = new Liquid({
+    root: [
+      path.join(THEMES_ROOT, slug),
+      path.join(THEMES_ROOT, "default"),
+    ],
+    extname: ".liquid",
+    cache: process.env.NODE_ENV === "production"
+  });
+  engine.registerFilter("money", (value: unknown) => {
+    const num = Number(value);
+    if (Number.isNaN(num)) return value;
+    return num.toLocaleString("vi-VN") + "₫";
+  });
+  return engine.renderFile(template, data);
+}
+
 export async function renderPublic(template: string, data: RenderData, themeSlugOverride?: string): Promise<string> {
   const slug = themeSlugOverride ?? (await activeThemeSlug());
   const engine = new Liquid({

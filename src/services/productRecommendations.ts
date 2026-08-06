@@ -14,8 +14,9 @@ type RecommendedProduct = {
   excerpt: string | null;
 };
 
-async function fetchByConfig(config: RelatedConfig, excludeId: string): Promise<RecommendedProduct[]> {
+async function fetchByConfig(config: RelatedConfig, excludeId: string, extraExcludeIds: string[] = []): Promise<RecommendedProduct[]> {
   if (!config) return [];
+  const allExcludes = [excludeId, ...extraExcludeIds];
   if (config.mode === "specific" && Array.isArray(config.productIds) && config.productIds.length > 0) {
     return prisma.productCache.findMany({
       where: { id: { in: config.productIds }, status: "published" },
@@ -25,7 +26,7 @@ async function fetchByConfig(config: RelatedConfig, excludeId: string): Promise<
   if (config.mode === "category" && config.categoryId) {
     const limit = config.limit || 4;
     const inCategory = await prisma.productCache.findMany({
-      where: { categories: { some: { id: config.categoryId } }, status: "published", id: { not: excludeId } },
+      where: { categories: { some: { id: config.categoryId } }, status: "published", id: { notIn: allExcludes } },
       select: { id: true },
     });
     if (inCategory.length === 0) return [];
@@ -49,14 +50,16 @@ const MAX_UPSELL = 4;
 export async function getUpsellProducts(
   product: { id: string; categories?: { id: string }[] },
   relatedProducts: unknown,
+  excludeIds: string[] = []
 ): Promise<RecommendedProduct[]> {
-  const configResults = await fetchByConfig((relatedProducts as { upsell?: RelatedConfig } | null)?.upsell, product.id);
+  const configResults = await fetchByConfig((relatedProducts as { upsell?: RelatedConfig } | null)?.upsell, product.id, excludeIds);
 
   const categoryIds = (product.categories ?? []).map((c) => c.id);
   let sameCategoryResults: RecommendedProduct[] = [];
   if (categoryIds.length > 0) {
+    const allExcludes = [product.id, ...excludeIds];
     const inCategory = await prisma.productCache.findMany({
-      where: { categories: { some: { id: { in: categoryIds } } }, status: "published", id: { not: product.id } },
+      where: { categories: { some: { id: { in: categoryIds } } }, status: "published", id: { notIn: allExcludes } },
       select: { id: true },
     });
     if (inCategory.length > 0) {

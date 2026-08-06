@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../db.js";
 import { CacheService } from "../../services/CacheService.js";
-import { renderPublic } from "../../services/themeRenderer.js";
+import { renderPublic, renderPartial } from "../../services/themeRenderer.js";
 import { readSeo } from "../../services/seoJson.js";
 import { renderNotFound } from "../../services/notFoundPage.js";
 import { buildProductSchema, buildBreadcrumbSchema } from "../../services/schema.js";
@@ -257,7 +257,7 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
     const productSlug = ((product as any).slug as string | null | undefined) ?? product.id;
 
     // Escape "</" trước khi nhúng JSON vào <script> - tránh chuỗi thuộc tính variant (sku/attr)
-    // vô tình chứa "</script>" phá vỡ thẻ script (an toàn hơn là tin dữ liệu do LeadBase gửi).
+    // vô tình chứa "</script>" phá vỡ thẻ script (an toàn hơn là tin dữ liệu đã lưu trong DB).
     const variantsJson = JSON.stringify(product.variants).replace(/<\//g, "<\\/");
 
     const reviews = await prisma.productReview.findMany({
@@ -317,4 +317,23 @@ export async function registerProductsPublicRoutes(app: FastifyInstance): Promis
 
   app.get<{ Params: { slug: string } }>("/product/:slug", renderProductDetail);
   app.get<{ Params: { slug: string } }>("/products/:slug", async (request, reply) => reply.redirect(productPath((await siteUrlConfig()) ?? {}, request.params.slug)));
+
+  app.get<{ Params: { id: string }, Querystring: { excludeIds?: string } }>("/api/public/products/:id/related", async (request, reply) => {
+    const product = await prisma.productCache.findUnique({ where: { id: request.params.id }, include: { categories: { select: { id: true, name: true, slug: true } } } });
+    if (!product) return reply.status(404).send("");
+
+    const excludeIds = request.query.excludeIds ? request.query.excludeIds.split(",").filter(Boolean) : [];
+    const upsellProducts = await getUpsellProducts(product, product.relatedProducts, excludeIds);
+
+    if (upsellProducts.length === 0) return reply.send("");
+
+    const urlConfig = await siteUrlConfig();
+    const productUrlPrefix = urlConfig?.productSlugPrefix ? `/${urlConfig.productSlugPrefix}` : "/product";
+
+    let html = "";
+    for (const prod of upsellProducts) {
+      html += await renderPartial("components/product/card", { product: prod, productUrlPrefix, variant: "related" });
+    }
+    return reply.type("text/html").send(html);
+  });
 }
