@@ -17,6 +17,9 @@ function initAddToCartAnimation(){const t=document.querySelectorAll(".add-to-car
             const excludeIds = Array.from(items).map(item => item.dataset.id).filter(Boolean).join(",");
             const endpoint = type === "product" ? `/api/public/products/${sourceId}/related` : `/api/public/posts/${sourceId}/related`;
             try {
+                // Thêm độ trễ nhân tạo để khách hàng kịp nhìn thấy hiệu ứng xoay (loading)
+                await new Promise(r => setTimeout(r, 600));
+                
                 const url = new URL(endpoint, window.location.origin);
                 if (excludeIds) url.searchParams.set("excludeIds", excludeIds);
                 const response = await fetch(url.toString());
