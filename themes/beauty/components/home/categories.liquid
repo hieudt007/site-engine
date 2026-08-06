@@ -1,0 +1,47 @@
+<!-- Product Categories -->
+<section class="py-20 md:py-32 bg-white">
+    <div class="max-w-[1200px] mx-auto px-6">
+        <div class="text-center mb-16 md:mb-24 flex flex-col items-center">
+            <span class="text-brand font-medium tracking-widest uppercase text-xs mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                Phân loại sản phẩm
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </span>
+            <h2 class="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Lựa chọn cho làn da của bạn</h2>
+            <div class="w-16 h-1 bg-gradient-to-r from-brand-light via-brand to-brand-light rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {% for category in categories limit: 4 %}
+            <div class="group bg-white rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 hover:shadow-[0_20px_40px_rgba(67,160,71,0.08)] transition-all duration-500 hover:-translate-y-2 flex flex-col h-full items-center text-center">
+                <a href="/products/danh-muc/{{ category.slug }}" class="relative w-full aspect-square rounded-full overflow-hidden mb-6 bg-brand-light/30 block p-8">
+                    {% if category.imageUrls and category.imageUrls.size > 0 %}
+                        <img src="{{ category.imageUrls[0] }}" alt="{{ category.name | escape }}" class="w-full h-full object-cover rounded-full transition-transform duration-700 group-hover:scale-110">
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center text-brand">
+                            <svg class="w-16 h-16 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        </div>
+                    {% endif %}
+                </a>
+                
+                <h3 class="text-xl font-semibold text-slate-900 mb-2">
+                    <a href="/products/danh-muc/{{ category.slug }}" class="hover:text-brand transition-colors focus:outline-none">
+                        {{ category.name }}
+                    </a>
+                </h3>
+                
+                <p class="text-sm text-slate-500 mb-4">
+                    {{ category.itemCount | default: 0 }} Sản phẩm
+                </p>
+                
+                <a href="/products/danh-muc/{{ category.slug }}" class="mt-auto inline-flex items-center justify-center gap-2 text-brand font-medium group-hover:text-brand-dark transition-colors">
+                    Khám phá ngay
+                    <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                </a>
+            </div>
+            {% else %}
+                <p class="col-span-full text-center text-slate-500 py-10">Chưa có danh mục nào.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>

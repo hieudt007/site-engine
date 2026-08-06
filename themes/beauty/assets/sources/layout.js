@@ -1,0 +1,78 @@
+document.addEventListener("submit", async (event) => {
+  const form = event.target.closest(".plugin-action-form");
+  if (!form) return;
+  event.preventDefault();
+
+  const message = form.querySelector(".plugin-action-form__message");
+  const submitButton = form.querySelector('button[type="submit"]');
+  const payload = {};
+
+  new FormData(form).forEach((value, key) => {
+    payload[key] = value;
+  });
+
+  if (submitButton) submitButton.disabled = true;
+  if (message) message.textContent = "Submitting...";
+
+  try {
+    const res = await fetch("/api/plugins/" + encodeURIComponent(form.dataset.pluginSlug) + "/actions/" + encodeURIComponent(form.dataset.actionKey), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Submit failed");
+    form.reset();
+    if (message) message.textContent = body.message || "Submitted.";
+  } catch (err) {
+    if (message) message.textContent = err.message || "Submit failed";
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+});
+
+// Animation: Flying number to cart icon
+window.flyToCart = function(sourceElement) {
+    // Try to find the cart icon in header or cart drawer trigger
+    const cartIcon = document.getElementById('cart-icon');
+    if (!cartIcon || !sourceElement) return;
+
+    const sourceRect = sourceElement.getBoundingClientRect();
+    const targetRect = cartIcon.getBoundingClientRect();
+
+    const flyingElement = document.createElement('div');
+    flyingElement.className = 'fly-to-cart';
+    flyingElement.textContent = '+1';
+    
+    // Start position
+    flyingElement.style.left = `${sourceRect.left + sourceRect.width / 2 - 15}px`;
+    flyingElement.style.top = `${sourceRect.top + sourceRect.height / 2 - 15}px`;
+    
+    document.body.appendChild(flyingElement);
+
+    // Trigger reflow
+    void flyingElement.offsetWidth;
+
+    // End position
+    flyingElement.style.left = `${targetRect.left + targetRect.width / 2 - 15}px`;
+    flyingElement.style.top = `${targetRect.top + targetRect.height / 2 - 15}px`;
+    flyingElement.style.transform = 'scale(0.5)';
+    flyingElement.style.opacity = '0.2';
+
+    // Add brief animation to cart icon upon arrival
+    setTimeout(() => {
+        flyingElement.remove();
+        cartIcon.style.transform = 'scale(1.2)';
+        cartIcon.style.transition = 'transform 0.2s ease';
+        setTimeout(() => {
+            cartIcon.style.transform = 'scale(1)';
+        }, 200);
+    }, 800);
+};
+
+// Listen for global custom event for adding to cart
+document.addEventListener('add-to-cart-success', (e) => {
+    if (e.detail && e.detail.source) {
+        window.flyToCart(e.detail.source);
+    }
+});

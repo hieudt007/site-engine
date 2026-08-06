@@ -1,0 +1,71 @@
+{% comment %}
+@description: Card san pham dung chung cho home, product list, product category va cac khu san pham lien quan.
+@required_substrings: product, productUrlPrefix, variant, product.name
+@required_ids: 
+@notes: Nhan product, productUrlPrefix va variant. Sua card san pham o home/list/category/search/related o day. Variant co the la 'home', 'list', 'category', 'related', 'upsell', 'cross-sell'. Duoc phep doi layout/style theo variant, nhung phai link den productUrlPrefix + slug/id va hien ten/gia san pham. BAT BUOC: khung anh san pham PHAI vuong 1:1 (class "aspect-square", KHONG duoc doi sang ti le khac) - anh dung "object-cover" de crop dung khung du anh goc khong vuong. NÊN CÓ: Nút 'Thêm vào giỏ' dùng thẻ <a class='global-add-to-cart-btn' rel='nofollow' href='/cart/checkout?add_product_id={{ product.id }}' data-product-id='{{ product.id }}'>. Lõi JS đã tự bắt sự kiện này để giỏ hàng trượt ra, nếu JS hỏng sẽ tự fallback về trang thanh toán. QUAN TRONG: {% render %} cua LiquidJS co lap scope hoan toan (khong tu ke thua bien global) - moi noi goi render component nay PHAI truyen tay productUrlPrefix (vd search.liquid tung thieu, gay link san pham); component nay CHUA duoc dung o home/products-list/product-category (3 file do dang copy HTML card rieng, khong goi qua day) - neu hop nhat sau nay, nho truyen du productUrlPrefix/variant.
+{% endcomment %}
+<article class="product-card group relative flex flex-col bg-white rounded-[24px] overflow-hidden border border-blue-50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_48px_rgba(5,150,105,0.12)] hover:-translate-y-1 transition-all duration-500 ease-out variant-{{ variant | default: 'default' }} h-full">
+  
+  {% comment %} Image Wrapper {% endcomment %}
+  <div class="relative aspect-square overflow-hidden bg-blue-50/50 rounded-t-[24px]">
+    {% if product.imageUrls.size > 0 %}
+      <img src="{{ product.imageUrls[0] }}" alt="{{ product.name | escape }}" class="product-image-target object-cover w-full h-full transition-transform duration-700 ease-out group-hover:scale-110" loading="lazy">
+    {% else %}
+      <div class="w-full h-full flex items-center justify-center bg-blue-100/50 text-blue-300">
+        <svg class="w-12 h-12 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+      </div>
+    {% endif %}
+
+    {% comment %} Badges {% endcomment %}
+    <div class="absolute top-4 left-4 flex flex-col gap-2 z-10 pointer-events-none">
+      {% if product.salePrice and product.salePrice < product.price %}
+        <span class="px-3 py-1 text-[10px] sm:text-xs font-semibold tracking-wider uppercase text-white bg-blue-600/95 backdrop-blur-md rounded-full shadow-sm">Giảm giá</span>
+      {% endif %}
+    </div>
+
+    {% comment %} Quick Add Overlay (Desktop hover, Mobile visible) {% endcomment %}
+    <div class="absolute bottom-0 left-0 right-0 p-3 sm:p-4 translate-y-4 opacity-0 lg:translate-y-full lg:opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 ease-out z-20 mobile-quick-add">
+      <a class="global-add-to-cart-btn flex items-center justify-center w-full py-3 bg-blue-600/95 hover:bg-blue-700 text-white backdrop-blur-md rounded-full text-sm sm:text-base font-medium tracking-wide transition-all shadow-[0_4px_12px_rgba(5,150,105,0.3)] hover:shadow-[0_6px_16px_rgba(5,150,105,0.4)] hover:scale-[1.02]" rel="nofollow" href="/cart/checkout?add_product_id={{ product.id }}" data-product-id="{{ product.id }}">
+        <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+        <span class="add-text">Thêm vào giỏ</span>
+      </a>
+    </div>
+    
+    {% comment %} Gradient shadow for overlay visibility {% endcomment %}
+    <div class="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+  </div>
+
+  {% comment %} Info Wrapper {% endcomment %}
+  <div class="p-4 sm:p-5 flex flex-col flex-grow relative z-10 bg-gradient-to-b from-white to-blue-50/30 rounded-b-[24px]">
+    {% if product.category.name %}
+    <div class="mb-2">
+      <span class="text-[10px] sm:text-[11px] uppercase tracking-widest font-medium text-blue-600/70">{{ product.category.name }}</span>
+    </div>
+    {% endif %}
+    
+    <h3 class="font-heading text-base sm:text-lg font-medium text-slate-950 leading-snug mb-3 line-clamp-2">
+      <a href="{{ productUrlPrefix }}/{{ product.slug | default: product.id }}" class="hover:text-blue-600 transition-colors focus:outline-none before:absolute before:inset-0 before:z-0">
+        {{ product.name }}
+      </a>
+    </h3>
+    
+    <div class="mt-auto pt-2 flex items-center flex-wrap gap-2.5">
+      {% if product.price > 0 %}
+        {% if product.salePrice and product.salePrice < product.price %}
+          <span class="text-sm sm:text-base font-semibold text-blue-800">
+            {{ product.salePrice | money }}
+          </span>
+          <span class="text-xs sm:text-sm text-slate-950/40 line-through decoration-slate-950/30 font-medium">
+            {{ product.price | money }}
+          </span>
+        {% else %}
+          <span class="text-sm sm:text-base font-semibold text-blue-800">
+            {{ product.price | money }}
+          </span>
+        {% endif %}
+      {% else %}
+        <span class="text-sm sm:text-base font-semibold text-blue-800">Liên hệ</span>
+      {% endif %}
+    </div>
+  </div>
+</article>

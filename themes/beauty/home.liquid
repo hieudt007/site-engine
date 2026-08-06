@@ -1,0 +1,77 @@
+{% layout "layout" %}
+{% block content %}
+
+    {% render "components/home/hero" %}
+    
+    {% render "components/home/categories", categories: categories %}
+    
+    {% render "components/home/features" %}
+    
+    <!-- Featured Products -->
+    <section class="py-20 md:py-32 bg-white relative">
+        <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+        <div class="max-w-[1200px] mx-auto px-6">
+            <div class="text-center mb-16 md:mb-20 flex flex-col items-center">
+                <span class="text-brand font-medium tracking-widest uppercase text-xs mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                    Dành riêng cho bạn
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                </span>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Sản phẩm nổi bật</h2>
+                <div class="w-16 h-1 bg-gradient-to-r from-brand-light via-brand to-brand-light rounded-full"></div>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+                {% for product in products %}
+                    {% render "components/product/card", product: product, productUrlPrefix: "/products", variant: "home" %}
+                {% else %}
+                    <p class="col-span-full text-center text-slate-500 py-10">Chưa có sản phẩm nào.</p>
+                {% endfor %}
+            </div>
+            
+            <div class="mt-16 text-center">
+                <a href="/products" class="inline-block border border-brand text-brand hover:bg-brand hover:text-white font-semibold py-3.5 px-10 rounded-full transition-all duration-300 hover:shadow-[0_8px_20px_rgba(67,160,71,0.2)] hover:-translate-y-1">
+                    Xem tất cả sản phẩm
+                </a>
+            </div>
+        </div>
+    </section>
+    
+    {% render "components/home/ingredients" %}
+    
+    {% render "components/home/testimonials" %}
+    
+    {% render "components/home/statistics" %}
+    
+    {% render "components/home/routine" %}
+    
+    {% render "components/home/promotion" %}
+    
+    {% render "components/home/faq" %}
+    
+    <!-- Blog Section -->
+    <section class="py-20 md:py-32 bg-slate-50 relative">
+        <div class="max-w-[1200px] mx-auto px-6">
+            <div class="text-center mb-16 md:mb-20 flex flex-col items-center">
+                <span class="text-brand font-medium tracking-widest uppercase text-xs mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Kiến thức & Chia sẻ
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </span>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Blog Làm Đẹp</h2>
+                <div class="w-16 h-1 bg-gradient-to-r from-brand-light via-brand to-brand-light rounded-full mb-6"></div>
+                <p class="text-slate-500 max-w-2xl mx-auto">Khám phá bí quyết chăm sóc da an toàn, hiệu quả từ các chuyên gia da liễu.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {% for post in posts %}
+                    {% render "components/post/card", post: post, postUrlPrefix: "/blog", variant: "home" %}
+                {% else %}
+                    <p class="col-span-full text-center text-slate-500 py-10">Chưa có bài viết nào.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    
+
+{% endblock %}

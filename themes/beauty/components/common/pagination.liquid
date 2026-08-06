@@ -1,0 +1,25 @@
+{% comment %}
+@description: Pagination dung chung cho cac trang danh sach trong theme.
+@required_substrings: basePath, hasPrev, hasNext, prevPage, nextPage
+@required_ids: 
+@notes: Nhan basePath, hasPrev, hasNext, prevPage, nextPage. PHAI tu an khi khong co hasPrev/hasNext. Template danh sach/danh muc nen render partial nay thay vi copy HTML phan trang rieng. Nhan them extraQuery (optional, string bat dau bang "&", vd "&price=under500") de giu nguyen bo loc dang chon khi chuyen trang - khong truyen thi mac dinh rong, khong anh huong cac noi da dung truoc do.
+{% endcomment %}
+{% if hasPrev or hasNext %}
+<nav class="pagination-container w-full flex items-center justify-center gap-4 py-12 opacity-0" aria-label="Pagination">
+    {% if hasPrev %}
+        <a href="{{ basePath }}?page={{ prevPage }}{{ extraQuery }}" class="pagination-btn group relative overflow-hidden flex items-center gap-3 px-8 py-3.5 border border-blue-200 rounded-[24px] text-blue-800 bg-white/80 backdrop-blur-md shadow-[0_8px_32px_rgba(16,185,129,0.08)] hover:border-blue-500 hover:shadow-[0_8px_32px_rgba(16,185,129,0.15)] transition-all duration-500">
+            <span class="absolute inset-0 w-full h-full bg-blue-600 scale-x-0 origin-left group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] rounded-[24px]"></span>
+            <svg class="w-4 h-4 relative z-10 transition-transform duration-500 group-hover:-translate-x-1 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"></path></svg>
+            <span class="text-xs sm:text-sm uppercase tracking-[0.1em] font-medium relative z-10 group-hover:text-white transition-colors duration-500">Trang trước</span>
+        </a>
+    {% endif %}
+
+    {% if hasNext %}
+        <a href="{{ basePath }}?page={{ nextPage }}{{ extraQuery }}" class="pagination-btn group relative overflow-hidden flex items-center gap-3 px-8 py-3.5 border border-blue-200 rounded-[24px] text-blue-800 bg-white/80 backdrop-blur-md shadow-[0_8px_32px_rgba(16,185,129,0.08)] hover:border-blue-500 hover:shadow-[0_8px_32px_rgba(16,185,129,0.15)] transition-all duration-500">
+            <span class="absolute inset-0 w-full h-full bg-blue-600 scale-x-0 origin-right group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] rounded-[24px]"></span>
+            <span class="text-xs sm:text-sm uppercase tracking-[0.1em] font-medium relative z-10 group-hover:text-white transition-colors duration-500">Trang sau</span>
+            <svg class="w-4 h-4 relative z-10 transition-transform duration-500 group-hover:translate-x-1 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7"></path></svg>
+        </a>
+    {% endif %}
+</nav>
+{% endif %}

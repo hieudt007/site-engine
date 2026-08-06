@@ -60,6 +60,10 @@ export async function registerThemeAssetsRoutes(app: FastifyInstance): Promise<v
     return sendAsset(reply, request.params.slug, "custom.css", "text/css");
   });
 
+  app.get<{ Params: { slug: string } }>("/theme-assets/:slug/assets/tailwind-compiled.css", async (request, reply) => {
+    return sendAsset(reply, request.params.slug, "tailwind-compiled.css", "text/css");
+  });
+
   app.get<{ Params: { slug: string } }>("/theme-assets/:slug/assets/custom.js", async (request, reply) => {
     return sendAsset(reply, request.params.slug, "custom.js", "application/javascript");
   });

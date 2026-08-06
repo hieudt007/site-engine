@@ -1,0 +1,42 @@
+/* Base styles for staggered fade-up animation */
+.related-section-header {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.related-section-header.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.related-product-card {
+    opacity: 0;
+    transform: translateY(40px);
+    /* Transition for entry animation combined with hover transitions */
+    transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1),
+                box-shadow 0.4s ease, 
+                border-color 0.4s ease;
+}
+
+.related-product-card.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Organic Blob Animation */
+@keyframes blob {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+    100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+    animation: blob 15s infinite alternate ease-in-out;
+}
+
+.animation-delay-2000 {
+    animation-delay: 2s;
+}

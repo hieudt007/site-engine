@@ -1,0 +1,143 @@
+{% comment %}
+@description: Trang xac nhan sau khi dat hang thanh cong.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, order.id, order.items, order.total, order.customFields
+@required_ids: 
+@notes: order co customerName/id/items[](name/quantity/price)/total/customerAddress/customerPhone/customFields. PHAI giu {% render "custom-fields", fields: order.customFields %} (hien field khach tu dien them luc checkout). Nhan them upsellProducts[] (san pham goi y dua tren cac san pham da mua trong don, xem services/productRecommendations.ts) - render qua components/product/related, tu an khi rong. Nhan them downloadableItems[] (name/href) - CHI co gia tri khi CartOrder.paymentStatus === 'paid' (xem routes/public/cart.ts va routes/public/downloads.ts), tu an khi rong; href da la link tai an toan (KHONG can/duoc doi thanh URL khac).
+{% endcomment %}
+{% layout "layout" %}
+{% block content %}
+<div class="relative min-h-screen py-16 lg:py-24 overflow-hidden bg-[#eff6ff]">
+    <!-- Organic Background Blobs -->
+    <div class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-200/40 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob"></div>
+    <div class="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-teal-200/40 rounded-full mix-blend-multiply filter blur-[80px] opacity-60 animate-blob animation-delay-2000"></div>
+    <div class="absolute -bottom-32 left-1/3 w-[600px] h-[600px] bg-green-200/30 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-4000"></div>
+
+    <div class="container mx-auto px-4 relative z-10 max-w-4xl">
+        <!-- Success Header -->
+        <div class="bg-white/80 backdrop-blur-xl p-8 md:p-12 text-center mb-8 rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.05)] border border-blue-50 fade-up-element">
+            <div class="success-icon-wrapper inline-flex items-center justify-center w-24 h-24 rounded-full bg-blue-100 text-blue-600 mb-6 relative">
+                <div class="absolute inset-0 rounded-full border-2 border-blue-400/30 animate-ping opacity-50"></div>
+                <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path class="animate-success-check" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h1 class="font-sans text-4xl md:text-5xl text-slate-950 mb-4 tracking-tight">Cảm ơn bạn!</h1>
+            <p class="text-blue-800/70 text-lg mb-6 font-light">Đơn hàng của bạn đã được đặt thành công và đang được xử lý.</p>
+            <div class="inline-flex items-center gap-3 px-6 py-3 bg-blue-50/50 rounded-[20px] border border-blue-100/50">
+                <span class="text-blue-700/60 text-sm uppercase tracking-wider font-medium">Mã đơn hàng</span>
+                <span class="text-slate-900 font-semibold text-lg">#{{ order.id }}</span>
+            </div>
+        </div>
+
+        <!-- Order Details Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left: Items Summary -->
+            <div class="bg-white/80 backdrop-blur-xl p-6 md:p-8 rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.05)] border border-blue-50 fade-up-element delay-100 flex flex-col">
+                <h2 class="font-sans text-2xl text-slate-950 mb-6 flex items-center gap-3">
+                    <span class="w-10 h-10 rounded-full bg-blue-100/50 flex items-center justify-center text-blue-600">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                    </span>
+                    Chi tiết đơn hàng
+                </h2>
+                
+                <div class="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-4 mb-6">
+                    <ul class="space-y-4">
+                        {% for item in order.items %}
+                        <li class="flex justify-between items-start py-3 border-b border-blue-50 last:border-0 group">
+                            <div class="pr-4">
+                                <p class="font-medium text-slate-950 text-base group-hover:text-blue-600 transition-colors">{{ item.name }}</p>
+                                <p class="text-sm text-blue-700/60 mt-1">Số lượng: {{ item.quantity }}</p>
+                            </div>
+                            <p class="font-medium text-slate-900 whitespace-nowrap format-money" data-value="{{ item.price }}">{{ item.price }}</p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="pt-6 border-t border-blue-100 mt-auto">
+                    <div class="flex justify-between items-end">
+                        <span class="font-medium text-blue-800/70">Tổng cộng</span>
+                        <span class="font-sans text-3xl text-blue-600 format-money font-semibold" data-value="{{ order.total }}">{{ order.total }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Customer Info -->
+            <div class="bg-white/80 backdrop-blur-xl p-6 md:p-8 rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.05)] border border-blue-50 fade-up-element delay-200">
+                <h2 class="font-sans text-2xl text-slate-950 mb-6 flex items-center gap-3">
+                    <span class="w-10 h-10 rounded-full bg-blue-100/50 flex items-center justify-center text-blue-600">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                        </svg>
+                    </span>
+                    Thông tin nhận hàng
+                </h2>
+                
+                <div class="space-y-4 text-slate-900">
+                    <div class="bg-blue-50/50 p-4 rounded-[20px] border border-blue-100/30 hover:shadow-sm transition-shadow">
+                        <p class="text-xs text-blue-700/60 uppercase tracking-widest mb-1 font-medium">Người nhận</p>
+                        <p class="font-medium">{{ order.customerName | default: 'Khách hàng' }}</p>
+                    </div>
+                    
+                    <div class="bg-blue-50/50 p-4 rounded-[20px] border border-blue-100/30 hover:shadow-sm transition-shadow">
+                        <p class="text-xs text-blue-700/60 uppercase tracking-widest mb-1 font-medium">Số điện thoại</p>
+                        <p class="font-medium">{{ order.customerPhone | default: 'Không có' }}</p>
+                    </div>
+                    
+                    <div class="bg-blue-50/50 p-4 rounded-[20px] border border-blue-100/30 hover:shadow-sm transition-shadow">
+                        <p class="text-xs text-blue-700/60 uppercase tracking-widest mb-1 font-medium">Địa chỉ giao hàng</p>
+                        <p class="font-medium leading-relaxed">{{ order.customerAddress | default: 'Không có' }}</p>
+                    </div>
+
+                    {% if order.customFields %}
+                    <div class="pt-4 mt-4 border-t border-blue-100/50">
+                        <p class="text-xs text-blue-700/60 uppercase tracking-widest mb-3 font-medium">Thông tin bổ sung</p>
+                        <div class="custom-fields-wrapper bg-white p-4 rounded-[20px] border border-blue-100/50 shadow-sm">
+                            {% render "custom-fields", fields: order.customFields %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Digital Downloads -->
+        {% if downloadableItems and downloadableItems.size > 0 %}
+        <div class="bg-white/80 backdrop-blur-xl p-6 md:p-8 rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.05)] border border-blue-50 fade-up-element delay-250 mt-8">
+            <h2 class="font-sans text-2xl text-slate-950 mb-6 flex items-center gap-3">
+                <span class="w-10 h-10 rounded-full bg-blue-100/50 flex items-center justify-center text-blue-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </span>
+                Tải file sản phẩm số
+            </h2>
+            <ul class="space-y-3">
+                {% for item in downloadableItems %}
+                <li class="flex justify-between items-center gap-4 bg-blue-50/50 p-4 rounded-[20px] border border-blue-100/30">
+                    <span class="font-medium text-slate-900">{{ item.name }}</span>
+                    <a href="{{ item.href }}" class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-[16px] hover:bg-blue-700 transition-colors text-sm font-medium whitespace-nowrap">
+                        Tải xuống
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Action -->
+        <div class="text-center mt-12 fade-up-element delay-300">
+            <a href="/" class="inline-flex items-center justify-center px-10 py-4 bg-blue-600 text-white rounded-[24px] hover:bg-blue-700 transition-all duration-400 shadow-[0_8px_32px_rgba(5,150,105,0.25)] hover:shadow-[0_8px_32px_rgba(5,150,105,0.4)] hover:-translate-y-1 font-medium tracking-wide">
+                Tiếp tục mua sắm
+                <svg class="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    {% render "components/product/related", title: "Có thể bạn quan tâm", products: upsellProducts, productUrlPrefix: productUrlPrefix %}
+</div>
+{% endblock %}

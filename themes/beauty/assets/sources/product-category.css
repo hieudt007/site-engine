@@ -1,0 +1,110 @@
+/* Liquid Glass Blob Animation - Organic feel */
+@keyframes blob {
+    0% { transform: translate(0px, 0px) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.05); }
+    66% { transform: translate(-20px, 20px) scale(0.95); }
+    100% { transform: translate(0px, 0px) scale(1); }
+}
+
+.animate-blob {
+    animation: blob 10s infinite alternate cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+/* Hide scrollbar for subcategories on mobile */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Fade Up Animation */
+.fade-up-element {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fade-up-element.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Typography for Category Body (SEO Text) */
+.category-prose {
+    font-family: 'Poppins', sans-serif;
+}
+
+.category-prose h2, 
+.category-prose h3, 
+.category-prose h4 {
+    font-family: 'Poppins', serif;
+    color: #022c22; /* slate-950 */
+    margin-top: 2em;
+    margin-bottom: 1em;
+    line-height: 1.3;
+}
+
+.category-prose h2 { font-size: 2.25rem; font-weight: 500; }
+.category-prose h3 { font-size: 1.75rem; font-weight: 500; }
+
+.category-prose p {
+    margin-bottom: 1.5em;
+    line-height: 1.8;
+    font-weight: 300;
+}
+
+.category-prose a {
+    color: #43a047; /* blue-600 */
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    transition: color 0.3s ease;
+}
+
+.category-prose a:hover {
+    color: #047857; /* blue-700 */
+}
+
+.category-prose ul, 
+.category-prose ol {
+    margin-bottom: 1.5em;
+    padding-left: 1.5em;
+    font-weight: 300;
+}
+
+.category-prose li {
+    margin-bottom: 0.75em;
+}
+
+.category-prose ul {
+    list-style-type: disc;
+}
+
+.category-prose img {
+    border-radius: 24px;
+    margin: 2.5em auto;
+    max-width: 100%;
+    height: auto;
+    box-shadow: 0 10px 30px rgba(5, 150, 105, 0.1);
+}
+
+/* Fly to cart animation classes */
+.flying-image {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(5, 150, 105, 0.25);
+    object-fit: cover;
+    transition: top 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                left 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                width 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                height 0.8s cubic-bezier(0.25, 1, 0.5, 1), 
+                opacity 0.8s ease, 
+                transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}

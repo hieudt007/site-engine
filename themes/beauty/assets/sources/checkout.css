@@ -1,0 +1,67 @@
+/* CSS riêng cho checkout.liquid */
+
+.checkout-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.checkout-scrollbar::-webkit-scrollbar-track {
+    background: #eff6ff;
+    border-radius: 12px;
+}
+.checkout-scrollbar::-webkit-scrollbar-thumb {
+    background: #93c5fd;
+    border-radius: 12px;
+}
+.checkout-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #34D399;
+}
+
+/* Custom Radio Button Styling */
+.custom-radio-label input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid #93c5fd;
+    border-radius: 50%;
+    outline: none;
+    margin-right: 0.875rem;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #FFFFFF;
+}
+
+.custom-radio-label input[type="radio"]:checked {
+    border-color: #43a047;
+}
+
+.custom-radio-label input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: #43a047;
+    border-radius: 50%;
+}
+
+.custom-radio-label:hover input[type="radio"]:not(:checked) {
+    border-color: #34D399;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

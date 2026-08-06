@@ -1,0 +1,164 @@
+{% comment %}
+@description: Trang phan loai san pham (danh muc hoac thuong hieu).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, category.name, products, category.customFields, categoryPath
+@required_ids: 
+@notes: Dung chung cho /products/danh-muc/:slug va /products/thuong-hieu/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}. BAT BUOC: khung anh san pham trong grid PHAI vuong 1:1 (class "aspect-square", KHONG duoc doi ti le khac).
+{% endcomment %}
+{% layout "layout" %}
+{% block content %}
+<main class="min-h-screen bg-[#eff6ff] font-sans selection:bg-blue-200 selection:text-slate-900">
+    <!-- Hero Section -->
+    <section class="relative pt-16 pb-16 md:pt-20 md:pb-20 overflow-hidden bg-gradient-to-b from-blue-50/80 to-[#eff6ff]">
+        <!-- Organic Biophilic Background Elements -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+            <div class="absolute -top-40 -right-40 w-[40rem] h-[40rem] bg-blue-200/20 rounded-[100px] rotate-45 blur-3xl mix-blend-multiply opacity-60 animate-blob"></div>
+            <div class="absolute top-40 -left-20 w-[30rem] h-[30rem] bg-teal-100/30 rounded-full blur-3xl mix-blend-multiply opacity-60 animate-blob animation-delay-2000"></div>
+            <!-- Subtle texture overlay -->
+            <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoNSwgMTUwLCAxMDUsIDAuMDUpIi8+PC9zdmc+')] opacity-50"></div>
+        </div>
+
+        <div class="container mx-auto px-4 text-center max-w-4xl fade-up-element relative z-10">
+            <!-- Back Link / Breadcrumb -->
+            {% if backHref %}
+                <a href="{{ backHref }}" class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors mb-8 group bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border border-blue-100/50 shadow-sm">
+                    <svg class="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    {{ backLabel | default: 'Quay lại' }}
+                </a>
+            {% endif %}
+
+            <!-- Title -->
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-sans text-slate-950 mb-6 tracking-tight leading-tight">
+                {{ category.name }}
+            </h1>
+
+            <!-- Excerpt -->
+            {% if category.excerpt %}
+                <p class="text-lg text-blue-800/70 max-w-2xl mx-auto leading-relaxed font-light">
+                    {{ category.excerpt }}
+                </p>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Subcategories (Children) -->
+    {% if category.children and category.children.size > 0 %}
+    <div class="sticky top-[72px] z-30 bg-white/80 backdrop-blur-xl border-b border-blue-50 shadow-[0_4px_20px_rgba(5,150,105,0.03)] transition-all duration-300">
+        <div class="max-w-[1200px] mx-auto px-6 py-4 fade-up-element">
+            <div class="flex overflow-x-auto hide-scrollbar gap-3 pb-2 md:pb-0 md:flex-wrap md:justify-center">
+                {% for child in category.children %}
+                    <a href="{{ childPathPrefix }}/{{ child.slug }}" class="flex-shrink-0 px-6 py-2.5 rounded-[24px] border border-blue-100 bg-white text-blue-800 hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-all duration-300 text-sm font-medium tracking-wide shadow-sm hover:shadow-md">
+                        {{ child.name }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Product Grid Section -->
+    <section class="py-16 md:py-24 relative z-20">
+        <div class="max-w-[1200px] mx-auto px-6">
+            <!-- Toolbar -->
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-12 pb-6 border-b border-blue-100/50 fade-up-element">
+                <p class="text-blue-800/60 text-sm mb-4 sm:mb-0">
+                    Hiển thị <span class="font-medium text-slate-900">{{ products.size | default: 0 }}</span> sản phẩm
+                </p>
+                <div class="flex items-center gap-3 text-sm text-blue-800/80 bg-white px-4 py-2 rounded-[24px] border border-blue-100 shadow-sm">
+                    <span class="hidden sm:inline">Sắp xếp:</span>
+                    <select class="bg-transparent border-none text-slate-950 font-medium focus:ring-0 cursor-pointer outline-none w-full sm:w-auto">
+                        <option>Mới nhất</option>
+                        <option>Bán chạy</option>
+                        <option>Giá: Thấp đến Cao</option>
+                        <option>Giá: Cao đến Thấp</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
+                {% if products and products.size > 0 %}
+                    {% for product in products %}
+                        <div class="group relative bg-white rounded-[24px] p-3 border border-blue-50 shadow-[0_8px_32px_rgba(5,150,105,0.04)] hover:shadow-[0_16px_48px_rgba(5,150,105,0.08)] hover:border-blue-100 transition-all duration-500 fade-up-element flex flex-col" style="transition-delay: {{ forloop.index0 | times: 50 | at_most: 300 }}ms;">
+                            <!-- Image Container -->
+                            <div class="aspect-square overflow-hidden relative bg-blue-50/50 rounded-[20px] mb-5">
+                                {% if product.salePrice and product.salePrice < product.price %}
+                                    <div class="absolute top-4 left-4 z-10 bg-rose-500 text-white text-xs font-medium uppercase tracking-wider py-1.5 px-3.5 rounded-[24px] shadow-sm">
+                                        Giảm giá
+                                    </div>
+                                {% endif %}
+
+                                <a href="/products/{{ product.slug }}" class="block w-full h-full">
+                                    <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700 ease-out" loading="lazy">
+                                </a>
+
+                                <!-- Quick Add Button (Glassmorphism) -->
+                                <div class="absolute bottom-0 left-0 w-full p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out">
+                                    <button class="js-add-to-cart-btn w-full py-3.5 bg-white/90 backdrop-blur-md border border-white/50 text-slate-900 font-medium rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all duration-300 flex justify-center items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                                        <span>Thêm vào giỏ</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Product Info -->
+                            <div class="text-center px-2 pb-2 flex-grow flex flex-col justify-between">
+                                <div>
+                                    {% if product.brand.name %}
+                                        <p class="text-[11px] text-blue-600/70 uppercase tracking-widest mb-2 font-medium">{{ product.brand.name }}</p>
+                                    {% endif %}
+                                    <h3 class="text-lg font-sans text-slate-950 mb-3 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+                                        <a href="/products/{{ product.slug }}">{{ product.name }}</a>
+                                    </h3>
+                                </div>
+                                <div class="flex justify-center items-center gap-3 mt-auto">
+                                    {% if product.salePrice and product.salePrice < product.price %}
+                                        <span class="text-blue-600 font-medium text-lg">{{ product.salePrice | money }}</span>
+                                        <span class="text-blue-800/40 line-through text-sm">{{ product.price | money }}</span>
+                                    {% else %}
+                                        <span class="text-slate-950 font-medium text-lg">{{ product.price | money }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <!-- Empty State -->
+                    <div class="col-span-full text-center py-32 fade-up-element bg-white rounded-[24px] border border-blue-50 shadow-sm">
+                        <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-blue-50 text-blue-500 mb-6">
+                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                        </div>
+                        <h3 class="text-2xl font-sans text-slate-950 mb-4">Chưa có sản phẩm</h3>
+                        <p class="text-blue-800/70 max-w-md mx-auto mb-10 leading-relaxed">Hiện tại danh mục này đang được cập nhật sản phẩm. Quý khách vui lòng khám phá các bộ sưu tập mỹ phẩm thiên nhiên khác của chúng tôi.</p>
+                        <a href="/products" class="inline-flex items-center justify-center px-8 py-4 bg-blue-600 text-white font-medium rounded-[24px] hover:bg-blue-700 transition-colors duration-300 shadow-[0_8px_20px_rgba(5,150,105,0.2)] hover:shadow-[0_12px_25px_rgba(5,150,105,0.3)]">
+                            Khám phá tất cả sản phẩm
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Pagination -->
+            {% if products and products.size > 0 %}
+                <div class="mt-20 pt-10 border-t border-blue-100/50 fade-up-element">
+                    {% render "components/common/pagination", basePath: categoryPath, hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Category Body (SEO / Description Content) -->
+    {% if category.body %}
+    <section class="py-20 bg-white border-t border-blue-50">
+        <div class="container mx-auto px-4 max-w-4xl fade-up-element bg-[#eff6ff] p-8 md:p-12 rounded-[24px] border border-blue-50/50 shadow-sm">
+            <div class="category-prose text-slate-900/80 leading-relaxed">
+                {{ category.body }}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Custom Fields -->
+    <div class="max-w-[1200px] mx-auto px-6 pb-20">
+        {% render "custom-fields", fields: category.customFields %}
+    </div>
+</main>
+{% endblock %}

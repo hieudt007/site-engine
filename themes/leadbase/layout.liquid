@@ -28,25 +28,25 @@
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"></noscript>
 
     <!-- Tailwind CSS -->
-    <script src="/theme-assets/{{ themeSlug }}/assets/tailwind.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            dark: '#0A132B',   /* Navy dam - text/heading/footer */
-                            DEFAULT: '#2563eb', /* Blue-600 - nut/accent chinh */
-                            hover: '#1d4ed8',    /* Blue-700 - hover state */
-                            light: '#eff6ff',    /* Blue-50 - nen nhat */
-                            gray: '#64748B'
+    <link rel="stylesheet" href="/theme-assets/{{ themeSlug }}/assets/tailwind-compiled.css">
+    <script type="application/json" id="tailwind-config">
+        {
+            "theme": {
+                "extend": {
+                    "colors": {
+                        "brand": {
+                            "dark": "#0A132B",
+                            "DEFAULT": "#2563eb",
+                            "hover": "#1d4ed8",
+                            "light": "#eff6ff",
+                            "gray": "#64748B"
                         }
                     },
-                    fontFamily: {
-                        sans: ['Poppins', 'sans-serif'],
+                    "fontFamily": {
+                        "sans": ["Poppins", "sans-serif"]
                     },
-                    boxShadow: {
-                        'glass': '0 8px 32px 0 rgba(37, 99, 235, 0.08)',
+                    "boxShadow": {
+                        "glass": "0 8px 32px 0 rgba(37, 99, 235, 0.08)"
                     }
                 }
             }

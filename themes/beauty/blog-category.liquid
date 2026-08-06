@@ -1,0 +1,89 @@
+{% comment %}
+@description: Trang phan loai bai viet (danh muc hoac chu de).
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, category.name, posts, category.customFields, categoryPath
+@required_ids: 
+@notes: Dung chung cho /danh-muc/:slug va /chu-de/:slug. category co name/excerpt/body/children[]/customFields. categoryPath la URL hien tai dung cho phan trang; backHref/backLabel va childPathPrefix co the duoc truyen theo ngu canh. PHAI giu {% render "custom-fields", fields: category.customFields %}. posts[] chi co slug/title/excerpt/coverImage/publishedAt (KHONG co url/image/tags) - link bai viet PHAI dung {{ postUrlPrefix }}/{{ post.slug }} (postUrlPrefix la bien global tu themeRenderer.ts, ap dung dung postSlugPrefix tuy chinh cua site), anh bia PHAI dung post.coverImage.
+{% endcomment %}
+{% layout "layout" %}
+{% block content %}
+<div class="bg-[#eff6ff] min-h-screen pb-16 pt-8 md:pt-10">
+    <div class="max-w-[1200px] mx-auto px-6">
+        <!-- Category Header -->
+        <div class="text-center mb-12 md:mb-16 fade-up-item">
+            <span class="text-blue-600 text-sm font-semibold tracking-widest uppercase mb-3 block">Chuyên mục</span>
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-sans text-slate-900 mb-6 tracking-tight">{{ category.name }}</h1>
+            {% if category.excerpt %}
+                <p class="text-gray-600 max-w-2xl mx-auto text-lg leading-relaxed">{{ category.excerpt }}</p>
+            {% elsif category.body %}
+                <div class="text-gray-600 max-w-2xl mx-auto text-lg leading-relaxed line-clamp-2">
+                    {{ category.body | strip_html }}
+                </div>
+            {% endif %}
+            <div class="w-16 h-0.5 bg-blue-500 mx-auto mt-8 opacity-50 rounded-full"></div>
+        </div>
+
+        <!-- Posts Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {% if posts and posts.size > 0 %}
+                {% for post in posts %}
+                    <article class="group bg-white rounded-[24px] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_48px_rgba(5,150,105,0.08)] transition-all duration-500 border border-blue-100/50 fade-up-item flex flex-col h-full transform hover:-translate-y-2">
+                        <a href="{{ postUrlPrefix }}/{{ post.slug }}" class="block relative overflow-hidden aspect-[4/3] bg-blue-50/50">
+                            {% if post.coverImage %}
+                                <img src="{{ post.coverImage }}" alt="{{ post.title }}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center text-blue-200">
+                                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </div>
+                            {% endif %}
+                            <div class="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            
+                            {% if post.tags and post.tags.size > 0 %}
+                                <div class="absolute top-4 left-4 flex gap-2 flex-wrap">
+                                    <span class="px-3 py-1 bg-white/90 backdrop-blur-sm text-blue-800 text-xs font-medium uppercase tracking-wider rounded-full shadow-sm">
+                                        {{ post.tags[0] }}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </a>
+                        <div class="p-6 md:p-8 flex flex-col flex-grow">
+                            <div class="flex items-center justify-between text-xs text-blue-600/70 uppercase tracking-wider mb-4">
+                                <time datetime="{{ post.publishedAt | date: "%Y-%m-%d" }}">{{ post.publishedAt | date: "%d/%m/%Y" }}</time>
+                            </div>
+                            <h3 class="text-xl md:text-2xl font-sans text-slate-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                                <a href="{{ postUrlPrefix }}/{{ post.slug }}">{{ post.title }}</a>
+                            </h3>
+                            <p class="text-gray-600 text-sm md:text-base mb-6 line-clamp-3 flex-grow leading-relaxed">
+                                {{ post.excerpt | default: post.body | strip_html | truncatewords: 30 }}
+                            </p>
+                            <a href="{{ postUrlPrefix }}/{{ post.slug }}" class="inline-flex items-center text-blue-600 font-medium text-sm uppercase tracking-wider hover:text-blue-800 transition-colors mt-auto group/btn">
+                                Khám phá
+                                <svg class="w-4 h-4 ml-2 transition-transform duration-300 group-hover/btn:translate-x-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                            </a>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full flex flex-col items-center justify-center py-20 px-4 bg-white rounded-[24px] border border-blue-100 shadow-sm fade-up-item">
+                    <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6 text-blue-500">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-sans text-slate-900 mb-3">Chưa có bài viết</h3>
+                    <p class="text-gray-500 text-center max-w-md">Hiện tại chưa có bài viết nào trong chuyên mục này. Vui lòng quay lại sau để cập nhật những thông tin mới nhất.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Pagination -->
+        {% if posts.size > 0 %}
+            <div class="fade-up-item flex justify-center mt-8">
+                {% render "components/common/pagination", basePath: categoryPath, hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage %}
+            </div>
+        {% endif %}
+        
+        <!-- Custom Fields (Hidden/Structural) -->
+        <div class="hidden">
+            {% render "custom-fields", fields: category.customFields %}
+        </div>
+    </div>
+</div>
+{% endblock %}

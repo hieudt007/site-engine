@@ -1,0 +1,37 @@
+{% comment %}
+@description: Khoi thong tin dinh danh san pham.
+@required_substrings: product.name, product.categories
+@required_ids: 
+@notes: Nhan product va productCategoryPathPrefix. Sua ten, danh muc, thong tin nhan dien/ngan o day; khong ap dat vi tri layout. #product-rating-summary (avgRating/reviewCount) chi hien khi product.reviewCount > 0, tu an khi chua co danh gia nao.
+{% endcomment %}
+<div class="product-info-header flex flex-col gap-3 md:gap-4 mb-6 relative z-10">
+    {% if product.categories and product.categories.size > 0 %}
+        <nav class="product-categories flex flex-wrap items-center gap-2 text-xs font-body uppercase tracking-[0.15em] text-blue-600/80">
+            {% for category in product.categories %}
+                <a href="{{ productCategoryPathPrefix }}/{{ category.slug }}" class="hover:text-blue-800 transition-colors duration-300 ease-out">
+                    {{ category.name }}
+                </a>
+                {% unless forloop.last %}
+                    <span class="text-blue-200 select-none">/</span>
+                {% endunless %}
+            {% endfor %}
+        </nav>
+    {% endif %}
+
+    <h1 class="product-title font-heading text-2xl md:text-3xl lg:text-3xl font-medium leading-[1.1] text-slate-950 tracking-tight">
+        {{ product.name }}
+    </h1>
+
+    {% if product.reviewCount > 0 %}
+        <button type="button" id="product-rating-summary" class="flex items-center gap-2 w-fit hover:opacity-80 transition-opacity cursor-pointer">
+            <div class="flex text-brand text-base">
+                {% assign rating_num = product.avgRating | round %}
+                {% for i in (1..5) %}
+                    {% if i <= rating_num %}★{% else %}<span class="text-gray-200">★</span>{% endif %}
+                {% endfor %}
+            </div>
+            <span class="text-sm font-medium text-slate-950">{{ product.avgRating | round: 1 }}</span>
+            <span class="text-sm text-slate-500 underline underline-offset-2">({{ product.reviewCount }} đánh giá)</span>
+        </button>
+    {% endif %}
+</div>

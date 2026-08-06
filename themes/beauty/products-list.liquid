@@ -1,0 +1,207 @@
+{% comment %}
+@description: Danh sach san pham, co phan trang.
+@required_substrings: {% layout "layout" %}, {% block content %}, {% endblock %}, products, product.id, hasNext, hasPrev
+@required_ids: 
+@notes: products[] co id/name/imageUrls/price/salePrice. categories[]/brands[] co name/slug/itemCount (itemCount tinh san o Category.itemCount qua services/categoryCounts.ts, khong tu dem lai). Da co Sidebar bo loc Danh muc + Thuong hieu (hien so luong ke ten) va Muc gia (currentPrice la 1 trong 'under500'/'500to1000'/'over1000'/null - loc theo GIA THAT khach tra, uu tien salePrice neu co, xem priceRangeWhere trong products.ts). extraQuery (vd "&price=under500") PHAI truyen vao pagination de khong mat bo loc khi chuyen trang. BAT BUOC: khung anh san pham trong grid PHAI vuong 1:1 (class "aspect-square", KHONG duoc doi ti le khac). NÊN CÓ thêm: Sắp xếp (Sort: giá, mới nhất) hoat dong that (hien tai <select> chi la UI, chua noi voi query param).
+{% endcomment %}
+{% layout "layout" %}
+{% block content %}
+<div class="bg-[#eff6ff] min-h-screen pb-24 font-sans text-[#0A132B]">
+    <!-- Page Header with Organic Wave -->
+    <header class="relative bg-slate-900 text-white pt-28 pb-36 text-center overflow-hidden">
+        <!-- Organic background blobs -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute -top-24 -left-24 w-96 h-96 bg-blue-800 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+            <div class="absolute top-12 -right-12 w-80 h-80 bg-blue-700 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+        </div>
+        
+        <div class="relative z-10 max-w-3xl mx-auto px-4">
+            <h1 class="font-sans text-4xl md:text-5xl lg:text-6xl mb-6 font-medium tracking-tight pl-fade-up">Bộ Sưu Tập</h1>
+            <p class="text-[#93c5fd] text-lg md:text-xl font-light pl-fade-up pl-delay-100 max-w-2xl mx-auto leading-relaxed">
+                Khám phá toàn bộ sản phẩm và gói dịch vụ của chúng tôi.
+            </p>
+        </div>
+
+        <!-- Bottom Wave -->
+        <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
+            <svg class="relative block w-full h-[60px] md:h-[100px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118,130.98,131.1,201.39,114.7,243.68,104.91,283.47,81.42,321.39,56.44Z" fill="#eff6ff"></path>
+            </svg>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-20">
+        <div class="flex flex-col lg:flex-row gap-8 lg:gap-12">
+
+            <!-- Mobile Filter Overlay & Drawer -->
+            <div id="pl-mobile-filter-overlay" class="fixed inset-0 bg-[#0A132B]/40 backdrop-blur-sm z-40 hidden lg:hidden transition-opacity opacity-0 duration-300"></div>
+
+            <aside id="pl-filter-sidebar" class="fixed inset-y-0 left-0 z-50 w-full max-w-[300px] bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(5,150,105,0.1)] transform -translate-x-full transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] lg:static lg:translate-x-0 lg:w-1/4 lg:bg-transparent lg:backdrop-blur-none lg:shadow-none lg:z-auto overflow-y-auto lg:overflow-visible flex flex-col h-full lg:h-auto rounded-r-[24px] lg:rounded-none">
+                
+                <!-- Filter Header (Mobile) -->
+                <div class="flex items-center justify-between p-6 lg:hidden border-b border-[#93c5fd]/30 bg-white/50 sticky top-0 z-10 rounded-tr-[24px]">
+                    <h2 class="font-sans text-xl text-[#0A132B]">Bộ lọc</h2>
+                    <button id="pl-close-filter-btn" class="p-2 -mr-2 text-[#43a047] hover:text-[#43a047] transition-colors rounded-full hover:bg-[#eff6ff]">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Filter Content -->
+                <div class="p-6 lg:p-0 flex-1 lg:sticky lg:top-28 space-y-10">
+                    <!-- Category Filter -->
+                    {% if categories and categories.size > 0 %}
+                    <div class="pl-filter-group lg:bg-transparent p-0 lg:p-0 rounded-[24px]">
+                        <h3 class="font-sans text-lg text-[#0A132B] mb-5 font-medium">Danh mục</h3>
+                        <ul class="space-y-4 text-[#0A132B]/80">
+                            {% for category in categories %}
+                            <li>
+                                <a href="/product/danh-muc/{{ category.slug }}" class="flex items-center justify-between gap-2 group hover:text-[#43a047] transition-colors text-sm font-medium">
+                                    <span>{{ category.name }}</span>
+                                    <span class="text-xs text-[#0A132B]/40 group-hover:text-[#43a047]/70">({{ category.itemCount }})</span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Brand Filter -->
+                    {% if brands and brands.size > 0 %}
+                    <div class="pl-filter-group pt-8 border-t border-[#93c5fd]/50">
+                        <h3 class="font-sans text-lg text-[#0A132B] mb-5 font-medium">Thương hiệu</h3>
+                        <ul class="space-y-4 text-[#0A132B]/80">
+                            {% for brand in brands %}
+                            <li>
+                                <a href="/product/thuong-hieu/{{ brand.slug }}" class="flex items-center justify-between gap-2 group hover:text-[#43a047] transition-colors text-sm font-medium">
+                                    <span>{{ brand.name }}</span>
+                                    <span class="text-xs text-[#0A132B]/40 group-hover:text-[#43a047]/70">({{ brand.itemCount }})</span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Price Filter -->
+                    <div class="pl-filter-group pt-8 border-t border-[#93c5fd]/50">
+                        <h3 class="font-sans text-lg text-[#0A132B] mb-5 font-medium">Mức giá</h3>
+                        <ul class="space-y-4 text-[#0A132B]/80">
+                            {% assign price_buckets = "under500|Dưới 500.000₫,500to1000|500.000₫ - 1.000.000₫,over1000|Trên 1.000.000₫" | split: "," %}
+                            {% for bucket in price_buckets %}
+                                {% assign parts = bucket | split: "|" %}
+                                {% assign bucket_value = parts[0] %}
+                                {% assign bucket_label = parts[1] %}
+                                <li>
+                                    <a href="/products?price={{ bucket_value }}" class="flex items-center gap-3 cursor-pointer group">
+                                        <div class="relative flex items-center justify-center w-5 h-5 border-2 {% if currentPrice == bucket_value %}border-[#43a047]{% else %}border-[#93c5fd]{% endif %} rounded-full group-hover:border-[#43a047] transition-colors bg-white shrink-0">
+                                            <div class="w-2.5 h-2.5 bg-[#43a047] rounded-full transition-transform duration-300 origin-center {% if currentPrice == bucket_value %}scale-100{% else %}scale-0{% endif %}"></div>
+                                        </div>
+                                        <span class="group-hover:text-[#43a047] transition-colors text-sm font-medium {% if currentPrice == bucket_value %}text-[#43a047]{% endif %}">{{ bucket_label }}</span>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                            {% if currentPrice %}
+                                <li>
+                                    <a href="/products" class="text-xs text-[#0A132B]/50 hover:text-[#43a047] underline underline-offset-2">Bỏ lọc giá</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Product List Area -->
+            <div class="w-full lg:w-3/4">
+                <!-- Toolbar -->
+                <div class="flex flex-wrap items-center justify-between mb-8 pb-6 border-b border-[#93c5fd]/50 gap-4">
+                    <button id="pl-open-filter-btn" class="lg:hidden flex items-center gap-2 text-[#0A132B] hover:text-[#43a047] transition-colors bg-white shadow-sm px-5 py-2.5 rounded-[24px] text-sm font-medium border border-[#93c5fd]/50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        <span>Lọc & Sắp xếp</span>
+                    </button>
+                    
+                    <div class="hidden lg:block text-[#0A132B]/70 text-sm font-medium">
+                        Hiển thị <span class="text-[#43a047] font-medium">{{ products.size }}</span> sản phẩm
+                    </div>
+                    
+                    <div class="flex items-center gap-3 ml-auto lg:ml-0 bg-white px-4 py-2 rounded-[24px] shadow-sm border border-[#93c5fd]/50">
+                        <label for="pl-sort-by" class="hidden sm:block text-sm text-[#0A132B]/70 font-medium">Sắp xếp:</label>
+                        <div class="relative group">
+                            <select id="pl-sort-by" class="appearance-none bg-transparent border-none text-[#0A132B] font-medium py-1 pl-2 pr-8 cursor-pointer focus:ring-0 focus:outline-none text-sm group-hover:text-[#43a047] transition-colors">
+                                <option value="manual">Mặc định</option>
+                                <option value="price-asc">Giá: Thấp đến cao</option>
+                                <option value="price-desc">Giá: Cao đến thấp</option>
+                                <option value="created-desc">Mới nhất</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center text-[#43a047]">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 lg:gap-10">
+                    {% if products and products.size > 0 %}
+                        {% for product in products %}
+                            <article class="pl-product-card group relative bg-white rounded-[24px] shadow-[0_8px_32px_rgba(5,150,105,0.04)] hover:shadow-[0_16px_48px_rgba(5,150,105,0.12)] transition-all duration-500 overflow-hidden flex flex-col pl-fade-up border border-white hover:border-[#93c5fd]/50">
+                                <!-- Image -->
+                                <a href="/products/{{ product.id }}" class="relative block overflow-hidden aspect-square isolate bg-[#F8FAFC]">
+                                    {% if product.imageUrls[0] %}
+                                        <img src="{{ product.imageUrls[0] }}" alt="{{ product.name }}" class="w-full h-full object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group-hover:scale-110" loading="lazy">
+                                    {% else %}
+                                        <div class="w-full h-full flex items-center justify-center text-[#43a047]/50 text-sm">Chưa có ảnh</div>
+                                    {% endif %}
+                                    
+                                    <!-- Soft Overlay on Hover -->
+                                    <div class="absolute inset-0 bg-[#0A132B]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none mix-blend-overlay"></div>
+                                    
+                                    <!-- Badges -->
+                                    {% if product.salePrice and product.salePrice < product.price %}
+                                        <div class="absolute top-4 left-4 bg-white/90 backdrop-blur-md text-[#43a047] text-[10px] uppercase tracking-widest font-medium px-3 py-1.5 rounded-full z-20 shadow-sm">Giảm giá</div>
+                                    {% endif %}
+                                </a>
+
+                                <!-- Info -->
+                                <div class="p-5 md:p-6 flex flex-col flex-1 text-center">
+                                    <h2 class="font-sans text-base md:text-lg text-[#0A132B] mb-2 leading-snug line-clamp-2 group-hover:text-[#43a047] transition-colors">
+                                        <a href="/products/{{ product.id }}">{{ product.name }}</a>
+                                    </h2>
+                                    <div class="mt-auto pt-2 flex flex-wrap items-center justify-center gap-2.5 text-sm md:text-base">
+                                        {% if product.salePrice and product.salePrice < product.price %}
+                                            <span class="text-[#DC2626] font-medium">{{ product.salePrice | money }}</span>
+                                            <span class="text-[#0A132B]/40 line-through text-xs md:text-sm font-medium">{{ product.price | money }}</span>
+                                        {% else %}
+                                            <span class="text-[#43a047] font-medium">{{ product.price | money }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Quick Add Button with Animation Trigger -->
+                                    <button class="pl-add-to-cart-btn mt-5 w-full bg-[#eff6ff] text-[#43a047] hover:bg-[#43a047] hover:text-white rounded-[24px] py-3 transition-colors duration-300 font-medium text-sm flex items-center justify-center gap-2 group/btn" data-product-id="{{ product.id }}" data-image="{{ product.imageUrls[0] }}">
+                                        <svg class="w-5 h-5 transform group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                                        Thêm vào giỏ
+                                    </button>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-span-full py-24 text-center flex flex-col items-center justify-center bg-white rounded-[24px] shadow-sm border border-[#93c5fd]/30">
+                            <div class="w-20 h-20 bg-[#eff6ff] rounded-full flex items-center justify-center mb-6 text-[#43a047]">
+                                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            </div>
+                            <h3 class="font-sans text-2xl text-[#0A132B] mb-3">Không tìm thấy sản phẩm</h3>
+                            <p class="text-[#0A132B]/60 text-sm max-w-md">Vui lòng thử thay đổi điều kiện lọc hoặc từ khóa tìm kiếm để khám phá thêm các sản phẩm thiên nhiên của chúng tôi.</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Pagination -->
+                {% if hasPrev or hasNext %}
+                    <div class="mt-20 flex justify-center">
+                        {% render "components/common/pagination", basePath: "/products", hasPrev: hasPrev, hasNext: hasNext, prevPage: prevPage, nextPage: nextPage, extraQuery: extraQuery %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
