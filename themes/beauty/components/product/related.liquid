@@ -1,0 +1,66 @@
+{% comment %}
+@description: Khoi san pham lien quan dung cho upsell/cross-sell.
+@required_substrings: products, title
+@required_ids: 
+@notes: Nhan title, products[], productUrlPrefix. Sua block upsell/cross-sell/related trong trang chi tiet o day. Tu an khi products rong/null. Co the dung product-card neu phu hop. BAT BUOC: khung anh san pham PHAI vuong 1:1 (class "aspect-square", KHONG duoc doi ti le khac).
+{% endcomment %}
+{% if products and products.size > 0 %}
+<section class="related-products-section py-8 md:py-20
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute -top-[20%] -right-[10%] w-[500px] h-[500px] rounded-full bg-blue-100/40 blur-3xl opacity-60 animate-blob"></div>
+        <div class="absolute -bottom-[20%] -left-[10%] w-[600px] h-[600px] rounded-full bg-teal-50/40 blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+    </div>
+
+    <div class="max-w-[1200px] mx-auto px-6 relative z-10">
+        <div class="related-section-header text-center mb-12 md:mb-20 flex flex-col items-center">
+            <span class="text-blue-600 font-medium tracking-widest uppercase text-xs mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                Gợi ý cho bạn
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+            </span>
+            <h2 class="text-2xl md:text-3xl font-sans text-slate-950 mb-6">{{ title }}</h2>
+            <div class="w-16 h-1 bg-gradient-to-r from-blue-200 via-blue-400 to-blue-200 rounded-full"></div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8" id="related-items-grid">
+            {% for prod in products %}
+                <a href="{{ productUrlPrefix }}/{{ prod.slug }}" data-id="{{ prod.id }}" class="related-product-card group block relative rounded-[24px] overflow-hidden bg-white border border-blue-100/50 shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(5,150,105,0.15)] transition-all duration-500 transform hover:-translate-y-1">
+                    <div class="aspect-square overflow-hidden bg-blue-50/50 relative rounded-t-[24px]">
+                        {% if prod.imageUrls.size > 0 %}
+                            <img src="{{ prod.imageUrls[0] }}" alt="{{ prod.name }}" class="w-full h-full object-cover object-center transition-transform duration-1000 group-hover:scale-110" loading="lazy">
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-blue-800/40 font-sans text-sm bg-blue-50">Chưa có ảnh</div>
+                        {% endif %}
+                        
+                        <!-- Hover Overlay -->
+                        <div class="absolute inset-0 bg-slate-950/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center backdrop-blur-[2px]">
+                            <span class="bg-white text-slate-900 px-6 py-3 rounded-full font-sans text-xs font-semibold tracking-wider uppercase transform translate-y-8 group-hover:translate-y-0 transition-all duration-500 shadow-[0_8px_20px_rgba(0,0,0,0.1)] flex items-center gap-2">
+                                Khám phá
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-5 md:p-6 text-center bg-white relative z-10">
+                        <h3 class="font-sans font-medium text-slate-950 text-sm md:text-base line-clamp-2 mb-3 group-hover:text-blue-600 transition-colors duration-300">{{ prod.name }}</h3>
+                        <div class="font-sans font-semibold text-blue-800 text-base md:text-lg flex items-center justify-center gap-2">
+                            {% if prod.salePrice and prod.salePrice < prod.price %}
+                                <span>{{ prod.salePrice | money }}</span>
+                                <span class="text-slate-400 text-sm font-normal line-through">{{ prod.price | money }}</span>
+                            {% else %}
+                                <span>{{ prod.price | money }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+        <div id="infinite-scroll-trigger" class="py-10 flex justify-center items-center opacity-0 transition-opacity duration-300" data-type="product" data-source-id="{{ product.id }}">
+            <svg class="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+    </div>
+</section>
+{% endif %}
