@@ -37,6 +37,7 @@ const updateCategorySchema = z.object({
   parentId: z.string().nullable().optional(),
   excerpt: z.string().optional(),
   body: z.string().optional(),
+  coverImage: z.string().optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
   faq: faqSchema,

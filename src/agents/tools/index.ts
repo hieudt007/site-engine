@@ -6,7 +6,7 @@ import { generateVideoTool } from "./generateVideoTool.js";
 import { createEmbeddingTool } from "./createEmbeddingTool.js";
 import { readFieldsTool, fillFormTool, requestVisualQaTool, getCurrentPageTool, getChatHistoryTool, finishSubtaskTool, getMemoryTool, saveMemoryTool, getMenuHelpTool, getWebsiteInfoTool } from "./assistantTools.js";
 import { visualQaTool, analyzeLayoutTool, getDesignSystemTool } from "./uiuxTools.js";
-import { getPostTool, createDraftPostTool } from "./contentTools.js";
+import { getPostTool, createDraftPostTool, getListCategoryTool } from "./contentTools.js";
 import { createAutomationTool, updateAutomationTool, deleteAutomationTool, listAutomationsTool } from "./automationTools.js";
 import { listFilesTool, readFilesTool, searchCodeTool, replaceCodeTool, overwriteFileTool } from "./fileTools.js";
 import { searchProductTool, getProductTool, checkOrderTool, createLeadTool, createOrderTool, markAsSpamTool } from "./customerSupportTools.js";
@@ -36,6 +36,7 @@ const allTools = [
   getDesignSystemTool,
   getPostTool,
   createDraftPostTool,
+  getListCategoryTool,
   createAutomationTool,
   updateAutomationTool,
   deleteAutomationTool,

@@ -32,6 +32,7 @@ const createCategorySchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "slug chỉ gồm chữ thường/số, cách nhau bằng -"),
   parentId: z.string().nullable().optional(),
+  coverImage: z.string().optional(),
   faq: faqSchema,
 });
 
@@ -41,6 +42,7 @@ const updateCategorySchema = z.object({
   parentId: z.string().nullable().optional(),
   excerpt: z.string().optional(),
   body: z.string().optional(),
+  coverImage: z.string().optional(),
   seo: seoSchema,
   customFields: customFieldsSchema,
   faq: faqSchema,

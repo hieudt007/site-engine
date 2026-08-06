@@ -51,3 +51,36 @@ export const createDraftPostTool: MCPTool = {
   },
 };
 
+export const getListCategoryTool: MCPTool = {
+  name: "get_list_category",
+  description: "Get a list of categories. Optionally filter by type ('post' or 'product'). {\"type\": \"post\"}",
+  execute: async (args, _context) => {
+    const type = args.type;
+    let whereClause = {};
+    
+    if (type) {
+      if (type !== 'post' && type !== 'product') {
+        return "Error: type must be 'post' or 'product'";
+      }
+      whereClause = { type };
+    }
+
+    const categories = await prisma.category.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        slug: true,
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    if (categories.length === 0) {
+      return "No categories found.";
+    }
+
+    const formattedList = categories.map(c => `- [${c.id}] ${c.name} (Slug: ${c.slug}, Type: ${c.type})`).join('\n');
+    return `Found ${categories.length} categories:\n${formattedList}`;
+  }
+};

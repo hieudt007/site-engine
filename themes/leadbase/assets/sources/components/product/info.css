@@ -11,7 +11,7 @@
 
 .product-title {
     opacity: 0;
-    background: linear-gradient(135deg, #0A132B 0%, #2563eb 100%);
+    background: linear-gradient(135deg, #0A132B 0%, #43a047  100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

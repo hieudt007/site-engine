@@ -241,6 +241,7 @@ model Category {
   // Nội dung trang danh mục — site tự quản, áp dụng cho CẢ 3 type.
   excerpt String?
   body    String?
+  coverImage String?
   seo     Json? // { metaTitle?, metaDescription?, ogImage?, noindex?, keyword?, score? }
 
   // Trường tùy biến do admin tự đặt tay (vd "Xuất xứ": "Việt Nam") — map string->string đơn giản,
