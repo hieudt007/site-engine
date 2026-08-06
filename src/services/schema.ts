@@ -71,7 +71,7 @@ export function buildProductSchema(
 }
 
 export function buildArticleSchema(
-  post: { title: string; excerpt: string | null; coverImage: string | null; publishedAt: Date | null; updatedAt?: Date },
+  post: { title: string; excerpt: string | null; coverImage: string | null; publishedAt: Date | string | null; updatedAt?: Date | string },
   site: SiteInfo,
   postUrl: string,
   section?: string,
@@ -84,10 +84,10 @@ export function buildArticleSchema(
     mainEntityOfPage: postUrl,
     ...(post.excerpt ? { description: post.excerpt } : {}),
     ...(post.coverImage ? { image: [post.coverImage] } : {}),
-    ...(post.publishedAt ? { datePublished: post.publishedAt.toISOString() } : {}),
+    ...(post.publishedAt ? { datePublished: new Date(post.publishedAt).toISOString() } : {}),
     // updatedAt luon co gia tri that (Prisma @updatedAt, tu dong set luc tao) nhung param de optional
     // vi 1 vai noi goi ham nay truyen "post" dang object rut gon (khong chon updatedAt trong select).
-    ...(post.updatedAt ? { dateModified: post.updatedAt.toISOString() } : {}),
+    ...(post.updatedAt ? { dateModified: new Date(post.updatedAt).toISOString() } : {}),
     ...(section ? { articleSection: section } : {}),
     publisher: {
       "@type": "Organization",
