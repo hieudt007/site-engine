@@ -282,6 +282,12 @@ export async function migrateLocalMediaToR2(): Promise<{ migrated: number; faile
     }
   }
 
+  if (migrated > 0) {
+    await CacheService.forgetPattern('global:*');
+    await CacheService.forgetPattern('post:*');
+    await CacheService.forgetPattern('product:*');
+  }
+
   return { migrated, failed };
 }
 
