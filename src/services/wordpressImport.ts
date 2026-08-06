@@ -495,6 +495,7 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
           data: {
             ...base,
             leadbaseProductId,
+            leadbaseStatus: "imported",
             categories: { connect: categoryIds.map((id) => ({ id })) },
           },
         });
