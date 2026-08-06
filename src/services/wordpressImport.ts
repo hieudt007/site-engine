@@ -6,6 +6,7 @@ import { slugify } from "./slug.js";
 import { sanitizePostBody } from "./sanitizeHtml.js";
 import { recomputeCategoryCounts } from "./categoryCounts.js";
 import { uniqueProductSlug } from "./productSlug.js";
+import { CacheService } from "./CacheService.js";
 
 // Import noi dung tu file export WordPress (WXR - WordPress eXtended RSS, Tools > Export). Ho tro
 // 3 post_type: "post" (bai viet -> Post.type='post'), "page" (trang tinh -> Post.type='page'),
@@ -165,11 +166,34 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
     trimValues: false,
-    isArray: (name) => ["item", "category", "wp:postmeta"].includes(name),
+    isArray: (name) => ["item", "category", "wp:postmeta", "wp:term", "wp:category", "wp:tag", "wp:termmeta"].includes(name),
   });
 
   const doc = parser.parse(xml);
   const items: WpItem[] = asArray(doc?.rss?.channel?.item);
+  
+  // Update SiteConfig with website title and description if currently empty or default
+  const channel = doc?.rss?.channel;
+  if (channel) {
+    const siteTitle = typeof channel.title === "string" ? channel.title.trim() : "";
+    const siteDescription = typeof channel.description === "string" ? channel.description.trim() : "";
+    
+    if (siteTitle || siteDescription) {
+      const siteConfig = await prisma.siteConfig.findUnique({ where: { id: "singleton" } });
+      if (siteConfig) {
+        const updates: any = {};
+        if (siteTitle && (!siteConfig.siteName || siteConfig.siteName === "WebBase" || siteConfig.siteName === siteConfig.domain)) {
+          updates.siteName = siteTitle;
+        }
+        if (siteDescription && !siteConfig.tagline) {
+          updates.tagline = siteDescription;
+        }
+        if (Object.keys(updates).length > 0) {
+          await prisma.siteConfig.update({ where: { id: "singleton" }, data: updates });
+        }
+      }
+    }
+  }
 
   // Anh dinh kem (post_type="attachment") - dung wp:post_id lam khoa tra ve URL that, de map
   // _thumbnail_id (postmeta cua bai viet/trang/san pham) -> anh dai dien. Giu nguyen URL goc tren
@@ -205,6 +229,17 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
           }
         }
       }
+    }
+  }
+
+  const categoryImageBySlug = new Map<string, string>();
+  const wpTerms = [...asArray(doc?.rss?.channel?.["wp:term"]), ...asArray(doc?.rss?.channel?.["wp:category"])];
+  for (const term of wpTerms) {
+    const slug = term["wp:term_slug"] || term["wp:category_nicename"];
+    const thumbnailId = metaValue(term["wp:termmeta"], "thumbnail_id");
+    if (slug && thumbnailId) {
+      const url = attachmentUrlById.get(thumbnailId);
+      if (url) categoryImageBySlug.set(slug, url);
     }
   }
 
@@ -253,13 +288,28 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
 
       const categoryIds: string[] = [];
       for (const cat of categoryNames) {
+        const catCover = categoryImageBySlug.get(cat.slug);
         const category = await prisma.category.upsert({
           where: { type_slug: { type: "post", slug: cat.slug } },
-          update: {},
-          create: { type: "post", name: cat.name, slug: cat.slug },
+          update: catCover ? { coverImage: catCover } : {},
+          create: { type: "post", name: cat.name, slug: cat.slug, coverImage: catCover },
         });
         categoryIds.push(category.id);
         touchedCategoryIds.add(category.id);
+      }
+
+      const topicNames = asArray(item.category)
+        .filter((c) => c["@_domain"] === "post_tag" && c["#text"])
+        .map((c) => ({ name: c["#text"] as string, slug: c["@_nicename"] || slugify(c["#text"] as string) }));
+      let topicId: string | undefined;
+      if (topicNames.length > 0) {
+        const t = topicNames[0];
+        const topic = await prisma.topic.upsert({
+          where: { slug: t.slug },
+          update: {},
+          create: { name: t.name, slug: t.slug },
+        });
+        topicId = topic.id;
       }
 
       const existing = await prisma.post.findUnique({ where: { type_slug: { type: "post", slug } } });
@@ -272,6 +322,7 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
         publishedAt,
         authorId: authorId ?? undefined,
         seo: seoOf(item),
+        topicId,
       };
 
       if (existing) {
@@ -366,25 +417,23 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
         continue;
       }
 
-      // leadbaseProductId that su chi ton tai cho san pham dong bo tu LeadBase - san pham import tu
-      // WordPress KHONG co nguon do, phai tu sinh 1 gia tri on dinh+duy nhat de thoa unique
-      // constraint. Tien to "wp-" tranh dung dang voi id LeadBase that (so thuan), an toan khong
-      // trung. On dinh giua cac lan import lai (dua tren wp:post_id, khong doi) nen chay lai import
-      // se UPDATE dung ban ghi cu, khong tao trung.
+      // leadbaseProductId gio la field tuy chon dung chung lam "khoa noi" san pham (xem ghi chu
+      // schema.prisma) - o day tu sinh 1 gia tri on dinh+duy nhat rieng cho luong import WordPress
+      // de thoa unique constraint VA de re-import khop lai dung ban ghi cu (dua tren wp:post_id,
+      // khong doi) thay vi tao trung. Tien to "wp-" chi de de nhan biet nguon goc, khong mang y
+      // nghia gi khac.
       const leadbaseProductId = `wp-${wpPostId}`;
       const existingProduct = await prisma.productCache.findUnique({ where: { leadbaseProductId } });
       const desiredSlug = capSlugLength((item["wp:post_name"] || slugify(title)).trim() || slugify(title));
       const slug = await uniqueProductSlug(desiredSlug, existingProduct?.id);
       const postmeta = item["wp:postmeta"];
 
-      // ProductCache.description CHI la plain text khi layoutMode='standard' (mac dinh, giu du UI
-      // mua hang/gia/variant cua product-detail.liquid) - KHONG duoc luu HTML tho vao day, neu
-      // khong se bi escape hien nguyen the <p> ra man hinh. Doi lai layoutMode='custom' se lam mat
-      // toan bo UI mua hang (chi con dump mo ta), khong phu hop cho san pham that.
+      // ProductCache.description giờ đã hỗ trợ rich-text HTML trên frontend (style h1, h2, ul... trong content.liquid)
+      // và admin dashboard đã có trinh soạn thảo rich-text. Do đó không cần strip HTML về dạng text thuần nữa.
       const rawDescription = stripShortcodes(stripGutenbergComments(localizeWpContentUrls(item["content:encoded"] ?? "")));
-      const description = htmlToPlainTextWithBreaks(rawDescription);
+      const description = sanitizePostBody(rawDescription);
       const rawExcerpt = stripShortcodes(stripGutenbergComments(item["excerpt:encoded"] ?? ""));
-      const excerpt = rawExcerpt ? deriveExcerpt(stripHtmlToText(rawExcerpt)) : deriveExcerpt(description);
+      const excerpt = rawExcerpt ? deriveExcerpt(stripHtmlToText(rawExcerpt)) : deriveExcerpt(stripHtmlToText(description));
 
       const price = toNumber(metaValue(postmeta, "_regular_price")) ?? toNumber(metaValue(postmeta, "_price")) ?? 0;
       const rawSalePrice = toNumber(metaValue(postmeta, "_sale_price"));
@@ -409,10 +458,11 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
 
       const categoryIds: string[] = [];
       for (const cat of categoryNames) {
+        const catCover = categoryImageBySlug.get(cat.slug);
         const category = await prisma.category.upsert({
           where: { type_slug: { type: "product", slug: cat.slug } },
-          update: {},
-          create: { type: "product", name: cat.name, slug: cat.slug },
+          update: catCover ? { coverImage: catCover } : {},
+          create: { type: "product", name: cat.name, slug: cat.slug, coverImage: catCover },
         });
         categoryIds.push(category.id);
         touchedCategoryIds.add(category.id);
@@ -445,7 +495,6 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
           data: {
             ...base,
             leadbaseProductId,
-            leadbaseStatus: "imported",
             categories: { connect: categoryIds.map((id) => ({ id })) },
           },
         });
@@ -456,9 +505,85 @@ export async function importWordpressXml(xml: string, authorId: number | null): 
     }
   }
 
+  // ---- Menu (nav_menu) ----
+  const wpMenus = wpTerms.filter((t) => t["wp:term_taxonomy"] === "nav_menu");
+  const menuItems = items.filter((item) => item["wp:post_type"] === "nav_menu_item");
+
+  for (const wpMenu of wpMenus) {
+    const slug = wpMenu["wp:term_slug"];
+    const name = wpMenu["wp:term_name"];
+    if (!slug || !name) continue;
+
+    const itemsForMenu = menuItems.filter((mi) => {
+      const cats = asArray(mi.category).filter((c) => c["@_domain"] === "nav_menu");
+      return cats.some((c) => c["@_nicename"] === slug || c["#text"] === name);
+    });
+    
+    if (itemsForMenu.length === 0) continue;
+
+    const menu = await prisma.menu.upsert({
+      where: { slug },
+      update: { name },
+      create: { slug, name },
+    });
+
+    await prisma.menuItem.deleteMany({ where: { menuId: menu.id } });
+
+    for (const [index, mi] of itemsForMenu.entries()) {
+      let url = metaValue(mi["wp:postmeta"], "_menu_item_url");
+      const objectId = metaValue(mi["wp:postmeta"], "_menu_item_object_id");
+      const objectType = metaValue(mi["wp:postmeta"], "_menu_item_object");
+
+      let label = (mi.title || "").trim();
+
+      if (!url && objectId && objectType) {
+        const target = items.find((i) => i["wp:post_id"] == objectId);
+        if (objectType === "page" || objectType === "post") {
+          if (target) {
+            const targetSlug = capSlugLength((target["wp:post_name"] || slugify(target.title || "")).trim());
+            url = objectType === "page" ? `/trang/${targetSlug}` : `/blog/${targetSlug}`;
+            if (!label) label = (target.title || "").trim();
+          }
+        } else if (objectType === "product") {
+          if (target) {
+            const targetSlug = capSlugLength((target["wp:post_name"] || slugify(target.title || "")).trim());
+            url = `/san-pham/${targetSlug}`;
+            if (!label) label = (target.title || "").trim();
+          }
+        } else if (objectType === "category") {
+          const wpTerm = wpTerms.find((t) => t["wp:term_id"] == objectId);
+          if (wpTerm) {
+            url = `/blog/danh-muc/${wpTerm["wp:term_slug"] || wpTerm["wp:category_nicename"]}`;
+            if (!label) label = (wpTerm["wp:term_name"] || wpTerm["wp:cat_name"] || "").trim();
+          }
+        } else if (objectType === "product_cat") {
+          const wpTerm = wpTerms.find((t) => t["wp:term_id"] == objectId);
+          if (wpTerm) {
+            url = `/san-pham/danh-muc/${wpTerm["wp:term_slug"] || wpTerm["wp:category_nicename"]}`;
+            if (!label) label = (wpTerm["wp:term_name"] || wpTerm["wp:cat_name"] || "").trim();
+          }
+        }
+      }
+
+      if (url && label) {
+        await prisma.menuItem.create({
+          data: {
+            menuId: menu.id,
+            label,
+            url,
+            sortOrder: index,
+          }
+        });
+      }
+    }
+  }
+
   if (touchedCategoryIds.size > 0) {
     await recomputeCategoryCounts([...touchedCategoryIds]);
   }
+
+  // Clear cache after bulk import so frontend sees the updates
+  await CacheService.forgetPattern('*');
 
   return summary;
 }

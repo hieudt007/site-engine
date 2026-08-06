@@ -1,4 +1,7 @@
 import { FastifyInstance } from "fastify";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { z } from "zod";
 import { prisma } from "../../db.js";
 import { requireRole } from "../../plugins/requireRole.js";
@@ -102,6 +105,58 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
       request.log.error(err);
       return reply.code(422).send({ error: "Không đọc được file - kiểm tra đây có đúng là file .zip hợp lệ không." });
     }
+  });
+
+  app.post("/admin/api/media/import-zip/chunk", { preHandler: requireRole("manager") }, async (request, reply) => {
+    const parts = request.parts({ limits: { fileSize: 100 * 1024 * 1024 } });
+    let uploadId = "";
+    let chunkIndex = -1;
+    let totalChunks = -1;
+    let buffer: Buffer | null = null;
+    
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        buffer = await part.toBuffer();
+      } else {
+        if (part.fieldname === 'uploadId') uploadId = part.value as string;
+        if (part.fieldname === 'chunkIndex') chunkIndex = parseInt(part.value as string, 10);
+        if (part.fieldname === 'totalChunks') totalChunks = parseInt(part.value as string, 10);
+      }
+    }
+
+    if (!buffer || !uploadId || chunkIndex < 0 || totalChunks <= 0) {
+      return reply.code(422).send({ error: "Thiếu thông tin chunk" });
+    }
+
+    const tmpDir = path.join(os.tmpdir(), "zip-uploads", uploadId.replace(/[^a-zA-Z0-9_-]/g, ""));
+    await fs.mkdir(tmpDir, { recursive: true });
+    await fs.writeFile(path.join(tmpDir, `${chunkIndex}.part`), buffer);
+
+    const files = await fs.readdir(tmpDir);
+    const partFiles = files.filter(f => f.endsWith('.part'));
+    if (partFiles.length === totalChunks) {
+      const chunks: Buffer[] = [];
+      for (let i = 0; i < totalChunks; i++) {
+        chunks.push(await fs.readFile(path.join(tmpDir, `${i}.part`)));
+      }
+      const finalBuffer = Buffer.concat(chunks);
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      
+      const userId = request.session.get("userId")!;
+      
+      // Run background processing to prevent 504 Gateway Timeout from Nginx/Cloudflare
+      importMediaZip(finalBuffer, userId)
+        .then((summary) => {
+          request.log.info("Zip import background processing completed: " + JSON.stringify(summary));
+        })
+        .catch((err) => {
+          request.log.error(err, "Zip import background processing failed");
+        });
+
+      return reply.send({ summary: { imported: 0, skipped: 0, async: true }, completed: true });
+    }
+
+    return reply.send({ success: true, completed: false });
   });
 
   // Cho UI biet co nen hien nut "Chuyen anh cu sang R2" hay khong (xem ghi chu trong

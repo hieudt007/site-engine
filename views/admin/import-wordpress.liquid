@@ -78,30 +78,52 @@
     }
 
     importMediaBtn.disabled = true;
-    importMediaStatus.textContent = "Đang giải nén và lưu ảnh, có thể mất vài phút với file lớn...";
+    importBtn.disabled = true;
     
-    const formData = new FormData();
-    formData.append("file", file, file.name);
+    const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
     try {
-      const res = await fetch("/admin/api/media/import-zip", { method: "POST", body: formData });
-      const body = await res.json().catch(() => ({}));
+      let finalSummary = null;
+      for (let i = 0; i < totalChunks; i++) {
+        importMediaStatus.textContent = `Đang tải lên và xử lý... (Phần ${i + 1}/${totalChunks})`;
+        const chunk = file.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        const formData = new FormData();
+        formData.append("uploadId", uploadId);
+        formData.append("chunkIndex", i);
+        formData.append("totalChunks", totalChunks);
+        formData.append("file", chunk, file.name);
 
-      if (!res.ok) {
-        showFlash(typeof body.error === "string" ? body.error : "Import ảnh thất bại", false);
-        importMediaStatus.textContent = "";
-        return;
+        const res = await fetch("/admin/api/media/import-zip/chunk", { method: "POST", body: formData });
+        const body = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          showFlash(typeof body.error === "string" ? body.error : "Import ảnh thất bại", false);
+          importMediaStatus.textContent = "";
+          return;
+        }
+
+        if (body.completed) {
+          finalSummary = body.summary;
+        }
       }
 
-      const s = body.summary;
-      showFlash(`Đã xử lý file zip: Lưu thành công ${s.imported} ảnh, bỏ qua ${s.skipped} ảnh (đã tồn tại).`, true);
-      importMediaStatus.textContent = "";
-      mediaZipInput.value = "";
+      if (finalSummary) {
+        if (finalSummary.async) {
+          showFlash(`File zip đã được tải lên trọn vẹn! Do file lớn nên server đang âm thầm giải nén ngầm (background). Bác có thể rời trang, ảnh sẽ tự động xuất hiện sau ít phút.`, true);
+        } else {
+          showFlash(`Đã xử lý file zip: Lưu thành công ${finalSummary.imported} ảnh, bỏ qua ${finalSummary.skipped} ảnh (đã tồn tại).`, true);
+        }
+        importMediaStatus.textContent = "";
+        mediaZipInput.value = "";
+      }
     } catch (e) {
       showFlash("Lỗi kết nối, vui lòng thử lại.", false);
       importMediaStatus.textContent = "";
     } finally {
       importMediaBtn.disabled = false;
+      importBtn.disabled = false;
     }
   });
 
@@ -113,6 +135,7 @@
     }
 
     importBtn.disabled = true;
+    importMediaBtn.disabled = true;
     status.textContent = "Đang xử lý, có thể mất vài giây tuỳ số lượng nội dung...";
     resultBox.innerHTML = "";
 
@@ -160,6 +183,7 @@
       status.textContent = "";
     } finally {
       importBtn.disabled = false;
+      importMediaBtn.disabled = false;
     }
   });
 })();
