@@ -138,21 +138,31 @@ async function uploadToR2(r2: R2Config, subDir: string, filename: string, buffer
 export async function saveUploadedFile(
   buffer: Buffer,
   _clientMimeType: string,
-): Promise<{ url: string; filename: string; cdnUrl?: string }> {
+): Promise<{ url: string; filename: string; cdnUrl?: string; width?: number; height?: number }> {
   const verifiedMimeType = await validateBuffer(buffer);
   const optimized = await optimizeImageBuffer(buffer, verifiedMimeType);
   const subDir = yearMonthDir();
   const filename = `${randomUUID()}.${extensionFor(verifiedMimeType)}`;
 
+  let width: number | undefined;
+  let height: number | undefined;
+  try {
+    const metadata = await sharp(optimized).metadata();
+    width = metadata.width;
+    height = metadata.height;
+  } catch (err) {
+    // Ignore error if sharp cannot read metadata
+  }
+
   const r2 = await getR2Config();
   if (r2) {
     const cdnUrl = await uploadToR2(r2, subDir, filename, optimized, verifiedMimeType);
-    return { url: cdnUrl, filename, cdnUrl };
+    return { url: cdnUrl, filename, cdnUrl, width, height };
   }
 
   await fs.mkdir(path.join(UPLOADS_DIR, subDir), { recursive: true });
   await fs.writeFile(path.join(UPLOADS_DIR, subDir, filename), optimized);
-  return { url: `/uploads/${subDir}/${filename}`, filename };
+  return { url: `/uploads/${subDir}/${filename}`, filename, width, height };
 }
 
 export async function saveAiChatImage(

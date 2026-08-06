@@ -58,7 +58,7 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
     const buffer = await file.toBuffer();
 
     try {
-      const { url, filename, cdnUrl } = await saveUploadedFile(buffer, file.mimetype);
+      const { url, filename, cdnUrl, width, height } = await saveUploadedFile(buffer, file.mimetype);
       const userId = request.session.get("userId")!;
 
       const media = await prisma.media.create({
@@ -68,6 +68,8 @@ export async function registerMediaRoutes(app: FastifyInstance): Promise<void> {
           cdnUrl: cdnUrl ?? null,
           mimeType: file.mimetype,
           size: buffer.length,
+          width,
+          height,
           uploadedByUserId: userId,
         },
       });

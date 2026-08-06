@@ -379,6 +379,8 @@
         <div class="sidebar-group-label">AI & Tool</div>
         {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/agents" %} active{% endif %}" href="/admin/agents">{% render "components/icon", name: "bot" %}<span>AI Agent</span></a>{% endif %}
         <a class="sidebar-link{% if currentPath contains "/admin/automations" %} active{% endif %}" href="/admin/automations">{% render "components/icon", name: "zap" %}<span>AI Automation</span></a>
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/mcp" %} active{% endif %}" href="/admin/mcp">{% render "components/icon", name: "cpu" %}<span>AI MCP</span></a>{% endif %}
+        {% if role == "admin" %}<a class="sidebar-link{% if currentPath contains "/admin/oauth-tokens" %} active{% endif %}" href="/admin/oauth-tokens">{% render "components/icon", name: "key" %}<span>OAuth Tokens</span></a>{% endif %}
       </div>
     {% endif %}
 
@@ -1051,11 +1053,15 @@
             selection.addRange(range);
           }
           document.execCommand("insertImage", false, url);
-          if (media && media.alt) {
+          if (media) {
             const inserted = [...body.querySelectorAll('img[src="' + url + '"]')].pop();
             if (inserted) {
-              inserted.alt = media.alt;
-              inserted.title = media.alt;
+              if (media.alt) {
+                inserted.alt = media.alt;
+                inserted.title = media.alt;
+              }
+              if (media.width) inserted.setAttribute('width', media.width);
+              if (media.height) inserted.setAttribute('height', media.height);
             }
           }
           selectedImage = null;

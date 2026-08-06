@@ -11,7 +11,7 @@ datasource db {
 }
 
 // Đúng 1 record duy nhất trong DB này — thông tin cơ bản + SEO mặc định của CHÍNH website
-// đang chạy trên instance này. Không phải bảng registry (đó là việc của LeadBase).
+// đang chạy trên instance này.
 model SiteConfig {
   id     String @id @default("singleton") // luôn đúng 1 row
   domain String // để chính app tự biết domain mình đang chạy (canonical URL, sitemap...)
@@ -48,11 +48,11 @@ model SiteConfig {
   // HTML/JS THO admin tu dan (vd TikTok Pixel, Hotjar...) - CHEN NGUYEN VAN khong escape, chap
   // nhan rui ro vi day la field CHI admin (da co toan quyen DB) moi sua duoc, khong phai input
   // khach hang.
-  gaId              String?
-  fbPixelId         String?
-  customHeadScript  String?
+  gaId               String?
+  fbPixelId          String?
+  customHeadScript   String?
   customFooterScript String?
-  gscVerificationId String?
+  gscVerificationId  String?
 
   // Turnstile Cloudflare keys for anti-spam (e.g. chat plugin, forms)
   turnstileSiteKey   String?
@@ -78,24 +78,26 @@ model SiteConfig {
   updatedAt DateTime @updatedAt
 }
 
-// Tài khoản quản trị — đăng nhập qua OAuth THẬT của LeadBase (Laravel Passport, y hệt cách
-// AI/MCP đang xác thực), KHÔNG có mật khẩu riêng. id = ĐÚNG User.id bên LeadBase — upsert mỗi
-// lần đăng nhập thành công (routes/admin/oauth.ts). "role" (KHÔNG phải mảng permissions nữa) là
-// 1 trong đúng 3 giá trị 'admin'|'manager'|'edit', LeadBase tự tính từ role Spatie thật và trả
-// về qua GET /api/oauth/userinfo — đồng bộ lại mỗi lần login. Khác hoàn toàn "customer" (Phase 4,
-// model Customer riêng bên dưới — khách mua hàng tự đăng ký phone+OTP, không liên quan gì User).
+// Tài khoản quản trị — đăng nhập cục bộ bằng email + mật khẩu (bcrypt qua passwordHash), không
+// còn phụ thuộc OAuth ngoài nào cả. id tự tăng, do chính DB sinh (routes/admin/auth.ts). Tài
+// khoản ĐẦU TIÊN tạo qua màn hình setup (khi bảng này rỗng) tự động là role='admin'; các tài
+// khoản sau do chính admin tạo/xoá/đổi role qua /admin/users (routes/admin/users.ts). "role" là 1
+// trong đúng 3 giá trị 'admin'|'manager'|'edit' (plugins/requireRole.ts). Khác hoàn toàn
+// "customer" (Phase 4, model Customer riêng bên dưới — khách mua hàng tự đăng ký phone+OTP,
+// không liên quan gì User).
 model User {
-  leadbaseUserId Int      @id
-  name           String
-  email          String
-  role           String // 'admin' | 'manager' | 'edit'
-  lastLoginAt    DateTime
-  createdAt      DateTime @default(now())
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String // 'admin' | 'manager' | 'edit'
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
   // Ban tom tat dai han (khong phai lich su chat tho) ve user nay - AI TU doc/ghi qua 2 tool
   // get_memory/save_memory (assistantTools.ts), KHONG tu dong nhet vao moi luot (giong het ly do
   // context.history bi revert khoi auto-inject) - AI chu dong goi khi thay can, tu quyet dinh khi
   // nao noi dung dang du "dong" de ghi lai (giong facebook_customer_memories.memory ben Facebook bot).
-  memories       String?
+  memories     String?
 
   posts       Post[]
   auditLogs   AuditLog[]
@@ -105,7 +107,7 @@ model User {
   automations Automation[]
 }
 
-// Session admin vào /admin — tạo sau khi hoàn tất OAuth code exchange + lấy userinfo từ LeadBase.
+// Session admin vào /admin — tạo sau khi đăng nhập cục bộ thành công (routes/admin/auth.ts).
 model Session {
   id        String   @id
   data      String // JSON: { userId, email, permissions }
@@ -125,7 +127,7 @@ model Session {
 model AuditLog {
   id         String   @id @default(cuid())
   userId     Int
-  user       User     @relation(fields: [userId], references: [leadbaseUserId])
+  user       User     @relation(fields: [userId], references: [id])
   action     String // vd 'post.create' | 'post.update' | 'post.publish' | 'post.delete'
   entityType String? // vd 'Post'
   entityId   String?
@@ -139,7 +141,7 @@ model AuditLog {
 model AdminChatHistory {
   id                Int      @id @default(autoincrement())
   userId            Int
-  user              User     @relation(fields: [userId], references: [leadbaseUserId], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userMessage       String
   imageUrl          String?
   assistantResponse String?
@@ -189,8 +191,7 @@ model CustomerChatLead {
 }
 
 // Lịch sử chỉnh sửa nội dung — snapshot TOÀN BỘ field nội dung của Post/Page/Product NGAY TRƯỚC
-// mỗi lần PATCH sửa nội dung (KHÔNG snapshot khi chỉ đổi status/lên lịch/xuất bản, và KHÔNG
-// snapshot khi LeadBase tự sync giá/tồn kho — chỉ khi ADMIN thật sự sửa nội dung). entityType
+// mỗi lần PATCH sửa nội dung (KHÔNG snapshot khi chỉ đổi status/lên lịch/xuất bản). entityType
 // dùng cùng quy ước với AuditLog.entityType ('Post'|'Page'|'Product') dù Post/Page chung 1 bảng
 // Prisma — entityId luôn là Post.id hoặc ProductCache.id tương ứng. userId null nếu không xác
 // định được người sửa (không xảy ra trong luồng hiện tại, chỉ để chỗ trống).
@@ -204,7 +205,7 @@ model Revision {
   changedFields Json?
   description   String? // cau tom tat doc duoc, vd "Đã sửa: Tiêu đề, Nội dung"
   userId        Int?
-  user          User?    @relation(fields: [userId], references: [leadbaseUserId])
+  user          User?    @relation(fields: [userId], references: [id])
   createdAt     DateTime @default(now())
 
   @@index([entityType, entityId])
@@ -212,14 +213,10 @@ model Revision {
 
 // Danh mục bài viết VA danh mục sản phẩm GỘP CHUNG 1 bảng, phân biệt qua "type" ('post' |
 // 'product') — cả 2 đều là 1 "trang danh mục" công khai thật (có excerpt/body/seo riêng, xem
-// route /blog/danh-muc/:slug và /products/danh-muc/:slug), chỉ khác NGUỒN: 'post' CRUD hoàn
-// toàn tại site-engine; 'product' đồng bộ name/slug từ LeadBase (routes/public/productsSync.ts
-// resolveCategoryId — KHÔNG sửa tay 2 field đó), nhưng excerpt/body/seo vẫn site tự quản y hệt
-// cách ProductCache.description không bị LeadBase ghi đè sau lần tạo đầu.
+// route /blog/danh-muc/:slug và /products/danh-muc/:slug), CRUD hoàn toàn tại chỗ qua admin.
 //
 // 1 bài/sản phẩm gắn được NHIỀU category (nhiều-nhiều, xem Post.categories/ProductCache.categories
-// dưới) - khác Topic (1 bài chỉ 1 topic). Có cha/con (parentId) - áp dụng cho CẢ 2 type, kể cả
-// danh mục sản phẩm dù LeadBase không gửi cây phân cấp (site tự quản cha/con riêng ở đây).
+// dưới) - khác Topic (1 bài chỉ 1 topic). Có cha/con (parentId) - áp dụng cho CẢ 2 type.
 model Category {
   id       String     @id @default(cuid())
   // 'post' | 'product' | 'brand' - 'brand' CHI ap dung cho ProductCache (xem ProductCache.brand
@@ -230,13 +227,6 @@ model Category {
   parentId String?
   parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children Category[] @relation("CategoryHierarchy")
-
-  // Chi co gia tri khi type='product'/'brand' - LeadBase so huu, dong bo moi lan sync san pham.
-  // Unique THEO TUNG type (khong phai toan bang) - vi id danh muc va id thuong hieu ben LeadBase
-  // la 2 khong gian id KHAC NHAU (co the trung so, vd category id=5 va brand id=5 la 2 thu khac
-  // nhau), gop chung 1 cot unique se gay upsert nham hang.
-  leadbaseCategoryId String?
-  syncedAt           DateTime?
 
   // Nội dung trang danh mục — site tự quản, áp dụng cho CẢ 3 type.
   excerpt String?
@@ -262,7 +252,6 @@ model Category {
   brandProducts ProductCache[] @relation("ProductBrand")
 
   @@unique([type, slug])
-  @@unique([type, leadbaseCategoryId])
 }
 
 // Chủ đề bài viết — KHÁC Category ở chỗ 1 bài chỉ thuộc ĐÚNG 1 topic (Post.topicId, quan hệ
@@ -332,8 +321,8 @@ model Post {
   // nhập nên admin cần thấy lại được mật khẩu mình đã đặt). null/rỗng = bài mở tự do.
   password String?
 
-  authorId Int? // ai TẠO — User.leadbaseUserId
-  author   User? @relation(fields: [authorId], references: [leadbaseUserId])
+  authorId Int? // ai TẠO — User.id
+  author   User? @relation(fields: [authorId], references: [id])
 
   // Nhiều-nhiều — 1 bài gắn được nhiều category (chỉ dùng khi type='post', page không có danh
   // mục/topic). Khác topicId dưới (1-1, mỗi bài đúng 1 topic).
@@ -429,7 +418,7 @@ model Automation {
   status         String   @default("pending") // 'pending' | 'running' | 'done' | 'error' | 'cancelled'
   result         String?
   createdBy      Int?
-  creator        User?    @relation(fields: [createdBy], references: [leadbaseUserId])
+  creator        User?    @relation(fields: [createdBy], references: [id])
   agent          Agent?   @relation(fields: [aiAgentId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -437,31 +426,35 @@ model Automation {
   @@index([status, scheduledAt])
 }
 
-// Sản phẩm liên kết với LeadBase — sở hữu dữ liệu CHIA ĐÔI, không phải cache thuần:
-//   - Nội dung hiển thị (name, description, imageUrls, SEO...) do CHÍNH website này tự quản, LeadBase
-//     không ghi đè sau lần tạo đầu.
-//   - Giá/tồn/trạng thái do LeadBase đẩy sang mỗi khi đổi (POST /api/products/sync), instance
-//     không tự sửa 3 field này, chỉ hiển thị.
+// Sản phẩm - dữ liệu gốc, admin tự nhập/sửa toàn bộ qua /admin/products (tên model giữ nguyên
+// "ProductCache" từ thời còn đồng bộ ngoài - đổi tên model đụng hàng chục chỗ gọi
+// prisma.productCache.*, không cần thiết cho phạm vi decouple hiện tại).
 model ProductCache {
-  id                String @id @default(cuid())
-  leadbaseProductId String @unique
+  id                String  @id @default(cuid())
+  // Tuy chon - truoc day la khoa dong bo bat buoc voi LeadBase (String @unique, khong null).
+  // web-base khong con dong bo ngoai nua, san pham la du lieu goc admin tu nhap/sua thang qua
+  // /admin/products - truong nay CHI con giu lai vi nhieu noi khac (downloads.ts,
+  // agents/tools/customerSupportTools.ts, CartOrder.items JSON) dang dung no lam "khoa noi" san
+  // pham trong 1 don hang, doi ten het cac cho do la viec lon khong can thiet cho pham vi hien
+  // tai. Neu admin de trong luc tao san pham, server tu gan = chinh product.id (xem
+  // routes/admin/products.ts) de moi noi downstream van chay dung ma khong phai sua gi them.
+  leadbaseProductId String? @unique
 
-  // --- Do LeadBase đẩy sang, instance chỉ đọc — KHÔNG sửa tay ---
-  price          Decimal
-  salePrice      Decimal?
-  stock          Int?
-  leadbaseStatus String // giá trị đồng bộ nguyên văn từ LeadBase — enum cụ thể TBD
-  // Luot ban - LeadBase tu cong don tu OrderItem luc don hoan tat, day sang moi lan doi (giong
-  // price/stock, khong phai site tu tinh). Mac dinh 0 (san pham moi tao, chua co don nao).
-  soldCount      Int      @default(0)
-  // Ma san pham - LeadBase so huu (Product.sku), chi de HIEN THI/tra cuu, khong dung lam khoa gi.
-  sku            String?
+  // Gia/ton kho/luot ban - truoc day do LeadBase day sang (instance chi doc), gio la du lieu goc
+  // admin tu sua thang qua /admin/products (khong con "site chi cache" nua).
+  price     Decimal
+  salePrice Decimal?
+  stock     Int?
+  // Luot ban - truoc day LeadBase tu cong don gui sang, gio KHONG co logic tu tinh (chua co luong
+  // "hoan tat don" thuc su cong don) - giu field + default 0 de khong phai migrate lai schema
+  // sau nay khi lam tinh nang thong ke ban hang.
+  soldCount Int      @default(0)
+  sku       String?
 
-  // --- Do CHÍNH website tự quản, LeadBase chỉ set giá trị khởi tạo lúc tạo mới, không ghi đè sau đó ---
+  // --- Do CHÍNH website tự quản (khong doi tu truoc gio) ---
   name        String
   slug        String?  @unique
   // Mo ta ngan hien o trang danh sach - cung y nghia voi Post.excerpt (xem docblock o do).
-  // LeadBase KHONG gui truong nay (site tu viet/sua qua /admin/products), khac description ben duoi.
   excerpt     String?
   // Khi layoutMode='standard': plain text, render escape+newline_to_br (KHONG phai HTML). Khi
   // 'custom'/'landing': HTML THO, render RAW khong escape/sanitize - xem Post.layoutMode o tren
@@ -500,31 +493,31 @@ model ProductCache {
   // Day la 1 khu vuc RIENG co y nghia co dinh "bang thong so san pham" hien o trang chi tiet.
   specs Json?
 
-  // Cổng xuất bản riêng của website — sản phẩm mới từ LeadBase luôn vào ở trạng thái draft,
-  // tenant phải tự vào /admin/products sửa/bổ sung nội dung rồi publish. Cùng 4 trạng thái với
-  // Post/Page (services/contentStatus.ts) — thay cho publishStatus 2 trạng thái cũ.
+  // Cổng xuất bản riêng của website — sản phẩm mới tạo luôn ở trạng thái draft, admin tự publish.
+  // Cùng 4 trạng thái với Post/Page (services/contentStatus.ts).
   status      String    @default("draft") // 'draft' | 'pending_review' | 'scheduled' | 'published'
   scheduledAt DateTime?
   publishedAt DateTime?
 
-  syncedAt DateTime @default(now()) // lần cuối nhận được cú đẩy từ LeadBase
+  syncedAt DateTime @default(now()) // lần cập nhật gần nhất
 
   // Denormalize tu ProductReview (status='approved') - tranh phai JOIN/aggregate lai moi lan hien
-  // trang danh sach/danh muc (N+1 neu tinh rieng tung san pham). Site TU tinh lai (KHONG phai
-  // LeadBase gui) moi khi 1 review duoc duyet/tu choi (routes/admin/reviews.ts recomputeProductRatingAggregate) -
-  // KHONG tinh luc tao review (luon tao o "pending", chua anh huong so nay).
+  // trang danh sach/danh muc (N+1 neu tinh rieng tung san pham). Site TU tinh lai moi khi 1 review
+  // duoc duyet/tu choi (routes/admin/reviews.ts recomputeProductRatingAggregate) - KHONG tinh luc
+  // tao review (luon tao o "pending", chua anh huong so nay).
   reviewCount Int    @default(0)
   avgRating   Float?
 
-  // Sản phẩm có biến thể (màu/size...) — LeadBase Product.has_variants. Khi true, price/salePrice/
-  // stock ở TRÊN vẫn giữ (= giá thấp nhất/tổng tồn, LeadBase tự tính) để chỗ nào chưa biết variant
-  // vẫn hiển thị được số hợp lý — nhưng nguồn thật cho khách CHỌN mua là bảng variants dưới đây.
+  // Sản phẩm có biến thể (màu/size...). Khi true, price/salePrice/stock ở TRÊN vẫn giữ (= giá
+  // thấp nhất/tổng tồn) để chỗ nào chưa biết variant vẫn hiển thị được số hợp lý — nguồn thật cho
+  // khách CHỌN mua là bảng variants dưới đây. LƯU Ý: hiện KHÔNG có UI admin tạo/sửa variant tay -
+  // model ProductVariantCache trước đây chỉ được tạo qua webhook đồng bộ đã bị gỡ bỏ, nên trường
+  // này/quan hệ này hiện không có đường nào để có dữ liệu thật; giữ lại schema cho tương lai nếu
+  // làm UI quản lý biến thể riêng.
   hasVariants Boolean               @default(false)
   variants    ProductVariantCache[]
 
-  // Danh mục — name/slug do LeadBase sở hữu (giống price/stock), excerpt/body/seo site tự quản.
-  // Nhiều-nhiều (xem Category) — sync (productsSync.ts) chỉ gán ĐÚNG 1 category LeadBase gửi mỗi
-  // lần, nhưng quan hệ nhiều-nhiều để sau này site tự gắn thêm category phụ nếu cần.
+  // Danh mục - nhiều-nhiều (xem Category), admin tự gắn qua /admin/products.
   categories Category[]
 
   // Thuong hieu - 1-nhieu (1 san pham dung 1 thuong hieu, khac categories la nhieu-nhieu) - dung
@@ -558,8 +551,8 @@ model ProductReview {
   createdAt DateTime @default(now())
 }
 
-// 1 tổ hợp biến thể (vd "Đỏ / M") của 1 ProductCache — hoàn toàn do LeadBase đẩy sang, instance
-// KHÔNG sửa tay (khác chính ProductCache, nơi name/description/imageUrls do website tự quản).
+// 1 tổ hợp biến thể (vd "Đỏ / M") của 1 ProductCache. HIỆN CHƯA CÓ ĐƯỜNG NÀO TẠO DỮ LIỆU (xem
+// ghi chú ProductCache.hasVariants ở trên) - giữ model cho tương lai.
 model ProductVariantCache {
   id                String       @id @default(cuid())
   productCacheId    String
@@ -578,22 +571,25 @@ model ProductVariantCache {
 }
 
 model CartOrder {
-  id                String    @id @default(cuid())
-  customerId        String? // null = guest
-  customer          Customer? @relation(fields: [customerId], references: [id])
-  status            String // 'pending' | 'sent_to_leadbase' | 'failed'
-  customerName      String
-  customerPhone     String
-  customerAddress   String?
-  items             Json // [{ leadbaseProductId, name, price, quantity }]
-  total             Decimal
-  leadbaseOrderCode String?
-  sendError         String?
+  id              String    @id @default(cuid())
+  customerId      String? // null = guest
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  // Trang thai xu ly don noi bo - truoc day co gia tri 'sent_to_leadbase' (day sang CRM ngoai),
+  // gio quan ly hoan toan tai cho qua /admin/orders (routes/admin/orders.ts).
+  status          String // 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled'
+  customerName    String
+  customerPhone   String
+  customerAddress String?
+  items           Json // [{ leadbaseProductId, name, price, quantity }]
+  total           Decimal
+  // Ma don hang hien thi cho khach (vd tra cuu don) - truoc day la ma LeadBase tra ve sau khi
+  // nhan don, gio tu sinh cuc bo luc tao don (routes/admin/orders.ts, agents/tools/
+  // customerSupportTools.ts) dang "ORD-{yyyyMMdd}-{6 ky tu ngau nhien}".
+  orderCode       String?
 
   // Thanh toan (system_design.md §payment) - 'cod'|'bank_transfer'|'vnpay', khop key trong bang
   // PaymentMethod.method. cod/bank_transfer khong dung gateway nao - paymentStatus giu nguyen
-  // 'unpaid' mai mai, xac nhan da nhan tien la viec THU CONG ben LeadBase (giong cach Order that
-  // van duoc quan ly o do), site-engine chi hien thi thong tin. vnpay: paymentStatus chi chuyen
+  // 'unpaid' cho toi khi admin tu xac nhan qua /admin/orders. vnpay: paymentStatus chi chuyen
   // 'paid' qua IPN (routes/public/vnpay.ts) - KHONG qua vnp_ReturnUrl (browser return khong dang
   // tin cay de chot da thanh toan that, xem services/vnpay.ts).
   paymentMethod String    @default("cod")
@@ -602,9 +598,8 @@ model CartOrder {
   paidAt        DateTime?
 
   // Phi van chuyen (khop ShippingRule ben duoi). customerProvince BAT BUOC nhap luc checkout (khac
-  // customerAddress tu do) de co the khop rule theo tinh - LeadBase da co san cot Customer.province
-  // tuong tu nen truyen thang qua, khong can chuan hoa lai o site-engine. "total" giu nguyen =
-  // tien HANG (khong doi, van gui LeadBase dung nhu truoc), shippingFee tach rieng.
+  // customerAddress tu do) de co the khop rule theo tinh. "total" giu nguyen = tien HANG (khong
+  // doi), shippingFee tach rieng.
   customerProvince String?
   shippingFee      Int     @default(0)
 
@@ -625,7 +620,6 @@ model CartOrder {
   // cart.liquid/product-detail.liquid (khong can migration moi lan them field). Khac
   // customFields cua Post/Category/... (do ADMIN tu dat) - o day nguon la CHINH KHACH nhap qua
   // form public, xem routes/public/cart.ts checkoutSchema + collectCustomFields() trong theme.
-  // KHONG day sang LeadBase (sendOrderToLeadbase khong biet field nay), chi luu o site-engine.
   customFields Json?
 
   createdAt DateTime @default(now())
@@ -772,8 +766,10 @@ model Media {
   // openMediaPicker) - xem tung noi goi de biet co dung hay khong (vd danh sach URL rời rac nhu
   // Product.imageUrls thi khong gan duoc, chi noi thao tac truc tiep 1 the <img> moi dung).
   alt              String?
+  width            Int?
+  height           Int?
   uploadedByUserId Int?
-  uploadedBy       User?    @relation(fields: [uploadedByUserId], references: [leadbaseUserId])
+  uploadedBy       User?    @relation(fields: [uploadedByUserId], references: [id])
   createdAt        DateTime @default(now())
 }
 
@@ -787,4 +783,75 @@ model Redirect {
   toPath     String // vd "/blog/bai-viet-moi"
   statusCode Int      @default(301)
   createdAt  DateTime @default(now())
+}
+
+// OAuth 2.0 (Ported from lead-base-node)
+
+model oauth_audit_logs {
+  id         Int      @id @default(autoincrement())
+  event      String   @db.VarChar(50)
+  client_id  String?  @db.Uuid
+  user_id    Int?
+  token_id   String?  @db.VarChar(80)
+  ip         String?  @db.VarChar(64)
+  detail     String?
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([event, created_at], map: "oauth_audit_logs_event_created_at_index")
+  @@index([user_id], map: "oauth_audit_logs_user_id_index")
+}
+
+model oauth_clients {
+  id            String    @id @db.Uuid
+  owner_type    String?   @db.VarChar(255)
+  owner_id      Int?
+  name          String    @db.VarChar(255)
+  secret        String?   @db.VarChar(255)
+  provider      String?   @db.VarChar(255)
+  redirect_uris String
+  grant_types   String
+  revoked       Boolean
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+
+  @@index([owner_type, owner_id], map: "oauth_clients_owner_type_owner_id_index")
+}
+
+model oauth_access_tokens {
+  id         String    @id @db.VarChar(80)
+  user_id    Int?
+  client_id  String    @db.Uuid
+  name       String?   @db.VarChar(255)
+  scopes     String?
+  revoked    Boolean
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  expires_at DateTime? @db.Timestamp(0)
+
+  @@index([user_id], map: "oauth_access_tokens_user_id_index")
+}
+
+model oauth_auth_codes {
+  id                    String    @id @db.VarChar(80)
+  user_id               Int
+  client_id             String    @db.Uuid
+  scopes                String?
+  revoked               Boolean
+  expires_at            DateTime? @db.Timestamp(0)
+  redirect_uri          String?
+  code_challenge        String?   @db.VarChar(255)
+  code_challenge_method String?   @db.VarChar(10)
+
+  @@index([user_id], map: "oauth_auth_codes_user_id_index")
+}
+
+model oauth_refresh_tokens {
+  id              String    @id @db.VarChar(80)
+  access_token_id String    @db.VarChar(80)
+  revoked         Boolean
+  expires_at      DateTime? @db.Timestamp(0)
+  family_id       String?   @db.Uuid
+
+  @@index([access_token_id], map: "oauth_refresh_tokens_access_token_id_index")
+  @@index([family_id], map: "oauth_refresh_tokens_family_id_index")
 }
