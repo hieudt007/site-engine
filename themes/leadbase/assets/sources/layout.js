@@ -76,3 +76,20 @@ document.addEventListener('add-to-cart-success', (e) => {
         window.flyToCart(e.detail.source);
     }
 });
+
+// Accessibility fixes for dynamically generated content (e.g. rich text editor)
+document.addEventListener("DOMContentLoaded", () => {
+    // Add aria-label to lightbox links missing discernible text
+    document.querySelectorAll("a.image-lightbox").forEach(a => {
+        if (!a.getAttribute("aria-label") && !a.textContent.trim()) {
+            a.setAttribute("aria-label", "Phóng to ảnh");
+        }
+    });
+
+    // Add generic alt text to images missing it
+    document.querySelectorAll("img").forEach(img => {
+        if (!img.hasAttribute("alt") || img.getAttribute("alt").trim() === "") {
+            img.setAttribute("alt", "Hình ảnh minh họa");
+        }
+    });
+});
