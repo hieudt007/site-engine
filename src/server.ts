@@ -5,14 +5,13 @@ import Fastify from "fastify";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import fastifyRateLimit from "@fastify/rate-limit";
+import fastifyCompress from "@fastify/compress";
 import { config } from "./config.js";
-import { prisma } from "./db.js";
 import { CacheService } from "./services/CacheService.js";
 import { configureSecurity } from "./plugins/security.js";
 import { registerSession } from "./plugins/session.js";
-import { deleteOtherUserSessions } from "./services/sessionStore.js";
 import { registerAdminRoutes } from "./routes/admin/index.js";
-import { registerOAuthRoutes } from "./routes/admin/oauth.js";
+import { registerAuthRoutes } from "./routes/admin/auth.js";
 import { registerPostRoutes } from "./routes/admin/posts.js";
 import { registerPostsAiRoutes } from "./routes/admin/postsAi.js";
 import { registerPostsUiRoutes } from "./routes/admin/postsUi.js";
@@ -58,7 +57,11 @@ import { registerThemesUiRoutes } from "./routes/admin/themesUi.js";
 import { registerThemeCustomizeRoutes } from "./routes/admin/themeCustomize.js";
 import { registerThemeChatRoutes } from "./routes/admin/themeChat.js";
 import { registerAiChatRoutes } from "./routes/admin/aiChat.js";
-import { registerMcpChatRoutes } from "./routes/admin/mcpChat.js"; // route THU NGHIEM nen mong MCP - song song, khong thay the aiChat.js
+import { registerMcpChatRoutes } from "./routes/admin/mcpChat.js"; // route THU NGHIEM nen mong MCP - song song, khong thay Truy cap tu MCP Client
+import mcpDocsRoutes from "./routes/admin/mcpDocs.js";
+import oauthTokensRoutes from "./routes/admin/oauthTokens.js";
+import oauthRoutes from "./routes/public/oauth.js";
+import { registerMcpRoutes } from "./routes/public/mcpServer.js";
 import { registerCustomerChatAdminRoutes } from "./routes/admin/customerChat.js";
 import { registerCustomerChatPublicRoutes } from "./routes/public/customerChat.js";
 import { registerThemeEditorUiRoutes } from "./routes/admin/themeEditorUi.js";
@@ -79,23 +82,14 @@ import { registerVnpayRoutes } from "./routes/public/vnpay.js";
 import { registerProvincesRoutes } from "./routes/public/provinces.js";
 import { registerAddressAutocompleteRoutes } from "./routes/public/addressAutocomplete.js";
 import { registerProductsPublicRoutes } from "./routes/public/products.js";
-import { registerProductsSyncRoutes } from "./routes/public/productsSync.js";
-import { registerLeadbasePostRoutes } from "./routes/public/leadbasePosts.js";
 import { registerReviewRoutes } from "./routes/public/reviews.js";
 import { registerSeoRoutes } from "./routes/public/seo.js";
 import { registerDynamicPrefixRoutes } from "./routes/public/dynamicPrefixes.js";
 import { registerPublicSearchRoutes } from "./routes/public/search.js";
-import { startOrderRetryCron } from "./services/orderRetry.js";
 import { startPublishScheduler } from "./services/publishScheduler.js";
 import { startAutomationScheduler } from "./services/automationScheduler.js";
 import { startAiChatCleanupCron } from "./services/aiChatCleanup.js";
 import { registerGeoMarkdownHook } from "./services/geoMarkdown.js";
-
-declare module "fastify" {
-  interface FastifyRequest {
-    rawBody?: string;
-  }
-}
 
 const app = Fastify({
   logger: {
@@ -103,6 +97,8 @@ const app = Fastify({
   },
   trustProxy: true,
 });
+
+app.register(fastifyCompress, { global: true });
 
 // Global Error Handler - Chống rò rỉ Stack Trace
 app.setErrorHandler((error: any, request, reply) => {
@@ -124,19 +120,6 @@ app.setErrorHandler((error: any, request, reply) => {
 });
 
 registerGeoMarkdownHook(app);
-
-// Giữ lại raw body (chuỗi thô trước khi JSON.parse) để verify chữ ký HMAC theo đúng byte đã ký
-// (security.ts signSiteEngineRequest/verifySiteEngineRequest) — cần cho routes/public/
-// productsSync.ts. Đăng ký GLOBAL 1 lần duy nhất (Fastify chỉ cho 1 parser/content-type), các
-// route JSON khác (vd admin/posts.ts) không bị ảnh hưởng, chỉ có thêm request.rawBody.
-app.addContentTypeParser("application/json", { parseAs: "string" }, (request, body, done) => {
-  request.rawBody = body as string;
-  try {
-    done(null, body ? JSON.parse(body as string) : {});
-  } catch (err) {
-    done(err as Error, undefined);
-  }
-});
 
 app.get("/health", async () => {
   return { status: "ok" };
@@ -251,27 +234,7 @@ async function start(): Promise<void> {
     decorateReply: false,
   });
 
-  // Dev-only backdoor de test /admin ma khong can dang nhap that qua LeadBase OAuth - CHI bat
-  // khi khong phai production. Set session qua chinh @fastify/session (Set-Cookie header that,
-  // ky dung dinh dang), tranh phai tu tay ky/dan cookie qua DevTools console.
-  if (!config.isProduction) {
-    app.get("/dev/login-as-admin", async (request, reply) => {
-      const user = await prisma.user.upsert({
-        where: { leadbaseUserId: 999999 },
-        create: { leadbaseUserId: 999999, name: "Local Admin", email: "local-admin@test.local", role: "admin", lastLoginAt: new Date() },
-        update: { lastLoginAt: new Date() },
-      });
-      request.session.set("userId", user.leadbaseUserId);
-      request.session.set("email", user.email);
-      request.session.set("name", user.name);
-      request.session.set("role", user.role);
-      await request.session.save();
-      await deleteOtherUserSessions(user.leadbaseUserId, request.session.sessionId);
-      return reply.redirect("/admin");
-    });
-  }
-
-  await registerOAuthRoutes(app);
+  await registerAuthRoutes(app);
   await registerAdminRoutes(app);
   await registerPostRoutes(app);
   await registerPostsAiRoutes(app);
@@ -317,6 +280,10 @@ async function start(): Promise<void> {
   await registerThemeChatRoutes(app);
   await registerAiChatRoutes(app);
   await registerMcpChatRoutes(app);
+  await mcpDocsRoutes(app);
+  await oauthTokensRoutes(app);
+  await app.register(oauthRoutes);
+  await registerMcpRoutes(app);
   await registerCustomerChatAdminRoutes(app);
   await registerCustomerChatPublicRoutes(app);
   await registerThemeEditorUiRoutes(app);
@@ -334,8 +301,6 @@ async function start(): Promise<void> {
   await registerProductsPublicRoutes(app);
   await registerPublicSearchRoutes(app);
   await registerDynamicPrefixRoutes(app);
-  await registerProductsSyncRoutes(app);
-  await registerLeadbasePostRoutes(app);
   await registerReviewRoutes(app);
   await registerCartRoutes(app);
 
@@ -346,7 +311,6 @@ async function start(): Promise<void> {
 
   // Cron jobs (chỉ chay tren main worker neu pm2, hoac chay local doc lap)
   if (process.env.NODE_APP_INSTANCE === undefined || process.env.NODE_APP_INSTANCE === "0") {
-    startOrderRetryCron();
     startPublishScheduler();
     startAiChatCleanupCron();
     startAutomationScheduler();
